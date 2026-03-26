@@ -643,9 +643,9 @@ export default {
 
         getStatusClass: function (status) {
             var map = {
-                open: "m-badge--active",
-                closed: "m-badge--inactive",
-                coming_soon: "m-badge--plan-paused",
+                open: "m-badge--open",
+                closed: "m-badge--closed",
+                coming_soon: "m-badge--coming_soon",
             };
             return map[status] || "m-badge--inactive";
         },

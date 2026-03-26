@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use LaravelAndVueJS\Traits\LaravelPermissionToVueJS;
+use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
@@ -40,11 +41,6 @@ class User extends Authenticatable
     const STATUS_INACTIVE = 'inactive';
 
     const STATUS_SUSPENDED = 'suspended';
-
-    public function getFullNameAttribute(): string
-    {
-        return trim("{$this->first_name} {$this->last_name}");
-    }
 
     public function branches(): BelongsToMany
     {
@@ -107,6 +103,25 @@ class User extends Authenticatable
         }
 
         $this->attachPlan($ratePlanId, $startDate);
+    }
+
+    public function allowedEmployeesRoles(): array
+    {
+        $roles = Role::query()->pluck('id', 'name');
+
+        if ($this->hasRole('super admin')) {
+            return $roles->values()->all();
+        }
+
+        $excluded = ['super admin'];
+        if (! $this->hasRole('admin')) {
+            $excluded[] = 'admin';
+        }
+
+        return $roles
+            ->except($excluded)
+            ->values()
+            ->all();
     }
 
     /**

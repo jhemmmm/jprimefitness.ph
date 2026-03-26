@@ -567,7 +567,12 @@ export default {
         },
 
         statusBadge(s) {
-            return { draft: "m-badge--inactive", approved: "m-badge--plan", partially_paid: "m-badge--plan", paid: "m-badge--active" }[s] ?? "";
+            return {
+                draft: "m-badge--draft",
+                approved: "m-badge--approved",
+                partially_paid: "m-badge--partial",
+                paid: "m-badge--active",
+            }[s] ?? "";
         },
 
         formatMoney(v) {

@@ -306,7 +306,11 @@ export default {
         },
 
         statusBadge(s) {
-            return { pending: "m-badge--inactive", partial: "m-badge--plan", fully_deducted: "m-badge--active" }[s] ?? "";
+            return {
+                pending: "m-badge--pending",
+                partial: "m-badge--partial",
+                fully_deducted: "m-badge--fully_deducted",
+            }[s] ?? "";
         },
 
         formatMoney(v) {

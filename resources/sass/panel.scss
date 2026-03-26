@@ -1153,6 +1153,24 @@ body.auth-body {
 }
 
 // ── Custom badges ──────────────────────────────────────────────
+@mixin badge-variant($bg, $text, $border, $dot: null) {
+    background: $bg;
+    color: $text;
+    border-color: $border;
+
+    @if $dot != null {
+        &::before {
+            content: "";
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: $dot;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+    }
+}
+
 .m-badge {
     display: inline-flex;
     align-items: center;
@@ -1166,130 +1184,167 @@ body.auth-body {
     white-space: nowrap;
 
     &--active {
-        background: rgba(25, 135, 84, 0.1);
-        color: #146c43;
-        border-color: rgba(25, 135, 84, 0.2);
-        &::before {
-            content: "";
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #198754;
-            display: inline-block;
-            flex-shrink: 0;
-        }
+        @include badge-variant(rgba(34, 197, 94, 0.12), #166534, rgba(34, 197, 94, 0.24), #16a34a);
     }
 
     &--inactive {
-        background: rgba(108, 117, 125, 0.1);
-        color: #495057;
-        border-color: rgba(108, 117, 125, 0.2);
-        &::before {
-            content: "";
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #6c757d;
-            display: inline-block;
-            flex-shrink: 0;
-        }
+        @include badge-variant(rgba(100, 116, 139, 0.12), #475569, rgba(100, 116, 139, 0.24), #64748b);
     }
 
     &--suspended {
-        background: rgba(220, 53, 69, 0.1);
-        color: #b02a37;
-        border-color: rgba(220, 53, 69, 0.18);
-        &::before {
-            content: "";
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: #dc3545;
-            display: inline-block;
-            flex-shrink: 0;
-        }
+        @include badge-variant(rgba(225, 29, 72, 0.12), #9f1239, rgba(225, 29, 72, 0.24), #e11d48);
+    }
+
+    &--open {
+        @include badge-variant(rgba(6, 182, 212, 0.12), #0f766e, rgba(6, 182, 212, 0.22), #0891b2);
+    }
+
+    &--closed {
+        @include badge-variant(rgba(71, 85, 105, 0.14), #334155, rgba(71, 85, 105, 0.24), #475569);
+    }
+
+    &--coming_soon {
+        @include badge-variant(rgba(168, 85, 247, 0.12), #7e22ce, rgba(168, 85, 247, 0.24), #9333ea);
+    }
+
+    &--approved {
+        @include badge-variant(rgba(37, 99, 235, 0.12), #1d4ed8, rgba(37, 99, 235, 0.22), #2563eb);
+    }
+
+    &--draft {
+        @include badge-variant(rgba(148, 163, 184, 0.14), #475569, rgba(148, 163, 184, 0.25), #94a3b8);
+    }
+
+    &--pending {
+        @include badge-variant(rgba(245, 158, 11, 0.14), #b45309, rgba(245, 158, 11, 0.24), #d97706);
+    }
+
+    &--partial {
+        @include badge-variant(rgba(249, 115, 22, 0.14), #c2410c, rgba(249, 115, 22, 0.24), #ea580c);
+    }
+
+    &--fully_deducted {
+        @include badge-variant(rgba(20, 184, 166, 0.14), #0f766e, rgba(20, 184, 166, 0.24), #14b8a6);
+    }
+
+    &--super-admin {
+        @include badge-variant(rgba(88, 28, 135, 0.12), #6b21a8, rgba(88, 28, 135, 0.22));
+    }
+
+    &--admin {
+        @include badge-variant(rgba(190, 24, 93, 0.12), #9d174d, rgba(190, 24, 93, 0.22));
+    }
+
+    &--manager {
+        @include badge-variant(rgba(79, 70, 229, 0.12), #4338ca, rgba(79, 70, 229, 0.22));
+    }
+
+    &--staff {
+        @include badge-variant(rgba(2, 132, 199, 0.12), #0369a1, rgba(2, 132, 199, 0.22));
+    }
+
+    &--member {
+        @include badge-variant(rgba(22, 163, 74, 0.12), #15803d, rgba(22, 163, 74, 0.22));
+    }
+
+    &--coach {
+        @include badge-variant(rgba(234, 88, 12, 0.12), #c2410c, rgba(234, 88, 12, 0.22));
+    }
+
+    &--employee {
+        @include badge-variant(rgba(13, 148, 136, 0.12), #0f766e, rgba(13, 148, 136, 0.22));
     }
 
     &--plan {
-        background: rgba(13, 110, 253, 0.08);
-        color: #0a58ca;
-        border-color: rgba(13, 110, 253, 0.15);
+        @include badge-variant(rgba(37, 99, 235, 0.1), #1d4ed8, rgba(37, 99, 235, 0.18));
     }
 
     &--plan-active {
-        background: rgba(25, 135, 84, 0.1);
-        color: #146c43;
-        border-color: rgba(25, 135, 84, 0.2);
+        @include badge-variant(rgba(34, 197, 94, 0.12), #166534, rgba(34, 197, 94, 0.24));
     }
 
     &--plan-expired {
-        background: rgba(108, 117, 125, 0.1);
-        color: #495057;
-        border-color: rgba(108, 117, 125, 0.2);
+        @include badge-variant(rgba(120, 113, 108, 0.14), #57534e, rgba(120, 113, 108, 0.24));
     }
 
     &--plan-cancelled {
-        background: rgba(220, 53, 69, 0.1);
-        color: #b02a37;
-        border-color: rgba(220, 53, 69, 0.18);
+        @include badge-variant(rgba(225, 29, 72, 0.12), #9f1239, rgba(225, 29, 72, 0.24));
     }
 
     &--plan-paused {
-        background: rgba(255, 193, 7, 0.12);
-        color: #856404;
-        border-color: rgba(255, 193, 7, 0.25);
+        @include badge-variant(rgba(217, 119, 6, 0.14), #b45309, rgba(217, 119, 6, 0.24));
     }
 }
 
 [data-bs-theme="dark"] {
     .m-badge--active {
-        background: rgba(25, 135, 84, 0.18);
-        color: #75b798;
-        border-color: rgba(25, 135, 84, 0.3);
-        &::before {
-            background: #75b798;
-        }
+        @include badge-variant(rgba(34, 197, 94, 0.18), #86efac, rgba(34, 197, 94, 0.32), #4ade80);
     }
     .m-badge--inactive {
-        background: rgba(108, 117, 125, 0.15);
-        color: #adb5bd;
-        border-color: rgba(108, 117, 125, 0.25);
-        &::before {
-            background: #adb5bd;
-        }
+        @include badge-variant(rgba(100, 116, 139, 0.2), #cbd5e1, rgba(100, 116, 139, 0.32), #94a3b8);
     }
     .m-badge--suspended {
-        background: rgba(220, 53, 69, 0.18);
-        color: #ea868f;
-        border-color: rgba(220, 53, 69, 0.3);
-        &::before {
-            background: #ea868f;
-        }
+        @include badge-variant(rgba(225, 29, 72, 0.2), #fda4af, rgba(225, 29, 72, 0.34), #fb7185);
+    }
+    .m-badge--open {
+        @include badge-variant(rgba(6, 182, 212, 0.2), #67e8f9, rgba(6, 182, 212, 0.32), #22d3ee);
+    }
+    .m-badge--closed {
+        @include badge-variant(rgba(71, 85, 105, 0.24), #d4d4d8, rgba(148, 163, 184, 0.28), #94a3b8);
+    }
+    .m-badge--coming_soon {
+        @include badge-variant(rgba(168, 85, 247, 0.2), #d8b4fe, rgba(168, 85, 247, 0.32), #c084fc);
+    }
+    .m-badge--approved {
+        @include badge-variant(rgba(37, 99, 235, 0.2), #93c5fd, rgba(37, 99, 235, 0.32), #60a5fa);
+    }
+    .m-badge--draft {
+        @include badge-variant(rgba(148, 163, 184, 0.2), #e2e8f0, rgba(148, 163, 184, 0.3), #cbd5e1);
+    }
+    .m-badge--pending {
+        @include badge-variant(rgba(245, 158, 11, 0.22), #fcd34d, rgba(245, 158, 11, 0.34), #fbbf24);
+    }
+    .m-badge--partial {
+        @include badge-variant(rgba(249, 115, 22, 0.22), #fdba74, rgba(249, 115, 22, 0.34), #fb923c);
+    }
+    .m-badge--fully_deducted {
+        @include badge-variant(rgba(20, 184, 166, 0.22), #99f6e4, rgba(20, 184, 166, 0.34), #5eead4);
+    }
+    .m-badge--super-admin {
+        @include badge-variant(rgba(88, 28, 135, 0.22), #e9d5ff, rgba(88, 28, 135, 0.34), #d8b4fe);
+    }
+    .m-badge--admin {
+        @include badge-variant(rgba(190, 24, 93, 0.22), #f9a8d4, rgba(190, 24, 93, 0.34), #f472b6);
+    }
+    .m-badge--manager {
+        @include badge-variant(rgba(79, 70, 229, 0.22), #c7d2fe, rgba(79, 70, 229, 0.34), #a5b4fc);
+    }
+    .m-badge--staff {
+        @include badge-variant(rgba(2, 132, 199, 0.22), #bae6fd, rgba(2, 132, 199, 0.34), #7dd3fc);
+    }
+    .m-badge--member {
+        @include badge-variant(rgba(22, 163, 74, 0.22), #bbf7d0, rgba(22, 163, 74, 0.34), #86efac);
+    }
+    .m-badge--coach {
+        @include badge-variant(rgba(234, 88, 12, 0.22), #fdba74, rgba(234, 88, 12, 0.34), #fb923c);
+    }
+    .m-badge--employee {
+        @include badge-variant(rgba(13, 148, 136, 0.22), #99f6e4, rgba(13, 148, 136, 0.34), #5eead4);
     }
     .m-badge--plan {
-        background: rgba(13, 110, 253, 0.15);
-        color: #6ea8fe;
-        border-color: rgba(13, 110, 253, 0.25);
+        @include badge-variant(rgba(37, 99, 235, 0.18), #93c5fd, rgba(37, 99, 235, 0.28));
     }
     .m-badge--plan-active {
-        background: rgba(25, 135, 84, 0.18);
-        color: #75b798;
-        border-color: rgba(25, 135, 84, 0.3);
+        @include badge-variant(rgba(34, 197, 94, 0.18), #86efac, rgba(34, 197, 94, 0.3));
     }
     .m-badge--plan-expired {
-        background: rgba(108, 117, 125, 0.15);
-        color: #adb5bd;
-        border-color: rgba(108, 117, 125, 0.25);
+        @include badge-variant(rgba(120, 113, 108, 0.2), #d6d3d1, rgba(120, 113, 108, 0.3));
     }
     .m-badge--plan-cancelled {
-        background: rgba(220, 53, 69, 0.18);
-        color: #ea868f;
-        border-color: rgba(220, 53, 69, 0.3);
+        @include badge-variant(rgba(225, 29, 72, 0.2), #fda4af, rgba(225, 29, 72, 0.32));
     }
     .m-badge--plan-paused {
-        background: rgba(255, 193, 7, 0.15);
-        color: #ffc107;
-        border-color: rgba(255, 193, 7, 0.3);
+        @include badge-variant(rgba(217, 119, 6, 0.2), #fdba74, rgba(217, 119, 6, 0.32));
     }
 }
 
@@ -1402,7 +1457,12 @@ body.auth-body {
     animation: skeleton-shimmer 1.4s infinite linear;
 
     [data-bs-theme="dark"] & {
-        background: linear-gradient(90deg, rgba(255, 255, 255, 0.07) 25%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.07) 75%);
+        background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.07) 25%,
+            rgba(255, 255, 255, 0.12) 50%,
+            rgba(255, 255, 255, 0.07) 75%
+        );
         background-size: 800px 100%;
     }
 }

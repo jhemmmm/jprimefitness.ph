@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             BranchSeeder::class,
             UserSeeder::class,
             WalkInSeeder::class,
+            AttendanceSeeder::class,
         ]);
 
         $user = User::create([

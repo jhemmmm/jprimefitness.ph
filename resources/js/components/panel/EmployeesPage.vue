@@ -89,8 +89,8 @@
                   </div>
                </div>
                <div class="d-flex gap-2 flex-wrap">
-                  <span class="m-badge" :class="roleBadge(emp.role)">{{ roleLabel(emp.role) }}</span>
-                  <span class="m-badge" :class="statusBadge(emp.status)">{{ emp.status }}</span>
+                  <span v-for="role in emp.roles" :key="role.id" :class="['m-badge', $filters.roleBadge(role.name)]">{{ $filters.capitalize(role.name) }}</span>
+                  <span :class="['m-badge', $filters.statusBadge(emp.status)]">{{ $filters.capitalize(emp.status) }}</span>
                </div>
                <div class="small text-muted mt-2" v-if="emp.branches && emp.branches.length">
                   <i class="bi bi-geo-alt me-1"></i>
@@ -127,10 +127,10 @@
                      </div>
                      <div class="col-md-6">
                         <label class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
-                        <select class="form-select" :class="{ 'is-invalid': formErrors.role }" v-model="form.role">
-                           <option v-for="r in allowedRoles" :key="r.value" :value="r.value">{{ $filters.capitalize(r.label) }}</option>
-                        </select>
-                        <div class="invalid-feedback" v-if="formErrors.role">{{ formErrors.role[0] }}</div>
+                        <div :class="{ 'is-invalid': formErrors.role_ids }">
+                           <MultiSelect v-model="form.role_ids" :options="allowedRoles" placeholder="Select roles..." searchable />
+                        </div>
+                        <div class="invalid-feedback" v-if="formErrors.role_ids">{{ formErrors.role_ids[0] }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label fw-semibold">Status <span class="text-danger">*</span></label>
@@ -186,7 +186,7 @@
                </div>
                <div class="modal-body" v-if="deleteTarget">
                   <p>
-                     Are you sure you want to delete <strong>{{ deleteTarget.first_name }} {{ deleteTarget.last_name }}</strong
+                     Are you sure you want to delete <strong>{{ deleteTarget.name }}</strong
                      >?
                   </p>
                   <p class="text-muted small mb-0">This action cannot be undone.</p>
@@ -216,7 +216,6 @@ export default {
       branchesData: { type: Array, default: () => [] },
       rolesData: { type: Array, default: () => [] },
    },
-
    data() {
       return {
          loading: true,
@@ -240,7 +239,6 @@ export default {
          deleting: false,
       };
    },
-
    mounted() {
       this.employeeModal = new Modal(this.$refs.employeeFormModal);
       this.deleteModal = new Modal(this.$refs.employeeDeleteModal);
@@ -248,9 +246,8 @@ export default {
    },
    methods: {
       emptyForm: function () {
-         return { name: "", email: "", phone: "", role: "staff", status: "active", branch_ids: [], daily_rate: "", password: "" };
+         return { name: "", email: "", phone: "", status: "active", role_ids: [], branch_ids: [], daily_rate: "", password: "" };
       },
-
       fetchEmployees: function () {
          this.loading = true;
          axios
@@ -264,18 +261,17 @@ export default {
             .catch((err) => console.error(err))
             .finally(() => (this.loading = false));
       },
-
       onSearchInput: function () {
          clearTimeout(this.searchTimer);
          this.searchTimer = setTimeout(() => this.fetchEmployees(), 500);
       },
-      clearFilters() {
+      clearFilters: function () {
          this.search = "";
          this.selectedRole = "";
          this.selectedStatus = "";
          this.selectedBranch = "";
       },
-      openAdd() {
+      openAdd: function () {
          this.form = this.emptyForm();
          this.formErrors = {};
          this.modalMode = "create";
@@ -284,11 +280,10 @@ export default {
       },
       openEdit(emp) {
          this.form = {
-            first_name: emp.first_name,
-            last_name: emp.last_name,
+            name: emp.name,
             email: emp.email,
             phone: emp.phone || "",
-            role: emp.role,
+            role_ids: emp.roles ? emp.roles.map((r) => r.id) : [],
             status: emp.status,
             branch_ids: emp.branches ? emp.branches.map((b) => b.id) : [],
             daily_rate: emp.daily_rate || "",
@@ -299,56 +294,42 @@ export default {
          this.editTarget = emp;
          this.employeeModal.show();
       },
-      async submitForm() {
+      submitForm: function () {
          this.saving = true;
          this.formErrors = {};
-         try {
-            const payload = { ...this.form, branch_ids: this.form.branch_ids };
-
-            if (this.modalMode === "create") {
-               const res = await axios.post("/panel/employees", payload);
-               this.employees.push(res.data);
-            } else {
-               const res = await axios.put(`/panel/employees/${this.editTarget.id}`, payload);
-               const idx = this.employees.findIndex((e) => e.id === this.editTarget.id);
-               if (idx !== -1) this.employees.splice(idx, 1, res.data);
-            }
-            this.employeeModal.hide();
-         } catch (err) {
-            if (err.response?.status === 422) {
-               this.formErrors = err.response.data.errors;
-            }
-         } finally {
-            this.saving = false;
-         }
+         const payload = { ...this.form, branch_ids: this.form.branch_ids };
+         const request = this.modalMode === "create" ? axios.post("/panel/employees", payload) : axios.put(`/panel/employees/${this.editTarget.id}`, payload);
+         request
+            .then((res) => {
+               if (this.modalMode === "create") {
+                  this.employees.push(res.data);
+               } else {
+                  const idx = this.employees.findIndex((e) => e.id === this.editTarget.id);
+                  if (idx !== -1) this.employees.splice(idx, 1, res.data);
+               }
+               this.employeeModal.hide();
+            })
+            .catch((err) => {
+               if (err.response?.status === 422) {
+                  this.formErrors = err.response.data.errors;
+               }
+            })
+            .finally(() => (this.saving = false));
       },
-      confirmDelete(emp) {
+      confirmDelete: function (emp) {
          this.deleteTarget = emp;
          this.deleteModal.show();
       },
-      async doDelete() {
+      doDelete: function () {
          this.deleting = true;
-         try {
-            await axios.delete(`/panel/employees/${this.deleteTarget.id}`);
-            this.employees = this.employees.filter((e) => e.id !== this.deleteTarget.id);
-            this.deleteModal.hide();
-         } catch (err) {
-            console.error(err);
-         } finally {
-            this.deleting = false;
-         }
-      },
-      initials(emp) {
-         return ((emp.first_name || "").charAt(0) + (emp.last_name || "").charAt(0)).toUpperCase();
-      },
-      roleLabel(role) {
-         return { super_admin: "Super Admin", admin: "Admin", manager: "Manager", staff: "Staff", coach: "Coach" }[role] ?? role;
-      },
-      roleBadge(role) {
-         return { super_admin: "m-badge--inactive", admin: "m-badge--active", manager: "m-badge--plan", staff: "m-badge--plan", coach: "m-badge--plan" }[role] ?? "";
-      },
-      statusBadge(status) {
-         return { active: "m-badge--active", inactive: "m-badge--inactive", suspended: "m-badge--inactive" }[status] ?? "";
+         axios
+            .delete(`/panel/employees/${this.deleteTarget.id}`)
+            .then(() => {
+               this.employees = this.employees.filter((e) => e.id !== this.deleteTarget.id);
+               this.deleteModal.hide();
+            })
+            .catch((err) => console.error(err))
+            .finally(() => (this.deleting = false));
       },
    },
 
@@ -361,7 +342,12 @@ export default {
             default: ["super admin", "admin"],
          };
          const currentRole = this.is("super admin") ? "super admin" : this.is("admin") ? "admin" : "default";
-         return this.rolesData.filter((r) => allowed.includes(r.name) && !roleRestrictions[currentRole].includes(r.name));
+         return this.rolesData
+            .filter((r) => allowed.includes(r.name) && !roleRestrictions[currentRole].includes(r.name))
+            .map((r) => ({
+               id: r.id,
+               name: this.$filters.capitalize(r.name),
+            }));
       },
       hasFilters() {
          return !!(this.search || this.selectedRole || this.selectedStatus || this.selectedBranch);

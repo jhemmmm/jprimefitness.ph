@@ -41,8 +41,8 @@ class EmployeeController extends Controller
      */
     public function list(Request $request): JsonResponse
     {
-        $employees = User::role('employee')
-            ->with('branches')
+        $employees = User::role(['employee', 'coach', 'manager', 'admin', 'staff'])
+            ->with('branches', 'roles')
             ->when(!empty($request->search), fn($q) => $q->where(function ($qq) use ($request) {
                 $qq->where('name', 'like', "%{$request->search}%")->orWhere('email', 'like', "%{$request->search}%");
             }))
@@ -59,96 +59,83 @@ class EmployeeController extends Controller
         return response()->json($employees);
     }
 
+    /**
+     * Store
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function store(Request $request): JsonResponse
     {
-        $actor = auth()->user();
-        $allowedRoles = match (true) {
-            $actor->isSuperAdmin() => [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_MANAGER, User::ROLE_STAFF, User::ROLE_COACH],
-            $actor->isAdminOrAbove() => [User::ROLE_ADMIN, User::ROLE_MANAGER, User::ROLE_STAFF, User::ROLE_COACH],
-            default => [User::ROLE_MANAGER, User::ROLE_STAFF, User::ROLE_COACH],
-        };
-
         $data = $request->validate([
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
+            'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string|max:20',
-            'role' => ['required', Rule::in($allowedRoles)],
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
-            'branch_ids' => 'nullable|array',
+            'branch_ids' => 'required|array|min:1',
             'branch_ids.*' => 'integer|exists:branches,id',
+            'role_ids' => 'required|array|min:1',
+            'role_ids.*' => ['integer', Rule::in(auth()->user()->allowedEmployeesRoles())],
             'daily_rate' => 'required|numeric|min:0',
             'password' => 'required|string|min:8',
         ]);
 
-        $data['password'] = Hash::make($data['password']);
+        $employee = User::create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'status' => $data['status'],
+            'daily_rate' => $data['daily_rate'],
+            'password' => Hash::make($data['password']),
+        ]);
 
-        $branchIds = $data['branch_ids'] ?? ([]);
+        $employee->branches()->attach($data['branch_ids']);
+        $employee->roles()->attach($data['role_ids']);
 
-        // Ensure unique and valid assignment
-        $branchIds = array_values(array_unique(array_filter($branchIds, fn($id) => ! is_null($id))));
-
-        if (! $actor->isSuperAdmin()) {
-            $authorizedBranches = $actor->getBranchIds();
-            $branchIds = array_values(array_intersect($branchIds, $authorizedBranches));
-        }
-
-        $createData = $data;
-        unset($createData['branch_ids']);
-
-        $employee = User::create($createData);
-
-        $employee->syncBranches($branchIds);
-
-        return response()->json($employee->load('branches'), 201);
+        return response()->json($employee->load('branches', 'roles'), 201);
     }
 
+    /**
+     * Update
+     * @param Request $request
+     * @param User $employee
+     * @return JsonResponse
+     */
     public function update(Request $request, User $employee): JsonResponse
     {
-        $actor = auth()->user();
-        $allowedRoles = match (true) {
-            $actor->isSuperAdmin() => [User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, User::ROLE_MANAGER, User::ROLE_STAFF, User::ROLE_COACH],
-            $actor->isAdminOrAbove() => [User::ROLE_ADMIN, User::ROLE_MANAGER, User::ROLE_STAFF, User::ROLE_COACH],
-            default => [User::ROLE_MANAGER, User::ROLE_STAFF, User::ROLE_COACH],
-        };
-
         $data = $request->validate([
-            'first_name' => 'required|string|max:100',
-            'last_name' => 'required|string|max:100',
+            'name' => 'required|string|max:100',
             'email' => 'required|email|unique:users,email,' . $employee->id,
             'phone' => 'nullable|string|max:20',
-            'role' => ['required', Rule::in($allowedRoles)],
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
-            'branch_ids' => 'nullable|array',
+            'branch_ids' => 'required|array|min:1',
             'branch_ids.*' => 'integer|exists:branches,id',
+            'role_ids' => 'required|array|min:1',
+            'role_ids.*' => ['integer', Rule::in(auth()->user()->allowedEmployeesRoles())],
             'daily_rate' => 'required|numeric|min:0',
             'password' => 'nullable|string|min:8',
         ]);
 
-        if (empty($data['password'])) {
-            unset($data['password']);
-        } else {
-            $data['password'] = Hash::make($data['password']);
-        }
+        $employee->update([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'phone' => $data['phone'] ?? null,
+            'status' => $data['status'],
+            'daily_rate' => $data['daily_rate'],
+            'password' => isset($data['password']) ? Hash::make($data['password']) : $employee->password,
+        ]);
 
-        $branchIds = $data['branch_ids'] ?? ([]);
-        $branchIds = array_values(array_unique(array_filter($branchIds, fn($id) => ! is_null($id))));
+        $employee->branches()->sync($data['branch_ids']);
 
-        if (! $actor->isSuperAdmin()) {
-            $authorizedBranches = $actor->getBranchIds();
-            $branchIds = array_values(array_intersect($branchIds, $authorizedBranches));
-        }
+        $employee->roles()->sync($data['role_ids']);
 
-        $updateData = $data;
-        unset($updateData['branch_ids']);
-
-        $employee->update($updateData);
-
-        $employee->syncBranches($branchIds);
-
-        return response()->json($employee->fresh()->load('branches'));
+        return response()->json($employee->fresh()->load('branches', 'roles'));
     }
 
+    /**
+     * Destroy
+     * @param User $employee
+     * @return JsonResponse
+     */
     public function destroy(User $employee): JsonResponse
     {
         abort_if($employee->id === auth()->id(), 403);
@@ -158,32 +145,31 @@ class EmployeeController extends Controller
         return response()->json(['message' => 'Employee deleted.']);
     }
 
+    /**
+     * Attendace
+     * @param Request $request
+     * @param User $employee
+     * @return JsonResponse
+     */
     public function attendance(Request $request, User $employee): JsonResponse
     {
-        $query = Attendance::where('user_id', $employee->id)
+        $record = Attendance::where('user_id', $employee->id)
             ->with('branch')
-            ->orderByDesc('checked_in_at');
+            ->when($request->filled('date_from'), fn($q) => $q->whereDate('checked_in_at', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn($q) => $q->whereDate('checked_in_at', '<=', $request->date_to))
+            ->orderByDesc('checked_in_at')
+            ->paginate(15);
 
-        if ($request->filled('date_from')) {
-            $query->whereDate('checked_in_at', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('checked_in_at', '<=', $request->date_to);
-        }
 
-        $records = $query->paginate(15);
+        $statsQuery = Attendance::where('user_id', $employee->id);
 
-        $stats = [
-            'total' => Attendance::where('user_id', $employee->id)->count(),
-            'this_month' => Attendance::where('user_id', $employee->id)
-                ->whereMonth('checked_in_at', now()->month)
-                ->whereYear('checked_in_at', now()->year)
-                ->count(),
-            'currently_in' => Attendance::where('user_id', $employee->id)
-                ->whereNull('checked_out_at')
-                ->count(),
-        ];
-
-        return response()->json(compact('records', 'stats'));
+        return response()->json([
+            'records' => $record,
+            'stats' => [
+                'total' => (clone $statsQuery)->count(),
+                'this_month' => (clone $statsQuery)->whereMonth('checked_in_at', now()->month)->whereYear('checked_in_at', now()->year)->count(),
+                'currently_in' => (clone $statsQuery)->whereNull('checked_out_at')->count(),
+            ],
+        ]);
     }
 }

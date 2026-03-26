@@ -54,9 +54,9 @@ app.config.globalProperties.$filters = {
       if (!dateStr) return "—";
       return new Date(dateStr).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
    },
-   formatAmount(val) {
-      if (!val && val !== 0) return "0.00";
-      return parseFloat(val).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+   formatMoney(value) {
+      if (!value && value !== 0) return "0.00";
+      return parseFloat(value).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
    },
    capitalize: function (str) {
       if (!str) return "";
@@ -64,6 +64,38 @@ app.config.globalProperties.$filters = {
          .split(" ")
          .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
          .join(" ");
+   },
+   roleBadge(role) {
+      return (
+         {
+            "super admin": "m-badge--super-admin",
+            admin: "m-badge--admin",
+            manager: "m-badge--manager",
+            staff: "m-badge--staff",
+            member: "m-badge--member",
+            coach: "m-badge--coach",
+            employee: "m-badge--employee",
+            member: "m-badge--member",
+         }[role] ?? ""
+      );
+   },
+   statusBadge(status) {
+      return (
+         {
+            active: "m-badge--active",
+            inactive: "m-badge--inactive",
+            suspended: "m-badge--suspended",
+            open: "m-badge--open",
+            closed: "m-badge--closed",
+            coming_soon: "m-badge--coming-soon",
+            pending: "m-badge--pending",
+            approved: "m-badge--approved",
+            rejected: "m-badge--rejected",
+            draft: "m-badge--draft",
+            partial: "m-badge--partial",
+            fully_deducted: "m-badge--fully-deducted",
+         }[status] ?? ""
+      );
    },
 };
 

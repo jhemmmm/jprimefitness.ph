@@ -6,15 +6,10 @@
                 <div class="alert alert-danger py-2 small" v-if="generalError">{{ generalError }}</div>
 
                 <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label form-label-sm fw-semibold">First Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" :class="{ 'is-invalid': errors.first_name }" v-model="form.first_name" />
-                        <div class="invalid-feedback" v-if="errors.first_name">{{ errors.first_name[0] }}</div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label form-label-sm fw-semibold">Last Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" :class="{ 'is-invalid': errors.last_name }" v-model="form.last_name" />
-                        <div class="invalid-feedback" v-if="errors.last_name">{{ errors.last_name[0] }}</div>
+                    <div class="col-md-12">
+                        <label class="form-label form-label-sm fw-semibold">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" :class="{ 'is-invalid': errors.name }" v-model="form.name" />
+                        <div class="invalid-feedback" v-if="errors.name">{{ errors.name[0] }}</div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label form-label-sm fw-semibold">Email <span class="text-danger">*</span></label>
@@ -28,10 +23,10 @@
                     </div>
                     <div class="col-md-6">
                         <label class="form-label form-label-sm fw-semibold">Role <span class="text-danger">*</span></label>
-                        <select class="form-select" :class="{ 'is-invalid': errors.role }" v-model="form.role">
-                            <option v-for="r in allowedRoles" :key="r.value" :value="r.value">{{ r.label }}</option>
-                        </select>
-                        <div class="invalid-feedback" v-if="errors.role">{{ errors.role[0] }}</div>
+                        <div :class="{ 'is-invalid': errors.role_ids }">
+                            <MultiSelect v-model="form.role_ids" :options="allowedRoles" placeholder="Select roles..." searchable />
+                        </div>
+                        <div class="invalid-feedback" v-if="errors.role_ids">{{ errors.role_ids[0] }}</div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label form-label-sm fw-semibold">Status <span class="text-danger">*</span></label>
@@ -89,6 +84,7 @@ export default {
     props: {
         employee: { type: Object, required: true },
         branchesData: { type: Array, default: () => [] },
+        rolesData: { type: Array, default: () => [] },
     },
 
     emits: ["updated"],
@@ -99,60 +95,55 @@ export default {
             saved: false,
             generalError: "",
             errors: {},
-            roles: [
-                { value: "super_admin", label: "Super Admin" },
-                { value: "admin", label: "Admin" },
-                { value: "manager", label: "Manager" },
-                { value: "staff", label: "Staff" },
-                { value: "coach", label: "Coach" },
-            ],
-            form: {
-                first_name: this.employee.first_name,
-                last_name: this.employee.last_name,
-                email: this.employee.email,
-                phone: this.employee.phone || "",
-                role: this.employee.role,
-                status: this.employee.status,
-                branch_ids: this.employee.branches ? this.employee.branches.map((b) => b.id) : [],
-                daily_rate: this.employee.daily_rate || "",
-                password: "",
-            },
+            form: this.getForm(this.employee),
         };
     },
 
     watch: {
         employee(val) {
-            this.form = {
-                first_name: val.first_name,
-                last_name: val.last_name,
-                email: val.email,
-                phone: val.phone || "",
-                role: val.role,
-                status: val.status,
-                branch_ids: val.branches ? val.branches.map((b) => b.id) : [],
-                daily_rate: val.daily_rate || "",
-                password: "",
-            };
+            this.form = this.getForm(val);
         },
     },
 
     computed: {
         allowedRoles() {
-            const p = window.permissions || {};
-            if (p["super-admin"]) return this.roles;
-            if (p["admin-or-above"]) return this.roles.filter((r) => r.value !== "super_admin");
-            return this.roles.filter((r) => !["super_admin", "admin"].includes(r.value));
+            const allowed = ["super admin", "admin", "manager", "staff", "coach", "employee"];
+            const roleRestrictions = {
+                "super admin": [],
+                admin: ["super admin"],
+                default: ["super admin", "admin"],
+            };
+            const currentRole = this.is("super admin") ? "super admin" : this.is("admin") ? "admin" : "default";
+
+            return this.rolesData
+                .filter((r) => allowed.includes(r.name) && !roleRestrictions[currentRole].includes(r.name))
+                .map((r) => ({
+                    id: r.id,
+                    name: this.$filters.capitalize(r.name),
+                }));
         },
     },
 
     methods: {
+        getForm(employee) {
+            return {
+                name: employee.name || "",
+                email: employee.email,
+                phone: employee.phone || "",
+                status: employee.status,
+                role_ids: employee.roles ? employee.roles.map((r) => r.id) : [],
+                branch_ids: employee.branches ? employee.branches.map((b) => b.id) : [],
+                daily_rate: employee.daily_rate || "",
+                password: "",
+            };
+        },
         async save() {
             this.saving = true;
             this.saved = false;
             this.generalError = "";
             this.errors = {};
             try {
-                const payload = { ...this.form, branch_ids: this.form.branch_ids };
+                const payload = { ...this.form, branch_ids: this.form.branch_ids, role_ids: this.form.role_ids };
                 const res = await axios.put(`/panel/employees/${this.employee.id}`, payload);
                 this.saved = true;
                 this.form.password = "";
