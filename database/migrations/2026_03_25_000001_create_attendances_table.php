@@ -1,0 +1,35 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('attendances', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
+            $table->enum('attendee_type', ['member', 'walk_in', 'employee']);
+            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('walk_in_id')->nullable()->constrained('walk_ins')->nullOnDelete();
+            $table->string('name');
+            $table->timestamp('checked_in_at')->useCurrent();
+            $table->timestamp('checked_out_at')->nullable();
+            $table->text('notes')->nullable();
+            $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->timestamps();
+
+            $table->index('attendee_type');
+            $table->index('checked_in_at');
+            $table->index('branch_id');
+            $table->index(['user_id', 'checked_in_at']);
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('attendances');
+    }
+};
