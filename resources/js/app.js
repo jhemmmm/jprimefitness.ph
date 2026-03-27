@@ -23,6 +23,9 @@ app.component("dashboard-page", DashboardPage);
 import MembersPage from "./components/panel/MembersPage.vue";
 app.component("members-page", MembersPage);
 
+import MemberDetailPage from "./components/panel/MemberDetailPage.vue";
+app.component("member-detail-page", MemberDetailPage);
+
 import WalkInsPage from "./components/panel/WalkInsPage.vue";
 app.component("walk-ins-page", WalkInsPage);
 

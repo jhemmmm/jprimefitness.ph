@@ -26,7 +26,8 @@ class BranchesController extends Controller
         $search = $request->input('search');
         $status = $request->input('status');
 
-        $branches = Branch::query()
+        $branchesQuery = Branch::query()
+            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereKey(auth()->user()->branches()->pluck('branches.id')))
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($inner) use ($search) {
                     $inner->where('name', 'like', "%{$search}%")
@@ -34,16 +35,18 @@ class BranchesController extends Controller
                         ->orWhere('province', 'like', "%{$search}%");
                 });
             })
-            ->when($status, fn ($q, $s) => $q->where('status', $s))
+            ->when($status, fn ($q, $s) => $q->where('status', $s));
+
+        $branches = (clone $branchesQuery)
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
 
         $stats = [
-            'total' => Branch::count(),
-            'open' => Branch::where('status', 'open')->count(),
-            'closed' => Branch::where('status', 'closed')->count(),
-            'coming_soon' => Branch::where('status', 'coming_soon')->count(),
+            'total' => (clone $branchesQuery)->count(),
+            'open' => (clone $branchesQuery)->where('status', 'open')->count(),
+            'closed' => (clone $branchesQuery)->where('status', 'closed')->count(),
+            'coming_soon' => (clone $branchesQuery)->where('status', 'coming_soon')->count(),
         ];
 
         return response()->json(compact('branches', 'stats'));

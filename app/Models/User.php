@@ -2,15 +2,12 @@
 
 namespace App\Models;
 
-use App\Models\Branch;
 use Carbon\Carbon;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -34,7 +31,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, LaravelPermissionToVueJS, HasRoles, Notifiable;
+    use HasFactory, HasRoles, LaravelPermissionToVueJS, Notifiable;
 
     const STATUS_ACTIVE = 'active';
 
@@ -59,6 +56,11 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    public function memberSubscriptions(): HasMany
+    {
+        return $this->hasMany(MemberSubscription::class);
+    }
+
     public function attachPlan(int $ratePlanId, string $startDate): void
     {
         $plan = RatePlan::findOrFail($ratePlanId);
@@ -71,8 +73,9 @@ class User extends Authenticatable
                 ->toDateString();
         }
 
-        $this->ratePlans()->attach($plan->id, [
-            'status' => 'active',
+        $this->memberSubscriptions()->create([
+            'rate_plan_id' => $plan->id,
+            'status' => MemberSubscription::STATUS_ACTIVE,
             'start_date' => $startDate,
             'end_date' => $endDate,
         ]);
@@ -84,25 +87,89 @@ class User extends Authenticatable
             return;
         }
 
-        $activePlan = $this->ratePlans()
-            ->wherePivot('status', 'active')
-            ->first();
+        $activePlan = $this->currentMembership();
+        $plan = RatePlan::findOrFail($ratePlanId);
+        $endDate = null;
 
-        if ($activePlan && (int) $activePlan->id === $ratePlanId) {
-            $this->ratePlans()->updateExistingPivot($activePlan->id, [
+        if ($plan->duration_days > 1) {
+            $endDate = Carbon::parse($startDate)
+                ->addDays($plan->duration_days - 1)
+                ->toDateString();
+        }
+
+        if ($activePlan && (int) $activePlan->rate_plan_id === $ratePlanId) {
+            $activePlan->update([
                 'start_date' => $startDate,
+                'end_date' => $endDate,
             ]);
 
             return;
         }
 
         if ($activePlan) {
-            $this->ratePlans()->updateExistingPivot($activePlan->id, [
-                'status' => 'cancelled',
+            $activePlan->update([
+                'status' => MemberSubscription::STATUS_CANCELLED,
             ]);
         }
 
         $this->attachPlan($ratePlanId, $startDate);
+    }
+
+    public function currentMembership(): ?MemberSubscription
+    {
+        return $this->memberSubscriptions()
+            ->whereIn('status', [MemberSubscription::STATUS_ACTIVE, MemberSubscription::STATUS_PAUSED])
+            ->orderByDesc('start_date')
+            ->first();
+    }
+
+    public function changeMembershipPlan(int $ratePlanId, string $startDate): void
+    {
+        $currentPlan = $this->currentMembership();
+        $plan = RatePlan::findOrFail($ratePlanId);
+        $endDate = null;
+
+        if ($plan->duration_days > 1) {
+            $endDate = Carbon::parse($startDate)
+                ->addDays($plan->duration_days - 1)
+                ->toDateString();
+        }
+
+        if ($currentPlan && (int) $currentPlan->rate_plan_id === $ratePlanId) {
+            $currentPlan->update([
+                'start_date' => $startDate,
+                'end_date' => $endDate,
+                'status' => $currentPlan->status,
+            ]);
+
+            return;
+        }
+
+        if ($currentPlan) {
+            $currentPlan->update([
+                'status' => MemberSubscription::STATUS_CANCELLED,
+            ]);
+        }
+
+        $this->memberSubscriptions()->create([
+            'rate_plan_id' => $plan->id,
+            'status' => MemberSubscription::STATUS_ACTIVE,
+            'start_date' => $startDate,
+            'end_date' => $endDate,
+        ]);
+    }
+
+    public function updateCurrentMembershipStatus(string $status): void
+    {
+        $currentPlan = $this->currentMembership();
+
+        if (! $currentPlan) {
+            return;
+        }
+
+        $currentPlan->update([
+            'status' => $status,
+        ]);
     }
 
     public function allowedEmployeesRoles(): array

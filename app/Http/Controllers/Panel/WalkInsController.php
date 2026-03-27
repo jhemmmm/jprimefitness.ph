@@ -3,19 +3,17 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
-use App\Models\RatePlan;
 use App\Models\WalkIn;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class WalkInsController extends Controller
 {
     /**
      * Walk In Index
+     *
      * @return \Illuminate\Contracts\View\View
      */
     public function index(): View
@@ -25,25 +23,27 @@ class WalkInsController extends Controller
 
     /**
      * List
-     * @param Request $request
-     * @return JsonResponse
      */
     public function list(Request $request): JsonResponse
     {
         $walkIns = WalkIn::with(['branch', 'ratePlan'])
-            ->when(!empty($request->search), fn($q) => $q->where(function ($qq) use ($request) {
+            ->when(! empty($request->search), fn ($q) => $q->where(function ($qq) use ($request) {
                 $qq->where('name', 'like', "%{$request->search}%")
                     ->orWhere('phone', 'like', "%{$request->search}%");
             }))
-            ->when($request->branch, fn($q) => $q->where('branch_id', $request->branch))
-            ->when($request->date_from, fn($q) => $q->whereDate('visited_at', '>=', $request->date_from))
-            ->when($request->date_to, fn($q) => $q->whereDate('visited_at', '<=', $request->date_to))
+            ->when($request->branch, fn ($q) => $q->where('branch_id', $request->branch), function ($q) {
+                if (! auth()->user()->hasRole('super admin')) {
+                    $q->whereIn('branch_id', auth()->user()->branches()->pluck('id'));
+                }
+            })
+            ->when($request->date_from, fn ($q) => $q->whereDate('visited_at', '>=', $request->date_from))
+            ->when($request->date_to, fn ($q) => $q->whereDate('visited_at', '<=', $request->date_to))
             ->orderBy('visited_at', 'desc')
             ->paginate(20)
             ->withQueryString();
 
-        $baseStats = WalkIn::when($request->branch, fn($q) => $q->where('branch_id', $request->branch), function ($q) {
-            if (!auth()->user()->hasRole('super admin')) {
+        $baseStats = WalkIn::when($request->branch, fn ($q) => $q->where('branch_id', $request->branch), function ($q) {
+            if (! auth()->user()->hasRole('super admin')) {
                 $q->whereIn('branch_id', auth()->user()->branches()->pluck('id'));
             }
         });
@@ -60,8 +60,6 @@ class WalkInsController extends Controller
 
     /**
      * Store
-     * @param Request $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -85,9 +83,6 @@ class WalkInsController extends Controller
 
     /**
      * Summary of update
-     * @param Request $request
-     * @param WalkIn $walkIn
-     * @return JsonResponse
      */
     public function update(Request $request, WalkIn $walkIn): JsonResponse
     {
@@ -108,8 +103,6 @@ class WalkInsController extends Controller
 
     /**
      * Summary of destroy
-     * @param WalkIn $walkIn
-     * @return JsonResponse
      */
     public function destroy(WalkIn $walkIn): JsonResponse
     {

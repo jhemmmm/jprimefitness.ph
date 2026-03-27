@@ -15,8 +15,8 @@ use Illuminate\View\View;
 class AttendanceController extends Controller
 {
     /**
-     *
      * Index
+     *
      * @return \Illuminate\Contracts\View\View
      */
     public function index(): View
@@ -25,10 +25,7 @@ class AttendanceController extends Controller
     }
 
     /**
-     *
      * List
-     * @param Request $request
-     * @return JsonResponse
      */
     public function list(Request $request): JsonResponse
     {
@@ -41,7 +38,11 @@ class AttendanceController extends Controller
             ->when($request->type, fn($q, $t) => $q->where('attendee_type', $t))
             ->when($request->date_from, fn($q, $d) => $q->whereDate('checked_in_at', '>=', $d))
             ->when($request->date_to, fn($q, $d) => $q->whereDate('checked_in_at', '<=', $d))
-            ->when($request->branch, fn($q) => $q->where('branch_id', $request->branch))
+            ->when($request->branch, fn($q) => $q->where('branch_id', $request->branch), function ($q) {
+                if (! auth()->user()->hasRole('super admin')) {
+                    $q->whereIn('branch_id', auth()->user()->branches()->pluck('id'));
+                }
+            })
             ->orderBy('checked_in_at', 'desc')
             ->paginate(20)
             ->withQueryString();
@@ -65,23 +66,25 @@ class AttendanceController extends Controller
             })
         );
 
-        $baseStatsQuery = Attendance::query()->when($request->branch, fn($q) => $q->where('branch_id', $request->branch));
+        $baseStatsQuery = Attendance::query()->when($request->branch, fn($q) => $q->where('branch_id', $request->branch), function ($q) {
+            if (! auth()->user()->hasRole('super admin')) {
+                $q->whereIn('branch_id', auth()->user()->branches()->pluck('id'));
+            }
+        });
 
         return response()->json([
             'records' => $records,
             'stats' => [
-                'today' => (clone $baseStatsQuery)->whereDate('checked_in_at',  Carbon::today())->count(),
+                'today' => (clone $baseStatsQuery)->whereDate('checked_in_at', Carbon::today())->count(),
                 'this_week' => (clone $baseStatsQuery)->where('checked_in_at', '>=', Carbon::now()->startOfWeek())->count(),
                 'this_month' => (clone $baseStatsQuery)->where('checked_in_at', '>=', Carbon::now()->startOfMonth())->count(),
-                'currently_in' => (clone $baseStatsQuery)->whereDate('checked_in_at',  Carbon::today())->whereNull('checked_out_at')->count(),
+                'currently_in' => (clone $baseStatsQuery)->whereDate('checked_in_at', Carbon::today())->whereNull('checked_out_at')->count(),
             ],
         ]);
     }
 
     /**
      * Store
-     * @param Request $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -136,9 +139,6 @@ class AttendanceController extends Controller
 
     /**
      * Update
-     * @param Request $request
-     * @param Attendance $attendance
-     * @return JsonResponse
      */
     public function update(Request $request, Attendance $attendance): JsonResponse
     {
@@ -181,8 +181,6 @@ class AttendanceController extends Controller
 
     /**
      * Checkout shortcut
-     * @param Attendance $attendance
-     * @return JsonResponse
      */
     public function checkout(Attendance $attendance): JsonResponse
     {
@@ -212,8 +210,6 @@ class AttendanceController extends Controller
 
     /**
      * Destroy
-     * @param Attendance $attendance
-     * @return JsonResponse
      */
     public function destroy(Attendance $attendance): JsonResponse
     {

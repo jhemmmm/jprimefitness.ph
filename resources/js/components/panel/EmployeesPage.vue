@@ -79,7 +79,7 @@
                   <a :href="`/panel/employees/${emp.id}`" class="text-decoration-none d-flex align-items-center gap-3 flex-grow-1 overflow-hidden">
                      <div class="member-avatar employee-avatar-lg flex-shrink-0">{{ $filters.getNameInitials(emp.name) }}</div>
                      <div class="overflow-hidden">
-                        <div class="fw-semibold text-truncate text-body">{{ emp.name }}</div>
+                        <div class="fw-semibold text-truncate">{{ emp.name }}</div>
                         <div class="small text-muted text-truncate">{{ emp.email }}</div>
                      </div>
                   </a>

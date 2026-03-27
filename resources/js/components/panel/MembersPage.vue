@@ -180,21 +180,21 @@
                      <tr v-for="(member, i) in members" :key="member.id">
                         <td class="text-muted small">{{ pagination.from + i }}</td>
                         <td>
-                           <div class="d-flex align-items-center gap-2">
+                           <a :href="`/panel/members/${member.id}`" class="text-decoration-none d-flex align-items-center gap-2">
                               <div class="member-avatar">{{ $filters.getNameInitials(member.name) }}</div>
                               <div>
                                  <div class="member-name">{{ member.name }}</div>
                                  <div class="member-email">{{ member.email }}</div>
                               </div>
-                           </div>
+                           </a>
                         </td>
                         <td class="text-muted small">{{ member.phone || "—" }}</td>
                         <td class="small">{{ member.branches && member.branches.length ? member.branches.map((b) => b.name).join(", ") : "—" }}</td>
                         <td>
-                           <template v-if="getActivePlan(member)">
-                              <div class="plan-name mb-1">{{ getActivePlan(member).name }}</div>
-                              <span class="m-badge" :class="getPlanStatusClass(getActivePlan(member).pivot.status)">
-                                 {{ $filters.capitalize(getActivePlan(member).pivot.status) }}
+                           <template v-if="getCurrentMembership(member)">
+                              <div class="plan-name mb-1">{{ getCurrentMembership(member).rate_plan.name }}</div>
+                              <span class="m-badge" :class="getPlanStatusClass(getCurrentMembership(member).status)">
+                                 {{ $filters.capitalize(getCurrentMembership(member).status) }}
                               </span>
                            </template>
                            <span v-else class="text-muted small">—</span>
@@ -205,9 +205,6 @@
                         <td class="text-muted small">{{ $filters.formatDate(member.created_at) }}</td>
                         <td>
                            <div class="d-flex gap-1">
-                              <button class="btn btn-sm btn-outline-secondary" title="View" @click="openViewModal(member)">
-                                 <i class="bi bi-eye tbl-icon"></i>
-                              </button>
                               <button class="btn btn-sm btn-outline-secondary" title="Edit" @click="openEditModal(member)">
                                  <i class="bi bi-pencil tbl-icon"></i>
                               </button>
@@ -221,20 +218,20 @@
             <div class="d-md-none">
                <div class="member-card" v-for="member in members" :key="'mc' + member.id">
                   <div class="member-card-top">
-                     <div class="member-card-identity">
+                     <a :href="`/panel/members/${member.id}`" class="member-card-identity text-decoration-none text-reset">
                         <div class="member-avatar">{{ $filters.getNameInitials(member.name) }}</div>
                         <div>
                            <div class="member-card-name">{{ member.name }}</div>
                            <div class="member-card-sub">{{ member.phone || member.email }}</div>
                         </div>
-                     </div>
+                     </a>
                      <div class="dropdown">
                         <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
                            <i class="bi bi-three-dots-vertical"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                            <li>
-                              <a class="dropdown-item" href="#" @click.prevent="openViewModal(member)"><i class="bi bi-eye me-2"></i>View</a>
+                              <a class="dropdown-item" :href="`/panel/members/${member.id}`"><i class="bi bi-eye me-2"></i>View details</a>
                            </li>
                            <li>
                               <a class="dropdown-item" href="#" @click.prevent="openEditModal(member)"><i class="bi bi-pencil me-2"></i>Edit</a>
@@ -244,9 +241,9 @@
                   </div>
                   <div class="member-card-tags">
                      <span :class="['m-badge', $filters.statusBadge(member.status)]">{{ $filters.capitalize(member.status) }}</span>
-                     <template v-if="getActivePlan(member)">
-                        <span class="text-capitalize m-badge m-badge--plan">{{ getActivePlan(member).name }}</span>
-                        <span class="m-badge" :class="getPlanStatusClass(getActivePlan(member).pivot.status)">{{ $filters.capitalize(getActivePlan(member).pivot.status) }}</span>
+                     <template v-if="getCurrentMembership(member)">
+                        <span class="text-capitalize m-badge m-badge--plan">{{ getCurrentMembership(member).rate_plan.name }}</span>
+                        <span class="m-badge" :class="getPlanStatusClass(getCurrentMembership(member).status)">{{ $filters.capitalize(getCurrentMembership(member).status) }}</span>
                      </template>
                   </div>
                   <div class="member-card-footer">
@@ -383,86 +380,6 @@
             </div>
          </div>
       </div>
-
-      <!-- View Member Modal -->
-      <div class="modal fade" id="memberViewModal" tabindex="-1" ref="memberViewModal">
-         <div class="modal-dialog modal-lg modal-dialog-scrollable">
-            <div class="modal-content" v-if="viewMember">
-               <div class="modal-header">
-                  <h5 class="modal-title fw-bold">Member Details</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-               </div>
-               <div class="modal-body">
-                  <!-- Avatar + name -->
-                  <div class="d-flex align-items-center gap-3 mb-4 pb-4 border-bottom">
-                     <div class="member-avatar member-avatar-lg">
-                        {{ $filters.getNameInitials(viewMember.name) }}
-                     </div>
-                     <div>
-                        <h5 class="mb-0 fw-bold">{{ viewMember.name }}</h5>
-                        <div class="text-muted small">{{ viewMember.email }}</div>
-                        <span :class="['m-badge', $filters.statusBadge(viewMember.status), 'mt-1']">{{ $filters.capitalize(viewMember.status) }}</span>
-                     </div>
-                  </div>
-
-                  <div class="row g-3">
-                     <div class="col-md-6">
-                        <div class="small text-muted">Phone</div>
-                        <div class="fw-semibold small">{{ viewMember.phone || "—" }}</div>
-                     </div>
-                     <div class="col-md-6">
-                        <div class="small text-muted">Branch</div>
-                        <div class="fw-semibold small">{{ viewMember.branches && viewMember.branches.length ? viewMember.branches.map((b) => b.name).join(", ") : "—" }}</div>
-                     </div>
-                     <div class="col-md-6">
-                        <div class="small text-muted">Date of Birth</div>
-                        <div class="fw-semibold small">{{ $filters.formatDate(viewMember.profile?.date_of_birth) }}</div>
-                     </div>
-                     <div class="col-md-6">
-                        <div class="small text-muted">Gender</div>
-                        <div class="fw-semibold small text-capitalize">{{ viewMember.profile?.gender || "—" }}</div>
-                     </div>
-                     <div class="col-md-6">
-                        <div class="small text-muted">Emergency Contact</div>
-                        <div class="fw-semibold small">{{ viewMember.profile?.emergency_contact_name || "—" }}</div>
-                     </div>
-                     <div class="col-md-6">
-                        <div class="small text-muted">Emergency Phone</div>
-                        <div class="fw-semibold small">{{ viewMember.profile?.emergency_contact_phone || "—" }}</div>
-                     </div>
-                     <div class="col-12" v-if="viewMember.profile && viewMember.profile.notes">
-                        <div class="small text-muted">Notes</div>
-                        <div class="fw-semibold small">{{ viewMember.profile.notes }}</div>
-                     </div>
-                  </div>
-
-                  <!-- Active Subscription -->
-                  <p class="modal-section-label">Active Subscription</p>
-                  <div v-if="getActivePlan(viewMember)">
-                     <div class="subscription-box">
-                        <div>
-                           <div class="fw-semibold">{{ getActivePlan(viewMember).name }}</div>
-                           <div class="small text-muted">
-                              From {{ $filters.formatDate(getActivePlan(viewMember).pivot.start_date) }}
-                              <template v-if="getActivePlan(viewMember).pivot.end_date"> &mdash; Expires {{ $filters.formatDate(getActivePlan(viewMember).pivot.end_date) }} </template>
-                           </div>
-                        </div>
-                        <span class="m-badge" :class="getPlanStatusClass(getActivePlan(viewMember).pivot.status)">
-                           {{ $filters.capitalize(getActivePlan(viewMember).pivot.status) }}
-                        </span>
-                     </div>
-                  </div>
-                  <div v-else class="text-muted small">No active subscription.</div>
-
-                  <div class="text-muted small mt-3">Member since {{ $filters.formatDate(viewMember.created_at) }}</div>
-               </div>
-               <div class="modal-footer">
-                  <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
-                  <button type="button" class="btn btn-sm btn-danger" @click="openEditFromView"><i class="bi bi-pencil me-1"></i> Edit Member</button>
-               </div>
-            </div>
-         </div>
-      </div>
    </div>
 </template>
 
@@ -504,18 +421,15 @@ export default {
          currentPage: 1,
          searchTimer: null,
          modalMode: "add",
-         viewMember: null,
          formError: "",
          formErrors: {},
          form: this.emptyForm(),
          memberModal: null,
-         viewModal: null,
       };
    },
 
    mounted: function () {
       this.memberModal = new Modal(this.$refs.memberFormModal);
-      this.viewModal = new Modal(this.$refs.memberViewModal);
       this.fetchMembers();
    },
 
@@ -601,7 +515,7 @@ export default {
          this.pageError = "";
          this.formError = "";
          this.formErrors = {};
-         var plan = this.getActivePlan(member);
+         var plan = this.getCurrentMembership(member);
          this.form = {
             id: member.id,
             name: member.name || "",
@@ -615,20 +529,10 @@ export default {
             emergency_contact_name: (member.profile && member.profile.emergency_contact_name) || "",
             emergency_contact_phone: (member.profile && member.profile.emergency_contact_phone) || "",
             notes: (member.profile && member.profile.notes) || "",
-            rate_plan_id: plan ? plan.id : "",
-            start_date: plan ? plan.pivot.start_date : new Date().toISOString().slice(0, 10),
+            rate_plan_id: plan ? plan.rate_plan_id : "",
+            start_date: plan ? plan.start_date : new Date().toISOString().slice(0, 10),
          };
          this.memberModal.show();
-      },
-
-      openViewModal: function (member) {
-         this.viewMember = member;
-         this.viewModal.show();
-      },
-
-      openEditFromView: function () {
-         this.viewModal.hide();
-         this.$refs.memberViewModal.addEventListener("hidden.bs.modal", () => this.openEditModal(this.viewMember), { once: true });
       },
 
       submitForm: function () {
@@ -663,12 +567,12 @@ export default {
          return map[status] || "m-badge--plan-expired";
       },
 
-      getActivePlan: function (member) {
-         if (!member.rate_plans || !member.rate_plans.length) return null;
+      getCurrentMembership: function (member) {
+         if (!member.member_subscriptions || !member.member_subscriptions.length) return null;
          return (
-            member.rate_plans.find(function (p) {
-               return p.pivot && p.pivot.status === "active";
-            }) || member.rate_plans[0]
+            member.member_subscriptions.find(function (membership) {
+               return membership.status === "active" || membership.status === "paused";
+            }) || member.member_subscriptions[0]
          );
       },
    },
