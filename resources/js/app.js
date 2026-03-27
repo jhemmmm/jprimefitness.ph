@@ -38,6 +38,11 @@ app.component("employees-page", EmployeesPage);
 import EmployeeDetailPage from "./components/panel/EmployeeDetailPage.vue";
 app.component("employee-detail-page", EmployeeDetailPage);
 
+const normalizeKey = (value) => String(value ?? "")
+   .trim()
+   .toLowerCase()
+   .replace(/[\s-]+/g, "_");
+
 // Filters
 app.config.globalProperties.$filters = {
    getNameInitials: function (name) {
@@ -59,10 +64,12 @@ app.config.globalProperties.$filters = {
       return parseFloat(value).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
    },
    capitalize: function (str) {
-      if (!str) return "";
-      return str
-         .split(" ")
-         .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+      return String(str ?? "")
+         .trim()
+         .replace(/[_-]+/g, " ")
+         .split(/\s+/)
+         .filter(Boolean)
+         .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
          .join(" ");
    },
    roleBadge(role) {
@@ -75,8 +82,7 @@ app.config.globalProperties.$filters = {
             member: "m-badge--member",
             coach: "m-badge--coach",
             employee: "m-badge--employee",
-            member: "m-badge--member",
-         }[role] ?? ""
+         }[String(role ?? "").trim().toLowerCase()] ?? ""
       );
    },
    statusBadge(status) {
@@ -87,14 +93,24 @@ app.config.globalProperties.$filters = {
             suspended: "m-badge--suspended",
             open: "m-badge--open",
             closed: "m-badge--closed",
-            coming_soon: "m-badge--coming-soon",
+            coming_soon: "m-badge--coming_soon",
             pending: "m-badge--pending",
             approved: "m-badge--approved",
-            rejected: "m-badge--rejected",
+            rejected: "m-badge--suspended",
+            requested: "m-badge--pending",
+            released: "m-badge--open",
             draft: "m-badge--draft",
             partial: "m-badge--partial",
-            fully_deducted: "m-badge--fully-deducted",
-         }[status] ?? ""
+            partially_paid: "m-badge--partial",
+            paid: "m-badge--active",
+            expired: "m-badge--inactive",
+            canceled: "m-badge--suspended",
+            cancelled: "m-badge--suspended",
+            paused: "m-badge--pending",
+            cash: "m-badge--pending",
+            bank_transfer: "m-badge--approved",
+            online_payment: "m-badge--open",
+         }[normalizeKey(status)] ?? ""
       );
    },
 };

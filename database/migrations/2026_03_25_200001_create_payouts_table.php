@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Payout;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,7 +14,7 @@ return new class extends Migration
             $table->foreignId('payroll_id')->constrained()->cascadeOnDelete();
             $table->foreignId('employee_id')->constrained('users')->cascadeOnDelete();
             $table->decimal('amount', 10, 2);
-            $table->enum('method', ['cash', 'gcash', 'bank'])->default('cash');
+            $table->enum('method', [Payout::METHOD_CASH, Payout::METHOD_BANK_TRANSFER, Payout::METHOD_ONLINE_PAYMENT])->default(Payout::METHOD_CASH);
             $table->string('reference_number')->nullable();
             $table->foreignId('released_by')->nullable()->constrained('users')->nullOnDelete();
             $table->text('notes')->nullable();

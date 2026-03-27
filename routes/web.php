@@ -4,12 +4,9 @@ use App\Http\Controllers\Home\BranchController;
 use App\Http\Controllers\Home\HomeController;
 use App\Http\Controllers\Panel\AttendanceController;
 use App\Http\Controllers\Panel\BranchesController;
-use App\Http\Controllers\Panel\CashAdvanceController;
 use App\Http\Controllers\Panel\DashboardController;
 use App\Http\Controllers\Panel\EmployeeController;
 use App\Http\Controllers\Panel\MembersController;
-use App\Http\Controllers\Panel\PayoutController;
-use App\Http\Controllers\Panel\PayrollController;
 use App\Http\Controllers\Panel\WalkInsController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -53,36 +50,33 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::delete('/attendance/{attendance}', [AttendanceController::class, 'destroy'])->name('attendance.destroy')->whereNumber('attendance');
 
     // Employees
-    Route::middleware(['can:manage employees'])->group(function () {
-        Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
-        Route::post('/employees/list', [EmployeeController::class, 'list'])->name('employees.list');
-        Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
-        Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show')->whereNumber('employee');
-        Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update')->whereNumber('employee');
-        Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy')->whereNumber('employee');
-        Route::get('/employees/{employee}/attendance', [EmployeeController::class, 'attendance'])->name('employees.attendance')->whereNumber('employee');
+    Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
+    Route::post('/employees/list', [EmployeeController::class, 'list'])->name('employees.list');
+    Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
+    Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show')->whereNumber('employee');
+    Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update')->whereNumber('employee');
+    Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy')->whereNumber('employee');
+    Route::get('/employees/{employee}/attendance', [EmployeeController::class, 'attendance'])->name('employees.attendance')->whereNumber('employee');
 
-        // Payrolls
-        Route::get('/employees/{employee}/payrolls', [PayrollController::class, 'list'])->name('employees.payrolls.list')->whereNumber('employee');
-        Route::post('/employees/{employee}/payrolls', [PayrollController::class, 'store'])->name('employees.payrolls.store')->whereNumber('employee');
-        Route::get('/employees/{employee}/payrolls/suggested-ca', [PayrollController::class, 'suggestedCa'])->name('employees.payrolls.suggestedCa')->whereNumber('employee');
-        Route::get('/employees/{employee}/payrolls/suggest', [PayrollController::class, 'suggest'])->name('employees.payrolls.suggest')->whereNumber('employee');
-        Route::put('/payrolls/{payroll}', [PayrollController::class, 'update'])->name('payrolls.update')->whereNumber('payroll');
-        Route::post('/payrolls/{payroll}/approve', [PayrollController::class, 'approve'])->name('payrolls.approve')->whereNumber('payroll');
-        Route::delete('/payrolls/{payroll}', [PayrollController::class, 'destroy'])->name('payrolls.destroy')->whereNumber('payroll');
+    // Payrolls
+    Route::get('/employees/{employee}/payrolls', [EmployeeController::class, 'payrolls'])->name('employees.payrolls.list')->whereNumber('employee');
+    Route::post('/employees/{employee}/payrolls', [EmployeeController::class, 'storePayroll'])->name('employees.payrolls.store')->whereNumber('employee');
+    Route::get('/employees/{employee}/payrolls/suggested-ca', [EmployeeController::class, 'payrollSuggestedCa'])->name('employees.payrolls.suggestedCa')->whereNumber('employee');
+    Route::get('/employees/{employee}/payrolls/suggest', [EmployeeController::class, 'payrollSuggest'])->name('employees.payrolls.suggest')->whereNumber('employee');
+    Route::put('/employees/{employee}/payrolls/{payroll}', [EmployeeController::class, 'updatePayroll'])->name('employees.payrolls.update')->whereNumber('employee')->whereNumber('payroll');
+    Route::post('/employees/{employee}/payrolls/{payroll}/approve', [EmployeeController::class, 'approvePayroll'])->name('employees.payrolls.approve')->whereNumber('employee')->whereNumber('payroll');
+    Route::post('/employees/{employee}/payrolls/{payroll}/cancel', [EmployeeController::class, 'cancelPayroll'])->name('employees.payrolls.cancel')->whereNumber('employee')->whereNumber('payroll');
 
-        // Payouts
-        Route::get('/employees/{employee}/payouts', [PayoutController::class, 'listForEmployee'])->name('employees.payouts.list')->whereNumber('employee');
-        Route::get('/payrolls/{payroll}/payouts', [PayoutController::class, 'listForPayroll'])->name('payrolls.payouts.list')->whereNumber('payroll');
-        Route::post('/payrolls/{payroll}/payouts', [PayoutController::class, 'store'])->name('payrolls.payouts.store')->whereNumber('payroll');
-        Route::delete('/payouts/{payout}', [PayoutController::class, 'destroy'])->name('payouts.destroy')->whereNumber('payout');
+    // Payouts
+    Route::get('/employees/{employee}/payouts', [EmployeeController::class, 'payouts'])->name('employees.payouts.list')->whereNumber('employee');
+    Route::get('/employees/{employee}/payrolls/{payroll}/payouts', [EmployeeController::class, 'payrollPayouts'])->name('employees.payrolls.payouts.list')->whereNumber('employee')->whereNumber('payroll');
+    Route::post('/employees/{employee}/payrolls/{payroll}/payouts', [EmployeeController::class, 'storePayout'])->name('employees.payrolls.payouts.store')->whereNumber('employee')->whereNumber('payroll');
 
-        // Cash Advances
-        Route::get('/employees/{employee}/cash-advances', [CashAdvanceController::class, 'list'])->name('employees.cash-advances.list')->whereNumber('employee');
-        Route::post('/employees/{employee}/cash-advances', [CashAdvanceController::class, 'store'])->name('employees.cash-advances.store')->whereNumber('employee');
-        Route::put('/cash-advances/{cashAdvance}', [CashAdvanceController::class, 'update'])->name('cash-advances.update')->whereNumber('cashAdvance');
-        Route::delete('/cash-advances/{cashAdvance}', [CashAdvanceController::class, 'destroy'])->name('cash-advances.destroy')->whereNumber('cashAdvance');
-    });
+    // Cash Advances
+    Route::get('/employees/{employee}/cash-advances', [EmployeeController::class, 'cashAdvances'])->name('employees.cash-advances.list')->whereNumber('employee');
+    Route::post('/employees/{employee}/cash-advances', [EmployeeController::class, 'storeCashAdvance'])->name('employees.cash-advances.store')->whereNumber('employee');
+    Route::put('/employees/{employee}/cash-advances/{cashAdvance}', [EmployeeController::class, 'updateCashAdvance'])->name('employees.cash-advances.update')->whereNumber('employee')->whereNumber('cashAdvance');
+    Route::delete('/employees/{employee}/cash-advances/{cashAdvance}', [EmployeeController::class, 'destroyCashAdvance'])->name('employees.cash-advances.destroy')->whereNumber('employee')->whereNumber('cashAdvance');
 });
 
 Auth::routes(['register' => false]);

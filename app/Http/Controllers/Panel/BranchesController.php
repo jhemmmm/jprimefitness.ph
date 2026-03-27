@@ -35,7 +35,7 @@ class BranchesController extends Controller
                         ->orWhere('province', 'like', "%{$search}%");
                 });
             })
-            ->when($status, fn ($q, $s) => $q->where('status', $s))
+            ->when($status, fn($q, $s) => $q->where('status', $s))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
@@ -128,7 +128,7 @@ class BranchesController extends Controller
         $photos[] = $path;
         $branch->update(['photos' => $photos]);
 
-        return response()->json(['path' => $path, 'url' => asset('storage/'.$path)], 201);
+        return response()->json(['path' => $path, 'url' => asset('storage/' . $path)], 201);
     }
 
     public function destroyPhoto(Branch $branch, int $index): JsonResponse

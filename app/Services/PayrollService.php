@@ -17,6 +17,40 @@ class PayrollService
         return round(max(0, $gross + $bonus - $manualDed - $caDed), 2);
     }
 
+    public function maxCashAdvanceDeduction(int $employeeId, float $gross, float $bonus, float $manualDed): float
+    {
+        $payableBeforeCa = max(0, $gross + $bonus - $manualDed);
+        $pendingCa = $this->pendingCaTotal($employeeId);
+
+        return round(min($payableBeforeCa, $pendingCa), 2);
+    }
+
+    public function normalizePayrollCashAdvanceDeduction(Payroll $payroll): float
+    {
+        $maxDeduction = $this->maxCashAdvanceDeduction(
+            $payroll->employee_id,
+            (float) $payroll->gross_amount,
+            (float) $payroll->bonus,
+            (float) $payroll->manual_deductions
+        );
+
+        $actualDeduction = round(min((float) $payroll->cash_advance_deduction, $maxDeduction), 2);
+
+        if ((float) $payroll->cash_advance_deduction !== $actualDeduction) {
+            $payroll->cash_advance_deduction = $actualDeduction;
+        }
+
+        $payroll->net_amount = $this->computeNet(
+            (float) $payroll->gross_amount,
+            (float) $payroll->bonus,
+            (float) $payroll->manual_deductions,
+            $actualDeduction
+        );
+        $payroll->save();
+
+        return $actualDeduction;
+    }
+
     /**
      * Suggest gross amount and CA deduction based on attendance in a period.
      * Counts distinct days worked × employee daily_rate.
@@ -32,7 +66,7 @@ class PayrollService
             ->count();
 
         $dailyRate  = (float) ($employee->daily_rate ?? 0);
-        $gross      = round($dailyRate * $daysWorked, 2);
+        $gross = round($dailyRate * $daysWorked, 2);
         $suggestedCa = $this->pendingCaTotal($employee->id);
 
         return [
@@ -50,7 +84,7 @@ class PayrollService
     public function pendingCaTotal(int $employeeId): float
     {
         return (float) CashAdvance::where('employee_id', $employeeId)
-            ->whereIn('status', ['pending', 'partial'])
+            ->whereIn('status', [CashAdvance::STATUS_RELEASED, CashAdvance::STATUS_PARTIALLY_PAID])
             ->sum('remaining_amount');
     }
 
@@ -66,7 +100,7 @@ class PayrollService
         }
 
         $advances = CashAdvance::where('employee_id', $payroll->employee_id)
-            ->whereIn('status', ['pending', 'partial'])
+            ->whereIn('status', [CashAdvance::STATUS_RELEASED, CashAdvance::STATUS_PARTIALLY_PAID])
             ->orderBy('requested_at')
             ->get();
 
@@ -77,9 +111,28 @@ class PayrollService
                 break;
             }
 
-            $deduct = min((float) $advance->remaining_amount, $remaining);
-            $advance->remaining_amount = round((float) $advance->remaining_amount - $deduct, 2);
-            $advance->status = $advance->remaining_amount <= 0 ? 'fully_deducted' : 'partial';
+            $remainingBefore = (float) $advance->remaining_amount;
+            $processedAt = now();
+            $deduct = min($remainingBefore, $remaining);
+
+            $advance->remaining_amount = round($remainingBefore - $deduct, 2);
+            $advance->status = $advance->remaining_amount <= 0
+                ? CashAdvance::STATUS_PAID
+                : CashAdvance::STATUS_PARTIALLY_PAID;
+            $advance->paid_at = $advance->status === CashAdvance::STATUS_PAID
+                ? ($advance->paid_at ?? $processedAt)
+                : null;
+            $advance->appendAuditEvent([
+                'event' => $advance->status,
+                'at' => $processedAt->toISOString(),
+                'by_user_id' => auth()->id() ?? $payroll->approved_by,
+                'by_name' => auth()->user()?->name,
+                'source' => 'payroll',
+                'source_id' => $payroll->id,
+                'deducted_amount' => round($deduct, 2),
+                'remaining_before' => round($remainingBefore, 2),
+                'remaining_after' => round((float) $advance->remaining_amount, 2),
+            ]);
             $advance->save();
 
             $remaining -= $deduct;
@@ -92,16 +145,17 @@ class PayrollService
      */
     public function syncStatus(Payroll $payroll): void
     {
-        if ($payroll->status === 'draft') {
+        if (in_array($payroll->status, [Payroll::STATUS_DRAFT, Payroll::STATUS_CANCELED], true)) {
             return;
         }
 
         $totalPaid = (float) $payroll->payouts()->sum('amount');
 
         $payroll->status = match (true) {
-            $totalPaid <= 0 => 'approved',
-            $totalPaid >= (float) $payroll->net_amount => 'paid',
-            default => 'partially_paid',
+            (float) $payroll->net_amount <= 0 => Payroll::STATUS_PAID,
+            $totalPaid <= 0 => Payroll::STATUS_APPROVED,
+            $totalPaid >= (float) $payroll->net_amount => Payroll::STATUS_PAID,
+            default => Payroll::STATUS_PARTIALLY_PAID,
         };
 
         $payroll->save();

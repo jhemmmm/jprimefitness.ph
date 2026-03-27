@@ -8,10 +8,28 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payroll extends Model
 {
+    const STATUS_DRAFT = 'draft';
+    const STATUS_APPROVED = 'approved';
+    const STATUS_CANCELED = 'canceled';
+    const STATUS_PARTIALLY_PAID = 'partially_paid';
+    const STATUS_PAID = 'paid';
+
+
     protected $fillable = [
-        'employee_id', 'branch_id', 'period_start', 'period_end',
-        'gross_amount', 'bonus', 'manual_deductions', 'cash_advance_deduction', 'net_amount',
-        'status', 'notes', 'generated_by', 'approved_by', 'approved_at',
+        'employee_id',
+        'branch_id',
+        'period_start',
+        'period_end',
+        'gross_amount',
+        'bonus',
+        'manual_deductions',
+        'cash_advance_deduction',
+        'net_amount',
+        'status',
+        'notes',
+        'generated_by',
+        'approved_by',
+        'approved_at',
     ];
 
     protected $casts = [

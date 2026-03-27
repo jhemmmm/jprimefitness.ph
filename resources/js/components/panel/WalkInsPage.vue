@@ -173,7 +173,7 @@
                            <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
                            <span class="text-muted small" v-else>—</span>
                         </td>
-                        <td class="fw-semibold small">₱{{ $filters.formatAmount(w.amount_paid) }}</td>
+                              <td class="fw-semibold small">₱{{ $filters.formatMoney(w.amount_paid) }}</td>
                         <td class="text-muted small">{{ $filters.formatDateTime(w.visited_at) }}</td>
                         <td>
                            <div class="d-flex gap-1">
@@ -217,7 +217,7 @@
                      </div>
                   </div>
                   <div class="member-card-tags">
-                     <span class="m-badge m-badge--active">₱{{ $filters.formatAmount(w.amount_paid) }}</span>
+                                    <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(w.amount_paid) }}</span>
                      <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
                   </div>
                   <div class="member-card-footer">
@@ -505,7 +505,7 @@ export default {
             { label: "Today's Visits", value: this.stats.today, icon: "bi-person-walking", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             { label: "This Week", value: this.stats.this_week, icon: "bi-calendar-week", iconBg: "bg-success-soft", iconColor: "text-success" },
             { label: "This Month", value: this.stats.this_month, icon: "bi-calendar-month", iconBg: "bg-warning-soft", iconColor: "text-warning" },
-            { label: "Today's Revenue", value: "₱" + this.$filters.formatAmount(this.stats.revenue_today), icon: "bi-cash-coin", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+                    { label: "Today's Revenue", value: "₱" + this.$filters.formatMoney(this.stats.revenue_today), icon: "bi-cash-coin", iconBg: "bg-danger-soft", iconColor: "text-danger" },
          ];
       },
    },
