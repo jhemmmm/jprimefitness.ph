@@ -44,13 +44,13 @@
                </div>
             </div>
             <div class="col-6 col-md-2">
-               <select class="form-select" v-model="selectedBranch" @change="fetchRecords">
+               <select class="form-select" v-model="selectedBranch" @change="fetchRecords(1)">
                   <option value="">All Branches</option>
                   <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
                </select>
             </div>
             <div class="col-6 col-md-2">
-               <select class="form-select" v-model="selectedType" @change="fetchRecords">
+               <select class="form-select" v-model="selectedType" @change="fetchRecords(1)">
                   <option value="">All Types</option>
                   <option value="member">Members</option>
                   <option value="walk_in">Walk-ins</option>
@@ -58,10 +58,10 @@
                </select>
             </div>
             <div class="col-6 col-md-2">
-               <input type="date" class="form-control" v-model="dateFrom" @change="fetchRecords" title="From date" />
+               <input type="date" class="form-control" v-model="dateFrom" @change="fetchRecords(1)" title="From date" />
             </div>
             <div class="col-6 col-md-2">
-               <input type="date" class="form-control" v-model="dateTo" @change="fetchRecords" title="To date" />
+               <input type="date" class="form-control" v-model="dateTo" @change="fetchRecords(1)" title="To date" />
             </div>
             <div class="col-12 col-md-auto" v-if="hasActiveFilters">
                <button class="btn btn-outline-secondary w-100" @click="clearFilters"><i class="bi bi-x me-1"></i>Clear</button>
@@ -439,13 +439,15 @@ export default {
          this.loading = true;
          this.pageError = "";
          axios
-            .post("/panel/attendance/list", {
-               search: this.search,
-               branch: this.selectedBranch,
-               type: this.selectedType,
-               date_from: this.dateFrom,
-               date_to: this.dateTo,
-               page: page,
+            .get("/panel/attendance/list", {
+               params: {
+                  page,
+                  search: this.search || undefined,
+                  branch: this.selectedBranch || undefined,
+                  type: this.selectedType || undefined,
+                  date_from: this.dateFrom || undefined,
+                  date_to: this.dateTo || undefined,
+               },
             })
             .then((res) => {
                const d = res.data;
