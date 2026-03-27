@@ -92,7 +92,7 @@ export default {
    },
 
    methods: {
-      fetchPayouts() {
+      fetchPayouts: function () {
          this.loading = true;
          this.pageError = "";
          axios

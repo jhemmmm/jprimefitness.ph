@@ -44,16 +44,16 @@
                </div>
             </div>
             <div class="col-6 col-md-2">
-               <select class="form-select" v-model="selectedBranch" @change="fetchWalkIns">
+               <select class="form-select" v-model="selectedBranch" @change="fetchWalkIns(1)" title="Filter by branch">
                   <option value="">All Branches</option>
                   <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
                </select>
             </div>
             <div class="col-6 col-md-2">
-               <input type="date" class="form-control" v-model="dateFrom" @change="fetchWalkIns" title="From date" />
+               <input type="date" class="form-control" v-model="dateFrom" @change="fetchWalkIns(1)" title="From date" />
             </div>
             <div class="col-6 col-md-2">
-               <input type="date" class="form-control" v-model="dateTo" @change="fetchWalkIns" title="To date" />
+               <input type="date" class="form-control" v-model="dateTo" @change="fetchWalkIns(1)" title="To date" />
             </div>
             <div class="col-6 col-md-2" v-if="hasActiveFilters">
                <button class="btn btn-outline-secondary w-100" @click="clearFilters"><i class="bi bi-x me-1"></i> Clear</button>
@@ -175,7 +175,7 @@
                            <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
                            <span class="text-muted small" v-else>—</span>
                         </td>
-                              <td class="fw-semibold small">₱{{ $filters.formatMoney(w.amount_paid) }}</td>
+                        <td class="fw-semibold small">₱{{ $filters.formatMoney(w.amount_paid) }}</td>
                         <td class="text-muted small">{{ $filters.formatDateTime(w.visited_at) }}</td>
                         <td>
                            <div class="d-flex gap-1">
@@ -219,7 +219,7 @@
                      </div>
                   </div>
                   <div class="member-card-tags">
-                                    <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(w.amount_paid) }}</span>
+                     <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(w.amount_paid) }}</span>
                      <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
                   </div>
                   <div class="member-card-footer">
@@ -388,12 +388,14 @@ export default {
          this.loading = true;
          this.pageError = "";
          axios
-            .post("/panel/walk-ins/list", {
-               search: this.search,
-               branch: this.selectedBranch,
-               date_from: this.dateFrom,
-               date_to: this.dateTo,
-               page: page,
+            .get("/panel/walk-ins/list", {
+               params: {
+                  search: this.search || undefined,
+                  branch: this.selectedBranch || undefined,
+                  date_from: this.dateFrom || undefined,
+                  date_to: this.dateTo || undefined,
+                  page: page,
+               },
             })
             .then((res) => {
                this.walkIns = res.data.walkIns.data;
@@ -512,7 +514,7 @@ export default {
             { label: "Today's Visits", value: this.stats.today, icon: "bi-person-walking", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             { label: "This Week", value: this.stats.this_week, icon: "bi-calendar-week", iconBg: "bg-success-soft", iconColor: "text-success" },
             { label: "This Month", value: this.stats.this_month, icon: "bi-calendar-month", iconBg: "bg-warning-soft", iconColor: "text-warning" },
-                    { label: "Today's Revenue", value: "₱" + this.$filters.formatMoney(this.stats.revenue_today), icon: "bi-cash-coin", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+            { label: "Today's Revenue", value: "₱" + this.$filters.formatMoney(this.stats.revenue_today), icon: "bi-cash-coin", iconBg: "bg-danger-soft", iconColor: "text-danger" },
          ];
       },
    },

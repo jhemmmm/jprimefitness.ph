@@ -507,10 +507,10 @@ export default {
          };
 
          if (this.form.attendee_type === "employee") {
-            return axios.post("/panel/employees/list", params).then((res) => this.mapPeopleOptions(res.data || []));
+            return axios.get("/panel/employees/list", { params }).then((res) => this.mapPeopleOptions(res.data || []));
          }
 
-         return axios.post("/panel/members/list", params).then((res) => this.mapPeopleOptions(res.data.members?.data || []));
+         return axios.get("/panel/members/list", { params }).then((res) => this.mapPeopleOptions(res.data.members?.data || []));
       },
 
       mapPeopleOptions: function (people) {

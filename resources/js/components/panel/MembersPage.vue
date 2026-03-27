@@ -44,13 +44,13 @@
                </div>
             </div>
             <div class="col-6 col-md-2">
-               <select class="form-select" v-model="selectedBranch" @change="fetchMembers">
+               <select class="form-select" v-model="selectedBranch" @change="fetchMembers(1)">
                   <option value="">All Branches</option>
                   <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
                </select>
             </div>
             <div class="col-6 col-md-2">
-               <select class="form-select" v-model="selectedStatus" @change="fetchMembers">
+               <select class="form-select" v-model="selectedStatus" @change="fetchMembers(1)">
                   <option value="">All Status</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -58,7 +58,7 @@
                </select>
             </div>
             <div class="col-6 col-md-2">
-               <select class="form-select" v-model="selectedPlan" @change="fetchMembers">
+               <select class="form-select" v-model="selectedPlan" @change="fetchMembers(1)">
                   <option value="">All Plans</option>
                   <option v-for="p in ratePlansData" :key="p.id" :value="p.id">{{ p.name }}</option>
                </select>
@@ -542,12 +542,14 @@ export default {
          this.loading = true;
          this.pageError = "";
          axios
-            .post("/panel/members/list", {
-               search: this.search,
-               branch: this.selectedBranch,
-               status: this.selectedStatus,
-               plan: this.selectedPlan,
-               page: page || this.currentPage,
+            .get("/panel/members/list", {
+               params: {
+                  search: this.search || undefined,
+                  branch: this.selectedBranch || undefined,
+                  status: this.selectedStatus || undefined,
+                  plan: this.selectedPlan || undefined,
+                  page: page || this.currentPage,
+               },
             })
             .then((res) => {
                this.members = res.data.members.data;

@@ -251,11 +251,13 @@ export default {
       fetchEmployees: function () {
          this.loading = true;
          axios
-            .post("/panel/employees/list", {
-               search: this.search,
-               role: this.selectedRole,
-               status: this.selectedStatus,
-               branch: this.selectedBranch,
+            .get("/panel/employees/list", {
+               params: {
+                  search: this.search || undefined,
+                  role: this.selectedRole || undefined,
+                  status: this.selectedStatus || undefined,
+                  branch: this.selectedBranch || undefined,
+               },
             })
             .then((res) => (this.employees = res.data))
             .catch((err) => console.error(err))
@@ -270,6 +272,7 @@ export default {
          this.selectedRole = "";
          this.selectedStatus = "";
          this.selectedBranch = "";
+         this.fetchEmployees();
       },
       openAdd: function () {
          this.form = this.emptyForm();

@@ -393,7 +393,7 @@ export default {
    },
 
    methods: {
-      fetchPayrolls() {
+      fetchPayrolls: function () {
          this.loading = true;
          this.pageError = "";
          axios
@@ -403,7 +403,7 @@ export default {
             .finally(() => (this.loading = false));
       },
 
-      openCreate() {
+      openCreate: function () {
          this.modalMode = "create";
          // Default period to current calendar month
          const now = new Date();
@@ -418,7 +418,7 @@ export default {
          this.fetchSuggestion();
       },
 
-      openEdit(p) {
+      openEdit: function (p) {
          this.modalMode = "edit";
          this.formError = "";
          this.formErrors = {};
@@ -435,7 +435,7 @@ export default {
          this.payrollModalInst.show();
       },
 
-      loadSuggestedCa() {
+      loadSuggestedCa: function () {
          this.loadingCa = true;
          axios
             .get(`/panel/employees/${this.employee.id}/payrolls/suggested-ca`)
@@ -446,13 +446,16 @@ export default {
             .finally(() => (this.loadingCa = false));
       },
 
-      fetchSuggestion() {
+      fetchSuggestion: function () {
          if (!this.form.period_start || !this.form.period_end) return;
          this.loadingSuggestion = true;
          this.suggestion = null;
          axios
             .get(`/panel/employees/${this.employee.id}/payrolls/suggest`, {
-               params: { period_start: this.form.period_start, period_end: this.form.period_end },
+               params: {
+                  period_start: this.form.period_start,
+                  period_end: this.form.period_end,
+               },
             })
             .then((res) => {
                this.suggestion = res.data;
@@ -462,7 +465,7 @@ export default {
             .finally(() => (this.loadingSuggestion = false));
       },
 
-      submitPayroll() {
+      submitPayroll: function () {
          this.submitting = true;
          this.formError = "";
          this.formErrors = {};
@@ -489,7 +492,7 @@ export default {
             .finally(() => (this.submitting = false));
       },
 
-      approvePayroll(p) {
+      approvePayroll: function (p) {
          this.approving = p.id;
          this.pageError = "";
          axios
@@ -502,7 +505,7 @@ export default {
             .finally(() => (this.approving = null));
       },
 
-      openPayoutModal(p) {
+      openPayoutModal: function (p) {
          if (!this.canAddPayout(p)) {
             this.pageError = "Payroll has no remaining balance for payout.";
             return;
@@ -525,7 +528,7 @@ export default {
          }
       },
 
-      submitPayout() {
+      submitPayout: function () {
          this.payoutSubmitting = true;
          this.payoutError = "";
          this.payoutErrors = {};
@@ -546,12 +549,12 @@ export default {
             .finally(() => (this.payoutSubmitting = false));
       },
 
-      confirmCancel(p) {
+      confirmCancel: function (p) {
          this.cancelTarget = p;
          this.cancelModalInst.show();
       },
 
-      doCancel() {
+      doCancel: function () {
          if (!this.cancelTarget) return;
          this.canceling = true;
          this.pageError = "";
@@ -567,24 +570,23 @@ export default {
             .finally(() => (this.canceling = false));
       },
 
-      emptyForm() {
+      emptyForm: function () {
          return { period_start: "", period_end: "", gross_amount: "", bonus: 0, manual_deductions: 0, cash_advance_deduction: 0, notes: "" };
       },
 
-      emptyPayoutForm() {
+      emptyPayoutForm: function () {
          const d = new Date();
          d.setSeconds(0, 0);
          return { amount: "", method: "cash", reference_number: "", notes: "", paid_at: d.toISOString().slice(0, 16) };
       },
 
-      canAddPayout(payroll) {
+      canAddPayout: function (payroll) {
          return ["approved", "partially_paid"].includes(payroll.status) && Number(payroll.remaining_balance) > 0;
       },
 
-      hasPayrollActions(payroll) {
+      hasPayrollActions: function (payroll) {
          return payroll.status === "draft" || this.canAddPayout(payroll);
       },
-
    },
 };
 </script>

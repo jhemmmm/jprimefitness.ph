@@ -42,7 +42,7 @@
                </div>
             </div>
             <div class="col-6 col-md-3">
-               <select class="form-select" v-model="selectedStatus" @change="fetchBranches">
+               <select class="form-select" v-model="selectedStatus" @change="fetchBranches(1)">
                   <option value="">All Statuses</option>
                   <option value="open">Open</option>
                   <option value="closed">Closed</option>
@@ -485,10 +485,12 @@ export default {
       fetchBranches: function (page = 1) {
          this.loading = true;
          axios
-            .post("/panel/branches/list", {
-               search: this.search,
-               status: this.selectedStatus,
-               page: page,
+            .get("/panel/branches/list", {
+               params: {
+                  search: this.search || undefined,
+                  status: this.selectedStatus || undefined,
+                  page: page,
+               },
             })
             .then((res) => {
                this.branches = res.data.branches.data;

@@ -239,32 +239,8 @@ export default {
       this.caModalInst = new Modal(this.$refs.caModal);
       this.fetchAdvances();
    },
-
-   computed: {
-      statCards() {
-         return [
-            { label: "Remaining", value: this.stats.remaining_amount, isMoney: true, icon: "bi-hourglass-split", iconBg: "bg-danger-soft", iconColor: "text-danger" },
-            { label: "Released", value: this.stats.released_count, isMoney: false, icon: "bi-box-arrow-up-right", iconBg: "bg-warning-soft", iconColor: "text-warning" },
-            { label: "Partially Paid", value: this.stats.partially_paid_count, isMoney: false, icon: "bi-dash-circle", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-            { label: "Paid", value: this.stats.paid_count, isMoney: false, icon: "bi-check-circle", iconBg: "bg-success-soft", iconColor: "text-success" },
-         ];
-      },
-      statusOptions() {
-         if (!this.editingAdvance) {
-            return ["requested"];
-         }
-
-         return (
-            {
-               requested: ["requested", "approved", "cancelled"],
-               approved: ["approved", "released", "cancelled"],
-            }[this.editingAdvance.status] ?? []
-         );
-      },
-   },
-
    methods: {
-      fetchAdvances() {
+      fetchAdvances: function () {
          this.loading = true;
          this.pageError = "";
          axios
@@ -277,14 +253,14 @@ export default {
             .finally(() => (this.loading = false));
       },
 
-      replaceAdvance(advance) {
+      replaceAdvance: function (advance) {
          const index = this.advances.findIndex((item) => item.id === advance.id);
          if (index !== -1) {
             this.advances.splice(index, 1, advance);
          }
       },
 
-      setAdvanceStatus(advance, status) {
+      setAdvanceStatus: function (advance, status) {
          this.actioning = `${advance.id}:${status}`;
          this.pageError = "";
 
@@ -300,11 +276,11 @@ export default {
             .finally(() => (this.actioning = ""));
       },
 
-      toggleAudit(id) {
+      toggleAudit: function (id) {
          this.expandedAdvanceId = this.expandedAdvanceId === id ? null : id;
       },
 
-      auditEvents(advance) {
+      auditEvents: function (advance) {
          const auditData = Array.isArray(advance.audit_data)
             ? advance.audit_data
                  .filter((event) => event?.at)
@@ -330,7 +306,7 @@ export default {
          return [...legacyEvents, ...auditData].sort((left, right) => new Date(left.at) - new Date(right.at));
       },
 
-      auditEventLabel(event) {
+      auditEventLabel: function (event) {
          return (
             {
                requested: "Requested",
@@ -343,7 +319,7 @@ export default {
          );
       },
 
-      auditEventDetails(event) {
+      auditEventDetails: function (event) {
          const details = [];
 
          if (event.deducted_amount !== undefined && event.deducted_amount !== null) {
@@ -358,7 +334,7 @@ export default {
          return details.join(" ");
       },
 
-      openCreate() {
+      openCreate: function () {
          this.modalMode = "create";
          this.editingAdvance = null;
          this.form = this.emptyForm();
@@ -367,7 +343,7 @@ export default {
          this.caModalInst.show();
       },
 
-      openEdit(a) {
+      openEdit: function (a) {
          this.modalMode = "edit";
          this.editingAdvance = a;
          this.formError = "";
@@ -377,7 +353,7 @@ export default {
          this.caModalInst.show();
       },
 
-      submit() {
+      submit: function () {
          this.submitting = true;
          this.formError = "";
          this.formErrors = {};
@@ -407,30 +383,52 @@ export default {
             .finally(() => (this.submitting = false));
       },
 
-      emptyForm() {
+      emptyForm: function () {
          const d = new Date();
          d.setSeconds(0, 0);
          return { amount: "", status: "requested", notes: "", requested_at: d.toISOString().slice(0, 16) };
       },
 
-      canManageAdvance(status) {
+      canManageAdvance: function (status) {
          return ["requested", "approved"].includes(status);
       },
 
-      canApproveAdvance(status) {
+      canApproveAdvance: function (status) {
          return status === "requested";
       },
 
-      canReleaseAdvance(status) {
+      canReleaseAdvance: function (status) {
          return status === "approved";
       },
 
-      canCancelAdvance(status) {
+      canCancelAdvance: function (status) {
          return ["requested", "approved"].includes(status);
       },
 
-      isActioning(id, status) {
+      isActioning: function (id, status) {
          return this.actioning === `${id}:${status}`;
+      },
+   },
+   computed: {
+      statCards() {
+         return [
+            { label: "Remaining", value: this.stats.remaining_amount, isMoney: true, icon: "bi-hourglass-split", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+            { label: "Released", value: this.stats.released_count, isMoney: false, icon: "bi-box-arrow-up-right", iconBg: "bg-warning-soft", iconColor: "text-warning" },
+            { label: "Partially Paid", value: this.stats.partially_paid_count, isMoney: false, icon: "bi-dash-circle", iconBg: "bg-primary-soft", iconColor: "text-primary" },
+            { label: "Paid", value: this.stats.paid_count, isMoney: false, icon: "bi-check-circle", iconBg: "bg-success-soft", iconColor: "text-success" },
+         ];
+      },
+      statusOptions() {
+         if (!this.editingAdvance) {
+            return ["requested"];
+         }
+
+         return (
+            {
+               requested: ["requested", "approved", "cancelled"],
+               approved: ["approved", "released", "cancelled"],
+            }[this.editingAdvance.status] ?? []
+         );
       },
    },
 };

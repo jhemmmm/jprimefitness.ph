@@ -227,17 +227,14 @@ export default {
    },
 
    methods: {
-      fetchRecords(page) {
+      fetchRecords: function (page = 1) {
          this.loading = true;
          this.pageError = "";
-         const p = page || this.currentPage;
          axios
-            .get(`/panel/employees/${this.employee.id}/attendance`, {
-               params: {
-                  date_from: this.dateFrom || undefined,
-                  date_to: this.dateTo || undefined,
-                  page: p > 1 ? p : undefined,
-               },
+            .post(`/panel/employees/${this.employee.id}/attendance`, {
+               date_from: this.dateFrom,
+               date_to: this.dateTo,
+               page: page,
             })
             .then((res) => {
                const d = res.data;
@@ -253,27 +250,26 @@ export default {
             .finally(() => (this.loading = false));
       },
 
-      clearFilters() {
+      clearFilters: function () {
          this.dateFrom = "";
          this.dateTo = "";
          this.fetchRecords(1);
       },
 
-      goToPage(link) {
+      goToPage: function (link) {
          if (!link.url) return;
          const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
-         this.currentPage = page;
          this.fetchRecords(page);
       },
 
-      openLogModal() {
+      openLogModal: function () {
          this.logForm = { checked_in_at: new Date().toISOString().slice(0, 16), checked_out_at: "", notes: "" };
          this.formError = "";
          this.formErrors = {};
          this.logModalInst.show();
       },
 
-      submitLog() {
+      submitLog: function () {
          this.submitting = true;
          this.formError = "";
          this.formErrors = {};
@@ -301,7 +297,7 @@ export default {
             .finally(() => (this.submitting = false));
       },
 
-      doCheckout(r) {
+      doCheckout: function (r) {
          this.pageError = "";
          axios
             .post(`/panel/attendance/${r.id}/checkout`)
@@ -309,12 +305,12 @@ export default {
             .catch((err) => (this.pageError = err.response?.data?.message || "Failed to check out attendance record."));
       },
 
-      confirmDelete(r) {
+      confirmDelete: function (r) {
          this.deleteTarget = r;
          this.deleteModalInst.show();
       },
 
-      doDelete() {
+      doDelete: function () {
          if (!this.deleteTarget) return;
          this.deleting = true;
          this.pageError = "";
