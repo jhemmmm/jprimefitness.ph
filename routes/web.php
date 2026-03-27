@@ -78,6 +78,7 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
         Route::get('/employees/{employee}/payrolls/suggested-ca', [EmployeeController::class, 'payrollSuggestedCa'])->name('employees.payrolls.suggestedCa')->whereNumber('employee');
         Route::get('/employees/{employee}/payrolls/suggest', [EmployeeController::class, 'payrollSuggest'])->name('employees.payrolls.suggest')->whereNumber('employee');
         Route::middleware('branch.resource:payroll')->group(function () {
+            Route::get('/employees/{employee}/payrolls/{payroll}/payslip', [EmployeeController::class, 'payslip'])->name('employees.payrolls.payslip')->whereNumber('employee')->whereNumber('payroll');
             Route::put('/employees/{employee}/payrolls/{payroll}', [EmployeeController::class, 'updatePayroll'])->name('employees.payrolls.update')->whereNumber('employee')->whereNumber('payroll');
             Route::post('/employees/{employee}/payrolls/{payroll}/approve', [EmployeeController::class, 'approvePayroll'])->name('employees.payrolls.approve')->whereNumber('employee')->whereNumber('payroll');
             Route::post('/employees/{employee}/payrolls/{payroll}/cancel', [EmployeeController::class, 'cancelPayroll'])->name('employees.payrolls.cancel')->whereNumber('employee')->whereNumber('payroll');

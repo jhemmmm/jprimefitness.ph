@@ -83,6 +83,9 @@
                      </td>
                      <td>
                         <div class="d-flex gap-1">
+                           <a class="btn btn-sm btn-outline-danger" title="Download Payslip" :href="getPayslipUrl(p)">
+                              <i class="bi bi-file-earmark-pdf tbl-icon"></i>
+                           </a>
                            <button v-if="p.status === 'draft'" class="btn btn-sm btn-outline-success" title="Approve" @click="approvePayroll(p)" :disabled="approving === p.id">
                               <i class="bi bi-check-lg tbl-icon"></i>
                            </button>
@@ -112,11 +115,14 @@
                         Net: <strong>₱{{ $filters.formatMoney(p.net_amount) }}</strong>
                      </div>
                   </div>
-                  <div class="d-flex align-items-center gap-2">
-                     <span :class="['m-badge', $filters.statusBadge(p.status)]">{{ $filters.capitalize(p.status) }}</span>
+                     <div class="d-flex align-items-center gap-2">
+                        <span :class="['m-badge', $filters.statusBadge(p.status)]">{{ $filters.capitalize(p.status) }}</span>
                      <div class="dropdown" v-if="hasPayrollActions(p)">
                         <button class="btn-icon-sm" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
                         <ul class="dropdown-menu dropdown-menu-end">
+                           <li>
+                              <a class="dropdown-item text-danger" :href="getPayslipUrl(p)"><i class="bi bi-file-earmark-pdf me-2"></i>Download Payslip</a>
+                           </li>
                            <li v-if="p.status === 'draft'">
                               <a class="dropdown-item text-success" href="#" @click.prevent="approvePayroll(p)"><i class="bi bi-check-lg me-2"></i>Approve</a>
                            </li>
@@ -580,12 +586,16 @@ export default {
          return { amount: "", method: "cash", reference_number: "", notes: "", paid_at: d.toISOString().slice(0, 16) };
       },
 
+      getPayslipUrl: function (payroll) {
+         return `/panel/employees/${this.employee.id}/payrolls/${payroll.id}/payslip`;
+      },
+
       canAddPayout: function (payroll) {
          return ["approved", "partially_paid"].includes(payroll.status) && Number(payroll.remaining_balance) > 0;
       },
 
       hasPayrollActions: function (payroll) {
-         return payroll.status === "draft" || this.canAddPayout(payroll);
+         return payroll.status === "draft" || this.canAddPayout(payroll) || !!this.getPayslipUrl(payroll);
       },
    },
 };
