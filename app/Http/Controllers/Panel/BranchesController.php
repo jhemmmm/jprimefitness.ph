@@ -7,7 +7,6 @@ use App\Models\Branch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class BranchesController extends Controller
@@ -35,7 +34,7 @@ class BranchesController extends Controller
                         ->orWhere('province', 'like', "%{$search}%");
                 });
             })
-            ->when($status, fn($q, $s) => $q->where('status', $s))
+            ->when($status, fn ($q, $s) => $q->where('status', $s))
             ->orderBy('name')
             ->paginate(20)
             ->withQueryString();
@@ -70,8 +69,6 @@ class BranchesController extends Controller
             'map_url' => ['nullable', 'url', 'max:500'],
         ]);
 
-        $data['slug'] = $this->resolveUniqueSlug($data['name']);
-
         $branch = Branch::create($data);
 
         return response()->json($branch, 201);
@@ -97,10 +94,6 @@ class BranchesController extends Controller
                 'whatsapp_url' => ['nullable', 'url', 'max:500'],
                 'map_url' => ['nullable', 'url', 'max:500'],
             ]);
-
-            if ($branch->name !== $data['name']) {
-                $data['slug'] = $this->resolveUniqueSlug($data['name'], $branch);
-            }
         } else {
             $data = $request->validate([
                 'city' => ['required', 'string', 'max:255'],
@@ -152,7 +145,7 @@ class BranchesController extends Controller
         $photos[] = $path;
         $branch->update(['photos' => $photos]);
 
-        return response()->json(['path' => $path, 'url' => asset('storage/' . $path)], 201);
+        return response()->json(['path' => $path, 'url' => asset('storage/'.$path)], 201);
     }
 
     public function destroyPhoto(Branch $branch, int $index): JsonResponse
@@ -170,24 +163,5 @@ class BranchesController extends Controller
         $branch->update(['photos' => $photos]);
 
         return response()->json(null, 204);
-    }
-
-    protected function resolveUniqueSlug(string $name, ?Branch $ignore = null): string
-    {
-        $baseSlug = Str::slug($name) ?: 'branch';
-        $slug = $baseSlug;
-        $suffix = 2;
-
-        while (
-            Branch::query()
-            ->when($ignore, fn($query) => $query->whereKeyNot($ignore->id))
-            ->where('slug', $slug)
-            ->exists()
-        ) {
-            $slug = "{$baseSlug}-{$suffix}";
-            $suffix++;
-        }
-
-        return $slug;
     }
 }

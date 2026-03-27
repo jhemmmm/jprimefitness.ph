@@ -1,5 +1,7 @@
 <template>
    <div class="attendance-page">
+      <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
+
       <!-- Page Header -->
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
@@ -21,7 +23,7 @@
                </div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ stat.label }}</div>
-                  <div class="stat-card-value" v-if="statsLoading">
+                  <div class="stat-card-value" v-if="loading">
                      <div class="skeleton-box sk-stat-val"></div>
                   </div>
                   <div class="stat-card-value" v-else>{{ stat.value }}</div>
@@ -30,7 +32,7 @@
          </div>
       </div>
 
-      <!-- ── Filters ──────────────────────────────────────────────────────── -->
+      <!-- Filters -->
       <div class="panel-card mb-4 p-3">
          <div class="row g-2 align-items-center">
             <div class="col-12 col-md-4">
@@ -42,13 +44,13 @@
                </div>
             </div>
             <div class="col-6 col-md-2">
-               <select class="form-select" v-model="selectedBranch" @change="applyFilters">
+               <select class="form-select" v-model="selectedBranch" @change="fetchRecords">
                   <option value="">All Branches</option>
                   <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
                </select>
             </div>
             <div class="col-6 col-md-2">
-               <select class="form-select" v-model="selectedType" @change="applyFilters">
+               <select class="form-select" v-model="selectedType" @change="fetchRecords">
                   <option value="">All Types</option>
                   <option value="member">Members</option>
                   <option value="walk_in">Walk-ins</option>
@@ -56,10 +58,10 @@
                </select>
             </div>
             <div class="col-6 col-md-2">
-               <input type="date" class="form-control" v-model="dateFrom" @change="applyFilters" title="From date" />
+               <input type="date" class="form-control" v-model="dateFrom" @change="fetchRecords" title="From date" />
             </div>
             <div class="col-6 col-md-2">
-               <input type="date" class="form-control" v-model="dateTo" @change="applyFilters" title="To date" />
+               <input type="date" class="form-control" v-model="dateTo" @change="fetchRecords" title="To date" />
             </div>
             <div class="col-12 col-md-auto" v-if="hasActiveFilters">
                <button class="btn btn-outline-secondary w-100" @click="clearFilters"><i class="bi bi-x me-1"></i>Clear</button>
@@ -164,7 +166,7 @@
                      <tr v-for="r in records" :key="r.id" :class="{ 'table-success-soft': !r.checked_out_at }">
                         <td>
                            <div class="d-flex align-items-center gap-2">
-                              <div class="member-avatar" :class="avatarClass(r.attendee_type)">
+                              <div class="member-avatar" :class="attendeeAvatarClasses[r.attendee_type] || ''">
                                  {{ $filters.getNameInitials(r.name) }}
                               </div>
                               <div>
@@ -173,8 +175,8 @@
                            </div>
                         </td>
                         <td>
-                           <span class="m-badge" :class="typeBadgeClass(r.attendee_type)">
-                              {{ typeLabel(r.attendee_type) }}
+                           <span :class="['m-badge', $filters.roleBadge(r.attendee_type)]">
+                              {{ $filters.capitalize(r.attendee_type) }}
                            </span>
                         </td>
                         <td class="small">{{ r.branch ? r.branch.name : "—" }}</td>
@@ -203,7 +205,7 @@
                <div class="member-card" v-for="r in records" :key="'mc' + r.id">
                   <div class="member-card-top">
                      <div class="member-card-identity">
-                        <div class="member-avatar" :class="avatarClass(r.attendee_type)">
+                        <div class="member-avatar" :class="attendeeAvatarClasses[r.attendee_type] || ''">
                            {{ $filters.getNameInitials(r.name) }}
                         </div>
                         <div>
@@ -230,8 +232,8 @@
                      </div>
                   </div>
                   <div class="member-card-tags">
-                     <span class="m-badge" :class="typeBadgeClass(r.attendee_type)">{{ typeLabel(r.attendee_type) }}</span>
-                     <span class="m-badge m-badge--active" v-if="!r.checked_out_at">Currently In</span>
+                     <span :class="['m-badge', $filters.roleBadge(r.attendee_type)]">{{ $filters.capitalize(r.attendee_type) }}</span>
+                     <span :class="['m-badge', $filters.statusBadge('active')]" v-if="!r.checked_out_at">Currently In</span>
                   </div>
                   <div class="member-card-footer">
                      <span><i class="bi bi-box-arrow-in-right me-1"></i>{{ $filters.formatDateTime(r.checked_in_at) }}</span>
@@ -272,7 +274,7 @@
                      <div class="col-12" v-if="modalMode === 'add'">
                         <label class="form-label form-label-sm">Attendee Type <span class="text-danger">*</span></label>
                         <div class="d-flex gap-2 flex-wrap">
-                           <button v-for="t in typeOptions" :key="t.value" type="button" class="btn btn-sm" :class="form.attendee_type === t.value ? 'btn-danger' : 'btn-outline-secondary'" @click="setType(t.value)"><i class="bi me-1" :class="t.icon"></i>{{ t.label }}</button>
+                           <button v-for="t in attendeeTypes" :key="t.value" type="button" class="btn btn-sm" :class="form.attendee_type === t.value ? 'btn-danger' : 'btn-outline-secondary'" @click="setType(t.value)"><i class="bi me-1" :class="t.icon"></i>{{ t.label }}</button>
                         </div>
                         <div class="text-danger small mt-1" v-if="formErrors.attendee_type">
                            {{ formErrors.attendee_type }}
@@ -286,21 +288,13 @@
                               {{ form.attendee_type === "member" ? "Member" : "Employee" }}
                               <span class="text-danger">*</span>
                            </label>
-                           <AsyncSearchSelect
-                              v-model="form.user_id"
-                              :selected-label="form.name"
-                              :placeholder="personSelectPlaceholder"
-                              :search-placeholder="personSearchPlaceholder"
-                              :fetch-options="fetchPeopleOptions"
-                              :invalid="!!formErrors.user_id"
-                              @select-option="handlePersonSelected"
-                           />
+                           <AsyncSearchSelect v-model="form.user_id" :selected-label="form.name" :placeholder="personSelectPlaceholder" :search-placeholder="personSearchPlaceholder" :fetch-options="fetchPeopleOptions" :invalid="!!formErrors.user_id" @select-option="handlePersonSelected" />
                            <div class="invalid-feedback d-block" v-if="formErrors.user_id">{{ formErrors.user_id }}</div>
                         </div>
                         <div class="col-12 small text-muted" v-else>
                            <i class="bi bi-person-fill me-1"></i>
                            {{ form.name }}
-                           <span class="m-badge ms-2" :class="typeBadgeClass(form.attendee_type)">{{ typeLabel(form.attendee_type) }}</span>
+                           <span :class="['m-badge', $filters.roleBadge(form.attendee_type), 'ms-2']">{{ $filters.capitalize(form.attendee_type) }}</span>
                         </div>
                      </template>
 
@@ -399,14 +393,14 @@ export default {
    data() {
       return {
          loading: true,
-         statsLoading: true,
          submitting: false,
          deleting: false,
+         pageError: "",
          records: [],
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { today: 0, this_week: 0, this_month: 0, currently_in: 0 },
          search: "",
-         selectedBranch: "",
+         selectedBranch: parseInt(localStorage.getItem("selectedBranch")) || "",
          selectedType: "",
          dateFrom: "",
          dateTo: "",
@@ -419,11 +413,6 @@ export default {
          formModal: null,
          deleteModal: null,
          deleteTarget: null,
-         typeOptions: [
-            { value: "member", label: "Member", icon: "bi-people-fill" },
-            { value: "walk_in", label: "Walk-in", icon: "bi-person-plus-fill" },
-            { value: "employee", label: "Employee", icon: "bi-person-workspace" },
-         ],
       };
    },
 
@@ -434,42 +423,34 @@ export default {
    },
 
    methods: {
-      emptyForm() {
+      emptyForm: function () {
          return {
             attendee_type: "member",
             user_id: "",
             name: "",
-            branch_id: "",
-            checked_in_at: this.nowLocal(),
+            branch_id: this.selectedBranch || "",
+            checked_in_at: new Date().toISOString().slice(0, 16),
             checked_out_at: "",
             notes: "",
          };
       },
 
-      nowLocal() {
-         const d = new Date();
-         d.setSeconds(0, 0);
-         return d.toISOString().slice(0, 16);
-      },
-
-      fetchRecords(page) {
+      fetchRecords: function (page = 1) {
          this.loading = true;
-         this.statsLoading = true;
-         const p = page || this.currentPage;
+         this.pageError = "";
          axios
-            .get("/panel/attendance/list", {
-               params: {
-                  search: this.search || undefined,
-                  branch: this.selectedBranch || undefined,
-                  type: this.selectedType || undefined,
-                  date_from: this.dateFrom || undefined,
-                  date_to: this.dateTo || undefined,
-                  page: p > 1 ? p : undefined,
-               },
+            .post("/panel/attendance/list", {
+               search: this.search,
+               branch: this.selectedBranch,
+               type: this.selectedType,
+               date_from: this.dateFrom,
+               date_to: this.dateTo,
+               page: page,
             })
             .then((res) => {
                const d = res.data;
                this.records = d.records.data;
+               this.currentPage = d.records.current_page;
                this.pagination = {
                   currentPage: d.records.current_page,
                   lastPage: d.records.last_page,
@@ -479,87 +460,75 @@ export default {
                   links: d.records.links,
                };
                this.stats = d.stats;
-               this.loading = false;
-               this.statsLoading = false;
             })
-            .catch(() => {
-               this.loading = false;
-               this.statsLoading = false;
-            });
+            .catch((err) => (this.pageError = err.response?.data?.message || "Failed to load attendance records."))
+            .finally(() => (this.loading = false));
       },
 
-      onSearchInput() {
+      onSearchInput: function () {
          clearTimeout(this.searchTimer);
-         this.searchTimer = setTimeout(() => this.applyFilters(), 500);
+         this.searchTimer = setTimeout(() => this.fetchRecords(), 500);
       },
 
-      applyFilters() {
-         this.currentPage = 1;
-         this.fetchRecords(1);
-      },
-
-      clearFilters() {
+      clearFilters: function () {
          this.search = "";
          this.selectedBranch = "";
          this.selectedType = "";
          this.dateFrom = "";
          this.dateTo = "";
-         this.applyFilters();
+         this.fetchRecords();
       },
 
-      goToPage(link) {
+      goToPage: function (link) {
          if (!link.url) return;
          const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
-         this.currentPage = page;
          this.fetchRecords(page);
       },
 
-      setType(type) {
+      setType: function (type) {
          this.form.attendee_type = type;
          this.form.user_id = "";
          this.form.name = "";
       },
 
-      openAddModal() {
+      openAddModal: function () {
          this.modalMode = "add";
          this.form = this.emptyForm();
+         this.pageError = "";
          this.formError = "";
          this.formErrors = {};
          this.formModal.show();
       },
 
-      async fetchPeopleOptions(search) {
+      fetchPeopleOptions: function (search) {
          const params = {
             search,
             branch: this.form.branch_id || undefined,
          };
 
          if (this.form.attendee_type === "employee") {
-            const res = await axios.post("/panel/employees/list", params);
-
-            return (res.data || []).map((person) => ({
-               id: person.id,
-               name: person.name,
-               meta: person.email || (person.branches || []).map((branch) => branch.name).join(", "),
-            }));
+            return axios.post("/panel/employees/list", params).then((res) => this.mapPeopleOptions(res.data || []));
          }
 
-         const res = await axios.post("/panel/members/list", params);
+         return axios.post("/panel/members/list", params).then((res) => this.mapPeopleOptions(res.data.members?.data || []));
+      },
 
-         return (res.data.members?.data || []).map((person) => ({
+      mapPeopleOptions: function (people) {
+         return people.map((person) => ({
             id: person.id,
             name: person.name,
             meta: person.email || (person.branches || []).map((branch) => branch.name).join(", "),
          }));
       },
 
-      handlePersonSelected(option) {
+      handlePersonSelected: function (option) {
          this.form.user_id = option.id;
          this.form.name = option.name;
       },
 
-      openEditModal(r) {
+      openEditModal: function (r) {
          this.modalMode = "edit";
+         this.pageError = "";
          this.formError = "";
          this.formErrors = {};
          this.form = {
@@ -568,32 +537,36 @@ export default {
             user_id: r.user_id || "",
             name: r.name || "",
             branch_id: r.branch_id || "",
-            checked_in_at: r.checked_in_at ? r.checked_in_at.slice(0, 16) : this.nowLocal(),
+            checked_in_at: r.checked_in_at ? r.checked_in_at.slice(0, 16) : new Date().toISOString().slice(0, 16),
             checked_out_at: r.checked_out_at ? r.checked_out_at.slice(0, 16) : "",
             notes: r.notes || "",
          };
          this.formModal.show();
       },
 
-      confirmDelete(r) {
+      confirmDelete: function (r) {
          this.deleteTarget = r;
          this.deleteModal.show();
       },
 
-      doCheckout(r) {
+      doCheckout: function (r) {
+         this.pageError = "";
          axios
             .post(`/panel/attendance/${r.id}/checkout`)
             .then((res) => {
                const idx = this.records.findIndex((x) => x.id === r.id);
-               if (idx !== -1) this.records.splice(idx, 1, res.data);
+               if (idx !== -1) {
+                  this.records.splice(idx, 1, res.data);
+               }
                this.fetchRecords(this.currentPage);
             })
-            .catch(() => {});
+            .catch((err) => (this.pageError = err.response?.data?.message || "Failed to check out attendance record."));
       },
 
-      doDelete() {
+      doDelete: function () {
          if (!this.deleteTarget) return;
          this.deleting = true;
+         this.pageError = "";
          axios
             .delete(`/panel/attendance/${this.deleteTarget.id}`)
             .then(() => {
@@ -601,11 +574,11 @@ export default {
                this.deleteTarget = null;
                this.fetchRecords(this.currentPage);
             })
-            .catch(() => {})
+            .catch((err) => (this.pageError = err.response?.data?.message || "Failed to delete attendance record."))
             .finally(() => (this.deleting = false));
       },
 
-      submitForm() {
+      submitForm: function () {
          this.submitting = true;
          this.formError = "";
          this.formErrors = {};
@@ -632,21 +605,24 @@ export default {
             })
             .finally(() => (this.submitting = false));
       },
-
-      typeLabel(type) {
-         return { member: "Member", walk_in: "Walk-in", employee: "Employee" }[type] ?? type;
-      },
-
-      typeBadgeClass(type) {
-         return { member: "m-badge--active", walk_in: "m-badge--plan", employee: "m-badge--inactive" }[type] ?? "";
-      },
-
-      avatarClass(type) {
-         return { employee: "attendance-avatar--employee", walk_in: "attendance-avatar--walkin" }[type] ?? "";
-      },
    },
 
    computed: {
+      attendeeTypes() {
+         return [
+            { value: "member", label: "Member", icon: "bi-people-fill" },
+            { value: "walk_in", label: "Walk-in", icon: "bi-person-plus-fill" },
+            { value: "employee", label: "Employee", icon: "bi-person-workspace" },
+         ];
+      },
+
+      attendeeAvatarClasses() {
+         return {
+            employee: "attendance-avatar--employee",
+            walk_in: "attendance-avatar--walkin",
+         };
+      },
+
       hasActiveFilters() {
          return !!(this.search || this.selectedBranch || this.selectedType || this.dateFrom || this.dateTo);
       },

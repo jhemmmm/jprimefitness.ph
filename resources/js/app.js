@@ -38,10 +38,11 @@ app.component("employees-page", EmployeesPage);
 import EmployeeDetailPage from "./components/panel/EmployeeDetailPage.vue";
 app.component("employee-detail-page", EmployeeDetailPage);
 
-const normalizeKey = (value) => String(value ?? "")
-   .trim()
-   .toLowerCase()
-   .replace(/[\s-]+/g, "_");
+const normalizeKey = (value) =>
+   String(value ?? "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s-]+/g, "_");
 
 // Filters
 app.config.globalProperties.$filters = {
@@ -82,7 +83,12 @@ app.config.globalProperties.$filters = {
             member: "m-badge--member",
             coach: "m-badge--coach",
             employee: "m-badge--employee",
-         }[String(role ?? "").trim().toLowerCase()] ?? ""
+            walk_in: "m-badge--plan",
+         }[
+            String(role ?? "")
+               .trim()
+               .toLowerCase()
+         ] ?? ""
       );
    },
    statusBadge(status) {

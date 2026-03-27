@@ -267,7 +267,7 @@ export default {
       },
 
       openLogModal() {
-         this.logForm = { checked_in_at: this.nowLocal(), checked_out_at: "", notes: "" };
+         this.logForm = { checked_in_at: new Date().toISOString().slice(0, 16), checked_out_at: "", notes: "" };
          this.formError = "";
          this.formErrors = {};
          this.logModalInst.show();
@@ -327,12 +327,6 @@ export default {
             })
             .catch((err) => (this.pageError = err.response?.data?.message || "Failed to delete attendance record."))
             .finally(() => (this.deleting = false));
-      },
-
-      nowLocal() {
-         const d = new Date();
-         d.setSeconds(0, 0);
-         return d.toISOString().slice(0, 16);
       },
    },
 };

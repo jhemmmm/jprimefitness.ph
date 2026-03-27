@@ -1,5 +1,7 @@
 <template>
    <div class="walk-ins-page">
+      <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
+
       <!-- ── Page Header ──────────────────────────────────────────────────── -->
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
@@ -313,7 +315,7 @@
                </div>
                <div class="modal-body" v-if="deleteTarget">
                   <p class="mb-1">Are you sure you want to delete this walk-in record?</p>
-                  <p class="fw-semibold mb-0">{{ deleteTarget.first_name }} {{ deleteTarget.last_name }} &mdash; {{ formatDateTime(deleteTarget.visited_at) }}</p>
+                  <p class="fw-semibold mb-0">{{ deleteTarget.name }} &mdash; {{ $filters.formatDateTime(deleteTarget.visited_at) }}</p>
                   <p class="text-danger small mt-2 mb-0">This action cannot be undone.</p>
                </div>
                <div class="modal-footer">
@@ -343,6 +345,7 @@ export default {
          loading: true,
          submitting: false,
          deleting: false,
+         pageError: "",
          walkIns: [],
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { today: 0, this_week: 0, this_month: 0, revenue_today: 0 },
@@ -373,7 +376,7 @@ export default {
          return {
             name: "",
             phone: "",
-            branch_id: "",
+            branch_id: this.selectedBranch || "",
             rate_plan_id: "",
             amount_paid: "",
             visited_at: new Date().toISOString().slice(0, 16),
@@ -383,6 +386,7 @@ export default {
 
       fetchWalkIns(page = 1) {
          this.loading = true;
+         this.pageError = "";
          axios
             .post("/panel/walk-ins/list", {
                search: this.search,
@@ -393,6 +397,7 @@ export default {
             })
             .then((res) => {
                this.walkIns = res.data.walkIns.data;
+               this.currentPage = res.data.walkIns.current_page;
                this.pagination = {
                   currentPage: res.data.walkIns.current_page,
                   lastPage: res.data.walkIns.last_page,
@@ -401,11 +406,10 @@ export default {
                   to: res.data.walkIns.to || 0,
                   links: res.data.walkIns.links,
                };
-               this.currentPage = page;
                this.stats = res.data.stats;
-               this.loading = false;
             })
-            .catch(() => (this.loading = false));
+            .catch((err) => (this.pageError = err.response?.data?.message || "Failed to load walk-ins."))
+            .finally(() => (this.loading = false));
       },
 
       onSearchInput() {
@@ -430,6 +434,7 @@ export default {
       openAddModal() {
          this.modalMode = "add";
          this.form = this.emptyForm();
+         this.pageError = "";
          this.formError = "";
          this.formErrors = {};
          this.formModal.show();
@@ -437,6 +442,7 @@ export default {
 
       openEditModal(w) {
          this.modalMode = "edit";
+         this.pageError = "";
          this.formError = "";
          this.formErrors = {};
          this.form = {
@@ -460,6 +466,7 @@ export default {
       doDelete() {
          if (!this.deleteTarget) return;
          this.deleting = true;
+         this.pageError = "";
          axios
             .delete(`/panel/walk-ins/${this.deleteTarget.id}`)
             .then(() => {
@@ -467,7 +474,7 @@ export default {
                this.deleteTarget = null;
                this.fetchWalkIns(this.currentPage);
             })
-            .catch(() => {})
+            .catch((err) => (this.pageError = err.response?.data?.message || "Failed to delete walk-in record."))
             .finally(() => (this.deleting = false));
       },
 

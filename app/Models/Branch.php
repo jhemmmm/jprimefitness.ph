@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Str;
 
 class Branch extends Model
 {
@@ -41,6 +41,19 @@ class Branch extends Model
         'photos' => 'array',
     ];
 
+    protected static function booted(): void
+    {
+        static::creating(function (Branch $branch): void {
+            $branch->slug = static::resolveUniqueSlug($branch->slug ?: $branch->name);
+        });
+
+        static::updating(function (Branch $branch): void {
+            if ($branch->isDirty('name')) {
+                $branch->slug = static::resolveUniqueSlug($branch->name, $branch);
+            }
+        });
+    }
+
     public function ratePlans(): BelongsToMany
     {
         return $this->belongsToMany(RatePlan::class, 'branch_rate_prices')
@@ -58,5 +71,24 @@ class Branch extends Model
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withTimestamps();
+    }
+
+    protected static function resolveUniqueSlug(string $value, ?self $ignore = null): string
+    {
+        $baseSlug = Str::slug($value) ?: 'branch';
+        $slug = $baseSlug;
+        $suffix = 2;
+
+        while (
+            static::query()
+                ->when($ignore, fn ($query) => $query->whereKeyNot($ignore->id))
+                ->where('slug', $slug)
+                ->exists()
+        ) {
+            $slug = "{$baseSlug}-{$suffix}";
+            $suffix++;
+        }
+
+        return $slug;
     }
 }

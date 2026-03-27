@@ -1,5 +1,7 @@
 <template>
    <div class="members-page">
+      <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
+
       <!-- Page Header -->
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
@@ -191,14 +193,14 @@
                         <td>
                            <template v-if="getActivePlan(member)">
                               <div class="plan-name mb-1">{{ getActivePlan(member).name }}</div>
-                              <span class="text-capitalize m-badge" :class="getPlanStatusClass(getActivePlan(member).pivot.status)">
-                                 {{ getActivePlan(member).pivot.status }}
+                              <span class="m-badge" :class="getPlanStatusClass(getActivePlan(member).pivot.status)">
+                                 {{ $filters.capitalize(getActivePlan(member).pivot.status) }}
                               </span>
                            </template>
                            <span v-else class="text-muted small">—</span>
                         </td>
                         <td>
-                           <span class="text-capitalize m-badge" :class="getStatusClass(member.status)">{{ member.status }}</span>
+                           <span :class="['m-badge', $filters.statusBadge(member.status)]">{{ $filters.capitalize(member.status) }}</span>
                         </td>
                         <td class="text-muted small">{{ $filters.formatDate(member.created_at) }}</td>
                         <td>
@@ -241,10 +243,10 @@
                      </div>
                   </div>
                   <div class="member-card-tags">
-                     <span class="text-capitalize m-badge" :class="getStatusClass(member.status)">{{ member.status }}</span>
+                     <span :class="['m-badge', $filters.statusBadge(member.status)]">{{ $filters.capitalize(member.status) }}</span>
                      <template v-if="getActivePlan(member)">
                         <span class="text-capitalize m-badge m-badge--plan">{{ getActivePlan(member).name }}</span>
-                        <span class="text-capitalize m-badge" :class="getPlanStatusClass(getActivePlan(member).pivot.status)">{{ getActivePlan(member).pivot.status }}</span>
+                        <span class="m-badge" :class="getPlanStatusClass(getActivePlan(member).pivot.status)">{{ $filters.capitalize(getActivePlan(member).pivot.status) }}</span>
                      </template>
                   </div>
                   <div class="member-card-footer">
@@ -399,7 +401,7 @@
                      <div>
                         <h5 class="mb-0 fw-bold">{{ viewMember.name }}</h5>
                         <div class="text-muted small">{{ viewMember.email }}</div>
-                        <span class="m-badge mt-1 text-capitalize" :class="getStatusClass(viewMember.status)">{{ viewMember.status }}</span>
+                        <span :class="['m-badge', $filters.statusBadge(viewMember.status), 'mt-1']">{{ $filters.capitalize(viewMember.status) }}</span>
                      </div>
                   </div>
 
@@ -446,7 +448,7 @@
                            </div>
                         </div>
                         <span class="m-badge" :class="getPlanStatusClass(getActivePlan(viewMember).pivot.status)">
-                           {{ getActivePlan(viewMember).pivot.status }}
+                           {{ $filters.capitalize(getActivePlan(viewMember).pivot.status) }}
                         </span>
                      </div>
                   </div>
@@ -491,6 +493,7 @@ export default {
       return {
          loading: true,
          submitting: false,
+         pageError: "",
          members: [],
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { total: 0, active: 0, inactive: 0, suspended: 0 },
@@ -524,20 +527,20 @@ export default {
             phone: "",
             password: "",
             status: "active",
-            branch_ids: [],
+            branch_ids: this.selectedBranch ? [this.selectedBranch] : [],
             date_of_birth: "",
             gender: "",
             emergency_contact_name: "",
             emergency_contact_phone: "",
             notes: "",
             rate_plan_id: "",
-            branch_ids: [],
             start_date: new Date().toISOString().slice(0, 10),
          };
       },
 
       fetchMembers: function (page = 1) {
          this.loading = true;
+         this.pageError = "";
          axios
             .post("/panel/members/list", {
                search: this.search,
@@ -548,6 +551,7 @@ export default {
             })
             .then((res) => {
                this.members = res.data.members.data;
+               this.currentPage = res.data.members.current_page;
                this.pagination = {
                   currentPage: res.data.members.current_page,
                   lastPage: res.data.members.last_page,
@@ -557,10 +561,9 @@ export default {
                   links: res.data.members.links,
                };
                this.stats = res.data.stats;
-               this.currentPage = page || this.currentPage;
-               this.loading = false;
             })
-            .catch(() => (this.loading = false));
+            .catch((err) => (this.pageError = err.response?.data?.message || "Failed to load members."))
+            .finally(() => (this.loading = false));
       },
 
       onSearchInput: function () {
@@ -569,7 +572,10 @@ export default {
       },
 
       clearFilters: function () {
-         this.search = this.selectedBranch = this.selectedStatus = this.selectedPlan = "";
+         this.search = "";
+         this.selectedBranch = "";
+         this.selectedStatus = "";
+         this.selectedPlan = "";
          this.fetchMembers();
       },
 
@@ -582,6 +588,7 @@ export default {
       openAddModal: function () {
          this.modalMode = "add";
          this.form = this.emptyForm();
+         this.pageError = "";
          this.formError = "";
          this.formErrors = {};
          this.memberModal.show();
@@ -589,6 +596,7 @@ export default {
 
       openEditModal: function (member) {
          this.modalMode = "edit";
+         this.pageError = "";
          this.formError = "";
          this.formErrors = {};
          var plan = this.getActivePlan(member);
@@ -646,11 +654,6 @@ export default {
                }
             })
             .finally(() => (this.submitting = false));
-      },
-
-      getStatusClass: function (status) {
-         var map = { active: "m-badge--active", inactive: "m-badge--inactive", suspended: "m-badge--suspended" };
-         return map[status] || "m-badge--inactive";
       },
 
       getPlanStatusClass: function (status) {
