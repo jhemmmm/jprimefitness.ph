@@ -9,11 +9,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Payroll extends Model
 {
     const STATUS_DRAFT = 'draft';
-    const STATUS_APPROVED = 'approved';
-    const STATUS_CANCELED = 'canceled';
-    const STATUS_PARTIALLY_PAID = 'partially_paid';
-    const STATUS_PAID = 'paid';
 
+    const STATUS_APPROVED = 'approved';
+
+    const STATUS_CANCELED = 'canceled';
+
+    const STATUS_PARTIALLY_PAID = 'partially_paid';
+
+    const STATUS_PAID = 'paid';
 
     protected $fillable = [
         'employee_id',
@@ -22,6 +25,9 @@ class Payroll extends Model
         'period_end',
         'gross_amount',
         'bonus',
+        'income_tax',
+        'employee_contributions',
+        'employer_contributions',
         'manual_deductions',
         'cash_advance_deduction',
         'net_amount',
@@ -33,14 +39,17 @@ class Payroll extends Model
     ];
 
     protected $casts = [
-        'period_start'             => 'date',
-        'period_end'               => 'date',
-        'approved_at'              => 'datetime',
-        'gross_amount'             => 'decimal:2',
-        'bonus'                    => 'decimal:2',
-        'manual_deductions'        => 'decimal:2',
-        'cash_advance_deduction'   => 'decimal:2',
-        'net_amount'               => 'decimal:2',
+        'period_start' => 'date',
+        'period_end' => 'date',
+        'approved_at' => 'datetime',
+        'gross_amount' => 'decimal:2',
+        'bonus' => 'decimal:2',
+        'income_tax' => 'decimal:2',
+        'employee_contributions' => 'array',
+        'employer_contributions' => 'array',
+        'manual_deductions' => 'decimal:2',
+        'cash_advance_deduction' => 'decimal:2',
+        'net_amount' => 'decimal:2',
     ];
 
     public function employee(): BelongsTo
@@ -76,5 +85,20 @@ class Payroll extends Model
     public function remainingBalance(): float
     {
         return max(0, (float) $this->net_amount - $this->totalPaid());
+    }
+
+    public function employeeContributionTotal(): float
+    {
+        return round(collect($this->employee_contributions ?? [])->sum(fn ($item) => (float) ($item['amount'] ?? 0)), 2);
+    }
+
+    public function employerContributionTotal(): float
+    {
+        return round(collect($this->employer_contributions ?? [])->sum(fn ($item) => (float) ($item['amount'] ?? 0)), 2);
+    }
+
+    public function employeeDeductionsTotal(): float
+    {
+        return round((float) $this->income_tax + $this->employeeContributionTotal() + (float) $this->manual_deductions, 2);
     }
 }

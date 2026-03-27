@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\Branch;
 use App\Models\CashAdvance;
 use App\Models\Payout;
 use App\Models\Payroll;
@@ -179,31 +180,10 @@ class EmployeeController extends Controller
     {
         $payrolls = Payroll::query()
             ->where('employee_id', $employee->id)
-            ->with(['payouts', 'approvedBy:id,name'])
+            ->with(['payouts', 'approvedBy:id,name', 'branch:id,country_code,payroll_settings'])
             ->orderByDesc('period_start')
             ->get()
-            ->map(function (Payroll $payroll) {
-                $totalPaid = (float) $payroll->payouts->sum('amount');
-
-                return [
-                    'id' => $payroll->id,
-                    'period_start' => $payroll->period_start->format('Y-m-d'),
-                    'period_end' => $payroll->period_end->format('Y-m-d'),
-                    'gross_amount' => (float) $payroll->gross_amount,
-                    'bonus' => (float) $payroll->bonus,
-                    'manual_deductions' => (float) $payroll->manual_deductions,
-                    'cash_advance_deduction' => (float) $payroll->cash_advance_deduction,
-                    'net_amount' => (float) $payroll->net_amount,
-                    'status' => $payroll->status,
-                    'notes' => $payroll->notes,
-                    'total_paid' => $totalPaid,
-                    'remaining_balance' => max(0, (float) $payroll->net_amount - $totalPaid),
-                    'payouts_count' => $payroll->payouts->count(),
-                    'approved_by_name' => $payroll->approvedBy?->name,
-                    'approved_at' => $payroll->approved_at?->toISOString(),
-                    'created_at' => $payroll->created_at->toISOString(),
-                ];
-            });
+            ->map(fn (Payroll $payroll) => $this->serializePayroll($payroll));
 
         return response()->json($payrolls);
     }
@@ -243,16 +223,32 @@ class EmployeeController extends Controller
             'period_end' => 'required|date|after_or_equal:period_start',
             'gross_amount' => 'required|numeric|min:0',
             'bonus' => 'nullable|numeric|min:0',
+            'income_tax' => 'nullable|numeric|min:0',
             'manual_deductions' => 'nullable|numeric|min:0',
             'cash_advance_deduction' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
 
+        $branch = $employee->branches()->orderBy('branches.id')->first();
+
+        if (! $branch) {
+            return response()->json(['message' => 'Employee must be assigned to a branch before creating payroll.'], 422);
+        }
+
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
+        $incomeTax = (float) ($data['income_tax'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
-        $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction($employee->id, $gross, $bonus, $manualDeductions);
+        $configuredContributions = $this->payrollService->computeConfiguredContributions($branch, $gross);
+        $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
+            $employee->id,
+            $gross,
+            $bonus,
+            $manualDeductions,
+            $incomeTax,
+            $configuredContributions['employee_total']
+        );
 
         if ($cashAdvanceDeduction > $maxCashAdvanceDeduction) {
             return response()->json([
@@ -265,40 +261,30 @@ class EmployeeController extends Controller
 
         $payroll = Payroll::create([
             'employee_id' => $employee->id,
-            'branch_id' => $employee->branches()->first()?->id,
+            'branch_id' => $branch->id,
             'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
             'gross_amount' => $gross,
             'bonus' => $bonus,
+            'income_tax' => $incomeTax,
+            'employee_contributions' => $configuredContributions['employee_contributions'],
+            'employer_contributions' => $configuredContributions['employer_contributions'],
             'manual_deductions' => $manualDeductions,
             'cash_advance_deduction' => $cashAdvanceDeduction,
-            'net_amount' => $this->payrollService->computeNet($gross, $bonus, $manualDeductions, $cashAdvanceDeduction),
+            'net_amount' => $this->payrollService->computeNet(
+                $gross,
+                $bonus,
+                $manualDeductions,
+                $cashAdvanceDeduction,
+                $incomeTax,
+                $configuredContributions['employee_total']
+            ),
             'status' => Payroll::STATUS_DRAFT,
             'notes' => $data['notes'] ?? null,
             'generated_by' => auth()->id(),
         ]);
 
-        $payroll->load('payouts');
-        $totalPaid = (float) $payroll->payouts->sum('amount');
-
-        return response()->json([
-            'id' => $payroll->id,
-            'period_start' => $payroll->period_start->format('Y-m-d'),
-            'period_end' => $payroll->period_end->format('Y-m-d'),
-            'gross_amount' => (float) $payroll->gross_amount,
-            'bonus' => (float) $payroll->bonus,
-            'manual_deductions' => (float) $payroll->manual_deductions,
-            'cash_advance_deduction' => (float) $payroll->cash_advance_deduction,
-            'net_amount' => (float) $payroll->net_amount,
-            'status' => $payroll->status,
-            'notes' => $payroll->notes,
-            'total_paid' => $totalPaid,
-            'remaining_balance' => max(0, (float) $payroll->net_amount - $totalPaid),
-            'payouts_count' => $payroll->payouts->count(),
-            'approved_by_name' => null,
-            'approved_at' => $payroll->approved_at?->toISOString(),
-            'created_at' => $payroll->created_at->toISOString(),
-        ], 201);
+        return response()->json($this->serializePayroll($payroll), 201);
     }
 
     public function updatePayroll(Request $request, User $employee, Payroll $payroll): JsonResponse
@@ -314,16 +300,35 @@ class EmployeeController extends Controller
             'period_end' => 'required|date|after_or_equal:period_start',
             'gross_amount' => 'required|numeric|min:0',
             'bonus' => 'nullable|numeric|min:0',
+            'income_tax' => 'nullable|numeric|min:0',
             'manual_deductions' => 'nullable|numeric|min:0',
             'cash_advance_deduction' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
         ]);
 
+        $payroll->loadMissing('branch');
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
+        $incomeTax = (float) ($data['income_tax'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
-        $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction($employee->id, $gross, $bonus, $manualDeductions);
+        $configuredContributions = $payroll->branch
+            ? $this->payrollService->computeConfiguredContributions($payroll->branch, $gross)
+            : [
+                'employee_contributions' => [],
+                'employer_contributions' => [],
+                'employee_total' => 0.0,
+                'employer_total' => 0.0,
+                'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            ];
+        $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
+            $employee->id,
+            $gross,
+            $bonus,
+            $manualDeductions,
+            $incomeTax,
+            $configuredContributions['employee_total']
+        );
 
         if ($cashAdvanceDeduction > $maxCashAdvanceDeduction) {
             return response()->json([
@@ -339,33 +344,23 @@ class EmployeeController extends Controller
             'period_end' => $data['period_end'],
             'gross_amount' => $gross,
             'bonus' => $bonus,
+            'income_tax' => $incomeTax,
+            'employee_contributions' => $configuredContributions['employee_contributions'],
+            'employer_contributions' => $configuredContributions['employer_contributions'],
             'manual_deductions' => $manualDeductions,
             'cash_advance_deduction' => $cashAdvanceDeduction,
-            'net_amount' => $this->payrollService->computeNet($gross, $bonus, $manualDeductions, $cashAdvanceDeduction),
+            'net_amount' => $this->payrollService->computeNet(
+                $gross,
+                $bonus,
+                $manualDeductions,
+                $cashAdvanceDeduction,
+                $incomeTax,
+                $configuredContributions['employee_total']
+            ),
             'notes' => $data['notes'] ?? null,
         ]);
 
-        $payroll->load('payouts');
-        $totalPaid = (float) $payroll->payouts->sum('amount');
-
-        return response()->json([
-            'id' => $payroll->id,
-            'period_start' => $payroll->period_start->format('Y-m-d'),
-            'period_end' => $payroll->period_end->format('Y-m-d'),
-            'gross_amount' => (float) $payroll->gross_amount,
-            'bonus' => (float) $payroll->bonus,
-            'manual_deductions' => (float) $payroll->manual_deductions,
-            'cash_advance_deduction' => (float) $payroll->cash_advance_deduction,
-            'net_amount' => (float) $payroll->net_amount,
-            'status' => $payroll->status,
-            'notes' => $payroll->notes,
-            'total_paid' => $totalPaid,
-            'remaining_balance' => max(0, (float) $payroll->net_amount - $totalPaid),
-            'payouts_count' => $payroll->payouts->count(),
-            'approved_by_name' => $payroll->approvedBy?->name,
-            'approved_at' => $payroll->approved_at?->toISOString(),
-            'created_at' => $payroll->created_at->toISOString(),
-        ]);
+        return response()->json($this->serializePayroll($payroll));
     }
 
     public function approvePayroll(User $employee, Payroll $payroll): JsonResponse
@@ -385,27 +380,7 @@ class EmployeeController extends Controller
         $this->payrollService->applyAdvances($payroll);
         $this->payrollService->syncStatus($payroll);
 
-        $payroll->load(['payouts', 'approvedBy:id,name']);
-        $totalPaid = (float) $payroll->payouts->sum('amount');
-
-        return response()->json([
-            'id' => $payroll->id,
-            'period_start' => $payroll->period_start->format('Y-m-d'),
-            'period_end' => $payroll->period_end->format('Y-m-d'),
-            'gross_amount' => (float) $payroll->gross_amount,
-            'bonus' => (float) $payroll->bonus,
-            'manual_deductions' => (float) $payroll->manual_deductions,
-            'cash_advance_deduction' => (float) $payroll->cash_advance_deduction,
-            'net_amount' => (float) $payroll->net_amount,
-            'status' => $payroll->status,
-            'notes' => $payroll->notes,
-            'total_paid' => $totalPaid,
-            'remaining_balance' => max(0, (float) $payroll->net_amount - $totalPaid),
-            'payouts_count' => $payroll->payouts->count(),
-            'approved_by_name' => $payroll->approvedBy?->name,
-            'approved_at' => $payroll->approved_at?->toISOString(),
-            'created_at' => $payroll->created_at->toISOString(),
-        ]);
+        return response()->json($this->serializePayroll($payroll));
     }
 
     public function cancelPayroll(User $employee, Payroll $payroll): JsonResponse
@@ -419,15 +394,27 @@ class EmployeeController extends Controller
         $payroll->status = Payroll::STATUS_CANCELED;
         $payroll->save();
 
-        $payroll->load(['payouts', 'approvedBy:id,name']);
+        return response()->json($this->serializePayroll($payroll));
+    }
+
+    private function serializePayroll(Payroll $payroll): array
+    {
+        $payroll->loadMissing(['payouts', 'approvedBy:id,name', 'branch:id,country_code,payroll_settings']);
+
         $totalPaid = (float) $payroll->payouts->sum('amount');
 
-        return response()->json([
+        return [
             'id' => $payroll->id,
             'period_start' => $payroll->period_start->format('Y-m-d'),
             'period_end' => $payroll->period_end->format('Y-m-d'),
             'gross_amount' => (float) $payroll->gross_amount,
             'bonus' => (float) $payroll->bonus,
+            'income_tax' => (float) $payroll->income_tax,
+            'employee_contributions' => $payroll->employee_contributions ?? [],
+            'employer_contributions' => $payroll->employer_contributions ?? [],
+            'employee_contribution_total' => $payroll->employeeContributionTotal(),
+            'employer_contribution_total' => $payroll->employerContributionTotal(),
+            'employee_deductions_total' => $payroll->employeeDeductionsTotal(),
             'manual_deductions' => (float) $payroll->manual_deductions,
             'cash_advance_deduction' => (float) $payroll->cash_advance_deduction,
             'net_amount' => (float) $payroll->net_amount,
@@ -438,8 +425,9 @@ class EmployeeController extends Controller
             'payouts_count' => $payroll->payouts->count(),
             'approved_by_name' => $payroll->approvedBy?->name,
             'approved_at' => $payroll->approved_at?->toISOString(),
+            'branch_country_code' => $payroll->branch?->country_code,
             'created_at' => $payroll->created_at->toISOString(),
-        ]);
+        ];
     }
 
     public function payrollSuggestedCa(User $employee): JsonResponse

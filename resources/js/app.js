@@ -32,6 +32,9 @@ app.component("walk-ins-page", WalkInsPage);
 import BranchesPage from "./components/panel/BranchesPage.vue";
 app.component("branches-page", BranchesPage);
 
+import BranchDetailPage from "./components/panel/BranchDetailPage.vue";
+app.component("branch-detail-page", BranchDetailPage);
+
 import AttendancePage from "./components/panel/AttendancePage.vue";
 app.component("attendance-page", AttendancePage);
 

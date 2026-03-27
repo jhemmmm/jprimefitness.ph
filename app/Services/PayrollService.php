@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Attendance;
+use App\Models\Branch;
 use App\Models\CashAdvance;
 use App\Models\Payroll;
 use App\Models\User;
@@ -12,14 +13,113 @@ class PayrollService
     /**
      * Compute net_amount from payroll components.
      */
-    public function computeNet(float $gross, float $bonus, float $manualDed, float $caDed): float
-    {
-        return round(max(0, $gross + $bonus - $manualDed - $caDed), 2);
+    public function computeNet(
+        float $gross,
+        float $bonus,
+        float $manualDed,
+        float $caDed,
+        float $incomeTax = 0,
+        float $employeeContributionTotal = 0
+    ): float {
+        return round(max(0, $gross + $bonus - $this->totalEmployeeDeductionsBeforeCashAdvance($manualDed, $incomeTax, $employeeContributionTotal) - $caDed), 2);
     }
 
-    public function maxCashAdvanceDeduction(int $employeeId, float $gross, float $bonus, float $manualDed): float
+    public function totalEmployeeDeductionsBeforeCashAdvance(
+        float $manualDed,
+        float $incomeTax = 0,
+        float $employeeContributionTotal = 0
+    ): float {
+        return round(max(0, $manualDed + $incomeTax + $employeeContributionTotal), 2);
+    }
+
+    /**
+     * @return array{
+     *     pay_frequency:string,
+     *     employee_contributions:array<int, array<string, float|string|null|bool>>,
+     *     employer_contributions:array<int, array<string, float|string|null|bool>>,
+     *     employee_total:float,
+     *     employer_total:float
+     * }
+     */
+    public function computeConfiguredContributions(Branch $branch, float $grossAmount): array
     {
-        $payableBeforeCa = max(0, $gross + $bonus - $manualDed);
+        $settings = $branch->resolvedPayrollSettings();
+        $periodsPerMonth = $this->periodsPerMonth((string) ($settings['pay_frequency'] ?? Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY));
+        $monthlyEquivalent = max(0, $grossAmount) * $periodsPerMonth;
+        $employeeContributions = [];
+        $employerContributions = [];
+
+        foreach ((array) ($settings['contributions'] ?? []) as $contribution) {
+            $name = trim((string) ($contribution['name'] ?? ''));
+
+            if ($name === '' || ! ($contribution['enabled'] ?? true)) {
+                continue;
+            }
+
+            $salaryFloor = $contribution['salary_floor'] ?? null;
+            $salaryCeiling = $contribution['salary_ceiling'] ?? null;
+            $employeeMinimumAmount = $contribution['employee_min_amount'] ?? null;
+            $employerMinimumAmount = $contribution['employer_min_amount'] ?? null;
+            $baseAmount = $monthlyEquivalent;
+
+            if ($salaryFloor !== null) {
+                $baseAmount = max($baseAmount, (float) $salaryFloor);
+            }
+
+            if ($salaryCeiling !== null) {
+                $baseAmount = min($baseAmount, (float) $salaryCeiling);
+            }
+
+            $employeeAmount = $this->perPayrollContribution(
+                $baseAmount,
+                (float) ($contribution['employee_rate'] ?? 0),
+                $periodsPerMonth,
+                $employeeMinimumAmount === null ? 0.0 : (float) $employeeMinimumAmount,
+            );
+            $employerAmount = $this->perPayrollContribution(
+                $baseAmount,
+                (float) ($contribution['employer_rate'] ?? 0),
+                $periodsPerMonth,
+                $employerMinimumAmount === null ? 0.0 : (float) $employerMinimumAmount,
+            );
+
+            $employeeContributions[] = [
+                'name' => $name,
+                'rate' => (float) ($contribution['employee_rate'] ?? 0),
+                'amount' => $employeeAmount,
+                'minimum_amount' => $employeeMinimumAmount === null ? null : (float) $employeeMinimumAmount,
+                'salary_floor' => $salaryFloor === null ? null : (float) $salaryFloor,
+                'salary_ceiling' => $salaryCeiling === null ? null : (float) $salaryCeiling,
+            ];
+
+            $employerContributions[] = [
+                'name' => $name,
+                'rate' => (float) ($contribution['employer_rate'] ?? 0),
+                'amount' => $employerAmount,
+                'minimum_amount' => $employerMinimumAmount === null ? null : (float) $employerMinimumAmount,
+                'salary_floor' => $salaryFloor === null ? null : (float) $salaryFloor,
+                'salary_ceiling' => $salaryCeiling === null ? null : (float) $salaryCeiling,
+            ];
+        }
+
+        return [
+            'pay_frequency' => (string) ($settings['pay_frequency'] ?? Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY),
+            'employee_contributions' => $employeeContributions,
+            'employer_contributions' => $employerContributions,
+            'employee_total' => round(collect($employeeContributions)->sum('amount'), 2),
+            'employer_total' => round(collect($employerContributions)->sum('amount'), 2),
+        ];
+    }
+
+    public function maxCashAdvanceDeduction(
+        int $employeeId,
+        float $gross,
+        float $bonus,
+        float $manualDed,
+        float $incomeTax = 0,
+        float $employeeContributionTotal = 0
+    ): float {
+        $payableBeforeCa = max(0, $gross + $bonus - $this->totalEmployeeDeductionsBeforeCashAdvance($manualDed, $incomeTax, $employeeContributionTotal));
         $pendingCa = $this->pendingCaTotal($employeeId);
 
         return round(min($payableBeforeCa, $pendingCa), 2);
@@ -31,7 +131,9 @@ class PayrollService
             $payroll->employee_id,
             (float) $payroll->gross_amount,
             (float) $payroll->bonus,
-            (float) $payroll->manual_deductions
+            (float) $payroll->manual_deductions,
+            (float) $payroll->income_tax,
+            $payroll->employeeContributionTotal()
         );
 
         $actualDeduction = round(min((float) $payroll->cash_advance_deduction, $maxDeduction), 2);
@@ -44,7 +146,9 @@ class PayrollService
             (float) $payroll->gross_amount,
             (float) $payroll->bonus,
             (float) $payroll->manual_deductions,
-            $actualDeduction
+            $actualDeduction,
+            (float) $payroll->income_tax,
+            $payroll->employeeContributionTotal()
         );
         $payroll->save();
 
@@ -65,15 +169,15 @@ class PayrollService
             ->get()
             ->count();
 
-        $dailyRate  = (float) ($employee->daily_rate ?? 0);
+        $dailyRate = (float) ($employee->daily_rate ?? 0);
         $gross = round($dailyRate * $daysWorked, 2);
         $suggestedCa = $this->pendingCaTotal($employee->id);
 
         return [
-            'days_worked'   => $daysWorked,
-            'daily_rate'    => $dailyRate,
-            'gross_amount'  => $gross,
-            'suggested_ca'  => $suggestedCa,
+            'days_worked' => $daysWorked,
+            'daily_rate' => $dailyRate,
+            'gross_amount' => $gross,
+            'suggested_ca' => $suggestedCa,
         ];
     }
 
@@ -159,5 +263,27 @@ class PayrollService
         };
 
         $payroll->save();
+    }
+
+    private function periodsPerMonth(string $payFrequency): int
+    {
+        return $payFrequency === Branch::PAYROLL_FREQUENCY_MONTHLY ? 1 : 2;
+    }
+
+    private function perPayrollContribution(float $baseAmount, float $rate, int $periodsPerMonth, float $minimumAmount = 0): float
+    {
+        $calculatedMonthlyAmount = 0.0;
+
+        if ($baseAmount > 0 && $rate > 0) {
+            $calculatedMonthlyAmount = $baseAmount * ($rate / 100);
+        }
+
+        $monthlyAmount = max($calculatedMonthlyAmount, max(0, $minimumAmount));
+
+        if ($monthlyAmount <= 0) {
+            return 0.0;
+        }
+
+        return round($monthlyAmount / max(1, $periodsPerMonth), 2);
     }
 }

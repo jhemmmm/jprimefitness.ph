@@ -157,7 +157,9 @@
                                  <i class="bi bi-geo-alt-fill"></i>
                               </div>
                               <div>
-                                 <div class="member-name">{{ b.name }}</div>
+                                 <div class="member-name">
+                                    <a :href="`/panel/branches/${b.id}`" class="text-decoration-none">{{ b.name }}</a>
+                                 </div>
                                  <div>
                                     <span :class="['m-badge', $filters.statusBadge(b.status)]">{{ $filters.capitalize(b.status) }}</span>
                                  </div>
@@ -212,7 +214,9 @@
                            <i class="bi bi-geo-alt-fill"></i>
                         </div>
                         <div>
-                           <div class="member-card-name">{{ b.name }}</div>
+                           <div class="member-card-name">
+                              <a :href="`/panel/branches/${b.id}`" class="text-decoration-none">{{ b.name }}</a>
+                           </div>
                            <div class="member-card-sub">
                               {{ b.city }}<span v-if="b.province">, {{ b.province }}</span>
                            </div>
@@ -275,12 +279,11 @@
                </div>
                <div class="modal-body p-4">
                   <div v-if="formError" class="alert alert-danger py-2 small mb-3">{{ formError }}</div>
-                  <!-- Basic Info -->
                   <div class="form-section-header">
                      <i class="bi bi-geo-alt-fill"></i>
                      Basic Information
                   </div>
-                  <div class="row g-3 mb-4">
+                  <div class="row g-3">
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Branch Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" v-model="form.name" :class="{ 'is-invalid': formErrors.name }" :disabled="modalMode === 'edit' && is('admin') && !is('super admin')" placeholder="e.g. JPRIME Fitness Calabanga" />
@@ -296,21 +299,12 @@
                         <div class="invalid-feedback" v-if="formErrors.status">{{ formErrors.status }}</div>
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Opening Time</label>
-                        <input type="time" class="form-control" v-model="form.opening_time" />
+                        <label class="form-label form-label-sm">Country Code <span class="text-danger">*</span></label>
+                        <select class="form-select" v-model="form.country_code" :class="{ 'is-invalid': formErrors.country_code }" :disabled="modalMode === 'edit' && is('admin') && !is('super admin')">
+                           <option v-for="country in countryOptions" :key="country.value" :value="country.value">{{ country.label }}</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="formErrors.country_code">{{ formErrors.country_code }}</div>
                      </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Closing Time</label>
-                        <input type="time" class="form-control" v-model="form.closing_time" />
-                     </div>
-                  </div>
-
-                  <!-- Location -->
-                  <div class="form-section-header">
-                     <i class="bi bi-pin-map-fill"></i>
-                     Location
-                  </div>
-                  <div class="row g-3 mb-4">
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">City <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" v-model="form.city" :class="{ 'is-invalid': formErrors.city }" placeholder="e.g. Calabanga" />
@@ -320,76 +314,9 @@
                         <label class="form-label form-label-sm">Province</label>
                         <input type="text" class="form-control" v-model="form.province" placeholder="e.g. Camarines Sur" />
                      </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Full Address</label>
-                        <input type="text" class="form-control" v-model="form.address" placeholder="Street, Barangay, City, Province, ZIP" />
-                     </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Google Maps URL</label>
-                        <input type="url" class="form-control" v-model="form.map_url" :class="{ 'is-invalid': formErrors.map_url }" placeholder="https://maps.google.com/..." />
-                        <div class="invalid-feedback" v-if="formErrors.map_url">{{ formErrors.map_url }}</div>
-                     </div>
                   </div>
 
-                  <!-- Contact -->
-                  <div class="form-section-header">
-                     <i class="bi bi-telephone-fill"></i>
-                     Contact
-                  </div>
-                  <div class="row g-3">
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Phone</label>
-                        <input type="text" class="form-control" v-model="form.phone" placeholder="+63 9XX XXX XXXX" />
-                     </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Email</label>
-                        <input type="email" class="form-control" v-model="form.email" :class="{ 'is-invalid': formErrors.email }" placeholder="branch@jprimefitness.ph" />
-                        <div class="invalid-feedback" v-if="formErrors.email">{{ formErrors.email }}</div>
-                     </div>
-                     <div class="col-md-4">
-                        <label class="form-label form-label-sm">Facebook URL</label>
-                        <input type="url" class="form-control" v-model="form.facebook_url" :class="{ 'is-invalid': formErrors.facebook_url }" placeholder="https://facebook.com/..." />
-                        <div class="invalid-feedback" v-if="formErrors.facebook_url">{{ formErrors.facebook_url }}</div>
-                     </div>
-                     <div class="col-md-4">
-                        <label class="form-label form-label-sm">Messenger URL</label>
-                        <input type="url" class="form-control" v-model="form.messenger_url" :class="{ 'is-invalid': formErrors.messenger_url }" placeholder="https://m.me/..." />
-                        <div class="invalid-feedback" v-if="formErrors.messenger_url">{{ formErrors.messenger_url }}</div>
-                     </div>
-                     <div class="col-md-4">
-                        <label class="form-label form-label-sm">WhatsApp URL</label>
-                        <input type="url" class="form-control" v-model="form.whatsapp_url" :class="{ 'is-invalid': formErrors.whatsapp_url }" placeholder="https://wa.me/..." />
-                        <div class="invalid-feedback" v-if="formErrors.whatsapp_url">{{ formErrors.whatsapp_url }}</div>
-                     </div>
-                  </div>
-
-                  <!-- Photos -->
-                  <div class="form-section-header mt-4" v-if="is('super admin') || is('admin')">
-                     <i class="bi bi-images"></i>
-                     Photos / Gallery
-                  </div>
-                  <div v-if="(is('super admin') || is('admin')) && modalMode === 'edit'">
-                     <div class="branch-photos-grid" v-if="form.photos && form.photos.length > 0">
-                        <div class="branch-photo-item" v-for="(photo, i) in form.photos" :key="i">
-                           <img :src="'/storage/' + photo" class="branch-photo-thumb" :alt="'Branch photo ' + (i + 1)" />
-                           <button v-if="is('super admin')" type="button" class="branch-photo-del" @click="deletePhoto(i)" :disabled="photoDeleting === i" title="Remove photo">
-                              <span v-if="photoDeleting === i" class="spinner-border spinner-border-sm"></span>
-                              <i v-else class="bi bi-x-lg"></i>
-                           </button>
-                        </div>
-                     </div>
-                     <p class="text-muted small mb-2" v-else>No photos yet.</p>
-                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <label class="btn btn-outline-secondary btn-sm mb-0" :class="{ disabled: photoUploading }">
-                           <span v-if="photoUploading" class="spinner-border spinner-border-sm me-1 spinner-sm-fixed"></span>
-                           <i v-else class="bi bi-upload me-1"></i>
-                           Upload Photo(s)
-                           <input type="file" accept="image/*" multiple class="d-none" @change="uploadPhotos" :disabled="photoUploading" ref="photoInput" />
-                        </label>
-                        <span class="text-muted small">JPG, PNG, WEBP — max 5 MB each</span>
-                     </div>
-                  </div>
-                  <p class="text-muted small mb-0" v-else-if="is('super admin') || is('admin')">Save the branch first to upload photos.</p>
+                  <div class="alert alert-light border mt-4 mb-0 small">Use the branch details page after saving to manage contact information, government contributions, gallery, amenities, and other business settings.</div>
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -433,6 +360,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { COUNTRY_OPTIONS, ensureSelectOption } from "./_vendor/branchFormOptions";
 
 export default {
    data: function () {
@@ -468,19 +396,60 @@ export default {
          return {
             name: "",
             status: "open",
+            country_code: "PH",
             city: "",
             province: "",
             address: "",
             phone: "",
             email: "",
+            timezone: "Asia/Manila",
+            amenities: [],
             opening_time: "",
             closing_time: "",
             facebook_url: "",
             messenger_url: "",
             whatsapp_url: "",
             map_url: "",
+            payroll_settings: this.defaultPayrollSettings("PH"),
             photos: [],
          };
+      },
+      defaultPayrollSettings: function (countryCode = "PH") {
+         return {
+            pay_frequency: "semi_monthly",
+            income_tax_mode: "manual",
+            contributions: [],
+         };
+      },
+      normalizePayrollSettings: function (settings, countryCode = "PH") {
+         const defaults = this.defaultPayrollSettings(countryCode);
+         const contributions = Array.isArray(settings?.contributions) && settings.contributions.length ? settings.contributions : defaults.contributions;
+
+         return {
+            pay_frequency: ["monthly", "semi_monthly"].includes(settings?.pay_frequency) ? settings.pay_frequency : defaults.pay_frequency,
+            income_tax_mode: "manual",
+            contributions: contributions.map((contribution) => ({
+               name: contribution.name || "",
+               employee_rate: contribution.employee_rate ?? 0,
+               employer_rate: contribution.employer_rate ?? 0,
+               salary_floor: contribution.salary_floor ?? "",
+               salary_ceiling: contribution.salary_ceiling ?? "",
+               enabled: contribution.enabled !== false,
+            })),
+         };
+      },
+      addPayrollContribution: function () {
+         this.form.payroll_settings.contributions.push({
+            name: "",
+            employee_rate: 0,
+            employer_rate: 0,
+            salary_floor: "",
+            salary_ceiling: "",
+            enabled: true,
+         });
+      },
+      removePayrollContribution: function (index) {
+         this.form.payroll_settings.contributions.splice(index, 1);
       },
       fetchBranches: function (page = 1) {
          this.loading = true;
@@ -542,17 +511,21 @@ export default {
             id: b.id,
             name: b.name || "",
             status: b.status || "open",
+            country_code: b.country_code || "PH",
             city: b.city || "",
             province: b.province || "",
             address: b.address || "",
             phone: b.phone || "",
             email: b.email || "",
+            timezone: b.timezone || "Asia/Manila",
+            amenities: Array.isArray(b.amenities) ? [...b.amenities] : [],
             opening_time: b.opening_time ? b.opening_time.slice(0, 5) : "",
             closing_time: b.closing_time ? b.closing_time.slice(0, 5) : "",
             facebook_url: b.facebook_url || "",
             messenger_url: b.messenger_url || "",
             whatsapp_url: b.whatsapp_url || "",
             map_url: b.map_url || "",
+            payroll_settings: this.normalizePayrollSettings(b.payroll_settings, b.country_code || "PH"),
             photos: b.photos || [],
          };
          this.formModal.show();
@@ -582,7 +555,24 @@ export default {
          this.formError = "";
          this.formErrors = {};
 
-         let payload = { ...this.form };
+         let payload = {
+            name: this.form.name,
+            status: this.form.status,
+            country_code: (this.form.country_code || "PH").toUpperCase(),
+            city: this.form.city,
+            province: this.form.province,
+            address: this.form.address,
+            phone: this.form.phone,
+            email: this.form.email,
+            timezone: this.form.timezone,
+            amenities: this.form.amenities,
+            opening_time: this.form.opening_time,
+            closing_time: this.form.closing_time,
+            facebook_url: this.form.facebook_url,
+            messenger_url: this.form.messenger_url,
+            whatsapp_url: this.form.whatsapp_url,
+            map_url: this.form.map_url,
+         };
          if (this.modalMode === "edit" && this.is("admin") && !this.is("super admin")) {
             payload = {
                city: this.form.city,
@@ -671,6 +661,9 @@ export default {
       },
    },
    computed: {
+      countryOptions: function () {
+         return ensureSelectOption(COUNTRY_OPTIONS, (this.form.country_code || "").toUpperCase(), (value) => value);
+      },
       hasActiveFilters: function () {
          return !!(this.search || this.selectedStatus);
       },

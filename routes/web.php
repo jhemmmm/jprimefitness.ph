@@ -46,6 +46,7 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/branches/list', [BranchesController::class, 'list'])->name('branches.list');
     Route::post('/branches', [BranchesController::class, 'store'])->name('branches.store');
     Route::middleware('branch.resource:branch')->group(function () {
+        Route::get('/branches/{branch}', [BranchesController::class, 'show'])->name('branches.show')->whereNumber('branch');
         Route::put('/branches/{branch}', [BranchesController::class, 'update'])->name('branches.update')->whereNumber('branch');
         Route::delete('/branches/{branch}', [BranchesController::class, 'destroy'])->name('branches.destroy')->whereNumber('branch');
         Route::post('/branches/{branch}/photos', [BranchesController::class, 'storePhoto'])->name('branches.photos.store')->whereNumber('branch');
