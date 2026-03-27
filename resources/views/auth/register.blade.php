@@ -10,26 +10,13 @@
         @csrf
 
         <div class="mb-4">
-            <label for="first_name" class="form-label auth-label">First Name</label>
+            <label for="name" class="form-label auth-label">Name</label>
             <div class="auth-input-group">
                 <i class="bi bi-person-fill auth-input-icon"></i>
-                <input id="first_name" type="text" name="first_name"
-                    class="form-control auth-input @error('first_name') is-invalid @enderror" placeholder="Juan"
-                    value="{{ old('first_name') }}" required autocomplete="given-name" autofocus />
-                @error('first_name')
-                    <div class="invalid-feedback">{{ $message }}</div>
-                @enderror
-            </div>
-        </div>
-
-        <div class="mb-4">
-            <label for="last_name" class="form-label auth-label">Last Name</label>
-            <div class="auth-input-group">
-                <i class="bi bi-person-fill auth-input-icon"></i>
-                <input id="last_name" type="text" name="last_name"
-                    class="form-control auth-input @error('last_name') is-invalid @enderror" placeholder="dela Cruz"
-                    value="{{ old('last_name') }}" required autocomplete="family-name" />
-                @error('last_name')
+                <input id="name" type="text" name="name"
+                    class="form-control auth-input @error('name') is-invalid @enderror" placeholder="Juan"
+                    value="{{ old('name') }}" required autocomplete="given-name" autofocus />
+                @error('name')
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
