@@ -165,10 +165,10 @@
                         <td>
                            <div class="d-flex align-items-center gap-2">
                               <div class="member-avatar" :class="avatarClass(r.attendee_type)">
-                                 {{ $filters.getNameInitials(r.first_name, r.last_name) }}
+                                 {{ $filters.getNameInitials(r.name) }}
                               </div>
                               <div>
-                                 <div class="member-name">{{ r.first_name }} {{ r.last_name }}</div>
+                                 <div class="member-name">{{ r.name }}</div>
                               </div>
                            </div>
                         </td>
@@ -204,10 +204,10 @@
                   <div class="member-card-top">
                      <div class="member-card-identity">
                         <div class="member-avatar" :class="avatarClass(r.attendee_type)">
-                           {{ $filters.getNameInitials(r.first_name, r.last_name) }}
+                           {{ $filters.getNameInitials(r.name) }}
                         </div>
                         <div>
-                           <div class="member-card-name">{{ r.first_name }} {{ r.last_name }}</div>
+                           <div class="member-card-name">{{ r.name }}</div>
                            <div class="member-card-sub">{{ r.branch ? r.branch.name : "—" }}</div>
                         </div>
                      </div>
@@ -286,33 +286,30 @@
                               {{ form.attendee_type === "member" ? "Member" : "Employee" }}
                               <span class="text-danger">*</span>
                            </label>
-                           <div class="input-group mb-2">
-                              <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted search-icon"></i></span>
-                              <input type="text" class="form-control border-start-0" v-model="memberSearch" placeholder="Search name…" />
-                           </div>
-                           <select class="form-select" v-model="form.user_id" :class="{ 'is-invalid': formErrors.user_id }">
-                              <option value="">— Select {{ form.attendee_type === "member" ? "Member" : "Employee" }} —</option>
-                              <option v-for="p in filteredPeopleList" :key="p.id" :value="p.id">{{ p.first_name }} {{ p.last_name }}</option>
-                           </select>
-                           <div class="invalid-feedback" v-if="formErrors.user_id">{{ formErrors.user_id }}</div>
+                           <AsyncSearchSelect
+                              v-model="form.user_id"
+                              :selected-label="form.name"
+                              :placeholder="personSelectPlaceholder"
+                              :search-placeholder="personSearchPlaceholder"
+                              :fetch-options="fetchPeopleOptions"
+                              :invalid="!!formErrors.user_id"
+                              @select-option="handlePersonSelected"
+                           />
+                           <div class="invalid-feedback d-block" v-if="formErrors.user_id">{{ formErrors.user_id }}</div>
                         </div>
                         <div class="col-12 small text-muted" v-else>
                            <i class="bi bi-person-fill me-1"></i>
-                           {{ form.first_name }} {{ form.last_name }}
+                           {{ form.name }}
                            <span class="m-badge ms-2" :class="typeBadgeClass(form.attendee_type)">{{ typeLabel(form.attendee_type) }}</span>
                         </div>
                      </template>
 
                      <!-- Walk-in name -->
                      <template v-if="form.attendee_type === 'walk_in'">
-                        <div class="col-md-6">
-                           <label class="form-label form-label-sm">First Name <span class="text-danger">*</span></label>
-                           <input type="text" class="form-control" v-model="form.first_name" :class="{ 'is-invalid': formErrors.first_name }" placeholder="e.g. Carlo" />
-                           <div class="invalid-feedback" v-if="formErrors.first_name">{{ formErrors.first_name }}</div>
-                        </div>
-                        <div class="col-md-6">
-                           <label class="form-label form-label-sm">Last Name</label>
-                           <input type="text" class="form-control" v-model="form.last_name" placeholder="Optional" />
+                        <div class="col-12">
+                           <label class="form-label form-label-sm">Name <span class="text-danger">*</span></label>
+                           <input type="text" class="form-control" v-model="form.name" :class="{ 'is-invalid': formErrors.name }" placeholder="e.g. Carlo Dela Cruz" />
+                           <div class="invalid-feedback" v-if="formErrors.name">{{ formErrors.name }}</div>
                         </div>
                      </template>
 
@@ -320,7 +317,7 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Branch <span class="text-danger">*</span></label>
                         <select class="form-select" v-model="form.branch_id" :class="{ 'is-invalid': formErrors.branch_id }">
-                           <option value="">— Select Branch —</option>
+                           <option value="">Select a branch...</option>
                            <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
                         </select>
                         <div class="invalid-feedback" v-if="formErrors.branch_id">{{ formErrors.branch_id }}</div>
@@ -370,7 +367,7 @@
                <div class="modal-body" v-if="deleteTarget">
                   <p class="mb-1">Are you sure you want to delete this attendance record?</p>
                   <p class="fw-semibold mb-0">
-                     {{ deleteTarget.first_name }} {{ deleteTarget.last_name }} &mdash;
+                     {{ deleteTarget.name }} &mdash;
                      {{ $filters.formatDateTime(deleteTarget.checked_in_at) }}
                   </p>
                   <p class="text-danger small mt-2 mb-0">This action cannot be undone.</p>
@@ -390,8 +387,12 @@
 
 <script>
 import { Modal } from "bootstrap";
+import AsyncSearchSelect from "./_vendor/AsyncSearchSelect.vue";
 
 export default {
+   components: {
+      AsyncSearchSelect,
+   },
    props: {
       branchesData: { type: Array, required: true },
    },
@@ -418,7 +419,6 @@ export default {
          formModal: null,
          deleteModal: null,
          deleteTarget: null,
-         memberSearch: "",
          typeOptions: [
             { value: "member", label: "Member", icon: "bi-people-fill" },
             { value: "walk_in", label: "Walk-in", icon: "bi-person-plus-fill" },
@@ -438,8 +438,7 @@ export default {
          return {
             attendee_type: "member",
             user_id: "",
-            first_name: "",
-            last_name: "",
+            name: "",
             branch_id: "",
             checked_in_at: this.nowLocal(),
             checked_out_at: "",
@@ -518,9 +517,7 @@ export default {
       setType(type) {
          this.form.attendee_type = type;
          this.form.user_id = "";
-         this.form.first_name = "";
-         this.form.last_name = "";
-         this.memberSearch = "";
+         this.form.name = "";
       },
 
       openAddModal() {
@@ -528,8 +525,37 @@ export default {
          this.form = this.emptyForm();
          this.formError = "";
          this.formErrors = {};
-         this.memberSearch = "";
          this.formModal.show();
+      },
+
+      async fetchPeopleOptions(search) {
+         const params = {
+            search,
+            branch: this.form.branch_id || undefined,
+         };
+
+         if (this.form.attendee_type === "employee") {
+            const res = await axios.post("/panel/employees/list", params);
+
+            return (res.data || []).map((person) => ({
+               id: person.id,
+               name: person.name,
+               meta: person.email || (person.branches || []).map((branch) => branch.name).join(", "),
+            }));
+         }
+
+         const res = await axios.post("/panel/members/list", params);
+
+         return (res.data.members?.data || []).map((person) => ({
+            id: person.id,
+            name: person.name,
+            meta: person.email || (person.branches || []).map((branch) => branch.name).join(", "),
+         }));
+      },
+
+      handlePersonSelected(option) {
+         this.form.user_id = option.id;
+         this.form.name = option.name;
       },
 
       openEditModal(r) {
@@ -540,8 +566,7 @@ export default {
             id: r.id,
             attendee_type: r.attendee_type,
             user_id: r.user_id || "",
-            first_name: r.first_name || "",
-            last_name: r.last_name || "",
+            name: r.name || "",
             branch_id: r.branch_id || "",
             checked_in_at: r.checked_in_at ? r.checked_in_at.slice(0, 16) : this.nowLocal(),
             checked_out_at: r.checked_out_at ? r.checked_out_at.slice(0, 16) : "",
@@ -590,6 +615,7 @@ export default {
 
          const payload = { ...this.form };
          if (!payload.checked_out_at) delete payload.checked_out_at;
+         if (payload.attendee_type !== "walk_in") delete payload.name;
 
          axios[method](url, payload)
             .then(() => {
@@ -625,14 +651,12 @@ export default {
          return !!(this.search || this.selectedBranch || this.selectedType || this.dateFrom || this.dateTo);
       },
 
-      currentPeopleList() {
-         return this.form.attendee_type === "employee" ? this.employeesData : this.membersData;
+      personSelectPlaceholder() {
+         return this.form.attendee_type === "employee" ? "Select an employee..." : "Select a member...";
       },
 
-      filteredPeopleList() {
-         const q = this.memberSearch.toLowerCase().trim();
-         if (!q) return this.currentPeopleList;
-         return this.currentPeopleList.filter((p) => `${p.first_name} ${p.last_name}`.toLowerCase().includes(q));
+      personSearchPlaceholder() {
+         return this.form.attendee_type === "employee" ? "Search employees..." : "Search members...";
       },
 
       statCards() {

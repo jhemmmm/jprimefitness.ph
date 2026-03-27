@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\Branch;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -33,7 +32,7 @@ class AttendanceController extends Controller
      */
     public function list(Request $request): JsonResponse
     {
-        $records = Attendance::with(['branch', 'user', 'recordedBy'])
+        $records = Attendance::with(['branch', 'user', 'walkIn', 'recordedBy'])
             ->when($request->search, fn($q) => $q->where(function ($qq) use ($request) {
                 $qq->where('name', 'like', "%{$request->search}%")
                     ->orWhereHas('user', fn($qqq) => $qqq->where('name', 'like', "%{$request->search}%"))
@@ -46,6 +45,25 @@ class AttendanceController extends Controller
             ->orderBy('checked_in_at', 'desc')
             ->paginate(20)
             ->withQueryString();
+
+        $records->setCollection(
+            $records->getCollection()->map(function (Attendance $attendance) {
+                return [
+                    'id' => $attendance->id,
+                    'attendee_type' => $attendance->attendee_type,
+                    'user_id' => $attendance->user_id,
+                    'branch_id' => $attendance->branch_id,
+                    'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
+                    'checked_in_at' => $attendance->checked_in_at?->toISOString(),
+                    'checked_out_at' => $attendance->checked_out_at?->toISOString(),
+                    'notes' => $attendance->notes,
+                    'branch' => $attendance->branch ? [
+                        'id' => $attendance->branch->id,
+                        'name' => $attendance->branch->name,
+                    ] : null,
+                ];
+            })
+        );
 
         $baseStatsQuery = Attendance::query()->when($request->branch, fn($q) => $q->where('branch_id', $request->branch));
 
@@ -71,6 +89,7 @@ class AttendanceController extends Controller
             'branch_id' => ['required', 'exists:branches,id'],
             'attendee_type' => ['required', Rule::in(['member', 'walk_in', 'employee'])],
             'checked_in_at' => ['nullable', 'date'],
+            'checked_out_at' => ['nullable', 'date', 'after:checked_in_at'],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -78,8 +97,7 @@ class AttendanceController extends Controller
 
         if ($type === 'walk_in') {
             $extra = $request->validate([
-                'first_name' => ['required', 'string', 'max:100'],
-                'last_name' => ['nullable', 'string', 'max:100'],
+                'name' => ['required', 'string', 'max:150'],
             ]);
         } else {
             $extra = $request->validate([
@@ -87,18 +105,33 @@ class AttendanceController extends Controller
             ]);
 
             $user = User::findOrFail($extra['user_id']);
-            $extra['first_name'] = $user->first_name;
-            $extra['last_name'] = $user->last_name;
+            $extra['name'] = $user->name;
         }
 
         $data = array_merge($base, $extra, [
             'checked_in_at' => $base['checked_in_at'] ?? now(),
+            'checked_out_at' => $base['checked_out_at'] ?? null,
             'recorded_by' => Auth::id(),
         ]);
 
         $attendance = Attendance::create($data);
 
-        return response()->json($attendance->load(['branch', 'user', 'recordedBy']), 201);
+        $attendance->load(['branch', 'user', 'walkIn', 'recordedBy']);
+
+        return response()->json([
+            'id' => $attendance->id,
+            'attendee_type' => $attendance->attendee_type,
+            'user_id' => $attendance->user_id,
+            'branch_id' => $attendance->branch_id,
+            'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
+            'checked_in_at' => $attendance->checked_in_at?->toISOString(),
+            'checked_out_at' => $attendance->checked_out_at?->toISOString(),
+            'notes' => $attendance->notes,
+            'branch' => $attendance->branch ? [
+                'id' => $attendance->branch->id,
+                'name' => $attendance->branch->name,
+            ] : null,
+        ], 201);
     }
 
     /**
@@ -119,15 +152,31 @@ class AttendanceController extends Controller
         // For walk-ins allow editing the name
         if ($attendance->attendee_type === 'walk_in') {
             $nameData = $request->validate([
-                'first_name' => ['required', 'string', 'max:100'],
-                'last_name' => ['nullable', 'string', 'max:100'],
+                'name' => ['required', 'string', 'max:150'],
             ]);
             $data = array_merge($data, $nameData);
+        } elseif ($attendance->user) {
+            $data['name'] = $attendance->user->name;
         }
 
         $attendance->update($data);
 
-        return response()->json($attendance->fresh()->load(['branch', 'user', 'recordedBy']));
+        $attendance = $attendance->fresh()->load(['branch', 'user', 'walkIn', 'recordedBy']);
+
+        return response()->json([
+            'id' => $attendance->id,
+            'attendee_type' => $attendance->attendee_type,
+            'user_id' => $attendance->user_id,
+            'branch_id' => $attendance->branch_id,
+            'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
+            'checked_in_at' => $attendance->checked_in_at?->toISOString(),
+            'checked_out_at' => $attendance->checked_out_at?->toISOString(),
+            'notes' => $attendance->notes,
+            'branch' => $attendance->branch ? [
+                'id' => $attendance->branch->id,
+                'name' => $attendance->branch->name,
+            ] : null,
+        ]);
     }
 
     /**
@@ -143,7 +192,22 @@ class AttendanceController extends Controller
 
         $attendance->update(['checked_out_at' => now()]);
 
-        return response()->json($attendance->fresh()->load(['branch', 'user', 'recordedBy']));
+        $attendance = $attendance->fresh()->load(['branch', 'user', 'walkIn', 'recordedBy']);
+
+        return response()->json([
+            'id' => $attendance->id,
+            'attendee_type' => $attendance->attendee_type,
+            'user_id' => $attendance->user_id,
+            'branch_id' => $attendance->branch_id,
+            'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
+            'checked_in_at' => $attendance->checked_in_at?->toISOString(),
+            'checked_out_at' => $attendance->checked_out_at?->toISOString(),
+            'notes' => $attendance->notes,
+            'branch' => $attendance->branch ? [
+                'id' => $attendance->branch->id,
+                'name' => $attendance->branch->name,
+            ] : null,
+        ]);
     }
 
     /**

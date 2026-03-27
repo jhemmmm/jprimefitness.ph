@@ -242,6 +242,7 @@ export default {
             .then((res) => {
                const d = res.data;
                this.records = d.records.data;
+               this.currentPage = d.records.current_page;
                this.pagination = {
                   lastPage: d.records.last_page,
                   links: d.records.links,
