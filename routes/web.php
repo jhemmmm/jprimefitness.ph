@@ -34,16 +34,16 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
 
     // Branches
     Route::get('/branches', [BranchesController::class, 'index'])->name('branches.index');
-    Route::get('/branches/list', [BranchesController::class, 'list'])->name('branches.list');
-    Route::post('/branches', [BranchesController::class, 'store'])->middleware('can:super-admin')->name('branches.store');
-    Route::put('/branches/{branch}', [BranchesController::class, 'update'])->middleware('can:super-admin')->name('branches.update')->whereNumber('branch');
-    Route::delete('/branches/{branch}', [BranchesController::class, 'destroy'])->middleware('can:super-admin')->name('branches.destroy')->whereNumber('branch');
-    Route::post('/branches/{branch}/photos', [BranchesController::class, 'storePhoto'])->middleware('can:super-admin')->name('branches.photos.store')->whereNumber('branch');
-    Route::delete('/branches/{branch}/photos/{index}', [BranchesController::class, 'destroyPhoto'])->middleware('can:super-admin')->name('branches.photos.destroy')->whereNumber('branch');
+    Route::post('/branches/list', [BranchesController::class, 'list'])->name('branches.list');
+    Route::post('/branches', [BranchesController::class, 'store'])->name('branches.store');
+    Route::put('/branches/{branch}', [BranchesController::class, 'update'])->name('branches.update')->whereNumber('branch');
+    Route::delete('/branches/{branch}', [BranchesController::class, 'destroy'])->name('branches.destroy')->whereNumber('branch');
+    Route::post('/branches/{branch}/photos', [BranchesController::class, 'storePhoto'])->name('branches.photos.store')->whereNumber('branch');
+    Route::delete('/branches/{branch}/photos/{index}', [BranchesController::class, 'destroyPhoto'])->name('branches.photos.destroy')->whereNumber('branch');
 
     // Attendance
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
-    Route::get('/attendance/list', [AttendanceController::class, 'list'])->name('attendance.list');
+    Route::post('/attendance/list', [AttendanceController::class, 'list'])->name('attendance.list');
     Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
     Route::put('/attendance/{attendance}', [AttendanceController::class, 'update'])->name('attendance.update')->whereNumber('attendance');
     Route::post('/attendance/{attendance}/checkout', [AttendanceController::class, 'checkout'])->name('attendance.checkout')->whereNumber('attendance');
@@ -69,7 +69,7 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
 
     // Payouts
     Route::get('/employees/{employee}/payouts', [EmployeeController::class, 'payouts'])->name('employees.payouts.list')->whereNumber('employee');
-    Route::get('/employees/{employee}/payrolls/{payroll}/payouts', [EmployeeController::class, 'payrollPayouts'])->name('employees.payrolls.payouts.list')->whereNumber('employee')->whereNumber('payroll');
+    Route::post('/employees/{employee}/payrolls/{payroll}/payouts', [EmployeeController::class, 'payrollPayouts'])->name('employees.payrolls.payouts.list')->whereNumber('employee')->whereNumber('payroll');
     Route::post('/employees/{employee}/payrolls/{payroll}/payouts', [EmployeeController::class, 'storePayout'])->name('employees.payrolls.payouts.store')->whereNumber('employee')->whereNumber('payroll');
 
     // Cash Advances

@@ -24,3 +24,7 @@ Homestead.yaml
 Thumbs.db
 AGENTS.md
 LEAN-CTX.md
+boost.json
+/.agents
+/.codex
+/.github

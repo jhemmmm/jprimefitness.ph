@@ -52,9 +52,10 @@ class BranchesController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        abort_unless(auth()->user()->hasRole('super admin'), 403);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', 'unique:branches,slug'],
             'status' => ['required', 'in:open,closed,coming_soon'],
             'city' => ['required', 'string', 'max:255'],
             'province' => ['nullable', 'string', 'max:255'],
@@ -69,7 +70,7 @@ class BranchesController extends Controller
             'map_url' => ['nullable', 'url', 'max:500'],
         ]);
 
-        $data['slug'] = $data['slug'] ?: Str::slug($data['name']);
+        $data['slug'] = $this->resolveUniqueSlug($data['name']);
 
         $branch = Branch::create($data);
 
@@ -78,24 +79,43 @@ class BranchesController extends Controller
 
     public function update(Request $request, Branch $branch): JsonResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', "unique:branches,slug,{$branch->id}"],
-            'status' => ['required', 'in:open,closed,coming_soon'],
-            'city' => ['required', 'string', 'max:255'],
-            'province' => ['nullable', 'string', 'max:255'],
-            'address' => ['nullable', 'string', 'max:500'],
-            'phone' => ['nullable', 'string', 'max:50'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'opening_time' => ['nullable', 'date_format:H:i'],
-            'closing_time' => ['nullable', 'date_format:H:i'],
-            'facebook_url' => ['nullable', 'url', 'max:500'],
-            'messenger_url' => ['nullable', 'url', 'max:500'],
-            'whatsapp_url' => ['nullable', 'url', 'max:500'],
-            'map_url' => ['nullable', 'url', 'max:500'],
-        ]);
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
 
-        $data['slug'] = $data['slug'] ?: Str::slug($data['name']);
+        if (auth()->user()->hasRole('super admin')) {
+            $data = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'status' => ['required', 'in:open,closed,coming_soon'],
+                'city' => ['required', 'string', 'max:255'],
+                'province' => ['nullable', 'string', 'max:255'],
+                'address' => ['nullable', 'string', 'max:500'],
+                'phone' => ['nullable', 'string', 'max:50'],
+                'email' => ['nullable', 'email', 'max:255'],
+                'opening_time' => ['nullable', 'date_format:H:i'],
+                'closing_time' => ['nullable', 'date_format:H:i'],
+                'facebook_url' => ['nullable', 'url', 'max:500'],
+                'messenger_url' => ['nullable', 'url', 'max:500'],
+                'whatsapp_url' => ['nullable', 'url', 'max:500'],
+                'map_url' => ['nullable', 'url', 'max:500'],
+            ]);
+
+            if ($branch->name !== $data['name']) {
+                $data['slug'] = $this->resolveUniqueSlug($data['name'], $branch);
+            }
+        } else {
+            $data = $request->validate([
+                'city' => ['required', 'string', 'max:255'],
+                'province' => ['nullable', 'string', 'max:255'],
+                'address' => ['nullable', 'string', 'max:500'],
+                'phone' => ['nullable', 'string', 'max:50'],
+                'email' => ['nullable', 'email', 'max:255'],
+                'opening_time' => ['nullable', 'date_format:H:i'],
+                'closing_time' => ['nullable', 'date_format:H:i'],
+                'facebook_url' => ['nullable', 'url', 'max:500'],
+                'messenger_url' => ['nullable', 'url', 'max:500'],
+                'whatsapp_url' => ['nullable', 'url', 'max:500'],
+                'map_url' => ['nullable', 'url', 'max:500'],
+            ]);
+        }
 
         $branch->update($data);
 
@@ -104,6 +124,8 @@ class BranchesController extends Controller
 
     public function destroy(Branch $branch): JsonResponse
     {
+        abort_unless(auth()->user()->hasRole('super admin'), 403);
+
         // Delete all stored photos from disk
         if ($branch->photos) {
             foreach ($branch->photos as $path) {
@@ -118,6 +140,8 @@ class BranchesController extends Controller
 
     public function storePhoto(Request $request, Branch $branch): JsonResponse
     {
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
+
         $request->validate([
             'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
         ]);
@@ -133,6 +157,8 @@ class BranchesController extends Controller
 
     public function destroyPhoto(Branch $branch, int $index): JsonResponse
     {
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
+
         $photos = $branch->photos ?? [];
 
         if (! array_key_exists($index, $photos)) {
@@ -144,5 +170,24 @@ class BranchesController extends Controller
         $branch->update(['photos' => $photos]);
 
         return response()->json(null, 204);
+    }
+
+    protected function resolveUniqueSlug(string $name, ?Branch $ignore = null): string
+    {
+        $baseSlug = Str::slug($name) ?: 'branch';
+        $slug = $baseSlug;
+        $suffix = 2;
+
+        while (
+            Branch::query()
+            ->when($ignore, fn($query) => $query->whereKeyNot($ignore->id))
+            ->where('slug', $slug)
+            ->exists()
+        ) {
+            $slug = "{$baseSlug}-{$suffix}";
+            $suffix++;
+        }
+
+        return $slug;
     }
 }
