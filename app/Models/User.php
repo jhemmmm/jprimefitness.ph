@@ -61,6 +61,11 @@ class User extends Authenticatable
         return $this->hasMany(MemberSubscription::class);
     }
 
+    public function memberPtPackages(): HasMany
+    {
+        return $this->hasMany(MemberPtPackage::class)->orderByDesc('assigned_at');
+    }
+
     public function attachPlan(int $ratePlanId, string $startDate): void
     {
         $plan = RatePlan::findOrFail($ratePlanId);

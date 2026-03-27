@@ -25,6 +25,8 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
         Route::get('/members/{member}/attendance', [MembersController::class, 'attendance'])->name('members.attendance')->whereNumber('member');
         Route::put('/members/{member}/membership', [MembersController::class, 'updateMembership'])->name('members.membership.update')->whereNumber('member');
         Route::put('/members/{member}/membership/status', [MembersController::class, 'updateMembershipStatus'])->name('members.membership.status')->whereNumber('member');
+        Route::post('/members/{member}/pt-packages', [MembersController::class, 'storePtPackage'])->middleware('branch.input:branch_id')->name('members.pt-packages.store')->whereNumber('member');
+        Route::post('/members/{member}/pt-session-usages', [MembersController::class, 'storePtSessionUsage'])->name('members.pt-session-usages.store')->whereNumber('member');
         Route::get('/members/{member}', [MembersController::class, 'show'])->name('members.show')->whereNumber('member');
         Route::put('/members/{member}', [MembersController::class, 'update'])->middleware('branch.input:branch_ids')->name('members.update')->whereNumber('member');
     });

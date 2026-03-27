@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\MemberSubscription;
+use App\Models\PTProduct;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -31,14 +32,21 @@ class MembersController extends Controller
     {
         // Get members
         $members = User::role('member')
-            ->with(['profile', 'branches', 'memberSubscriptions.ratePlan'])
+            ->with([
+                'profile',
+                'branches',
+                'memberSubscriptions.ratePlan',
+                'memberPtPackages' => fn ($query) => $query
+                    ->with('ptProduct:id,name')
+                    ->orderByDesc('assigned_at'),
+            ])
             ->when(! empty($request->search), fn ($q) => $q->where(function ($qq) use ($request) {
                 $qq->where('name', 'like', "%{$request->search}%")
                     ->orWhere('email', 'like', "%{$request->search}%");
             }))
             ->when($request->branch, fn ($q, $b) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $b)), function ($q) {
                 if (! auth()->user()->hasRole('super admin')) {
-                    $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('id')));
+                    $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id')));
                 }
             })
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
@@ -51,7 +59,7 @@ class MembersController extends Controller
         $statsQuery = User::role('member')
             ->when($request->branch, fn ($q, $b) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $b)), function ($q) {
                 if (! auth()->user()->hasRole('super admin')) {
-                    $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('id')));
+                    $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id')));
                 }
             });
 
@@ -117,7 +125,7 @@ class MembersController extends Controller
         );
 
         return response()->json(
-            $user->fresh()->load(['profile', 'branches', 'memberSubscriptions.ratePlan']),
+            $this->loadMemberDetail($user->fresh()),
             201
         );
     }
@@ -130,11 +138,7 @@ class MembersController extends Controller
         abort_unless($member->hasRole('member'), 404);
 
         return view('panel.members.show', [
-            'member' => $member->load([
-                'profile',
-                'branches',
-                'memberSubscriptions' => fn ($query) => $query->with('ratePlan')->orderByDesc('start_date'),
-            ]),
+            'member' => $this->loadMemberDetail($member),
         ]);
     }
 
@@ -176,11 +180,7 @@ class MembersController extends Controller
         $member->changeMembershipPlan((int) $data['rate_plan_id'], $data['start_date']);
 
         return response()->json(
-            $member->fresh()->load([
-                'profile',
-                'branches',
-                'memberSubscriptions' => fn ($query) => $query->with('ratePlan')->orderByDesc('start_date'),
-            ])
+            $this->loadMemberDetail($member->fresh())
         );
     }
 
@@ -204,12 +204,92 @@ class MembersController extends Controller
         $member->updateCurrentMembershipStatus($data['status']);
 
         return response()->json(
-            $member->fresh()->load([
-                'profile',
-                'branches',
-                'memberSubscriptions' => fn ($query) => $query->with('ratePlan')->orderByDesc('start_date'),
-            ])
+            $this->loadMemberDetail($member->fresh())
         );
+    }
+
+    public function storePtPackage(Request $request, User $member): JsonResponse
+    {
+        abort_unless($member->hasRole('member'), 404);
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+
+        $data = $request->validate([
+            'branch_id' => ['required', 'integer', 'exists:branches,id'],
+            'pt_product_id' => ['required', 'integer', 'exists:pt_products,id'],
+            'assigned_at' => ['required', 'date'],
+            'expires_at' => ['nullable', 'date', 'after_or_equal:assigned_at'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        if (! $member->branches()->whereKey($data['branch_id'])->exists()) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => [
+                    'branch_id' => ['The selected branch is not assigned to this member.'],
+                ],
+            ], 422);
+        }
+
+        $ptProduct = PTProduct::findOrFail($data['pt_product_id']);
+
+        if (! $ptProduct->branches()->whereKey($data['branch_id'])->wherePivot('is_active', true)->exists()) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => [
+                    'pt_product_id' => ['The selected PT product is not available for the chosen branch.'],
+                ],
+            ], 422);
+        }
+
+        $member->memberPtPackages()->create([
+            'branch_id' => $data['branch_id'],
+            'pt_product_id' => $ptProduct->id,
+            'total_sessions' => $ptProduct->session_count,
+            'remaining_sessions' => $ptProduct->session_count,
+            'assigned_at' => $data['assigned_at'],
+            'expires_at' => $data['expires_at'] ?? null,
+            'notes' => $data['notes'] ?? null,
+            'created_by' => auth()->id(),
+        ]);
+
+        return response()->json($this->loadMemberDetail($member->fresh()), 201);
+    }
+
+    public function storePtSessionUsage(Request $request, User $member): JsonResponse
+    {
+        abort_unless($member->hasRole('member'), 404);
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager', 'staff']), 403);
+
+        $data = $request->validate([
+            'member_pt_package_id' => ['required', 'integer'],
+            'sessions_used' => ['required', 'integer', 'min:1'],
+            'used_at' => ['required', 'date'],
+            'confirmed_by' => ['nullable', 'string', 'max:255'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $package = $member->memberPtPackages()
+            ->whereKey($data['member_pt_package_id'])
+            ->first();
+
+        if (! $package) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => [
+                    'member_pt_package_id' => ['The selected PT package was not found for this member.'],
+                ],
+            ], 422);
+        }
+
+        $package->consumeSessions(
+            (int) $data['sessions_used'],
+            $data['used_at'],
+            auth()->id(),
+            $data['confirmed_by'] ?? null,
+            $data['notes'] ?? null
+        );
+
+        return response()->json($this->loadMemberDetail($member->fresh()), 201);
     }
 
     /**
@@ -263,7 +343,24 @@ class MembersController extends Controller
         );
 
         return response()->json(
-            $member->fresh()->load(['profile', 'branches', 'memberSubscriptions.ratePlan'])
+            $this->loadMemberDetail($member->fresh())
         );
+    }
+
+    private function loadMemberDetail(User $member): User
+    {
+        return $member->load([
+            'profile',
+            'branches.ptProducts',
+            'memberSubscriptions' => fn ($query) => $query->with('ratePlan')->orderByDesc('start_date'),
+            'memberPtPackages' => fn ($query) => $query
+                ->with([
+                    'branch',
+                    'ptProduct',
+                    'createdBy:id,name',
+                    'usages.recordedBy:id,name',
+                ])
+                ->orderByDesc('assigned_at'),
+        ]);
     }
 }

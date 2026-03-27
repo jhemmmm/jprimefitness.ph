@@ -3,22 +3,21 @@
       <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>Membership updated successfully.</div>
       <div class="alert alert-danger py-2 small" v-if="generalError">{{ generalError }}</div>
 
-      <div class="panel-card p-3 mb-4" v-if="canManageMembership">
-         <div class="row g-3 align-items-end">
-            <div class="col-md-5">
-               <label class="form-label form-label-sm fw-semibold">Change Plan</label>
-               <select class="form-select" v-model="form.rate_plan_id">
-                  <option value="">Select a plan...</option>
-                  <option v-for="plan in ratePlansData" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
-               </select>
+      <div class="row g-3 mb-4">
+         <div class="col-md-4" v-for="stat in statCards" :key="stat.label">
+            <div class="stat-card">
+               <div class="stat-card-icon" :class="stat.iconBg"><i class="bi" :class="[stat.icon, stat.iconColor]"></i></div>
+               <div class="stat-card-body">
+                  <div class="stat-card-label">{{ stat.label }}</div>
+                  <div class="stat-card-value">{{ stat.value }}</div>
+               </div>
             </div>
-            <div class="col-md-3">
-               <label class="form-label form-label-sm fw-semibold">Start Date</label>
-               <input type="date" class="form-control" v-model="form.start_date" />
-            </div>
-            <div class="col-md-4 d-flex gap-2 flex-wrap">
-               <button class="btn btn-danger btn-sm" @click="savePlanChange" :disabled="savingPlan || !form.rate_plan_id">
-                  <span class="spinner-border spinner-border-sm me-1" v-if="savingPlan"></span>
+         </div>
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-end gap-2 mb-4" v-if="canManageMembership">
+               <button class="btn btn-danger btn-sm" @click="openPlanModal">
+                  <i class="bi bi-arrow-repeat me-1"></i>
                   Change Plan
                </button>
                <button v-if="currentMembership && currentMembership.status === 'active'" class="btn btn-outline-warning btn-sm" @click="updateStatus('paused')" :disabled="savingStatus">
@@ -33,17 +32,36 @@
                   <span class="spinner-border spinner-border-sm me-1" v-if="savingStatus"></span>
                   Cancel
                </button>
-            </div>
-         </div>
       </div>
 
-      <div class="row g-3 mb-4">
-         <div class="col-md-4" v-for="stat in statCards" :key="stat.label">
-            <div class="stat-card">
-               <div class="stat-card-icon" :class="stat.iconBg"><i class="bi" :class="[stat.icon, stat.iconColor]"></i></div>
-               <div class="stat-card-body">
-                  <div class="stat-card-label">{{ stat.label }}</div>
-                  <div class="stat-card-value">{{ stat.value }}</div>
+      <div class="modal fade" tabindex="-1" ref="planModal">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">Change Membership Plan</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+               </div>
+               <div class="modal-body">
+                  <div class="row g-3">
+                     <div class="col-12">
+                        <label class="form-label form-label-sm fw-semibold">Plan</label>
+                        <select class="form-select" v-model="form.rate_plan_id">
+                           <option value="">Select a plan...</option>
+                           <option v-for="plan in ratePlansData" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
+                        </select>
+                     </div>
+                     <div class="col-12">
+                        <label class="form-label form-label-sm fw-semibold">Start Date</label>
+                        <input type="date" class="form-control" v-model="form.start_date" />
+                     </div>
+                  </div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-danger btn-sm" @click="savePlanChange" :disabled="savingPlan || !form.rate_plan_id">
+                  <span class="spinner-border spinner-border-sm me-1" v-if="savingPlan"></span>
+                  Change Plan
+                  </button>
                </div>
             </div>
          </div>
@@ -96,6 +114,8 @@
 </template>
 
 <script>
+import { Modal } from "bootstrap";
+
 export default {
    props: {
       member: { type: Object, required: true },
@@ -110,11 +130,16 @@ export default {
          savingStatus: false,
          saved: false,
          generalError: "",
+         planModalInst: null,
          form: {
             rate_plan_id: "",
             start_date: new Date().toISOString().slice(0, 10),
          },
       };
+   },
+
+   mounted() {
+      this.planModalInst = new Modal(this.$refs.planModal);
    },
 
    watch: {
@@ -139,7 +164,21 @@ export default {
       },
 
       memberships() {
+         const statusPriority = {
+            active: 0,
+            paused: 1,
+            expired: 2,
+            cancelled: 3,
+         };
+
          return [...(this.member.member_subscriptions || [])].sort((left, right) => {
+            const leftPriority = statusPriority[left.status] ?? 99;
+            const rightPriority = statusPriority[right.status] ?? 99;
+
+            if (leftPriority !== rightPriority) {
+               return leftPriority - rightPriority;
+            }
+
             const leftDate = left.start_date || left.created_at || "";
             const rightDate = right.start_date || right.created_at || "";
             return String(rightDate).localeCompare(String(leftDate));
@@ -156,6 +195,15 @@ export default {
    },
 
    methods: {
+      openPlanModal() {
+         this.generalError = "";
+         this.form = {
+            rate_plan_id: this.currentMembership?.rate_plan_id || "",
+            start_date: this.currentMembership?.start_date || new Date().toISOString().slice(0, 10),
+         };
+         this.planModalInst.show();
+      },
+
       savePlanChange() {
          this.savingPlan = true;
          this.saved = false;
@@ -165,6 +213,7 @@ export default {
             .then((res) => {
                this.saved = true;
                this.$emit("updated", res.data);
+               this.planModalInst.hide();
                setTimeout(() => (this.saved = false), 3000);
             })
             .catch((err) => (this.generalError = err.response?.data?.message || "Failed to update membership plan."))

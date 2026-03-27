@@ -165,7 +165,15 @@
                   <tbody>
                      <tr v-for="r in records" :key="r.id" :class="{ 'table-success-soft': !r.checked_out_at }">
                         <td>
-                           <div class="d-flex align-items-center gap-2">
+                           <a v-if="getAttendanceDetailUrl(r)" :href="getAttendanceDetailUrl(r)" class="text-decoration-none d-flex align-items-center gap-2">
+                              <div class="member-avatar" :class="attendeeAvatarClasses[r.attendee_type] || ''">
+                                 {{ $filters.getNameInitials(r.name) }}
+                              </div>
+                              <div>
+                                 <div class="member-name">{{ r.name }}</div>
+                              </div>
+                           </a>
+                           <div v-else class="d-flex align-items-center gap-2">
                               <div class="member-avatar" :class="attendeeAvatarClasses[r.attendee_type] || ''">
                                  {{ $filters.getNameInitials(r.name) }}
                               </div>
@@ -204,7 +212,16 @@
             <div class="d-md-none">
                <div class="member-card" v-for="r in records" :key="'mc' + r.id">
                   <div class="member-card-top">
-                     <div class="member-card-identity">
+                     <a v-if="getAttendanceDetailUrl(r)" :href="getAttendanceDetailUrl(r)" class="member-card-identity text-decoration-none text-reset">
+                        <div class="member-avatar" :class="attendeeAvatarClasses[r.attendee_type] || ''">
+                           {{ $filters.getNameInitials(r.name) }}
+                        </div>
+                        <div>
+                           <div class="member-card-name">{{ r.name }}</div>
+                           <div class="member-card-sub">{{ r.branch ? r.branch.name : "—" }}</div>
+                        </div>
+                     </a>
+                     <div v-else class="member-card-identity">
                         <div class="member-avatar" :class="attendeeAvatarClasses[r.attendee_type] || ''">
                            {{ $filters.getNameInitials(r.name) }}
                         </div>
@@ -485,6 +502,22 @@ export default {
          if (!link.url) return;
          const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
          this.fetchRecords(page);
+      },
+
+      getAttendanceDetailUrl: function (record) {
+         if (!record.user_id) {
+            return null;
+         }
+
+         if (record.attendee_type === "member") {
+            return `/panel/members/${record.user_id}`;
+         }
+
+         if (record.attendee_type === "employee") {
+            return `/panel/employees/${record.user_id}`;
+         }
+
+         return null;
       },
 
       setType: function (type) {

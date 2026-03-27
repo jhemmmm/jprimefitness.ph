@@ -3,7 +3,7 @@
       <div class="d-flex align-items-center justify-content-between mb-4">
          <div>
             <h4 class="fw-bold mb-0">Member Details</h4>
-            <div class="text-muted small">Information, attendance, and membership history</div>
+            <div class="text-muted small">Information, attendance, memberships, PT sessions, and settings</div>
          </div>
          <a href="/panel/members" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back</a>
       </div>
@@ -44,6 +44,7 @@
 import MemberAttendancePage from "./vendor/MemberAttendancePage.vue";
 import MemberInformationPage from "./vendor/MemberInformationPage.vue";
 import MemberMembershipPage from "./vendor/MemberMembershipPage.vue";
+import MemberPtSessionsPage from "./vendor/MemberPtSessionsPage.vue";
 import MemberSettingsPage from "./vendor/MemberSettingsPage.vue";
 
 export default {
@@ -51,6 +52,7 @@ export default {
       MemberAttendancePage,
       MemberInformationPage,
       MemberMembershipPage,
+      MemberPtSessionsPage,
       MemberSettingsPage,
    },
 
@@ -68,6 +70,7 @@ export default {
             { key: "information", label: "Information", icon: "bi-person-vcard" },
             { key: "attendance", label: "Attendance", icon: "bi-calendar-check" },
             { key: "membership", label: "Memberships", icon: "bi-postcard" },
+            { key: "ptSessions", label: "PT Sessions", icon: "bi-stopwatch" },
             { key: "settings", label: "Settings", icon: "bi-gear" },
          ],
       };
@@ -79,6 +82,7 @@ export default {
             information: "MemberInformationPage",
             attendance: "MemberAttendancePage",
             membership: "MemberMembershipPage",
+            ptSessions: "MemberPtSessionsPage",
             settings: "MemberSettingsPage",
          }[this.activeTab];
       },

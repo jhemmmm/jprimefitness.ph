@@ -105,6 +105,7 @@
                               <div>
                                  <div class="skeleton-box sk-name mb-1"></div>
                                  <div class="skeleton-box sk-email"></div>
+                                 <div class="skeleton-box sk-email mt-1"></div>
                               </div>
                            </div>
                         </td>
@@ -185,6 +186,7 @@
                               <div>
                                  <div class="member-name">{{ member.name }}</div>
                                  <div class="member-email">{{ member.email }}</div>
+                                 <div class="small text-muted mt-1" v-if="member.profile && member.profile.notes">{{ getMemberNotes(member) }}</div>
                               </div>
                            </a>
                         </td>
@@ -195,6 +197,15 @@
                               <div class="plan-name mb-1">{{ getCurrentMembership(member).rate_plan.name }}</div>
                               <span class="m-badge" :class="getPlanStatusClass(getCurrentMembership(member).status)">
                                  {{ $filters.capitalize(getCurrentMembership(member).status) }}
+                              </span>
+                              <div class="small text-muted mt-1" v-if="getActivePtPackage(member)">
+                                 {{ getActivePtPackage(member).pt_product?.name || "PT Package" }} • {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} left
+                              </div>
+                           </template>
+                           <template v-else-if="getActivePtPackage(member)">
+                              <div class="plan-name mb-1">{{ getActivePtPackage(member).pt_product?.name || "PT Package" }}</div>
+                              <span class="m-badge m-badge--plan-active">
+                                 {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} left
                               </span>
                            </template>
                            <span v-else class="text-muted small">—</span>
@@ -222,7 +233,8 @@
                         <div class="member-avatar">{{ $filters.getNameInitials(member.name) }}</div>
                         <div>
                            <div class="member-card-name">{{ member.name }}</div>
-                           <div class="member-card-sub">{{ member.phone || member.email }}</div>
+                           <div class="member-card-sub">{{ member.email }}</div>
+                           <div class="small text-muted mt-1" v-if="member.profile && member.profile.notes">{{ getMemberNotes(member) }}</div>
                         </div>
                      </a>
                      <div class="dropdown">
@@ -245,8 +257,15 @@
                         <span class="text-capitalize m-badge m-badge--plan">{{ getCurrentMembership(member).rate_plan.name }}</span>
                         <span class="m-badge" :class="getPlanStatusClass(getCurrentMembership(member).status)">{{ $filters.capitalize(getCurrentMembership(member).status) }}</span>
                      </template>
+                     <span v-if="getActivePtPackage(member)" class="m-badge m-badge--plan-active">
+                        PT {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }}
+                     </span>
+                  </div>
+                  <div class="small text-muted mt-2" v-if="member.profile && member.profile.notes">
+                     {{ member.profile.notes }}
                   </div>
                   <div class="member-card-footer">
+                     <span v-if="getActivePtPackage(member)">{{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} PT left</span>
                      <span><i class="bi bi-calendar3 me-1"></i>{{ $filters.formatDate(member.created_at) }}</span>
                      <span class="member-card-num">#{{ member.id }}</span>
                   </div>
@@ -574,6 +593,26 @@ export default {
                return membership.status === "active" || membership.status === "paused";
             }) || member.member_subscriptions[0]
          );
+      },
+
+      getActivePtPackage: function (member) {
+         if (!member.member_pt_packages || !member.member_pt_packages.length) return null;
+
+         return (
+            member.member_pt_packages.find(function (pkg) {
+               return pkg.status === "active" && Number(pkg.remaining_sessions) > 0;
+            }) || member.member_pt_packages[0]
+         );
+      },
+
+      getMemberNotes: function (member) {
+         var notes = member.profile && member.profile.notes ? member.profile.notes.trim() : "";
+
+         if (!notes) {
+            return "—";
+         }
+
+         return notes.length > 60 ? `${notes.slice(0, 57)}...` : notes;
       },
    },
 
