@@ -46,6 +46,15 @@ class EmployeePayslipTest extends TestCase
             'period_end' => '2026-03-15',
             'gross_amount' => 1500,
             'bonus' => 200,
+            'pt_commission_amount' => 320,
+            'pt_commission_items' => [
+                [
+                    'package_id' => 99,
+                    'member_name' => 'Member Ana',
+                    'product_name' => '8 Sessions',
+                    'commission_amount' => 320,
+                ],
+            ],
             'income_tax' => 60,
             'employee_contributions' => [
                 ['name' => 'SSS', 'rate' => 5, 'amount' => 75],
@@ -57,7 +66,7 @@ class EmployeePayslipTest extends TestCase
             ],
             'manual_deductions' => 100,
             'cash_advance_deduction' => 200,
-            'net_amount' => 1227.5,
+            'net_amount' => 1547.5,
             'status' => Payroll::STATUS_APPROVED,
             'notes' => 'Includes holiday bonus.',
             'generated_by' => $manager->id,
@@ -83,7 +92,8 @@ class EmployeePayslipTest extends TestCase
             $this->assertSame("payslip-employee-{$employee->id}-payroll-{$payroll->id}.pdf", $pdf->downloadName);
             $this->assertSame('Juan Dela Cruz', $pdf->viewData['employee']->name);
             $this->assertSame('Includes holiday bonus.', $pdf->viewData['payroll']->notes);
-            $this->assertSame(1227.5, (float) $pdf->viewData['payroll']->net_amount);
+            $this->assertSame(1547.5, (float) $pdf->viewData['payroll']->net_amount);
+            $this->assertSame(320.0, (float) $pdf->viewData['payroll']->pt_commission_amount);
             $this->assertSame('SSS', $pdf->viewData['payroll']->employee_contributions[0]['name']);
             $this->assertSame(60.0, (float) $pdf->viewData['payroll']->income_tax);
             $this->assertSame('Payroll Manager', $pdf->viewData['payroll']->generatedBy?->name);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\WalkIn;
+use App\Services\BranchCashLedgerService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,6 +12,8 @@ use Illuminate\View\View;
 
 class WalkInsController extends Controller
 {
+    public function __construct(private BranchCashLedgerService $branchCashLedgerService) {}
+
     /**
      * Walk In Index
      *
@@ -77,6 +80,7 @@ class WalkInsController extends Controller
         $data['visited_at'] = $data['visited_at'] ?? now();
 
         $walkIn = WalkIn::create($data);
+        $this->branchCashLedgerService->syncWalkIn($walkIn);
 
         return response()->json($walkIn->load(['branch', 'ratePlan']), 201);
     }
@@ -97,6 +101,7 @@ class WalkInsController extends Controller
         ]);
 
         $walkIn->update($data);
+        $this->branchCashLedgerService->syncWalkIn($walkIn->fresh(['ratePlan']));
 
         return response()->json($walkIn->fresh()->load(['branch', 'ratePlan']));
     }
@@ -106,6 +111,7 @@ class WalkInsController extends Controller
      */
     public function destroy(WalkIn $walkIn): JsonResponse
     {
+        $this->branchCashLedgerService->deleteWalkIn($walkIn);
         $walkIn->delete();
 
         return response()->json(null, 204);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\MemberPtPackage;
 use App\Models\MemberSubscription;
 use App\Models\PTProduct;
 use App\Models\User;
@@ -216,6 +217,7 @@ class MembersController extends Controller
         $data = $request->validate([
             'branch_id' => ['required', 'integer', 'exists:branches,id'],
             'pt_product_id' => ['required', 'integer', 'exists:pt_products,id'],
+            'coach_id' => ['nullable', 'integer', 'exists:users,id'],
             'assigned_at' => ['required', 'date'],
             'expires_at' => ['nullable', 'date', 'after_or_equal:assigned_at'],
             'notes' => ['nullable', 'string'],
@@ -231,8 +233,12 @@ class MembersController extends Controller
         }
 
         $ptProduct = PTProduct::findOrFail($data['pt_product_id']);
+        $branchPricing = $ptProduct->branches()
+            ->whereKey($data['branch_id'])
+            ->wherePivot('is_active', true)
+            ->first();
 
-        if (! $ptProduct->branches()->whereKey($data['branch_id'])->wherePivot('is_active', true)->exists()) {
+        if (! $branchPricing) {
             return response()->json([
                 'message' => 'The given data was invalid.',
                 'errors' => [
@@ -241,13 +247,30 @@ class MembersController extends Controller
             ], 422);
         }
 
-        $member->memberPtPackages()->create([
+        if (! empty($data['coach_id']) && ! $this->coachIsAssignableToBranch((int) $data['coach_id'], (int) $data['branch_id'])) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => [
+                    'coach_id' => ['The selected coach is not assigned to the chosen branch.'],
+                ],
+            ], 422);
+        }
+
+        $soldPrice = round((float) ($branchPricing->pivot->price ?? 0), 2);
+        $coachCommissionRate = round((float) ($branchPricing->pivot->coach_commission_rate ?? 40), 2);
+
+        $package = $member->memberPtPackages()->create([
             'branch_id' => $data['branch_id'],
             'pt_product_id' => $ptProduct->id,
+            'sold_price' => $soldPrice,
+            'coach_commission_rate' => $coachCommissionRate,
+            'coach_commission_amount' => MemberPtPackage::calculateCommissionAmount($soldPrice, $coachCommissionRate),
+            'coach_id' => $data['coach_id'] ?? null,
             'total_sessions' => $ptProduct->session_count,
             'remaining_sessions' => $ptProduct->session_count,
             'assigned_at' => $data['assigned_at'],
             'expires_at' => $data['expires_at'] ?? null,
+            'coach_commission_status' => MemberPtPackage::defaultCommissionStatus(isset($data['coach_id']) ? (int) $data['coach_id'] : null),
             'notes' => $data['notes'] ?? null,
             'created_by' => auth()->id(),
         ]);
@@ -262,6 +285,7 @@ class MembersController extends Controller
 
         $data = $request->validate([
             'member_pt_package_id' => ['required', 'integer'],
+            'coach_id' => ['nullable', 'integer', 'exists:users,id'],
             'sessions_used' => ['required', 'integer', 'min:1'],
             'used_at' => ['required', 'date'],
             'confirmed_by' => ['nullable', 'string', 'max:255'],
@@ -281,10 +305,20 @@ class MembersController extends Controller
             ], 422);
         }
 
+        if (! empty($data['coach_id']) && ! $this->coachIsAssignableToBranch((int) $data['coach_id'], (int) $package->branch_id)) {
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => [
+                    'coach_id' => ['The selected coach is not assigned to this PT package branch.'],
+                ],
+            ], 422);
+        }
+
         $package->consumeSessions(
             (int) $data['sessions_used'],
             $data['used_at'],
             auth()->id(),
+            isset($data['coach_id']) ? (int) $data['coach_id'] : null,
             $data['confirmed_by'] ?? null,
             $data['notes'] ?? null
         );
@@ -349,7 +383,7 @@ class MembersController extends Controller
 
     private function loadMemberDetail(User $member): User
     {
-        return $member->load([
+        $member->load([
             'profile',
             'branches.ptProducts',
             'memberSubscriptions' => fn ($query) => $query->with('ratePlan')->orderByDesc('start_date'),
@@ -357,10 +391,39 @@ class MembersController extends Controller
                 ->with([
                     'branch',
                     'ptProduct',
+                    'coach:id,name',
                     'createdBy:id,name',
+                    'usages.coach:id,name',
                     'usages.recordedBy:id,name',
                 ])
                 ->orderByDesc('assigned_at'),
         ]);
+
+        return $member->setRelation('availableCoaches', $this->availableCoachesForMember($member));
+    }
+
+    private function coachIsAssignableToBranch(int $coachId, int $branchId): bool
+    {
+        return User::role('coach')
+            ->whereKey($coachId)
+            ->where('status', User::STATUS_ACTIVE)
+            ->whereHas('branches', fn ($query) => $query->where('branches.id', $branchId))
+            ->exists();
+    }
+
+    private function availableCoachesForMember(User $member)
+    {
+        $branchIds = $member->branches()->pluck('branches.id');
+
+        if ($branchIds->isEmpty()) {
+            return collect();
+        }
+
+        return User::role('coach')
+            ->where('status', User::STATUS_ACTIVE)
+            ->whereHas('branches', fn ($query) => $query->whereIn('branches.id', $branchIds))
+            ->with(['branches:id,name'])
+            ->orderBy('name')
+            ->get(['users.id', 'users.name', 'users.status']);
     }
 }

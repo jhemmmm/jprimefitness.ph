@@ -47,6 +47,10 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::post('/branches', [BranchesController::class, 'store'])->name('branches.store');
     Route::middleware('branch.resource:branch')->group(function () {
         Route::get('/branches/{branch}', [BranchesController::class, 'show'])->name('branches.show')->whereNumber('branch');
+        Route::get('/branches/{branch}/cash-ledger', [BranchesController::class, 'cashLedger'])->name('branches.cash-ledger.list')->whereNumber('branch');
+        Route::post('/branches/{branch}/cash-ledger', [BranchesController::class, 'storeCashLedgerEntry'])->name('branches.cash-ledger.store')->whereNumber('branch');
+        Route::put('/branches/{branch}/cash-ledger/{entry}', [BranchesController::class, 'updateCashLedgerEntry'])->name('branches.cash-ledger.update')->whereNumber('branch')->whereNumber('entry');
+        Route::delete('/branches/{branch}/cash-ledger/{entry}', [BranchesController::class, 'destroyCashLedgerEntry'])->name('branches.cash-ledger.destroy')->whereNumber('branch')->whereNumber('entry');
         Route::put('/branches/{branch}', [BranchesController::class, 'update'])->name('branches.update')->whereNumber('branch');
         Route::delete('/branches/{branch}', [BranchesController::class, 'destroy'])->name('branches.destroy')->whereNumber('branch');
         Route::post('/branches/{branch}/photos', [BranchesController::class, 'storePhoto'])->name('branches.photos.store')->whereNumber('branch');

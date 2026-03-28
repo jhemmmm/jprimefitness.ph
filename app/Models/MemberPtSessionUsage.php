@@ -10,6 +10,7 @@ class MemberPtSessionUsage extends Model
     protected $fillable = [
         'member_pt_package_id',
         'recorded_by',
+        'coach_id',
         'sessions_used',
         'used_at',
         'confirmed_by',
@@ -28,5 +29,10 @@ class MemberPtSessionUsage extends Model
     public function recordedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'recorded_by');
+    }
+
+    public function coach(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'coach_id');
     }
 }

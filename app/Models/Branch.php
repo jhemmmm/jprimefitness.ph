@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Branch extends Model
@@ -73,13 +74,18 @@ class Branch extends Model
     public function ptProducts(): BelongsToMany
     {
         return $this->belongsToMany(PTProduct::class, 'branch_pt_prices', 'branch_id', 'pt_product_id')
-            ->withPivot(['price', 'is_active', 'effective_from', 'effective_until'])
+            ->withPivot(['price', 'coach_commission_rate', 'is_active', 'effective_from', 'effective_until'])
             ->withTimestamps();
     }
 
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class)->withTimestamps();
+    }
+
+    public function cashLedgerEntries(): HasMany
+    {
+        return $this->hasMany(BranchCashLedgerEntry::class)->orderByDesc('occurred_at')->orderByDesc('id');
     }
 
     /**

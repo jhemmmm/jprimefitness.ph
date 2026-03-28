@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Models\BranchCashLedgerEntry;
+use App\Services\BranchCashLedgerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +13,8 @@ use Illuminate\View\View;
 
 class BranchesController extends Controller
 {
+    public function __construct(private BranchCashLedgerService $branchCashLedgerService) {}
+
     /**
      * Index
      *
@@ -24,6 +28,7 @@ class BranchesController extends Controller
     public function show(Branch $branch): View
     {
         $branch->loadCount(['users', 'ratePlans', 'ptProducts']);
+        $branch->setAttribute('cash_ledger_summary', $this->branchCashLedgerService->summarize($branch));
 
         return view('panel.branches.show', [
             'branch' => $branch,
@@ -219,5 +224,76 @@ class BranchesController extends Controller
         $branch->update(['photos' => $photos]);
 
         return response()->json(null, 204);
+    }
+
+    public function cashLedger(Branch $branch): JsonResponse
+    {
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+
+        return response()->json([
+            'entries' => $this->branchCashLedgerService->listEntries($branch),
+            'summary' => $this->branchCashLedgerService->summarize($branch),
+        ]);
+    }
+
+    public function storeCashLedgerEntry(Request $request, Branch $branch): JsonResponse
+    {
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+
+        $data = $request->validate([
+            'direction' => ['required', 'in:in,out'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'occurred_at' => ['required', 'date'],
+            'title' => ['required', 'string', 'max:120'],
+            'description' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $entry = $this->branchCashLedgerService->createManualEntry($branch, $data, (int) auth()->id());
+
+        return response()->json([
+            'entry' => $this->branchCashLedgerService->serializeEntry($entry),
+            'summary' => $this->branchCashLedgerService->summarize($branch),
+        ], 201);
+    }
+
+    public function updateCashLedgerEntry(Request $request, Branch $branch, BranchCashLedgerEntry $entry): JsonResponse
+    {
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_if($entry->branch_id !== $branch->id, 404);
+
+        if ($entry->is_system) {
+            return response()->json(['message' => 'System ledger entries cannot be edited manually.'], 422);
+        }
+
+        $data = $request->validate([
+            'direction' => ['required', 'in:in,out'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'occurred_at' => ['required', 'date'],
+            'title' => ['required', 'string', 'max:120'],
+            'description' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $updatedEntry = $this->branchCashLedgerService->updateManualEntry($entry, $data);
+
+        return response()->json([
+            'entry' => $this->branchCashLedgerService->serializeEntry($updatedEntry),
+            'summary' => $this->branchCashLedgerService->summarize($branch),
+        ]);
+    }
+
+    public function destroyCashLedgerEntry(Branch $branch, BranchCashLedgerEntry $entry): JsonResponse
+    {
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_if($entry->branch_id !== $branch->id, 404);
+
+        if ($entry->is_system) {
+            return response()->json(['message' => 'System ledger entries cannot be deleted manually.'], 422);
+        }
+
+        $this->branchCashLedgerService->deleteManualEntry($entry);
+
+        return response()->json([
+            'summary' => $this->branchCashLedgerService->summarize($branch),
+        ]);
     }
 }

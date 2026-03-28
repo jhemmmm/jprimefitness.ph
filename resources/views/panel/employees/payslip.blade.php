@@ -291,6 +291,7 @@
 @php
     $totalPaid = $payroll->totalPaid();
     $remainingBalance = $payroll->remainingBalance();
+    $totalEarnings = $payroll->totalEarnings();
     $branchName = $payroll->branch?->name ?? $employee->branches->pluck('name')->join(', ');
     $roleNames = $employee->roles->pluck('name')->map(fn ($role) => ucfirst($role))->join(', ');
     $statusClass = 'status-pill--' . $payroll->status;
@@ -391,8 +392,8 @@
         <table class="summary-table">
             <tr>
                 <td>
-                    <div class="summary-label">Gross Pay</div>
-                    <div class="summary-value">PHP {{ number_format((float) $payroll->gross_amount, 2) }}</div>
+                    <div class="summary-label">Total Earnings</div>
+                    <div class="summary-value">PHP {{ number_format($totalEarnings, 2) }}</div>
                 </td>
                 <td>
                     <div class="summary-label">Net Pay</div>
@@ -427,6 +428,12 @@
                                 <td class="breakdown-label">Bonus</td>
                                 <td class="breakdown-amount {{ (float) $payroll->bonus > 0 ? 'amount-positive' : '' }}">
                                     {{ (float) $payroll->bonus > 0 ? '+ PHP ' . number_format((float) $payroll->bonus, 2) : '—' }}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="breakdown-label">PT commission</td>
+                                <td class="breakdown-amount {{ (float) $payroll->pt_commission_amount > 0 ? 'amount-positive' : '' }}">
+                                    {{ (float) $payroll->pt_commission_amount > 0 ? '+ PHP ' . number_format((float) $payroll->pt_commission_amount, 2) : '—' }}
                                 </td>
                             </tr>
                             <tr>

@@ -3,7 +3,7 @@
       <div class="d-flex align-items-center justify-content-between mb-4">
          <div>
             <h4 class="fw-bold mb-0">Branch Details</h4>
-            <div class="text-muted small">Business information, government contributions, gallery, and settings</div>
+            <div class="text-muted small">Business information, cash ledger, government contributions, gallery, and settings</div>
          </div>
          <a href="/panel/branches" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back</a>
       </div>
@@ -60,12 +60,14 @@
 
 <script>
 import BranchGalleryPage from "./vendor/BranchGalleryPage.vue";
+import BranchCashLedgerPage from "./vendor/BranchCashLedgerPage.vue";
 import BranchGovernmentContributionsPage from "./vendor/BranchGovernmentContributionsPage.vue";
 import BranchInformationPage from "./vendor/BranchInformationPage.vue";
 import BranchSettingsPage from "./vendor/BranchSettingsPage.vue";
 
 export default {
    components: {
+      BranchCashLedgerPage,
       BranchGalleryPage,
       BranchGovernmentContributionsPage,
       BranchInformationPage,
@@ -82,6 +84,7 @@ export default {
          activeTab: "information",
          tabs: [
             { key: "information", label: "Information", icon: "bi-building" },
+            { key: "cashLedger", label: "Cash Ledger", icon: "bi-cash-stack" },
             { key: "governmentContributions", label: "Government Contributions", icon: "bi-bank2" },
             { key: "gallery", label: "Photo / Gallery", icon: "bi-images" },
             { key: "settings", label: "Settings", icon: "bi-gear" },
@@ -93,6 +96,7 @@ export default {
       activeComponent() {
          return {
             information: "BranchInformationPage",
+            cashLedger: "BranchCashLedgerPage",
             governmentContributions: "BranchGovernmentContributionsPage",
             gallery: "BranchGalleryPage",
             settings: "BranchSettingsPage",
@@ -106,11 +110,13 @@ export default {
       },
 
       summaryCards() {
+         const cashBalance = Number(this.localBranch.cash_ledger_summary?.balance || 0);
+
          return [
+            { label: "Cash Balance", value: `₱${this.$filters.formatMoney(cashBalance)}`, icon: "bi-wallet2", iconBg: "bg-info-soft", iconColor: "text-info" },
             { label: "Assigned People", value: this.localBranch.users_count || 0, icon: "bi-people", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             { label: "Rate Plans", value: this.localBranch.rate_plans_count || 0, icon: "bi-postcard", iconBg: "bg-success-soft", iconColor: "text-success" },
             { label: "PT Products", value: this.localBranch.pt_products_count || 0, icon: "bi-stopwatch", iconBg: "bg-warning-soft", iconColor: "text-warning" },
-            { label: "Gallery Items", value: Array.isArray(this.localBranch.photos) ? this.localBranch.photos.length : 0, icon: "bi-images", iconBg: "bg-danger-soft", iconColor: "text-danger" },
          ];
       },
    },

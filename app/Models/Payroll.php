@@ -25,6 +25,8 @@ class Payroll extends Model
         'period_end',
         'gross_amount',
         'bonus',
+        'pt_commission_amount',
+        'pt_commission_items',
         'income_tax',
         'employee_contributions',
         'employer_contributions',
@@ -44,6 +46,8 @@ class Payroll extends Model
         'approved_at' => 'datetime',
         'gross_amount' => 'decimal:2',
         'bonus' => 'decimal:2',
+        'pt_commission_amount' => 'decimal:2',
+        'pt_commission_items' => 'array',
         'income_tax' => 'decimal:2',
         'employee_contributions' => 'array',
         'employer_contributions' => 'array',
@@ -65,6 +69,11 @@ class Payroll extends Model
     public function payouts(): HasMany
     {
         return $this->hasMany(Payout::class);
+    }
+
+    public function ptCommissionPackages(): HasMany
+    {
+        return $this->hasMany(MemberPtPackage::class, 'commission_payroll_id');
     }
 
     public function generatedBy(): BelongsTo
@@ -100,5 +109,10 @@ class Payroll extends Model
     public function employeeDeductionsTotal(): float
     {
         return round((float) $this->income_tax + $this->employeeContributionTotal() + (float) $this->manual_deductions, 2);
+    }
+
+    public function totalEarnings(): float
+    {
+        return round((float) $this->gross_amount + (float) $this->bonus + (float) $this->pt_commission_amount, 2);
     }
 }

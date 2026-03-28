@@ -9,6 +9,7 @@ use App\Models\CashAdvance;
 use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\User;
+use App\Services\BranchCashLedgerService;
 use App\Services\PayrollService;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Contracts\View\View;
@@ -23,8 +24,10 @@ class EmployeeController extends Controller
     /**
      * Constructor
      */
-    public function __construct(private PayrollService $payrollService)
-    {
+    public function __construct(
+        private PayrollService $payrollService,
+        private BranchCashLedgerService $branchCashLedgerService,
+    ) {
         $this->middleware('can:manage employees');
     }
 
@@ -241,10 +244,18 @@ class EmployeeController extends Controller
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
         $configuredContributions = $this->payrollService->computeConfiguredContributions($branch, $gross);
+        $ptCommissionSummary = $this->payrollService->previewPtCommissions(
+            $employee,
+            $data['period_start'],
+            $data['period_end'],
+            null,
+            $branch->id
+        );
         $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
             $employee->id,
             $gross,
             $bonus,
+            $ptCommissionSummary['amount'],
             $manualDeductions,
             $incomeTax,
             $configuredContributions['employee_total']
@@ -266,6 +277,8 @@ class EmployeeController extends Controller
             'period_end' => $data['period_end'],
             'gross_amount' => $gross,
             'bonus' => $bonus,
+            'pt_commission_amount' => $ptCommissionSummary['amount'],
+            'pt_commission_items' => $ptCommissionSummary['items'],
             'income_tax' => $incomeTax,
             'employee_contributions' => $configuredContributions['employee_contributions'],
             'employer_contributions' => $configuredContributions['employer_contributions'],
@@ -274,6 +287,7 @@ class EmployeeController extends Controller
             'net_amount' => $this->payrollService->computeNet(
                 $gross,
                 $bonus,
+                $ptCommissionSummary['amount'],
                 $manualDeductions,
                 $cashAdvanceDeduction,
                 $incomeTax,
@@ -283,6 +297,8 @@ class EmployeeController extends Controller
             'notes' => $data['notes'] ?? null,
             'generated_by' => auth()->id(),
         ]);
+
+        $this->payrollService->syncPtCommissions($payroll);
 
         return response()->json($this->serializePayroll($payroll), 201);
     }
@@ -312,6 +328,13 @@ class EmployeeController extends Controller
         $incomeTax = (float) ($data['income_tax'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
+        $ptCommissionSummary = $this->payrollService->previewPtCommissions(
+            $employee,
+            $data['period_start'],
+            $data['period_end'],
+            $payroll,
+            $payroll->branch_id
+        );
         $configuredContributions = $payroll->branch
             ? $this->payrollService->computeConfiguredContributions($payroll->branch, $gross)
             : [
@@ -325,6 +348,7 @@ class EmployeeController extends Controller
             $employee->id,
             $gross,
             $bonus,
+            $ptCommissionSummary['amount'],
             $manualDeductions,
             $incomeTax,
             $configuredContributions['employee_total']
@@ -344,6 +368,8 @@ class EmployeeController extends Controller
             'period_end' => $data['period_end'],
             'gross_amount' => $gross,
             'bonus' => $bonus,
+            'pt_commission_amount' => $ptCommissionSummary['amount'],
+            'pt_commission_items' => $ptCommissionSummary['items'],
             'income_tax' => $incomeTax,
             'employee_contributions' => $configuredContributions['employee_contributions'],
             'employer_contributions' => $configuredContributions['employer_contributions'],
@@ -352,6 +378,7 @@ class EmployeeController extends Controller
             'net_amount' => $this->payrollService->computeNet(
                 $gross,
                 $bonus,
+                $ptCommissionSummary['amount'],
                 $manualDeductions,
                 $cashAdvanceDeduction,
                 $incomeTax,
@@ -359,6 +386,8 @@ class EmployeeController extends Controller
             ),
             'notes' => $data['notes'] ?? null,
         ]);
+
+        $this->payrollService->syncPtCommissions($payroll);
 
         return response()->json($this->serializePayroll($payroll));
     }
@@ -391,6 +420,7 @@ class EmployeeController extends Controller
             return response()->json(['message' => 'Only draft payrolls can be canceled.'], 422);
         }
 
+        $this->payrollService->releasePtCommissions($payroll);
         $payroll->status = Payroll::STATUS_CANCELED;
         $payroll->save();
 
@@ -409,12 +439,15 @@ class EmployeeController extends Controller
             'period_end' => $payroll->period_end->format('Y-m-d'),
             'gross_amount' => (float) $payroll->gross_amount,
             'bonus' => (float) $payroll->bonus,
+            'pt_commission_amount' => (float) $payroll->pt_commission_amount,
+            'pt_commission_items' => $payroll->pt_commission_items ?? [],
             'income_tax' => (float) $payroll->income_tax,
             'employee_contributions' => $payroll->employee_contributions ?? [],
             'employer_contributions' => $payroll->employer_contributions ?? [],
             'employee_contribution_total' => $payroll->employeeContributionTotal(),
             'employer_contribution_total' => $payroll->employerContributionTotal(),
             'employee_deductions_total' => $payroll->employeeDeductionsTotal(),
+            'total_earnings' => $payroll->totalEarnings(),
             'manual_deductions' => (float) $payroll->manual_deductions,
             'cash_advance_deduction' => (float) $payroll->cash_advance_deduction,
             'net_amount' => (float) $payroll->net_amount,
@@ -439,16 +472,43 @@ class EmployeeController extends Controller
 
     public function payrollSuggest(Request $request, User $employee): JsonResponse
     {
-        $request->validate([
+        $data = $request->validate([
             'period_start' => 'required|date',
             'period_end' => 'required|date|after_or_equal:period_start',
+            'payroll_id' => 'nullable|integer|exists:payrolls,id',
         ]);
 
+        $payroll = null;
+
+        if (! empty($data['payroll_id'])) {
+            $payroll = Payroll::find($data['payroll_id']);
+
+            if ($payroll && $payroll->employee_id !== $employee->id) {
+                abort(404);
+            }
+        }
+
+        $branchId = $payroll?->branch_id ?? $employee->branches()->orderBy('branches.id')->value('branches.id');
+
+        $ptCommissionSummary = $this->payrollService->previewPtCommissions(
+            $employee,
+            $data['period_start'],
+            $data['period_end'],
+            $payroll,
+            $branchId
+        );
+
         return response()->json(
-            $this->payrollService->suggestFromAttendance(
-                $employee,
-                $request->period_start,
-                $request->period_end
+            array_merge(
+                $this->payrollService->suggestFromAttendance(
+                    $employee,
+                    $data['period_start'],
+                    $data['period_end']
+                ),
+                [
+                    'pt_commission_amount' => $ptCommissionSummary['amount'],
+                    'pt_commission_items' => $ptCommissionSummary['items'],
+                ]
             )
         );
     }
@@ -539,6 +599,7 @@ class EmployeeController extends Controller
         ]);
 
         $this->payrollService->syncStatus($payroll);
+        $this->branchCashLedgerService->syncPayout($payout);
 
         $payout->load('releasedBy:id,name');
 
@@ -729,6 +790,7 @@ class EmployeeController extends Controller
         $cashAdvance->remaining_amount = (float) $cashAdvance->amount;
         $cashAdvance->save();
         $cashAdvance->load(['approvedBy:id,name', 'releasedBy:id,name', 'cancelledBy:id,name']);
+        $this->branchCashLedgerService->syncCashAdvance($cashAdvance);
 
         return response()->json([
             'id' => $cashAdvance->id,
@@ -758,6 +820,7 @@ class EmployeeController extends Controller
             return response()->json(['message' => 'Finalized cash advances cannot be deleted.'], 422);
         }
 
+        $this->branchCashLedgerService->syncCashAdvance($cashAdvance);
         $cashAdvance->delete();
 
         return response()->json(null, 204);

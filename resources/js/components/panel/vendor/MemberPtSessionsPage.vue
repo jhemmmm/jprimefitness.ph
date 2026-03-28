@@ -36,7 +36,9 @@
                   <tr>
                      <th>Product</th>
                      <th>Branch</th>
+                     <th>Coach</th>
                      <th>Balance</th>
+                     <th>Commission</th>
                      <th>Status</th>
                      <th>Assigned</th>
                      <th>Created By</th>
@@ -49,9 +51,14 @@
                         <div class="small text-muted" v-if="pkg.notes">{{ pkg.notes }}</div>
                      </td>
                      <td class="small">{{ pkg.branch?.name || "—" }}</td>
+                     <td class="small">{{ pkg.coach?.name || "—" }}</td>
                      <td class="small">
                         <span class="fw-semibold">{{ pkg.remaining_sessions }}</span>
                         <span class="text-muted"> / {{ pkg.total_sessions }}</span>
+                     </td>
+                     <td class="small">
+                        <div class="fw-semibold">₱{{ $filters.formatMoney(pkg.coach_commission_amount || 0) }}</div>
+                        <div class="text-muted small">{{ commissionLabel(pkg) }}</div>
                      </td>
                      <td><span class="m-badge" :class="packageStatusClass(pkg.status)">{{ $filters.capitalize(pkg.status) }}</span></td>
                      <td class="small">
@@ -70,6 +77,8 @@
                   <div>
                      <div class="fw-semibold">{{ pkg.pt_product?.name || "—" }}</div>
                      <div class="text-muted small">{{ pkg.branch?.name || "—" }}</div>
+                     <div class="text-muted small" v-if="pkg.coach?.name">Coach: {{ pkg.coach.name }}</div>
+                     <div class="text-muted small">Commission: ₱{{ $filters.formatMoney(pkg.coach_commission_amount || 0) }} · {{ commissionLabel(pkg) }}</div>
                   </div>
                   <span class="m-badge" :class="packageStatusClass(pkg.status)">{{ $filters.capitalize(pkg.status) }}</span>
                </div>
@@ -93,6 +102,7 @@
                         <th>Product</th>
                         <th>Branch</th>
                         <th>Sessions</th>
+                        <th>Coach</th>
                         <th>Confirmed By</th>
                         <th>Recorded By</th>
                      </tr>
@@ -106,6 +116,7 @@
                         </td>
                         <td class="small">{{ usage.package.branch?.name || "—" }}</td>
                         <td class="small">{{ usage.sessions_used }}</td>
+                        <td class="small">{{ usage.coach?.name || usage.package.coach?.name || "—" }}</td>
                         <td class="small">{{ usage.confirmed_by || "—" }}</td>
                         <td class="small text-muted">{{ usage.recorded_by?.name || "—" }}</td>
                      </tr>
@@ -124,7 +135,7 @@
                   </div>
                   <div class="member-card-footer">
                      <span>{{ usage.package.branch?.name || "—" }}</span>
-                     <span class="text-muted small">{{ usage.confirmed_by || usage.recorded_by?.name || "—" }}</span>
+                     <span class="text-muted small">{{ usage.coach?.name || usage.package.coach?.name || usage.confirmed_by || usage.recorded_by?.name || "—" }}</span>
                   </div>
                </div>
             </div>
@@ -157,6 +168,19 @@
                            </option>
                         </select>
                         <div class="invalid-feedback" v-if="packageErrors.pt_product_id">{{ packageErrors.pt_product_id }}</div>
+                        <div class="form-text" v-if="selectedPackageProduct">
+                           Price: ₱{{ $filters.formatMoney(selectedPackageProduct.pivot?.price || 0) }} · Coach commission:
+                           ₱{{ $filters.formatMoney(packageCommissionPreview) }}
+                           <span class="text-muted">({{ Number(selectedPackageProduct.pivot?.coach_commission_rate || 0) }}%)</span>
+                        </div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm fw-semibold">Coach</label>
+                        <select class="form-select" v-model="packageForm.coach_id" :class="{ 'is-invalid': packageErrors.coach_id }">
+                           <option value="">Assign later...</option>
+                           <option v-for="coach in availablePackageCoaches" :key="coach.id" :value="coach.id">{{ coach.name }}</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="packageErrors.coach_id">{{ packageErrors.coach_id }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm fw-semibold">Assigned Date</label>
@@ -210,7 +234,15 @@
                         <input type="number" min="1" class="form-control" v-model.number="usageForm.sessions_used" :class="{ 'is-invalid': usageErrors.sessions_used }" />
                         <div class="invalid-feedback" v-if="usageErrors.sessions_used">{{ usageErrors.sessions_used }}</div>
                      </div>
-                     <div class="col-md-8">
+                     <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Coach</label>
+                        <select class="form-select" v-model="usageForm.coach_id" :class="{ 'is-invalid': usageErrors.coach_id }">
+                           <option value="">Use package coach...</option>
+                           <option v-for="coach in availableUsageCoaches" :key="coach.id" :value="coach.id">{{ coach.name }}</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="usageErrors.coach_id">{{ usageErrors.coach_id }}</div>
+                     </div>
+                     <div class="col-md-4">
                         <label class="form-label form-label-sm fw-semibold">Used At</label>
                         <input type="datetime-local" class="form-control" v-model="usageForm.used_at" :class="{ 'is-invalid': usageErrors.used_at }" />
                         <div class="invalid-feedback" v-if="usageErrors.used_at">{{ usageErrors.used_at }}</div>
@@ -261,12 +293,14 @@ export default {
          packageForm: {
             branch_id: "",
             pt_product_id: "",
+            coach_id: "",
             assigned_at: new Date().toISOString().slice(0, 10),
             expires_at: "",
             notes: "",
          },
          usageForm: {
             member_pt_package_id: "",
+            coach_id: "",
             sessions_used: 1,
             used_at: new Date().toISOString().slice(0, 16),
             confirmed_by: "",
@@ -294,6 +328,20 @@ export default {
          if (!this.availableProducts.some((product) => product.id === this.packageForm.pt_product_id)) {
             this.packageForm.pt_product_id = value && this.availableProducts.length ? this.availableProducts[0].id : "";
          }
+
+         if (!this.availablePackageCoaches.some((coach) => coach.id === this.packageForm.coach_id)) {
+            this.packageForm.coach_id = "";
+         }
+      },
+      "usageForm.member_pt_package_id"() {
+         if (this.selectedUsagePackage?.coach_id) {
+            this.usageForm.coach_id = this.selectedUsagePackage.coach_id;
+            return;
+         }
+
+         if (!this.availableUsageCoaches.some((coach) => coach.id === this.usageForm.coach_id)) {
+            this.usageForm.coach_id = "";
+         }
       },
    },
 
@@ -307,6 +355,25 @@ export default {
          return branch?.pt_products || [];
       },
 
+      availableCoaches() {
+         return this.member.available_coaches || [];
+      },
+
+      availablePackageCoaches() {
+         return this.coachesForBranch(this.packageForm.branch_id);
+      },
+
+      selectedPackageProduct() {
+         return this.availableProducts.find((product) => product.id === this.packageForm.pt_product_id) || null;
+      },
+
+      packageCommissionPreview() {
+         const price = Number(this.selectedPackageProduct?.pivot?.price || 0);
+         const rate = Number(this.selectedPackageProduct?.pivot?.coach_commission_rate || 0);
+
+         return Math.max(0, (price * rate) / 100);
+      },
+
       packages() {
          return [...(this.member.member_pt_packages || [])].sort((left, right) => {
             const leftDate = left.assigned_at || left.created_at || "";
@@ -317,6 +384,14 @@ export default {
 
       activePackages() {
          return this.packages.filter((pkg) => pkg.status === "active" && Number(pkg.remaining_sessions) > 0);
+      },
+
+      selectedUsagePackage() {
+         return this.activePackages.find((pkg) => pkg.id === this.usageForm.member_pt_package_id) || null;
+      },
+
+      availableUsageCoaches() {
+         return this.coachesForBranch(this.selectedUsagePackage?.branch_id || null);
       },
 
       usageEntries() {
@@ -360,6 +435,7 @@ export default {
          this.packageForm = {
             branch_id: defaultBranchId,
             pt_product_id: "",
+            coach_id: "",
             assigned_at: new Date().toISOString().slice(0, 10),
             expires_at: "",
             notes: "",
@@ -372,6 +448,7 @@ export default {
       resetUsageForm() {
          this.usageForm = {
             member_pt_package_id: this.activePackages[0]?.id || "",
+            coach_id: this.activePackages[0]?.coach_id || "",
             sessions_used: 1,
             used_at: new Date().toISOString().slice(0, 16),
             confirmed_by: this.member.name || "",
@@ -395,6 +472,14 @@ export default {
 
       normalizeErrors(errors) {
          return Object.fromEntries(Object.entries(errors || {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
+      },
+
+      coachesForBranch(branchId) {
+         if (!branchId) {
+            return this.availableCoaches;
+         }
+
+         return this.availableCoaches.filter((coach) => (coach.branches || []).some((branch) => branch.id === branchId));
       },
 
       submitPackage() {
@@ -453,6 +538,17 @@ export default {
             consumed: "m-badge--plan-expired",
             cancelled: "m-badge--plan-cancelled",
          }[status] || "m-badge--plan-expired";
+      },
+
+      commissionLabel(pkg) {
+         const labels = {
+            unassigned: "Awaiting coach assignment",
+            pending: "Earns after all sessions are used",
+            earned: "Ready for payroll payout",
+            paid: "Already paid out",
+         };
+
+         return labels[pkg.coach_commission_status] || "Not tracked";
       },
    },
 };

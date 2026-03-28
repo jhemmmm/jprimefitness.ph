@@ -372,7 +372,8 @@ body.panel-body {
     height: $topbar-height;
     background: $topbar-bg;
     border-bottom: 1px solid #e8eaed;
-    display: flex;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     padding: 0 20px;
     gap: 12px;
@@ -380,6 +381,7 @@ body.panel-body {
     top: 0;
     z-index: 1030;
     flex-shrink: 0;
+    min-width: 0;
 }
 
 .topbar-toggle {
@@ -406,40 +408,48 @@ body.panel-body {
 }
 
 .topbar-title {
+    display: block;
     font-size: 1.05rem;
     font-weight: 700;
     color: #111;
-    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .topbar-actions {
     display: flex;
     align-items: center;
     gap: 8px;
+    min-width: 0;
+    justify-self: end;
 }
 
-// Branch selector (topbar) — hidden by default, shown on desktop when sidebar is collapsed
+// Branch selector (topbar)
 .topbar-branch-selector {
-    display: none;
+    display: flex;
     align-items: center;
+    min-width: 0;
 
     .topbar-branch-btn {
         display: flex;
         align-items: center;
-        gap: 6px;
-        background: #f0f1f3;
-        border: 1px solid #e0e2e7;
-        border-radius: 8px;
-        padding: 5px 10px;
+        gap: 10px;
+        background: #f5f6f8;
+        border: none;
+        border-radius: 12px;
+        padding: 7px 12px;
         font-size: 0.8rem;
         font-weight: 600;
         color: #333;
         cursor: pointer;
-        transition: background 0.15s ease;
+        transition: background 0.15s ease, color 0.15s ease;
         white-space: nowrap;
+        max-width: 160px;
 
         &:hover {
-            background: #e8e9ec;
+            background: #eceef2;
         }
 
         .bi-chevron-down {
@@ -449,11 +459,42 @@ body.panel-body {
     }
 
     .topbar-branch-dot {
-        width: 7px;
-        height: 7px;
-        min-width: 7px;
+        width: 10px;
+        height: 10px;
+        min-width: 10px;
         border-radius: 50%;
-        background: #22c55e;
+        background: #dc2626;
+
+        &.all-branches {
+            background: #0f766e;
+        }
+    }
+
+    .topbar-branch-copy {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        min-width: 0;
+        line-height: 1.1;
+        max-width: 112px;
+    }
+
+    .topbar-branch-label {
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: #6b7280;
+    }
+
+    .topbar-branch-value {
+        font-size: 0.92rem;
+        font-weight: 800;
+        color: #111827;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .topbar-branch-name {
@@ -461,11 +502,104 @@ body.panel-body {
         overflow: hidden;
         text-overflow: ellipsis;
     }
+
+    .topbar-branch-menu {
+        min-width: 270px;
+        font-size: 0.85rem;
+        padding-top: 0.45rem;
+        padding-bottom: 0.45rem;
+    }
+
+    .topbar-branch-menu-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+    }
+
+    .topbar-branch-menu-name {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .topbar-branch-menu-value {
+        flex-shrink: 0;
+        font-weight: 700;
+        color: #111827;
+    }
 }
 
-@media (min-width: 992px) {
-    .panel-sidebar.sidebar-collapsed:not(.sidebar-open) ~ .panel-main .topbar-branch-selector {
-        display: flex;
+@media (max-width: 991.98px) {
+    .panel-topbar {
+        padding: 0 14px;
+        gap: 10px;
+    }
+
+    .topbar-branch-selector {
+        .topbar-branch-btn {
+            padding: 6px 10px;
+            max-width: 140px;
+        }
+
+        .topbar-branch-label {
+            max-width: 90px;
+        }
+    }
+}
+
+@media (max-width: 767.98px) {
+    .panel-topbar {
+        padding: 0 10px;
+        gap: 6px;
+    }
+
+    .topbar-actions {
+        gap: 3px;
+    }
+
+    .topbar-branch-selector {
+        .topbar-branch-btn {
+            gap: 6px;
+            padding: 5px 7px;
+            max-width: 118px;
+        }
+
+        .topbar-branch-copy {
+            max-width: 70px;
+        }
+
+        .topbar-branch-label {
+            display: none;
+        }
+
+        .topbar-branch-value {
+            font-size: 0.8rem;
+        }
+    }
+
+    .topbar-icon-btn {
+        width: 30px;
+        height: 30px;
+        font-size: 0.9rem;
+    }
+
+    .topbar-badge {
+        top: 3px;
+        right: 3px;
+        width: 7px;
+        height: 7px;
+    }
+
+    .topbar-user {
+        padding: 3px 4px;
+    }
+
+    .topbar-avatar {
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
     }
 }
 
@@ -593,6 +727,45 @@ body.panel-body {
 @media (max-width: 575.98px) {
     .panel-content {
         padding: 12px;
+    }
+
+    .panel-topbar {
+        padding: 0 8px;
+        gap: 5px;
+    }
+
+    .topbar-title {
+        font-size: 0.92rem;
+    }
+
+    .topbar-actions {
+        gap: 2px;
+    }
+
+    .topbar-branch-selector {
+        .topbar-branch-btn {
+            max-width: 108px;
+        }
+
+        .topbar-branch-copy {
+            max-width: 64px;
+        }
+    }
+
+    .topbar-icon-btn {
+        width: 28px;
+        height: 28px;
+        font-size: 0.85rem;
+    }
+
+    .topbar-user {
+        padding: 2px;
+    }
+
+    .topbar-avatar {
+        width: 28px;
+        height: 28px;
+        min-width: 28px;
     }
 }
 

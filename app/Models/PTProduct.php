@@ -30,7 +30,7 @@ class PTProduct extends Model
     public function branches(): BelongsToMany
     {
         return $this->belongsToMany(Branch::class, 'branch_pt_prices', 'pt_product_id', 'branch_id')
-            ->withPivot(['price', 'is_active', 'effective_from', 'effective_until'])
+            ->withPivot(['price', 'coach_commission_rate', 'is_active', 'effective_from', 'effective_until'])
             ->withTimestamps();
     }
 

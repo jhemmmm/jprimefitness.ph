@@ -172,7 +172,7 @@
                     <i class="bi bi-list"></i>
                 </button>
 
-                <div class="topbar-title">@yield('title', 'Dashboard')</div>
+                <div class="topbar-title" title="@yield('title', 'Dashboard')">@yield('title', 'Dashboard')</div>
 
                 <div class="topbar-actions">
 
