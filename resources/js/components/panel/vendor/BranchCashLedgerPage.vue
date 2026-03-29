@@ -41,7 +41,7 @@
 
          <div v-else>
             <div class="table-responsive d-none d-md-block">
-               <table class="table align-middle">
+                  <table class="table align-middle">
                   <thead>
                      <tr>
                         <th>Date</th>
@@ -54,13 +54,17 @@
                      </tr>
                   </thead>
                   <tbody>
-                     <tr v-for="entry in entries" :key="entry.id">
+                     <tr v-for="entry in entries" :key="entry.id" :class="{ 'opacity-50': entry.is_deleted }">
                         <td class="small text-muted">{{ $filters.formatDateTime(entry.occurred_at) }}</td>
                         <td>
                            <div class="fw-semibold">{{ entry.title }}</div>
                            <div class="small text-muted" v-if="entry.description">{{ entry.description }}</div>
+                           <div class="small text-danger" v-if="entry.is_deleted">Deleted {{ $filters.formatDateTime(entry.deleted_at) }}</div>
                         </td>
-                        <td><span class="m-badge m-badge--plan">{{ entry.entry_type_label }}</span></td>
+                        <td>
+                           <span class="m-badge m-badge--plan">{{ entry.entry_type_label }}</span>
+                           <span class="m-badge m-badge--inactive ms-1" v-if="entry.is_deleted">Deleted</span>
+                        </td>
                         <td class="text-end fw-semibold" :class="entry.direction === 'in' ? 'text-success' : 'text-danger'">
                            {{ entry.direction === "in" ? "+" : "-" }}₱{{ $filters.formatMoney(entry.amount) }}
                         </td>
@@ -69,11 +73,11 @@
                         </td>
                         <td class="small text-muted">{{ entry.created_by_name || "—" }}</td>
                         <td class="text-end" v-if="is('super admin') || is('admin') || is('manager')">
-                           <div v-if="!entry.is_system" class="btn-group btn-group-sm">
+                           <div v-if="!entry.is_system && !entry.is_deleted" class="btn-group btn-group-sm">
                               <button class="btn btn-outline-secondary" @click="openEditModal(entry)"><i class="bi bi-pencil"></i></button>
-                              <button class="btn btn-outline-danger" @click="deleteEntry(entry)"><i class="bi bi-trash"></i></button>
+                              <button class="btn btn-outline-danger" @click="confirmDelete(entry)"><i class="bi bi-trash"></i></button>
                            </div>
-                           <span v-else class="text-muted small">Locked</span>
+                           <span v-else class="text-muted small">{{ entry.is_deleted ? "Archived" : "Locked" }}</span>
                         </td>
                      </tr>
                   </tbody>
@@ -81,11 +85,12 @@
             </div>
 
             <div class="d-md-none">
-               <div class="member-card mb-3" v-for="entry in entries" :key="`mobile-${entry.id}`">
+               <div class="member-card mb-3" v-for="entry in entries" :key="`mobile-${entry.id}`" :class="{ 'opacity-50': entry.is_deleted }">
                   <div class="d-flex justify-content-between align-items-start gap-3">
                      <div class="min-w-0">
                         <div class="fw-semibold">{{ entry.title }}</div>
                         <div class="small text-muted">{{ $filters.formatDateTime(entry.occurred_at) }}</div>
+                        <div class="small text-danger" v-if="entry.is_deleted">Deleted {{ $filters.formatDateTime(entry.deleted_at) }}</div>
                      </div>
                      <span class="fw-semibold" :class="entry.direction === 'in' ? 'text-success' : 'text-danger'">
                         {{ entry.direction === "in" ? "+" : "-" }}₱{{ $filters.formatMoney(entry.amount) }}
@@ -96,13 +101,14 @@
 
                   <div class="d-flex flex-wrap gap-2 mt-3 small">
                      <span class="m-badge m-badge--plan">{{ entry.entry_type_label }}</span>
+                     <span class="m-badge m-badge--inactive" v-if="entry.is_deleted">Deleted</span>
                      <span :class="['m-badge', entry.is_system ? 'm-badge--inactive' : 'm-badge--active']">{{ entry.is_system ? "System" : "Manual" }}</span>
                      <span class="text-muted" v-if="entry.created_by_name">By {{ entry.created_by_name }}</span>
                   </div>
 
-                  <div class="d-flex justify-content-end gap-2 mt-3" v-if="(is('super admin') || is('admin') || is('manager')) && !entry.is_system">
+                  <div class="d-flex justify-content-end gap-2 mt-3" v-if="(is('super admin') || is('admin') || is('manager')) && !entry.is_system && !entry.is_deleted">
                      <button class="btn btn-outline-secondary btn-sm" @click="openEditModal(entry)">Edit</button>
-                     <button class="btn btn-outline-danger btn-sm" @click="deleteEntry(entry)">Delete</button>
+                     <button class="btn btn-outline-danger btn-sm" @click="confirmDelete(entry)">Delete</button>
                   </div>
                </div>
             </div>
@@ -160,6 +166,29 @@
             </div>
          </div>
       </div>
+
+      <div class="modal fade" tabindex="-1" ref="deleteModal">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header border-0 pb-0">
+                  <h5 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Delete Cash Entry</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+               </div>
+               <div class="modal-body" v-if="deleteTarget">
+                  <p class="mb-1">Are you sure you want to delete this branch cash ledger entry?</p>
+                  <p class="fw-semibold mb-0">{{ deleteTarget.title }}</p>
+                  <p class="text-muted small mb-0">{{ deleteTarget.entry_type_label }} · {{ deleteTarget.direction === "in" ? "+" : "-" }}₱{{ $filters.formatMoney(deleteTarget.amount) }}</p>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-danger px-4" @click="doDelete" :disabled="deleting">
+                     <span v-if="deleting" class="spinner-border spinner-border-sm me-1 spinner-sm-fixed"></span>
+                     Delete
+                  </button>
+               </div>
+            </div>
+         </div>
+      </div>
    </div>
 </template>
 
@@ -181,6 +210,8 @@ export default {
          modalError: "",
          savedMessage: "",
          entries: [],
+         deleteTarget: null,
+         deleting: false,
          summary: {
             balance: 0,
             cash_in_total: 0,
@@ -191,6 +222,7 @@ export default {
          form: this.emptyForm(),
          formErrors: {},
          entryModalInst: null,
+         deleteModalInst: null,
       };
    },
 
@@ -216,10 +248,12 @@ export default {
 
    mounted: function () {
       this.entryModalInst = new Modal(this.$refs.entryModal);
+      this.deleteModalInst = new Modal(this.$refs.deleteModal);
    },
 
    beforeUnmount: function () {
       this.entryModalInst?.dispose();
+      this.deleteModalInst?.dispose();
    },
 
    methods: {
@@ -277,6 +311,11 @@ export default {
          this.formErrors = {};
          this.modalError = "";
          this.entryModalInst.show();
+      },
+
+      confirmDelete: function (entry) {
+         this.deleteTarget = entry;
+         this.deleteModalInst.show();
       },
 
       openEditModal: function (entry) {
@@ -342,17 +381,20 @@ export default {
             });
       },
 
-      deleteEntry: function (entry) {
-         if (! window.confirm(`Delete "${entry.title}" from the branch cash ledger?`)) {
+      doDelete: function () {
+         if (!this.deleteTarget) {
             return;
          }
 
+         this.deleting = true;
          this.pageError = "";
 
          axios
-            .delete(`/panel/branches/${this.branch.id}/cash-ledger/${entry.id}`)
+            .delete(`/panel/branches/${this.branch.id}/cash-ledger/${this.deleteTarget.id}`)
             .then(() => {
-               this.savedMessage = "Manual cash entry deleted successfully.";
+               this.savedMessage = "Manual cash entry marked as deleted.";
+               this.deleteModalInst.hide();
+               this.deleteTarget = null;
 
                return axios.get(`/panel/branches/${this.branch.id}/cash-ledger`);
             })
@@ -366,6 +408,9 @@ export default {
             })
             .catch((error) => {
                this.pageError = error.response?.data?.message || "Failed to delete cash ledger entry.";
+            })
+            .finally(() => {
+               this.deleting = false;
             });
       },
    },

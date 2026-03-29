@@ -43,7 +43,8 @@ class MembersController extends Controller
             ])
             ->when(! empty($request->search), fn ($q) => $q->where(function ($qq) use ($request) {
                 $qq->where('name', 'like', "%{$request->search}%")
-                    ->orWhere('email', 'like', "%{$request->search}%");
+                    ->orWhere('email', 'like', "%{$request->search}%")
+                    ->orWhere('phone', 'like', "%{$request->search}%");
             }))
             ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))
             ->when($request->branch, fn ($q, $b) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $b)))

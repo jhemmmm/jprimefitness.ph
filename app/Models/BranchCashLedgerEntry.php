@@ -6,17 +6,24 @@ use Database\Factories\BranchCashLedgerEntryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BranchCashLedgerEntry extends Model
 {
     /** @use HasFactory<BranchCashLedgerEntryFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public const DIRECTION_IN = 'in';
 
     public const DIRECTION_OUT = 'out';
 
     public const TYPE_MANUAL_ADJUSTMENT = 'manual_adjustment';
+
+    public const TYPE_INVENTORY_SALE = 'inventory_sale';
+
+    public const TYPE_MEMBERSHIP_SALE = 'membership_sale';
+
+    public const TYPE_PT_PACKAGE_SALE = 'pt_package_sale';
 
     public const TYPE_WALK_IN_SALE = 'walk_in_sale';
 
@@ -43,6 +50,7 @@ class BranchCashLedgerEntry extends Model
         'occurred_at' => 'datetime',
         'metadata' => 'array',
         'is_system' => 'boolean',
+        'deleted_at' => 'datetime',
     ];
 
     public function branch(): BelongsTo

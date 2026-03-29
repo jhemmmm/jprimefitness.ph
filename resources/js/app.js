@@ -11,6 +11,9 @@ app.component("branch-selector", BranchSelector);
 import BranchSelectorCollapsed from "./components/panel/_vendor/BranchSelectorCollapsed.vue";
 app.component("branch-selector-collapsed", BranchSelectorCollapsed);
 
+import AsyncSearchSelect from "./components/panel/_vendor/AsyncSearchSelect.vue";
+app.component("async-search-select", AsyncSearchSelect);
+
 import HomeComponent from "./components/home/HomeComponent.vue";
 app.component("home-component", HomeComponent);
 
@@ -40,6 +43,9 @@ app.component("inventory-page", InventoryPage);
 
 import PricingPage from "./components/panel/PricingPage.vue";
 app.component("pricing-page", PricingPage);
+
+import SalesPage from "./components/panel/SalesPage.vue";
+app.component("sales-page", SalesPage);
 
 import AttendancePage from "./components/panel/AttendancePage.vue";
 app.component("attendance-page", AttendancePage);
@@ -143,6 +149,8 @@ app.config.globalProperties.$filters = {
             cancelled: "m-badge--suspended",
             paused: "m-badge--pending",
             cash: "m-badge--pending",
+            gcash: "m-badge--open",
+            card: "m-badge--approved",
             bank_transfer: "m-badge--approved",
             online_payment: "m-badge--open",
          }[normalizeKey(status)] ?? ""

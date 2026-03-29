@@ -9,6 +9,7 @@ use App\Http\Controllers\Panel\EmployeeController;
 use App\Http\Controllers\Panel\InventoryController;
 use App\Http\Controllers\Panel\MembersController;
 use App\Http\Controllers\Panel\PricingController;
+use App\Http\Controllers\Panel\SalesController;
 use App\Http\Controllers\Panel\WalkInsController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -78,6 +79,16 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
         Route::post('/pricing/branches/{branch}/pt-products/{ptProduct}', [PricingController::class, 'storePtProduct'])->name('pricing.pt-products.store')->whereNumber('branch')->whereNumber('ptProduct');
         Route::put('/pricing/branches/{branch}/pt-products/{ptProduct}', [PricingController::class, 'updatePtProduct'])->name('pricing.pt-products.update')->whereNumber('branch')->whereNumber('ptProduct');
         Route::delete('/pricing/branches/{branch}/pt-products/{ptProduct}', [PricingController::class, 'destroyPtProduct'])->name('pricing.pt-products.destroy')->whereNumber('branch')->whereNumber('ptProduct');
+    });
+
+    // Sales
+    Route::get('/sales', [SalesController::class, 'index'])->name('sales.index');
+    Route::get('/sales/context', [SalesController::class, 'context'])->name('sales.context');
+    Route::get('/sales/history', [SalesController::class, 'history'])->name('sales.history');
+    Route::post('/sales', [SalesController::class, 'store'])->middleware('branch.input:branch_id')->name('sales.store');
+    Route::middleware('branch.resource:saleTransaction')->group(function () {
+        Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
+        Route::get('/sales/{saleTransaction}/receipt/print', [SalesController::class, 'printReceipt'])->name('sales.receipt.print')->whereNumber('saleTransaction');
     });
 
     // Attendance

@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\SaleTransaction;
 use App\Models\WalkIn;
 use App\Services\BranchCashLedgerService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class WalkInsController extends Controller
@@ -67,11 +69,13 @@ class WalkInsController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'amount_paid' => ['required', 'numeric', 'min:0'],
+            'payment_method' => ['nullable', Rule::in(SaleTransaction::supportedPaymentMethods())],
             'visited_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
 
         $data['served_by'] = auth()->id();
+        $data['payment_method'] = $data['payment_method'] ?? 'cash';
         $data['visited_at'] = $data['visited_at'] ?? now();
 
         $walkIn = WalkIn::create($data);
@@ -91,10 +95,12 @@ class WalkInsController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'amount_paid' => ['required', 'numeric', 'min:0'],
+            'payment_method' => ['nullable', Rule::in(SaleTransaction::supportedPaymentMethods())],
             'visited_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ]);
 
+        $data['payment_method'] = $data['payment_method'] ?? $walkIn->payment_method ?? 'cash';
         $walkIn->update($data);
         $this->branchCashLedgerService->syncWalkIn($walkIn->fresh(['ratePlan']));
 

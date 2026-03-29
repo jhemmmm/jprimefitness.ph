@@ -82,7 +82,7 @@
                 {{-- Sales --}}
                 <div class="sidebar-menu-heading">Sales</div>
                 <div class="sidebar-nav-item">
-                    <a href="#" @class(['active' => request()->routeIs('panel.sales.*')])>
+                    <a href="{{ route('panel.sales.index') }}" @class(['active' => request()->routeIs('panel.sales.*')])>
                         <i class="bi bi-cash-coin"></i>
                         <span class="sidebar-nav-label">Sales</span>
                     </a>

@@ -14,12 +14,13 @@ class WalkIn extends Model
         'name',
         'phone',
         'amount_paid',
+        'payment_method',
         'visited_at',
         'notes',
     ];
 
     protected $casts = [
-        'visited_at'  => 'datetime',
+        'visited_at' => 'datetime',
         'amount_paid' => 'decimal:2',
     ];
 

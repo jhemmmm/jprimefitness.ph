@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\BranchCashLedgerEntry;
 use App\Models\CashAdvance;
 use App\Models\Payout;
+use App\Models\SaleTransaction;
 use App\Models\WalkIn;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -62,6 +63,7 @@ class BranchCashLedgerService
     public function listEntries(Branch $branch, int $limit = 60): array
     {
         return $branch->cashLedgerEntries()
+            ->withTrashed()
             ->with('createdBy:id,name')
             ->limit($limit)
             ->get()
@@ -113,6 +115,12 @@ class BranchCashLedgerService
     {
         $walkIn->loadMissing('ratePlan:id,name');
 
+        if (($walkIn->payment_method ?? 'cash') !== SaleTransaction::PAYMENT_METHOD_CASH) {
+            $this->deleteSystemEntry(BranchCashLedgerEntry::TYPE_WALK_IN_SALE, $walkIn->id);
+
+            return null;
+        }
+
         return $this->syncSystemEntry(
             entryType: BranchCashLedgerEntry::TYPE_WALK_IN_SALE,
             sourceId: $walkIn->id,
@@ -125,6 +133,7 @@ class BranchCashLedgerService
             metadata: [
                 'walk_in_name' => $walkIn->name,
                 'rate_plan_name' => $walkIn->ratePlan?->name,
+                'payment_method' => $walkIn->payment_method ?? SaleTransaction::PAYMENT_METHOD_CASH,
             ],
         );
     }
@@ -132,6 +141,50 @@ class BranchCashLedgerService
     public function deleteWalkIn(WalkIn $walkIn): void
     {
         $this->deleteSystemEntry(BranchCashLedgerEntry::TYPE_WALK_IN_SALE, $walkIn->id);
+    }
+
+    public function syncSaleTransaction(SaleTransaction $saleTransaction): ?BranchCashLedgerEntry
+    {
+        $entryType = $this->saleEntryType($saleTransaction->type);
+
+        if (! $entryType) {
+            return null;
+        }
+
+        if ($saleTransaction->payment_method !== SaleTransaction::PAYMENT_METHOD_CASH) {
+            $this->deleteSystemEntry($entryType, $saleTransaction->id);
+
+            return null;
+        }
+
+        return $this->syncSystemEntry(
+            entryType: $entryType,
+            sourceId: $saleTransaction->id,
+            branchId: $saleTransaction->branch_id,
+            direction: BranchCashLedgerEntry::DIRECTION_IN,
+            amount: (float) $saleTransaction->total,
+            occurredAt: $saleTransaction->sold_at,
+            title: $this->saleEntryTitle($saleTransaction->type),
+            description: trim(collect([$saleTransaction->customer_name, $saleTransaction->item_name])->filter()->join(' · ')),
+            metadata: [
+                'sale_type' => $saleTransaction->type,
+                'customer_name' => $saleTransaction->customer_name,
+                'item_name' => $saleTransaction->item_name,
+                'payment_method' => $saleTransaction->payment_method,
+                'member_id' => $saleTransaction->member_id,
+            ],
+        );
+    }
+
+    public function deleteSaleTransaction(SaleTransaction $saleTransaction): void
+    {
+        $entryType = $this->saleEntryType($saleTransaction->type);
+
+        if (! $entryType) {
+            return;
+        }
+
+        $this->deleteSystemEntry($entryType, $saleTransaction->id);
     }
 
     public function syncPayout(Payout $payout): ?BranchCashLedgerEntry
@@ -215,6 +268,8 @@ class BranchCashLedgerService
             'amount' => (float) $entry->amount,
             'signed_amount' => $entry->signedAmount(),
             'occurred_at' => $entry->occurred_at?->toISOString(),
+            'deleted_at' => $entry->deleted_at?->toISOString(),
+            'is_deleted' => $entry->trashed(),
             'title' => $entry->title,
             'description' => $entry->description,
             'metadata' => $entry->metadata ?? [],
@@ -241,7 +296,7 @@ class BranchCashLedgerService
             return null;
         }
 
-        $entry = BranchCashLedgerEntry::firstOrNew([
+        $entry = BranchCashLedgerEntry::withTrashed()->firstOrNew([
             'entry_type' => $entryType,
             'source_id' => $sourceId,
         ]);
@@ -257,6 +312,10 @@ class BranchCashLedgerService
             'is_system' => true,
             'created_by' => null,
         ]);
+
+        if ($entry->trashed()) {
+            $entry->restore();
+        }
 
         $entry->save();
 
@@ -274,10 +333,33 @@ class BranchCashLedgerService
     private function entryTypeLabel(string $entryType): string
     {
         return match ($entryType) {
+            BranchCashLedgerEntry::TYPE_INVENTORY_SALE => 'Inventory Sale',
+            BranchCashLedgerEntry::TYPE_MEMBERSHIP_SALE => 'Membership Sale',
+            BranchCashLedgerEntry::TYPE_PT_PACKAGE_SALE => 'PT Package Sale',
             BranchCashLedgerEntry::TYPE_WALK_IN_SALE => 'Walk-in Sale',
             BranchCashLedgerEntry::TYPE_PAYROLL_PAYOUT => 'Payroll Payout',
             BranchCashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE => 'Cash Advance',
             default => 'Manual Adjustment',
+        };
+    }
+
+    private function saleEntryType(string $saleType): ?string
+    {
+        return match ($saleType) {
+            SaleTransaction::TYPE_INVENTORY => BranchCashLedgerEntry::TYPE_INVENTORY_SALE,
+            SaleTransaction::TYPE_MEMBERSHIP => BranchCashLedgerEntry::TYPE_MEMBERSHIP_SALE,
+            SaleTransaction::TYPE_PT_PACKAGE => BranchCashLedgerEntry::TYPE_PT_PACKAGE_SALE,
+            default => null,
+        };
+    }
+
+    private function saleEntryTitle(string $saleType): string
+    {
+        return match ($saleType) {
+            SaleTransaction::TYPE_INVENTORY => 'Inventory sale',
+            SaleTransaction::TYPE_MEMBERSHIP => 'Membership sale',
+            SaleTransaction::TYPE_PT_PACKAGE => 'PT package sale',
+            default => 'Sale',
         };
     }
 }

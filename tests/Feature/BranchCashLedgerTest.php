@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\BranchCashLedgerEntry;
 use App\Models\PTProduct;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -197,9 +198,110 @@ class BranchCashLedgerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('summary.balance', 0);
 
-        $this->assertDatabaseMissing('branch_cash_ledger_entries', [
+        $this->assertSoftDeleted('branch_cash_ledger_entries', [
             'id' => $entryId,
         ]);
+
+        $this->actingAs($manager)
+            ->getJson("/panel/branches/{$branch->id}/cash-ledger")
+            ->assertOk()
+            ->assertJsonPath('entries.0.id', $entryId)
+            ->assertJsonPath('entries.0.is_deleted', true);
+    }
+
+    public function test_resyncing_a_soft_deleted_walk_in_restores_the_original_system_entry(): void
+    {
+        $branch = $this->createBranch('Sorsogon');
+        $manager = $this->createUserWithRole('manager', [$branch->id], 'Branch Manager');
+
+        $walkInResponse = $this->actingAs($manager)
+            ->postJson('/panel/walk-ins', [
+                'branch_id' => $branch->id,
+                'name' => 'Walk-in Leo',
+                'amount_paid' => 350,
+                'payment_method' => 'cash',
+                'visited_at' => '2026-03-21 09:00:00',
+            ])
+            ->assertCreated();
+
+        $walkInId = $walkInResponse->json('id');
+        $entry = BranchCashLedgerEntry::query()
+            ->where('entry_type', BranchCashLedgerEntry::TYPE_WALK_IN_SALE)
+            ->where('source_id', $walkInId)
+            ->firstOrFail();
+
+        $this->actingAs($manager)
+            ->putJson("/panel/walk-ins/{$walkInId}", [
+                'branch_id' => $branch->id,
+                'name' => 'Walk-in Leo',
+                'amount_paid' => 350,
+                'payment_method' => 'online_payment',
+                'visited_at' => '2026-03-21 09:00:00',
+            ])
+            ->assertOk();
+
+        $this->assertSoftDeleted('branch_cash_ledger_entries', [
+            'id' => $entry->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->putJson("/panel/walk-ins/{$walkInId}", [
+                'branch_id' => $branch->id,
+                'name' => 'Walk-in Leo',
+                'amount_paid' => 350,
+                'payment_method' => 'cash',
+                'visited_at' => '2026-03-21 09:00:00',
+            ])
+            ->assertOk();
+
+        $restoredEntry = BranchCashLedgerEntry::withTrashed()
+            ->where('entry_type', BranchCashLedgerEntry::TYPE_WALK_IN_SALE)
+            ->where('source_id', $walkInId)
+            ->get();
+
+        $this->assertCount(1, $restoredEntry);
+        $this->assertSame($entry->id, $restoredEntry->first()->id);
+        $this->assertNull($restoredEntry->first()->deleted_at);
+
+        $this->actingAs($manager)
+            ->getJson("/panel/branches/{$branch->id}/cash-ledger")
+            ->assertOk()
+            ->assertJsonPath('summary.balance', 350)
+            ->assertJsonPath('summary.cash_in_total', 350)
+            ->assertJsonPath('summary.cash_out_total', 0);
+    }
+
+    public function test_walk_in_update_accepts_gcash_and_removes_the_cash_ledger_entry(): void
+    {
+        $branch = $this->createBranch('Masbate');
+        $manager = $this->createUserWithRole('manager', [$branch->id], 'Branch Manager');
+
+        $walkInId = $this->actingAs($manager)
+            ->postJson('/panel/walk-ins', [
+                'branch_id' => $branch->id,
+                'name' => 'Walk-in Pax',
+                'amount_paid' => 450,
+                'payment_method' => 'cash',
+                'visited_at' => '2026-03-22 08:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $this->actingAs($manager)
+            ->putJson("/panel/walk-ins/{$walkInId}", [
+                'branch_id' => $branch->id,
+                'name' => 'Walk-in Pax',
+                'amount_paid' => 450,
+                'payment_method' => 'gcash',
+                'visited_at' => '2026-03-22 08:00:00',
+            ])
+            ->assertOk();
+
+        $this->actingAs($manager)
+            ->getJson("/panel/branches/{$branch->id}/cash-ledger")
+            ->assertOk()
+            ->assertJsonPath('summary.balance', 0)
+            ->assertJsonPath('summary.cash_in_total', 0);
     }
 
     private function createBranch(string $name): Branch

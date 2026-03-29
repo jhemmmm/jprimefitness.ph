@@ -83,6 +83,7 @@
                         <th>Branch</th>
                         <th>Rate Plan</th>
                         <th>Amount</th>
+                        <th>Payment</th>
                         <th>Visited At</th>
                         <th class="col-actions"></th>
                      </tr>
@@ -99,6 +100,7 @@
                         <td><div class="skeleton-box sk-branch"></div></td>
                         <td><div class="skeleton-box sk-plan-badge"></div></td>
                         <td><div class="skeleton-box sk-amount"></div></td>
+                        <td><div class="skeleton-box sk-plan-badge"></div></td>
                         <td><div class="skeleton-box sk-joined"></div></td>
                         <td>
                            <div class="d-flex gap-1">
@@ -176,6 +178,7 @@
                            <span class="text-muted small" v-else>—</span>
                         </td>
                         <td class="fw-semibold small">₱{{ $filters.formatMoney(w.amount_paid) }}</td>
+                        <td class="small">{{ $filters.capitalize(w.payment_method || "cash") }}</td>
                         <td class="text-muted small">{{ $filters.formatDateTime(w.visited_at) }}</td>
                         <td>
                            <div class="d-flex gap-1">
@@ -219,8 +222,9 @@
                      </div>
                   </div>
                   <div class="member-card-tags">
-                     <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(w.amount_paid) }}</span>
-                     <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
+                      <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(w.amount_paid) }}</span>
+                      <span class="m-badge m-badge--plan">{{ $filters.capitalize(w.payment_method || "cash") }}</span>
+                      <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
                   </div>
                   <div class="member-card-footer">
                      <span><i class="bi bi-calendar3 me-1"></i>{{ $filters.formatDateTime(w.visited_at) }}</span>
@@ -283,6 +287,17 @@
                         <label class="form-label form-label-sm">Amount Paid (₱) <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" v-model="form.amount_paid" min="0" step="0.01" :class="{ 'is-invalid': formErrors.amount_paid }" placeholder="0.00" />
                         <div class="invalid-feedback" v-if="formErrors.amount_paid">{{ formErrors.amount_paid }}</div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm">Payment Method</label>
+                        <select class="form-select" v-model="form.payment_method" :class="{ 'is-invalid': formErrors.payment_method }">
+                           <option value="cash">Cash</option>
+                           <option value="gcash">GCash</option>
+                           <option value="card">Card</option>
+                           <option value="bank_transfer">Bank Transfer</option>
+                           <option value="online_payment">Online Payment</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="formErrors.payment_method">{{ formErrors.payment_method }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Visit Date &amp; Time</label>
@@ -379,6 +394,7 @@ export default {
             branch_id: this.selectedBranch || "",
             rate_plan_id: "",
             amount_paid: "",
+            payment_method: "cash",
             visited_at: new Date().toISOString().slice(0, 16),
             notes: "",
          };
@@ -454,6 +470,7 @@ export default {
             branch_id: w.branch_id || "",
             rate_plan_id: w.rate_plan_id || "",
             amount_paid: w.amount_paid || "",
+            payment_method: w.payment_method || "cash",
             visited_at: w.visited_at ? w.visited_at.slice(0, 16) : new Date().toISOString().slice(0, 16),
             notes: w.notes || "",
          };
