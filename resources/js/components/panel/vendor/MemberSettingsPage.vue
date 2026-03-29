@@ -46,7 +46,7 @@
                <div class="col-md-6">
                   <label class="form-label form-label-sm fw-semibold">Gender</label>
                   <select class="form-select" :class="{ 'is-invalid': errors.gender }" v-model="form.gender">
-                     <option value="">Select a gender...</option>
+                     <option disabled value="">Select a gender...</option>
                      <option value="male">Male</option>
                      <option value="female">Female</option>
                      <option value="other">Other</option>

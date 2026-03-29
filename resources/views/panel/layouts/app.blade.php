@@ -88,7 +88,7 @@
                     </a>
                 </div>
                 <div class="sidebar-nav-item">
-                    <a href="#" @class(['active' => request()->routeIs('panel.pricing.*')])>
+                    <a href="{{ route('panel.pricing.index') }}" @class(['active' => request()->routeIs('panel.pricing.*')])>
                         <i class="bi bi-tag-fill"></i>
                         <span class="sidebar-nav-label">Pricing & Rates</span>
                     </a>

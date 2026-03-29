@@ -342,7 +342,7 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Gender</label>
                         <select class="form-select" v-model="form.gender">
-                           <option value="">Select a gender...</option>
+                           <option disabled value="">Select a gender...</option>
                            <option value="male">Male</option>
                            <option value="female">Female</option>
                            <option value="other">Other</option>
@@ -372,7 +372,7 @@
                         <div class="col-md-6">
                            <label class="form-label form-label-sm">Rate Plan</label>
                            <select class="form-select" v-model="form.rate_plan_id">
-                              <option value="">Select a plan...</option>
+                              <option disabled value="">Select a plan...</option>
                               <option v-for="p in ratePlansData" :key="p.id" :value="p.id">{{ p.name }}</option>
                            </select>
                         </div>

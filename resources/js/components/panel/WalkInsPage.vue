@@ -267,7 +267,7 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Branch <span class="text-danger">*</span></label>
                         <select class="form-select" v-model="form.branch_id" :class="{ 'is-invalid': formErrors.branch_id }">
-                           <option value="">Select a branch...</option>
+                           <option disabled value="">Select a branch...</option>
                            <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
                         </select>
                         <div class="invalid-feedback" v-if="formErrors.branch_id">{{ formErrors.branch_id }}</div>
@@ -275,7 +275,7 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Rate Plan</label>
                         <select class="form-select" v-model="form.rate_plan_id">
-                           <option value="">Select a rate plan...</option>
+                           <option disabled value="">Select a rate plan...</option>
                            <option v-for="p in ratePlansData" :key="p.id" :value="p.id">{{ p.name }}</option>
                         </select>
                      </div>

@@ -16,22 +16,22 @@
       </div>
 
       <div class="d-flex flex-wrap justify-content-end gap-2 mb-4" v-if="canManageMembership">
-               <button class="btn btn-danger btn-sm" @click="openPlanModal">
-                  <i class="bi bi-arrow-repeat me-1"></i>
-                  Change Plan
-               </button>
-               <button v-if="currentMembership && currentMembership.status === 'active'" class="btn btn-outline-warning btn-sm" @click="updateStatus('paused')" :disabled="savingStatus">
-                  <span class="spinner-border spinner-border-sm me-1" v-if="savingStatus"></span>
-                  Pause
-               </button>
-               <button v-if="currentMembership && currentMembership.status === 'paused'" class="btn btn-outline-success btn-sm" @click="updateStatus('active')" :disabled="savingStatus">
-                  <span class="spinner-border spinner-border-sm me-1" v-if="savingStatus"></span>
-                  Resume
-               </button>
-               <button v-if="currentMembership && ['active', 'paused'].includes(currentMembership.status)" class="btn btn-outline-danger btn-sm" @click="updateStatus('cancelled')" :disabled="savingStatus">
-                  <span class="spinner-border spinner-border-sm me-1" v-if="savingStatus"></span>
-                  Cancel
-               </button>
+         <button class="btn btn-danger btn-sm" @click="openPlanModal">
+            <i class="bi bi-arrow-repeat me-1"></i>
+            Change Plan
+         </button>
+         <button v-if="currentMembership && currentMembership.status === 'active'" class="btn btn-outline-warning btn-sm" @click="updateStatus('paused')" :disabled="savingStatus">
+            <span class="spinner-border spinner-border-sm me-1" v-if="savingStatus"></span>
+            Pause
+         </button>
+         <button v-if="currentMembership && currentMembership.status === 'paused'" class="btn btn-outline-success btn-sm" @click="updateStatus('active')" :disabled="savingStatus">
+            <span class="spinner-border spinner-border-sm me-1" v-if="savingStatus"></span>
+            Resume
+         </button>
+         <button v-if="currentMembership && ['active', 'paused'].includes(currentMembership.status)" class="btn btn-outline-danger btn-sm" @click="updateStatus('cancelled')" :disabled="savingStatus">
+            <span class="spinner-border spinner-border-sm me-1" v-if="savingStatus"></span>
+            Cancel
+         </button>
       </div>
 
       <div class="modal fade" tabindex="-1" ref="planModal">
@@ -46,7 +46,7 @@
                      <div class="col-12">
                         <label class="form-label form-label-sm fw-semibold">Plan</label>
                         <select class="form-select" v-model="form.rate_plan_id">
-                           <option value="">Select a plan...</option>
+                           <option disabled value="">Select a plan...</option>
                            <option v-for="plan in ratePlansData" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
                         </select>
                      </div>
@@ -59,8 +59,8 @@
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                   <button type="button" class="btn btn-danger btn-sm" @click="savePlanChange" :disabled="savingPlan || !form.rate_plan_id">
-                  <span class="spinner-border spinner-border-sm me-1" v-if="savingPlan"></span>
-                  Change Plan
+                     <span class="spinner-border spinner-border-sm me-1" v-if="savingPlan"></span>
+                     Change Plan
                   </button>
                </div>
             </div>
@@ -86,7 +86,9 @@
             <tbody>
                <tr v-for="membership in memberships" :key="membership.id">
                   <td class="fw-semibold">{{ membership.rate_plan.name }}</td>
-                  <td><span class="m-badge" :class="planStatusClass(membership.status)">{{ $filters.capitalize(membership.status) }}</span></td>
+                  <td>
+                     <span class="m-badge" :class="planStatusClass(membership.status)">{{ $filters.capitalize(membership.status) }}</span>
+                  </td>
                   <td class="small">{{ $filters.formatDate(membership.start_date) }}</td>
                   <td class="small">{{ $filters.formatDate(membership.end_date) }}</td>
                   <td class="small text-muted">{{ $filters.formatDateTime(membership.created_at) }}</td>
@@ -236,12 +238,14 @@ export default {
       },
 
       planStatusClass: function (status) {
-         return {
-            active: "m-badge--plan-active",
-            expired: "m-badge--plan-expired",
-            cancelled: "m-badge--plan-cancelled",
-            paused: "m-badge--plan-paused",
-         }[status] || "m-badge--plan-expired";
+         return (
+            {
+               active: "m-badge--plan-active",
+               expired: "m-badge--plan-expired",
+               cancelled: "m-badge--plan-cancelled",
+               paused: "m-badge--plan-paused",
+            }[status] || "m-badge--plan-expired"
+         );
       },
    },
 };

@@ -38,6 +38,9 @@ app.component("branch-detail-page", BranchDetailPage);
 import InventoryPage from "./components/panel/InventoryPage.vue";
 app.component("inventory-page", InventoryPage);
 
+import PricingPage from "./components/panel/PricingPage.vue";
+app.component("pricing-page", PricingPage);
+
 import AttendancePage from "./components/panel/AttendancePage.vue";
 app.component("attendance-page", AttendancePage);
 

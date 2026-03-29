@@ -16,12 +16,8 @@
       </div>
 
       <div class="d-flex flex-wrap justify-content-end gap-2 mb-4" v-if="canAllocatePackages || canLogUsage">
-               <button v-if="canAllocatePackages" class="btn btn-danger btn-sm" @click="openPackageModal">
-                  <i class="bi bi-plus-circle me-1"></i>Add PT Package
-               </button>
-               <button v-if="canLogUsage" class="btn btn-outline-success btn-sm" @click="openUsageModal" :disabled="activePackages.length === 0">
-                  <i class="bi bi-check2-square me-1"></i>Log PT Session Use
-               </button>
+         <button v-if="canAllocatePackages" class="btn btn-danger btn-sm" @click="openPackageModal"><i class="bi bi-plus-circle me-1"></i>Add PT Package</button>
+         <button v-if="canLogUsage" class="btn btn-outline-success btn-sm" @click="openUsageModal" :disabled="activePackages.length === 0"><i class="bi bi-check2-square me-1"></i>Log PT Session Use</button>
       </div>
 
       <div v-if="packages.length === 0" class="text-center py-5 text-muted">
@@ -60,7 +56,9 @@
                         <div class="fw-semibold">₱{{ $filters.formatMoney(pkg.coach_commission_amount || 0) }}</div>
                         <div class="text-muted small">{{ commissionLabel(pkg) }}</div>
                      </td>
-                     <td><span class="m-badge" :class="packageStatusClass(pkg.status)">{{ $filters.capitalize(pkg.status) }}</span></td>
+                     <td>
+                        <span class="m-badge" :class="packageStatusClass(pkg.status)">{{ $filters.capitalize(pkg.status) }}</span>
+                     </td>
                      <td class="small">
                         <div>{{ $filters.formatDate(pkg.assigned_at) }}</div>
                         <div class="text-muted" v-if="pkg.expires_at">Expires {{ $filters.formatDate(pkg.expires_at) }}</div>
@@ -154,7 +152,7 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm fw-semibold">Branch</label>
                         <select class="form-select" v-model="packageForm.branch_id" :class="{ 'is-invalid': packageErrors.branch_id }">
-                           <option value="">Select a branch...</option>
+                           <option disabled value="">Select a branch...</option>
                            <option v-for="branch in availableBranches" :key="branch.id" :value="branch.id">{{ branch.name }}</option>
                         </select>
                         <div class="invalid-feedback" v-if="packageErrors.branch_id">{{ packageErrors.branch_id }}</div>
@@ -162,15 +160,12 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm fw-semibold">PT Product</label>
                         <select class="form-select" v-model="packageForm.pt_product_id" :class="{ 'is-invalid': packageErrors.pt_product_id }">
-                           <option value="">Select a product...</option>
-                           <option v-for="product in availableProducts" :key="product.id" :value="product.id">
-                              {{ product.name }} ({{ product.session_count }} sessions)
-                           </option>
+                           <option disabled value="">Select a product...</option>
+                           <option v-for="product in availableProducts" :key="product.id" :value="product.id">{{ product.name }} ({{ product.session_count }} sessions)</option>
                         </select>
                         <div class="invalid-feedback" v-if="packageErrors.pt_product_id">{{ packageErrors.pt_product_id }}</div>
                         <div class="form-text" v-if="selectedPackageProduct">
-                           Price: ₱{{ $filters.formatMoney(selectedPackageProduct.pivot?.price || 0) }} · Coach commission:
-                           ₱{{ $filters.formatMoney(packageCommissionPreview) }}
+                           Price: ₱{{ $filters.formatMoney(selectedPackageProduct.pivot?.price || 0) }} · Coach commission: ₱{{ $filters.formatMoney(packageCommissionPreview) }}
                            <span class="text-muted">({{ Number(selectedPackageProduct.pivot?.coach_commission_rate || 0) }}%)</span>
                         </div>
                      </div>
@@ -222,10 +217,8 @@
                      <div class="col-12">
                         <label class="form-label form-label-sm fw-semibold">Active Package</label>
                         <select class="form-select" v-model="usageForm.member_pt_package_id" :class="{ 'is-invalid': usageErrors.member_pt_package_id }">
-                           <option value="">Select an active package...</option>
-                           <option v-for="pkg in activePackages" :key="pkg.id" :value="pkg.id">
-                              {{ pkg.pt_product?.name }} • {{ pkg.remaining_sessions }}/{{ pkg.total_sessions }} left
-                           </option>
+                           <option disabled value="">Select an active package...</option>
+                           <option v-for="pkg in activePackages" :key="pkg.id" :value="pkg.id">{{ pkg.pt_product?.name }} • {{ pkg.remaining_sessions }}/{{ pkg.total_sessions }} left</option>
                         </select>
                         <div class="invalid-feedback" v-if="usageErrors.member_pt_package_id">{{ usageErrors.member_pt_package_id }}</div>
                      </div>
@@ -237,7 +230,7 @@
                      <div class="col-md-4">
                         <label class="form-label form-label-sm fw-semibold">Coach</label>
                         <select class="form-select" v-model="usageForm.coach_id" :class="{ 'is-invalid': usageErrors.coach_id }">
-                           <option value="">Use package coach...</option>
+                           <option disabled value="">Use package coach...</option>
                            <option v-for="coach in availableUsageCoaches" :key="coach.id" :value="coach.id">{{ coach.name }}</option>
                         </select>
                         <div class="invalid-feedback" v-if="usageErrors.coach_id">{{ usageErrors.coach_id }}</div>
@@ -395,9 +388,7 @@ export default {
       },
 
       usageEntries: function () {
-         return this.packages
-            .flatMap((pkg) => (pkg.usages || []).map((usage) => ({ ...usage, package: pkg })))
-            .sort((left, right) => String(right.used_at || right.created_at || "").localeCompare(String(left.used_at || left.created_at || "")));
+         return this.packages.flatMap((pkg) => (pkg.usages || []).map((usage) => ({ ...usage, package: pkg }))).sort((left, right) => String(right.used_at || right.created_at || "").localeCompare(String(left.used_at || left.created_at || "")));
       },
 
       statCards: function () {
@@ -533,11 +524,13 @@ export default {
       },
 
       packageStatusClass: function (status) {
-         return {
-            active: "m-badge--plan-active",
-            consumed: "m-badge--plan-expired",
-            cancelled: "m-badge--plan-cancelled",
-         }[status] || "m-badge--plan-expired";
+         return (
+            {
+               active: "m-badge--plan-active",
+               consumed: "m-badge--plan-expired",
+               cancelled: "m-badge--plan-cancelled",
+            }[status] || "m-badge--plan-expired"
+         );
       },
 
       commissionLabel: function (pkg) {

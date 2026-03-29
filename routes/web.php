@@ -8,6 +8,7 @@ use App\Http\Controllers\Panel\DashboardController;
 use App\Http\Controllers\Panel\EmployeeController;
 use App\Http\Controllers\Panel\InventoryController;
 use App\Http\Controllers\Panel\MembersController;
+use App\Http\Controllers\Panel\PricingController;
 use App\Http\Controllers\Panel\WalkInsController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -65,6 +66,18 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::middleware('branch.resource:inventoryItem')->group(function () {
         Route::put('/inventory/{inventoryItem}', [InventoryController::class, 'update'])->middleware('branch.input:branch_id')->name('inventory.update')->whereNumber('inventoryItem');
         Route::delete('/inventory/{inventoryItem}', [InventoryController::class, 'destroy'])->name('inventory.destroy')->whereNumber('inventoryItem');
+    });
+
+    // Pricing
+    Route::get('/pricing', [PricingController::class, 'index'])->name('pricing.index');
+    Route::middleware('branch.resource:branch')->group(function () {
+        Route::get('/pricing/branches/{branch}', [PricingController::class, 'show'])->name('pricing.show')->whereNumber('branch');
+        Route::post('/pricing/branches/{branch}/rate-plans/{ratePlan}', [PricingController::class, 'storeRatePlan'])->name('pricing.rate-plans.store')->whereNumber('branch')->whereNumber('ratePlan');
+        Route::put('/pricing/branches/{branch}/rate-plans/{ratePlan}', [PricingController::class, 'updateRatePlan'])->name('pricing.rate-plans.update')->whereNumber('branch')->whereNumber('ratePlan');
+        Route::delete('/pricing/branches/{branch}/rate-plans/{ratePlan}', [PricingController::class, 'destroyRatePlan'])->name('pricing.rate-plans.destroy')->whereNumber('branch')->whereNumber('ratePlan');
+        Route::post('/pricing/branches/{branch}/pt-products/{ptProduct}', [PricingController::class, 'storePtProduct'])->name('pricing.pt-products.store')->whereNumber('branch')->whereNumber('ptProduct');
+        Route::put('/pricing/branches/{branch}/pt-products/{ptProduct}', [PricingController::class, 'updatePtProduct'])->name('pricing.pt-products.update')->whereNumber('branch')->whereNumber('ptProduct');
+        Route::delete('/pricing/branches/{branch}/pt-products/{ptProduct}', [PricingController::class, 'destroyPtProduct'])->name('pricing.pt-products.destroy')->whereNumber('branch')->whereNumber('ptProduct');
     });
 
     // Attendance

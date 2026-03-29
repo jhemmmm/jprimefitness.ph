@@ -69,7 +69,7 @@
          </div>
       </div>
 
-      <!-- ── List Card ────────────────────────────────────────────────────── -->
+      <!-- List Card -->
       <div class="panel-card">
          <div class="panel-card-header d-flex justify-content-between align-items-center">
             <span class="panel-card-title">
@@ -273,7 +273,7 @@
          </div>
       </div>
 
-      <!-- ── Add / Edit Modal ──────────────────────────────────────────────── -->
+      <!-- Add / Edit Modal -->
       <div class="modal fade" id="attendanceFormModal" tabindex="-1" ref="attendanceFormModal">
          <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
@@ -328,7 +328,7 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Branch <span class="text-danger">*</span></label>
                         <select class="form-select" v-model="form.branch_id" :class="{ 'is-invalid': formErrors.branch_id }">
-                           <option value="">Select a branch...</option>
+                           <option disabled value="">Select a branch...</option>
                            <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
                         </select>
                         <div class="invalid-feedback" v-if="formErrors.branch_id">{{ formErrors.branch_id }}</div>
