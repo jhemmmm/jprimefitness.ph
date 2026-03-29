@@ -437,20 +437,6 @@
                                 </td>
                             </tr>
                             <tr>
-                                <td class="breakdown-label">Income tax</td>
-                                <td class="breakdown-amount {{ (float) $payroll->income_tax > 0 ? 'amount-negative' : '' }}">
-                                    {{ (float) $payroll->income_tax > 0 ? '- PHP ' . number_format((float) $payroll->income_tax, 2) : '—' }}
-                                </td>
-                            </tr>
-                            @foreach ($payroll->employee_contributions ?? [] as $contribution)
-                                <tr>
-                                    <td class="breakdown-label">{{ $contribution['name'] }} (Employee)</td>
-                                    <td class="breakdown-amount {{ (float) ($contribution['amount'] ?? 0) > 0 ? 'amount-negative' : '' }}">
-                                        {{ (float) ($contribution['amount'] ?? 0) > 0 ? '- PHP ' . number_format((float) ($contribution['amount'] ?? 0), 2) : '—' }}
-                                    </td>
-                                </tr>
-                            @endforeach
-                            <tr>
                                 <td class="breakdown-label">Other deductions</td>
                                 <td class="breakdown-amount {{ (float) $payroll->manual_deductions > 0 ? 'amount-negative' : '' }}">
                                     {{ (float) $payroll->manual_deductions > 0 ? '- PHP ' . number_format((float) $payroll->manual_deductions, 2) : '—' }}
@@ -476,19 +462,6 @@
                         <div class="meta-note"><strong>Prepared By:</strong> {{ $payroll->generatedBy?->name ?: 'System' }}</div>
                         <div class="meta-note"><strong>Approved By:</strong> {{ $payroll->approvedBy?->name ?: 'Pending approval' }}</div>
                         <div class="meta-note"><strong>Approved At:</strong> {{ $payroll->approved_at?->format('M d, Y h:i A') ?: 'Pending approval' }}</div>
-
-                        @if ($payroll->employer_contributions && count($payroll->employer_contributions))
-                            <div style="height: 10px;"></div>
-                            <div class="box-heading">Employer Contributions</div>
-                            <table class="breakdown-table">
-                                @foreach ($payroll->employer_contributions ?? [] as $contribution)
-                                    <tr>
-                                        <td class="breakdown-label">{{ $contribution['name'] }} (Employer)</td>
-                                        <td class="breakdown-amount">PHP {{ number_format((float) ($contribution['amount'] ?? 0), 2) }}</td>
-                                    </tr>
-                                @endforeach
-                            </table>
-                        @endif
                     </div>
                 </td>
             </tr>

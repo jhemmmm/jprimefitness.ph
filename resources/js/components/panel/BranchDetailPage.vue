@@ -3,7 +3,7 @@
       <div class="d-flex align-items-center justify-content-between mb-4">
          <div>
             <h4 class="fw-bold mb-0">Branch Details</h4>
-            <div class="text-muted small">Business information, cash ledger, government contributions, gallery, and settings</div>
+            <div class="text-muted small">Business information, cash ledger, gallery, and settings</div>
          </div>
          <a href="/panel/branches" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back</a>
       </div>
@@ -61,7 +61,6 @@
 <script>
 import BranchGalleryPage from "./vendor/BranchGalleryPage.vue";
 import BranchCashLedgerPage from "./vendor/BranchCashLedgerPage.vue";
-import BranchGovernmentContributionsPage from "./vendor/BranchGovernmentContributionsPage.vue";
 import BranchInformationPage from "./vendor/BranchInformationPage.vue";
 import BranchSettingsPage from "./vendor/BranchSettingsPage.vue";
 
@@ -69,7 +68,6 @@ export default {
    components: {
       BranchCashLedgerPage,
       BranchGalleryPage,
-      BranchGovernmentContributionsPage,
       BranchInformationPage,
       BranchSettingsPage,
    },
@@ -78,14 +76,13 @@ export default {
       branch: { type: Object, required: true },
    },
 
-   data() {
+   data: function () {
       return {
          localBranch: { ...this.branch },
          activeTab: "information",
          tabs: [
             { key: "information", label: "Information", icon: "bi-building" },
             { key: "cashLedger", label: "Cash Ledger", icon: "bi-cash-stack" },
-            { key: "governmentContributions", label: "Government Contributions", icon: "bi-bank2" },
             { key: "gallery", label: "Photo / Gallery", icon: "bi-images" },
             { key: "settings", label: "Settings", icon: "bi-gear" },
          ],
@@ -93,23 +90,22 @@ export default {
    },
 
    computed: {
-      activeComponent() {
+      activeComponent: function () {
          return {
             information: "BranchInformationPage",
             cashLedger: "BranchCashLedgerPage",
-            governmentContributions: "BranchGovernmentContributionsPage",
             gallery: "BranchGalleryPage",
             settings: "BranchSettingsPage",
          }[this.activeTab];
       },
 
-      branchLocation() {
+      branchLocation: function () {
          const location = [this.localBranch.city, this.localBranch.province].filter(Boolean).join(", ");
 
          return location || "Location not set";
       },
 
-      summaryCards() {
+      summaryCards: function () {
          const cashBalance = Number(this.localBranch.cash_ledger_summary?.balance || 0);
 
          return [
@@ -122,11 +118,11 @@ export default {
    },
 
    methods: {
-      onBranchUpdated(updatedBranch) {
+      onBranchUpdated: function (updatedBranch) {
          this.localBranch = { ...this.localBranch, ...updatedBranch };
       },
 
-      formatTime(timeStr) {
+      formatTime: function (timeStr) {
          if (!timeStr) {
             return "";
          }

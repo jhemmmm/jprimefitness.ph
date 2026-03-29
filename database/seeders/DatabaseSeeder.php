@@ -18,7 +18,6 @@ class DatabaseSeeder extends Seeder
             PTProductSeeder::class,
             RoleSeeder::class,
             BranchSeeder::class,
-            BranchGovernmentContributionSeeder::class,
             UserSeeder::class,
             WalkInSeeder::class,
             AttendanceSeeder::class,

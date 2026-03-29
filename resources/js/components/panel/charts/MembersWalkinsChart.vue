@@ -70,13 +70,13 @@ export default {
             chart: null,
         };
     },
-    mounted() {
+    mounted: function () {
         this.buildChart();
         document.querySelectorAll("#appearanceToggle").forEach((el) => {
             el.addEventListener("change", () => setTimeout(this.refreshTheme, 50));
         });
     },
-    beforeUnmount() {
+    beforeUnmount: function () {
         if (this.chart) this.chart.destroy();
     },
     watch: {

@@ -317,7 +317,7 @@ export default {
          pendingPayroll: [],
       };
    },
-   mounted() {},
+   mounted: function () {},
    methods: {},
 };
 </script>

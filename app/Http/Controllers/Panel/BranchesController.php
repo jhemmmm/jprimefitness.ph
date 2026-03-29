@@ -88,21 +88,9 @@ class BranchesController extends Controller
             'messenger_url' => ['nullable', 'url', 'max:500'],
             'whatsapp_url' => ['nullable', 'url', 'max:500'],
             'map_url' => ['nullable', 'url', 'max:500'],
-            'payroll_settings' => ['nullable', 'array'],
-            'payroll_settings.pay_frequency' => ['nullable', 'in:monthly,semi_monthly'],
-            'payroll_settings.contributions' => ['nullable', 'array'],
-            'payroll_settings.contributions.*.name' => ['required_with:payroll_settings.contributions', 'string', 'max:100'],
-            'payroll_settings.contributions.*.employee_rate' => ['nullable', 'numeric', 'min:0'],
-            'payroll_settings.contributions.*.employer_rate' => ['nullable', 'numeric', 'min:0'],
-            'payroll_settings.contributions.*.employee_min_amount' => ['nullable', 'numeric', 'min:0'],
-            'payroll_settings.contributions.*.employer_min_amount' => ['nullable', 'numeric', 'min:0'],
-            'payroll_settings.contributions.*.salary_floor' => ['nullable', 'numeric', 'min:0'],
-            'payroll_settings.contributions.*.salary_ceiling' => ['nullable', 'numeric', 'min:0'],
-            'payroll_settings.contributions.*.enabled' => ['nullable', 'boolean'],
         ]);
 
         $data['country_code'] = strtoupper($data['country_code']);
-        $data['payroll_settings'] = Branch::normalizePayrollSettings($data['payroll_settings'] ?? null, $data['country_code']);
 
         $branch = Branch::create($data);
 
@@ -132,17 +120,6 @@ class BranchesController extends Controller
                 'messenger_url' => ['nullable', 'url', 'max:500'],
                 'whatsapp_url' => ['nullable', 'url', 'max:500'],
                 'map_url' => ['nullable', 'url', 'max:500'],
-                'payroll_settings' => ['nullable', 'array'],
-                'payroll_settings.pay_frequency' => ['nullable', 'in:monthly,semi_monthly'],
-                'payroll_settings.contributions' => ['nullable', 'array'],
-                'payroll_settings.contributions.*.name' => ['required_with:payroll_settings.contributions', 'string', 'max:100'],
-                'payroll_settings.contributions.*.employee_rate' => ['nullable', 'numeric', 'min:0'],
-                'payroll_settings.contributions.*.employer_rate' => ['nullable', 'numeric', 'min:0'],
-                'payroll_settings.contributions.*.employee_min_amount' => ['nullable', 'numeric', 'min:0'],
-                'payroll_settings.contributions.*.employer_min_amount' => ['nullable', 'numeric', 'min:0'],
-                'payroll_settings.contributions.*.salary_floor' => ['nullable', 'numeric', 'min:0'],
-                'payroll_settings.contributions.*.salary_ceiling' => ['nullable', 'numeric', 'min:0'],
-                'payroll_settings.contributions.*.enabled' => ['nullable', 'boolean'],
             ]);
         } else {
             $data = $request->validate([
@@ -165,10 +142,6 @@ class BranchesController extends Controller
 
         if (array_key_exists('country_code', $data)) {
             $data['country_code'] = strtoupper($data['country_code']);
-        }
-
-        if (array_key_exists('payroll_settings', $data)) {
-            $data['payroll_settings'] = Branch::normalizePayrollSettings($data['payroll_settings'], $data['country_code'] ?? $branch->country_code);
         }
 
         $branch->update($data);

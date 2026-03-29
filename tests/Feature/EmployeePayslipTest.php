@@ -55,18 +55,9 @@ class EmployeePayslipTest extends TestCase
                     'commission_amount' => 320,
                 ],
             ],
-            'income_tax' => 60,
-            'employee_contributions' => [
-                ['name' => 'SSS', 'rate' => 5, 'amount' => 75],
-                ['name' => 'PhilHealth', 'rate' => 2.5, 'amount' => 37.5],
-            ],
-            'employer_contributions' => [
-                ['name' => 'SSS', 'rate' => 10, 'amount' => 150],
-                ['name' => 'PhilHealth', 'rate' => 2.5, 'amount' => 37.5],
-            ],
             'manual_deductions' => 100,
             'cash_advance_deduction' => 200,
-            'net_amount' => 1547.5,
+            'net_amount' => 1720,
             'status' => Payroll::STATUS_APPROVED,
             'notes' => 'Includes holiday bonus.',
             'generated_by' => $manager->id,
@@ -92,10 +83,8 @@ class EmployeePayslipTest extends TestCase
             $this->assertSame("payslip-employee-{$employee->id}-payroll-{$payroll->id}.pdf", $pdf->downloadName);
             $this->assertSame('Juan Dela Cruz', $pdf->viewData['employee']->name);
             $this->assertSame('Includes holiday bonus.', $pdf->viewData['payroll']->notes);
-            $this->assertSame(1547.5, (float) $pdf->viewData['payroll']->net_amount);
+            $this->assertSame(1720.0, (float) $pdf->viewData['payroll']->net_amount);
             $this->assertSame(320.0, (float) $pdf->viewData['payroll']->pt_commission_amount);
-            $this->assertSame('SSS', $pdf->viewData['payroll']->employee_contributions[0]['name']);
-            $this->assertSame(60.0, (float) $pdf->viewData['payroll']->income_tax);
             $this->assertSame('Payroll Manager', $pdf->viewData['payroll']->generatedBy?->name);
 
             return true;
@@ -108,13 +97,6 @@ class EmployeePayslipTest extends TestCase
             'name' => $name,
             'status' => Branch::STATUS_OPEN,
             'country_code' => 'PH',
-            'payroll_settings' => [
-                'pay_frequency' => 'semi_monthly',
-                'income_tax_mode' => 'manual',
-                'contributions' => [
-                    ['name' => 'SSS', 'employee_rate' => 5, 'employer_rate' => 10, 'enabled' => true],
-                ],
-            ],
             'city' => 'Naga City',
         ]);
     }

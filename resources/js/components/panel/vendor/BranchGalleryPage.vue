@@ -49,7 +49,7 @@ export default {
 
    emits: ["updated"],
 
-   data() {
+   data: function () {
       return {
          uploading: false,
          deletingIndex: null,
@@ -59,23 +59,23 @@ export default {
    },
 
    watch: {
-      branch(value) {
+      branch: function (value) {
          this.photos = Array.isArray(value.photos) ? [...value.photos] : [];
       },
    },
 
    computed: {
-      canManageGallery() {
+      canManageGallery: function () {
          return this.is("super admin") || this.is("admin");
       },
    },
 
    methods: {
-      emitUpdatedPhotos(photos) {
+      emitUpdatedPhotos: function (photos) {
          this.$emit("updated", { ...this.branch, photos });
       },
 
-      uploadPhotos(event) {
+      uploadPhotos: function (event) {
          const files = Array.from(event.target.files || []);
 
          if (!files.length) {
@@ -85,7 +85,7 @@ export default {
          this.uploading = true;
          this.generalError = "";
 
-         const uploadNext = async (index) => {
+         const uploadNext = (index) => {
             if (index >= files.length) {
                this.uploading = false;
 
@@ -93,47 +93,51 @@ export default {
                   this.$refs.photoInput.value = "";
                }
 
-               return;
+               return Promise.resolve();
             }
 
-            try {
-               const formData = new FormData();
-               formData.append("photo", files[index]);
+            const formData = new FormData();
+            formData.append("photo", files[index]);
 
-               const response = await axios.post(`/panel/branches/${this.branch.id}/photos`, formData, {
+            return axios
+               .post(`/panel/branches/${this.branch.id}/photos`, formData, {
                   headers: { "Content-Type": "multipart/form-data" },
+               })
+               .then((response) => {
+                  this.photos.push(response.data.path);
+                  this.emitUpdatedPhotos([...this.photos]);
+
+                  return uploadNext(index + 1);
+               })
+               .catch((error) => {
+                  this.generalError = error.response?.data?.message || "Failed to upload photo.";
+                  this.uploading = false;
+
+                  if (this.$refs.photoInput) {
+                     this.$refs.photoInput.value = "";
+                  }
                });
-
-               this.photos.push(response.data.path);
-               this.emitUpdatedPhotos([...this.photos]);
-
-               await uploadNext(index + 1);
-            } catch (error) {
-               this.generalError = error.response?.data?.message || "Failed to upload photo.";
-               this.uploading = false;
-
-               if (this.$refs.photoInput) {
-                  this.$refs.photoInput.value = "";
-               }
-            }
          };
 
          uploadNext(0);
       },
 
-      async deletePhoto(index) {
+      deletePhoto: function (index) {
          this.deletingIndex = index;
          this.generalError = "";
 
-         try {
-            await axios.delete(`/panel/branches/${this.branch.id}/photos/${index}`);
-            this.photos.splice(index, 1);
-            this.emitUpdatedPhotos([...this.photos]);
-         } catch (error) {
-            this.generalError = error.response?.data?.message || "Failed to remove photo.";
-         } finally {
-            this.deletingIndex = null;
-         }
+         axios
+            .delete(`/panel/branches/${this.branch.id}/photos/${index}`)
+            .then(() => {
+               this.photos.splice(index, 1);
+               this.emitUpdatedPhotos([...this.photos]);
+            })
+            .catch((error) => {
+               this.generalError = error.response?.data?.message || "Failed to remove photo.";
+            })
+            .finally(() => {
+               this.deletingIndex = null;
+            });
       },
    },
 };

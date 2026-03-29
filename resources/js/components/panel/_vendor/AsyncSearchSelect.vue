@@ -71,7 +71,7 @@ export default {
 
    emits: ["update:modelValue", "select-option"],
 
-   data() {
+   data: function () {
       return {
          open: false,
          query: "",
@@ -84,13 +84,13 @@ export default {
    },
 
    computed: {
-      displayText() {
+      displayText: function () {
          return this.selectedOption?.name || this.selectedLabel;
       },
    },
 
    watch: {
-      query() {
+      query: function () {
          clearTimeout(this.searchTimer);
 
          if (this.query.trim().length < this.minChars) {
@@ -102,7 +102,7 @@ export default {
          this.searchTimer = setTimeout(() => this.loadOptions(), 250);
       },
 
-      open(value) {
+      open: function (value) {
          if (value) {
             document.addEventListener("click", this.handleClickOutside);
             this.$nextTick(() => this.$refs.searchInput?.focus());
@@ -115,7 +115,7 @@ export default {
          this.loading = false;
       },
 
-      selectedLabel(value) {
+      selectedLabel: function (value) {
          if (!value) {
             this.selectedOption = null;
          }
@@ -123,36 +123,38 @@ export default {
    },
 
    methods: {
-      toggleOpen() {
+      toggleOpen: function () {
          if (this.disabled) return;
          this.open = !this.open;
       },
 
-      handleClickOutside(event) {
+      handleClickOutside: function (event) {
          if (!this.$refs.root?.contains(event.target)) {
             this.open = false;
          }
       },
 
-      async loadOptions() {
+      loadOptions: function () {
          const currentRequestId = ++this.requestId;
          this.loading = true;
 
-         try {
-            const options = await this.fetchOptions(this.query.trim());
-            if (currentRequestId !== this.requestId) return;
-            this.options = Array.isArray(options) ? options : [];
-         } catch (_) {
-            if (currentRequestId !== this.requestId) return;
-            this.options = [];
-         } finally {
-            if (currentRequestId === this.requestId) {
-               this.loading = false;
-            }
-         }
+         Promise.resolve(this.fetchOptions(this.query.trim()))
+            .then((options) => {
+               if (currentRequestId !== this.requestId) return;
+               this.options = Array.isArray(options) ? options : [];
+            })
+            .catch(() => {
+               if (currentRequestId !== this.requestId) return;
+               this.options = [];
+            })
+            .finally(() => {
+               if (currentRequestId === this.requestId) {
+                  this.loading = false;
+               }
+            });
       },
 
-      selectOption(option) {
+      selectOption: function (option) {
          this.selectedOption = option;
          this.$emit("update:modelValue", option.id);
          this.$emit("select-option", option);
@@ -160,7 +162,7 @@ export default {
       },
    },
 
-   beforeUnmount() {
+   beforeUnmount: function () {
       clearTimeout(this.searchTimer);
       document.removeEventListener("click", this.handleClickOutside);
    },

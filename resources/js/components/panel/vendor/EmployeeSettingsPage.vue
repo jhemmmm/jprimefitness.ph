@@ -48,6 +48,15 @@
                   <input type="number" class="form-control" :class="{ 'is-invalid': errors.daily_rate }" v-model="form.daily_rate" min="0" step="0.01" placeholder="0.00" />
                   <div class="invalid-feedback" v-if="errors.daily_rate">{{ errors.daily_rate[0] }}</div>
                </div>
+               <div class="col-md-6">
+                  <label class="form-label form-label-sm fw-semibold">Pay Frequency</label>
+                  <select class="form-select" :class="{ 'is-invalid': errors.pay_frequency }" v-model="form.pay_frequency">
+                     <option value="semi_monthly">Semi-Monthly</option>
+                     <option value="monthly">Monthly</option>
+                  </select>
+                  <div class="form-text small">Set the payroll schedule directly on the employee contract.</div>
+                  <div class="invalid-feedback" v-if="errors.pay_frequency">{{ errors.pay_frequency[0] }}</div>
+               </div>
 
                <div class="col-12"><hr class="my-1" /></div>
 
@@ -87,7 +96,7 @@ export default {
 
    emits: ["updated"],
 
-   data() {
+   data: function () {
       return {
          saving: false,
          saved: false,
@@ -98,13 +107,13 @@ export default {
    },
 
    watch: {
-      employee(val) {
+      employee: function (val) {
          this.form = this.getForm(val);
       },
    },
 
    computed: {
-      allowedRoles() {
+      allowedRoles: function () {
          const allowed = ["super admin", "admin", "manager", "staff", "coach", "employee"];
          const roleRestrictions = {
             "super admin": [],
@@ -120,13 +129,13 @@ export default {
                name: this.$filters.capitalize(r.name),
             }));
       },
-      statusOptions() {
+      statusOptions: function () {
          return ["active", "inactive", "suspended"];
       },
    },
 
    methods: {
-      getForm(employee) {
+      getForm: function (employee) {
          return {
             name: employee.name || "",
             email: employee.email,
@@ -135,30 +144,35 @@ export default {
             role_ids: employee.roles ? employee.roles.map((r) => r.id) : [],
             branch_ids: employee.branches ? employee.branches.map((b) => b.id) : [],
             daily_rate: employee.daily_rate || "",
+            pay_frequency: employee.pay_frequency,
             password: "",
          };
       },
-      async save() {
+      save: function () {
          this.saving = true;
          this.saved = false;
          this.generalError = "";
          this.errors = {};
-         try {
-            const payload = { ...this.form, branch_ids: this.form.branch_ids, role_ids: this.form.role_ids };
-            const res = await axios.put(`/panel/employees/${this.employee.id}`, payload);
-            this.saved = true;
-            this.form.password = "";
-            this.$emit("updated", res.data);
-            setTimeout(() => (this.saved = false), 3000);
-         } catch (err) {
-            if (err.response?.status === 422) {
-               this.errors = err.response.data.errors || {};
-            } else {
-               this.generalError = err.response?.data?.message || "Something went wrong.";
-            }
-         } finally {
-            this.saving = false;
-         }
+         const payload = { ...this.form, branch_ids: this.form.branch_ids, role_ids: this.form.role_ids };
+
+         axios
+            .put(`/panel/employees/${this.employee.id}`, payload)
+            .then((res) => {
+               this.saved = true;
+               this.form.password = "";
+               this.$emit("updated", res.data);
+               setTimeout(() => (this.saved = false), 3000);
+            })
+            .catch((err) => {
+               if (err.response?.status === 422) {
+                  this.errors = err.response.data.errors || {};
+               } else {
+                  this.generalError = err.response?.data?.message || "Something went wrong.";
+               }
+            })
+            .finally(() => {
+               this.saving = false;
+            });
       },
    },
 };

@@ -236,7 +236,7 @@ export default {
     },
 
     computed: {
-        branchData() {
+        branchData: function () {
             const b = this.branch;
 
             const STATUS_LABELS = { open: "Open", soon: "Opening Soon", closed: "Closed" };
@@ -285,7 +285,7 @@ export default {
         },
 
         // Index of today in the schedule array: 0=Mon … 6=Sun
-        todayIndex() {
+        todayIndex: function () {
             const day = new Date().getDay(); // 0=Sun, 1=Mon, …, 6=Sat
             return day === 0 ? 6 : day - 1;
         },

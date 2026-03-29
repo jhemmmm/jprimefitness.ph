@@ -25,6 +25,7 @@
                   <span v-if="localEmployee.phone"><i class="bi bi-telephone me-1"></i>{{ localEmployee.phone }}</span>
                   <span v-if="localEmployee.address"><i class="bi bi-house me-1"></i>{{ localEmployee.address }}</span>
                   <span v-if="localEmployee.daily_rate > 0"><i class="bi bi-currency-exchange me-1"></i>₱{{ $filters.formatMoney(localEmployee.daily_rate) }}/day</span>
+                  <span><i class="bi bi-calendar2-week me-1"></i>{{ $filters.capitalize(localEmployee.pay_frequency) }}</span>
                </div>
             </div>
          </div>
@@ -63,7 +64,7 @@ export default {
       rolesData: { type: Array, default: () => [] },
    },
 
-   data() {
+   data: function () {
       return {
          localEmployee: { ...this.employee },
          activeTab: "attendance",
@@ -78,7 +79,7 @@ export default {
    },
 
    computed: {
-      activeComponent() {
+      activeComponent: function () {
          return {
             attendance: "EmployeeAttendancePage",
             payroll: "EmployeePayrollPage",
@@ -90,7 +91,7 @@ export default {
    },
 
    methods: {
-      onEmployeeUpdated(updated) {
+      onEmployeeUpdated: function (updated) {
          this.localEmployee = { ...this.localEmployee, ...updated };
       },
    },

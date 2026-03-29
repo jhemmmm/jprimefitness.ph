@@ -282,7 +282,7 @@ export default {
 
    emits: ["updated"],
 
-   data() {
+   data: function () {
       return {
          savingPackage: false,
          savingUsage: false,
@@ -311,7 +311,7 @@ export default {
       };
    },
 
-   mounted() {
+   mounted: function () {
       this.packageModalInst = new Modal(this.$refs.packageModal);
       this.usageModalInst = new Modal(this.$refs.usageModal);
    },
@@ -319,7 +319,7 @@ export default {
    watch: {
       member: {
          immediate: true,
-         handler() {
+         handler: function () {
             this.resetPackageForm();
             this.resetUsageForm();
          },
@@ -346,35 +346,35 @@ export default {
    },
 
    computed: {
-      availableBranches() {
+      availableBranches: function () {
          return this.member.branches || [];
       },
 
-      availableProducts() {
+      availableProducts: function () {
          const branch = this.availableBranches.find((item) => item.id === this.packageForm.branch_id);
          return branch?.pt_products || [];
       },
 
-      availableCoaches() {
+      availableCoaches: function () {
          return this.member.available_coaches || [];
       },
 
-      availablePackageCoaches() {
+      availablePackageCoaches: function () {
          return this.coachesForBranch(this.packageForm.branch_id);
       },
 
-      selectedPackageProduct() {
+      selectedPackageProduct: function () {
          return this.availableProducts.find((product) => product.id === this.packageForm.pt_product_id) || null;
       },
 
-      packageCommissionPreview() {
+      packageCommissionPreview: function () {
          const price = Number(this.selectedPackageProduct?.pivot?.price || 0);
          const rate = Number(this.selectedPackageProduct?.pivot?.coach_commission_rate || 0);
 
          return Math.max(0, (price * rate) / 100);
       },
 
-      packages() {
+      packages: function () {
          return [...(this.member.member_pt_packages || [])].sort((left, right) => {
             const leftDate = left.assigned_at || left.created_at || "";
             const rightDate = right.assigned_at || right.created_at || "";
@@ -382,25 +382,25 @@ export default {
          });
       },
 
-      activePackages() {
+      activePackages: function () {
          return this.packages.filter((pkg) => pkg.status === "active" && Number(pkg.remaining_sessions) > 0);
       },
 
-      selectedUsagePackage() {
+      selectedUsagePackage: function () {
          return this.activePackages.find((pkg) => pkg.id === this.usageForm.member_pt_package_id) || null;
       },
 
-      availableUsageCoaches() {
+      availableUsageCoaches: function () {
          return this.coachesForBranch(this.selectedUsagePackage?.branch_id || null);
       },
 
-      usageEntries() {
+      usageEntries: function () {
          return this.packages
             .flatMap((pkg) => (pkg.usages || []).map((usage) => ({ ...usage, package: pkg })))
             .sort((left, right) => String(right.used_at || right.created_at || "").localeCompare(String(left.used_at || left.created_at || "")));
       },
 
-      statCards() {
+      statCards: function () {
          return [
             { label: "Active Packages", value: this.activePackages.length, icon: "bi-box-seam", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             {
@@ -420,17 +420,17 @@ export default {
          ];
       },
 
-      canAllocatePackages() {
+      canAllocatePackages: function () {
          return this.is("super admin") || this.is("admin") || this.is("manager");
       },
 
-      canLogUsage() {
+      canLogUsage: function () {
          return this.canAllocatePackages || this.is("staff");
       },
    },
 
    methods: {
-      resetPackageForm() {
+      resetPackageForm: function () {
          const defaultBranchId = this.availableBranches[0]?.id || "";
          this.packageForm = {
             branch_id: defaultBranchId,
@@ -445,7 +445,7 @@ export default {
          this.packageForm.pt_product_id = firstProduct ? firstProduct.id : "";
       },
 
-      resetUsageForm() {
+      resetUsageForm: function () {
          this.usageForm = {
             member_pt_package_id: this.activePackages[0]?.id || "",
             coach_id: this.activePackages[0]?.coach_id || "",
@@ -456,25 +456,25 @@ export default {
          };
       },
 
-      openPackageModal() {
+      openPackageModal: function () {
          this.generalError = "";
          this.packageErrors = {};
          this.resetPackageForm();
          this.packageModalInst.show();
       },
 
-      openUsageModal() {
+      openUsageModal: function () {
          this.generalError = "";
          this.usageErrors = {};
          this.resetUsageForm();
          this.usageModalInst.show();
       },
 
-      normalizeErrors(errors) {
+      normalizeErrors: function (errors) {
          return Object.fromEntries(Object.entries(errors || {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
       },
 
-      coachesForBranch(branchId) {
+      coachesForBranch: function (branchId) {
          if (!branchId) {
             return this.availableCoaches;
          }
@@ -482,7 +482,7 @@ export default {
          return this.availableCoaches.filter((coach) => (coach.branches || []).some((branch) => branch.id === branchId));
       },
 
-      submitPackage() {
+      submitPackage: function () {
          this.savingPackage = true;
          this.saved = false;
          this.generalError = "";
@@ -507,7 +507,7 @@ export default {
             .finally(() => (this.savingPackage = false));
       },
 
-      submitUsage() {
+      submitUsage: function () {
          this.savingUsage = true;
          this.saved = false;
          this.generalError = "";
@@ -532,7 +532,7 @@ export default {
             .finally(() => (this.savingUsage = false));
       },
 
-      packageStatusClass(status) {
+      packageStatusClass: function (status) {
          return {
             active: "m-badge--plan-active",
             consumed: "m-badge--plan-expired",
@@ -540,7 +540,7 @@ export default {
          }[status] || "m-badge--plan-expired";
       },
 
-      commissionLabel(pkg) {
+      commissionLabel: function (pkg) {
          const labels = {
             unassigned: "Awaiting coach assignment",
             pending: "Earns after all sessions are used",

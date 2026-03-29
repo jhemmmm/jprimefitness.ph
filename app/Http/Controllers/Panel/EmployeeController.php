@@ -91,6 +91,7 @@ class EmployeeController extends Controller
             'role_ids' => 'required|array|min:1',
             'role_ids.*' => ['integer', Rule::in(auth()->user()->allowedEmployeesRoles())],
             'daily_rate' => 'required|numeric|min:0',
+            'pay_frequency' => ['required', Rule::in([Branch::PAYROLL_FREQUENCY_MONTHLY, Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY])],
             'password' => 'required|string|min:8',
         ]);
 
@@ -100,6 +101,7 @@ class EmployeeController extends Controller
             'phone' => $data['phone'] ?? null,
             'status' => $data['status'],
             'daily_rate' => $data['daily_rate'],
+            'pay_frequency' => $data['pay_frequency'],
             'password' => Hash::make($data['password']),
         ]);
 
@@ -124,6 +126,7 @@ class EmployeeController extends Controller
             'role_ids' => 'required|array|min:1',
             'role_ids.*' => ['integer', Rule::in(auth()->user()->allowedEmployeesRoles())],
             'daily_rate' => 'required|numeric|min:0',
+            'pay_frequency' => ['required', Rule::in([Branch::PAYROLL_FREQUENCY_MONTHLY, Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY])],
             'password' => 'nullable|string|min:8',
         ]);
 
@@ -133,6 +136,7 @@ class EmployeeController extends Controller
             'phone' => $data['phone'] ?? null,
             'status' => $data['status'],
             'daily_rate' => $data['daily_rate'],
+            'pay_frequency' => $data['pay_frequency'],
             'password' => isset($data['password']) ? Hash::make($data['password']) : $employee->password,
         ]);
 
@@ -183,7 +187,7 @@ class EmployeeController extends Controller
     {
         $payrolls = Payroll::query()
             ->where('employee_id', $employee->id)
-            ->with(['payouts', 'approvedBy:id,name', 'branch:id,country_code,payroll_settings'])
+            ->with(['payouts', 'approvedBy:id,name', 'branch:id,country_code'])
             ->orderByDesc('period_start')
             ->get()
             ->map(fn (Payroll $payroll) => $this->serializePayroll($payroll));
@@ -226,7 +230,6 @@ class EmployeeController extends Controller
             'period_end' => 'required|date|after_or_equal:period_start',
             'gross_amount' => 'required|numeric|min:0',
             'bonus' => 'nullable|numeric|min:0',
-            'income_tax' => 'nullable|numeric|min:0',
             'manual_deductions' => 'nullable|numeric|min:0',
             'cash_advance_deduction' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
@@ -240,10 +243,9 @@ class EmployeeController extends Controller
 
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
-        $incomeTax = (float) ($data['income_tax'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
-        $configuredContributions = $this->payrollService->computeConfiguredContributions($branch, $gross);
+        $payFrequency = $employee->pay_frequency;
         $ptCommissionSummary = $this->payrollService->previewPtCommissions(
             $employee,
             $data['period_start'],
@@ -256,9 +258,7 @@ class EmployeeController extends Controller
             $gross,
             $bonus,
             $ptCommissionSummary['amount'],
-            $manualDeductions,
-            $incomeTax,
-            $configuredContributions['employee_total']
+            $manualDeductions
         );
 
         if ($cashAdvanceDeduction > $maxCashAdvanceDeduction) {
@@ -273,15 +273,13 @@ class EmployeeController extends Controller
         $payroll = Payroll::create([
             'employee_id' => $employee->id,
             'branch_id' => $branch->id,
+            'pay_frequency' => $payFrequency,
             'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
             'gross_amount' => $gross,
             'bonus' => $bonus,
             'pt_commission_amount' => $ptCommissionSummary['amount'],
             'pt_commission_items' => $ptCommissionSummary['items'],
-            'income_tax' => $incomeTax,
-            'employee_contributions' => $configuredContributions['employee_contributions'],
-            'employer_contributions' => $configuredContributions['employer_contributions'],
             'manual_deductions' => $manualDeductions,
             'cash_advance_deduction' => $cashAdvanceDeduction,
             'net_amount' => $this->payrollService->computeNet(
@@ -289,9 +287,7 @@ class EmployeeController extends Controller
                 $bonus,
                 $ptCommissionSummary['amount'],
                 $manualDeductions,
-                $cashAdvanceDeduction,
-                $incomeTax,
-                $configuredContributions['employee_total']
+                $cashAdvanceDeduction
             ),
             'status' => Payroll::STATUS_DRAFT,
             'notes' => $data['notes'] ?? null,
@@ -316,7 +312,6 @@ class EmployeeController extends Controller
             'period_end' => 'required|date|after_or_equal:period_start',
             'gross_amount' => 'required|numeric|min:0',
             'bonus' => 'nullable|numeric|min:0',
-            'income_tax' => 'nullable|numeric|min:0',
             'manual_deductions' => 'nullable|numeric|min:0',
             'cash_advance_deduction' => 'nullable|numeric|min:0',
             'notes' => 'nullable|string|max:1000',
@@ -325,9 +320,9 @@ class EmployeeController extends Controller
         $payroll->loadMissing('branch');
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
-        $incomeTax = (float) ($data['income_tax'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
+        $payFrequency = $employee->pay_frequency;
         $ptCommissionSummary = $this->payrollService->previewPtCommissions(
             $employee,
             $data['period_start'],
@@ -335,23 +330,12 @@ class EmployeeController extends Controller
             $payroll,
             $payroll->branch_id
         );
-        $configuredContributions = $payroll->branch
-            ? $this->payrollService->computeConfiguredContributions($payroll->branch, $gross)
-            : [
-                'employee_contributions' => [],
-                'employer_contributions' => [],
-                'employee_total' => 0.0,
-                'employer_total' => 0.0,
-                'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
-            ];
         $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
             $employee->id,
             $gross,
             $bonus,
             $ptCommissionSummary['amount'],
-            $manualDeductions,
-            $incomeTax,
-            $configuredContributions['employee_total']
+            $manualDeductions
         );
 
         if ($cashAdvanceDeduction > $maxCashAdvanceDeduction) {
@@ -366,13 +350,11 @@ class EmployeeController extends Controller
         $payroll->update([
             'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
+            'pay_frequency' => $payFrequency,
             'gross_amount' => $gross,
             'bonus' => $bonus,
             'pt_commission_amount' => $ptCommissionSummary['amount'],
             'pt_commission_items' => $ptCommissionSummary['items'],
-            'income_tax' => $incomeTax,
-            'employee_contributions' => $configuredContributions['employee_contributions'],
-            'employer_contributions' => $configuredContributions['employer_contributions'],
             'manual_deductions' => $manualDeductions,
             'cash_advance_deduction' => $cashAdvanceDeduction,
             'net_amount' => $this->payrollService->computeNet(
@@ -380,9 +362,7 @@ class EmployeeController extends Controller
                 $bonus,
                 $ptCommissionSummary['amount'],
                 $manualDeductions,
-                $cashAdvanceDeduction,
-                $incomeTax,
-                $configuredContributions['employee_total']
+                $cashAdvanceDeduction
             ),
             'notes' => $data['notes'] ?? null,
         ]);
@@ -429,7 +409,7 @@ class EmployeeController extends Controller
 
     private function serializePayroll(Payroll $payroll): array
     {
-        $payroll->loadMissing(['payouts', 'approvedBy:id,name', 'branch:id,country_code,payroll_settings']);
+        $payroll->loadMissing(['payouts', 'approvedBy:id,name', 'branch:id,country_code']);
 
         $totalPaid = (float) $payroll->payouts->sum('amount');
 
@@ -439,13 +419,9 @@ class EmployeeController extends Controller
             'period_end' => $payroll->period_end->format('Y-m-d'),
             'gross_amount' => (float) $payroll->gross_amount,
             'bonus' => (float) $payroll->bonus,
+            'pay_frequency' => $payroll->pay_frequency,
             'pt_commission_amount' => (float) $payroll->pt_commission_amount,
             'pt_commission_items' => $payroll->pt_commission_items ?? [],
-            'income_tax' => (float) $payroll->income_tax,
-            'employee_contributions' => $payroll->employee_contributions ?? [],
-            'employer_contributions' => $payroll->employer_contributions ?? [],
-            'employee_contribution_total' => $payroll->employeeContributionTotal(),
-            'employer_contribution_total' => $payroll->employerContributionTotal(),
             'employee_deductions_total' => $payroll->employeeDeductionsTotal(),
             'total_earnings' => $payroll->totalEarnings(),
             'manual_deductions' => (float) $payroll->manual_deductions,

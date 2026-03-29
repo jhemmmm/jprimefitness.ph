@@ -79,7 +79,7 @@ export default {
       employee: { type: Object, required: true },
    },
 
-   data() {
+   data: function () {
       return {
          loading: true,
          payouts: [],
@@ -87,7 +87,7 @@ export default {
       };
    },
 
-   mounted() {
+   mounted: function () {
       this.fetchPayouts();
    },
 

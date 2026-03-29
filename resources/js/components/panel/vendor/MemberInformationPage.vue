@@ -80,7 +80,7 @@ export default {
    },
 
    computed: {
-      activeMembership() {
+      activeMembership: function () {
          if (!this.member.member_subscriptions || !this.member.member_subscriptions.length) {
             return null;
          }
@@ -93,7 +93,7 @@ export default {
    },
 
    methods: {
-      planStatusClass(status) {
+      planStatusClass: function (status) {
          return {
             active: "m-badge--plan-active",
             expired: "m-badge--plan-expired",

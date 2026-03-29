@@ -124,7 +124,7 @@ export default {
 
    emits: ["updated"],
 
-   data() {
+   data: function () {
       return {
          savingPlan: false,
          savingStatus: false,
@@ -138,14 +138,14 @@ export default {
       };
    },
 
-   mounted() {
+   mounted: function () {
       this.planModalInst = new Modal(this.$refs.planModal);
    },
 
    watch: {
       member: {
          immediate: true,
-         handler() {
+         handler: function () {
             this.form = {
                rate_plan_id: this.currentMembership?.rate_plan_id || "",
                start_date: this.currentMembership?.start_date || new Date().toISOString().slice(0, 10),
@@ -155,15 +155,15 @@ export default {
    },
 
    computed: {
-      currentMembership() {
+      currentMembership: function () {
          return this.memberships.find((membership) => ["active", "paused"].includes(membership.status)) || null;
       },
 
-      canManageMembership() {
+      canManageMembership: function () {
          return this.is("super admin") || this.is("admin") || this.is("manager");
       },
 
-      memberships() {
+      memberships: function () {
          const statusPriority = {
             active: 0,
             paused: 1,
@@ -185,7 +185,7 @@ export default {
          });
       },
 
-      statCards() {
+      statCards: function () {
          return [
             { label: "Total Plans", value: this.memberships.length, icon: "bi-postcard", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             { label: "Active", value: this.memberships.filter((membership) => membership.status === "active").length, icon: "bi-check-circle", iconBg: "bg-success-soft", iconColor: "text-success" },
@@ -195,7 +195,7 @@ export default {
    },
 
    methods: {
-      openPlanModal() {
+      openPlanModal: function () {
          this.generalError = "";
          this.form = {
             rate_plan_id: this.currentMembership?.rate_plan_id || "",
@@ -204,7 +204,7 @@ export default {
          this.planModalInst.show();
       },
 
-      savePlanChange() {
+      savePlanChange: function () {
          this.savingPlan = true;
          this.saved = false;
          this.generalError = "";
@@ -220,7 +220,7 @@ export default {
             .finally(() => (this.savingPlan = false));
       },
 
-      updateStatus(status) {
+      updateStatus: function (status) {
          this.savingStatus = true;
          this.saved = false;
          this.generalError = "";
@@ -235,7 +235,7 @@ export default {
             .finally(() => (this.savingStatus = false));
       },
 
-      planStatusClass(status) {
+      planStatusClass: function (status) {
          return {
             active: "m-badge--plan-active",
             expired: "m-badge--plan-expired",

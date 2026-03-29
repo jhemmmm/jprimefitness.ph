@@ -155,6 +155,15 @@
                         <div class="invalid-feedback" v-if="formErrors.daily_rate">{{ formErrors.daily_rate[0] }}</div>
                      </div>
                      <div class="col-md-6">
+                        <label class="form-label fw-semibold">Pay Frequency</label>
+                        <select class="form-select" :class="{ 'is-invalid': formErrors.pay_frequency }" v-model="form.pay_frequency">
+                           <option value="semi_monthly">Semi-Monthly</option>
+                           <option value="monthly">Monthly</option>
+                        </select>
+                        <div class="form-text small">Set the payroll schedule directly on the employee contract.</div>
+                        <div class="invalid-feedback" v-if="formErrors.pay_frequency">{{ formErrors.pay_frequency[0] }}</div>
+                     </div>
+                     <div class="col-md-6">
                         <label class="form-label fw-semibold">
                            Password
                            <span class="text-danger" v-if="modalMode === 'create'">*</span>
@@ -216,7 +225,7 @@ export default {
       branchesData: { type: Array, default: () => [] },
       rolesData: { type: Array, default: () => [] },
    },
-   data() {
+   data: function () {
       return {
          loading: true,
          employees: [],
@@ -239,14 +248,14 @@ export default {
          deleting: false,
       };
    },
-   mounted() {
+   mounted: function () {
       this.employeeModal = new Modal(this.$refs.employeeFormModal);
       this.deleteModal = new Modal(this.$refs.employeeDeleteModal);
       this.fetchEmployees();
    },
    methods: {
       emptyForm: function () {
-         return { name: "", email: "", phone: "", status: "active", role_ids: [], branch_ids: [], daily_rate: "", password: "" };
+         return { name: "", email: "", phone: "", status: "active", role_ids: [], branch_ids: [], daily_rate: "", pay_frequency: "semi_monthly", password: "" };
       },
       fetchEmployees: function () {
          this.loading = true;
@@ -281,7 +290,7 @@ export default {
          this.editTarget = null;
          this.employeeModal.show();
       },
-      openEdit(emp) {
+      openEdit: function (emp) {
          this.form = {
             name: emp.name,
             email: emp.email,
@@ -290,6 +299,7 @@ export default {
             status: emp.status,
             branch_ids: emp.branches ? emp.branches.map((b) => b.id) : [],
             daily_rate: emp.daily_rate || "",
+            pay_frequency: emp.pay_frequency,
             password: "",
          };
          this.formErrors = {};
@@ -337,7 +347,7 @@ export default {
    },
 
    computed: {
-      allowedRoles() {
+      allowedRoles: function () {
          const allowed = ["super admin", "admin", "manager", "staff", "coach", "employee"];
          const roleRestrictions = {
             "super admin": [],
@@ -352,7 +362,7 @@ export default {
                name: this.$filters.capitalize(r.name),
             }));
       },
-      hasFilters() {
+      hasFilters: function () {
          return !!(this.search || this.selectedRole || this.selectedStatus || this.selectedBranch);
       },
    },

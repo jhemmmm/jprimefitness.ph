@@ -173,7 +173,7 @@ export default {
 
    emits: ["updated"],
 
-   data() {
+   data: function () {
       return {
          loading: false,
          submitting: false,
@@ -195,7 +195,7 @@ export default {
    },
 
    computed: {
-      summaryCards() {
+      summaryCards: function () {
          return [
             { label: "Current Balance", value: `₱${this.$filters.formatMoney(this.summary.balance || 0)}`, icon: "bi-wallet2", iconBg: "bg-success-soft", iconColor: "text-success" },
             { label: "Cash In", value: `₱${this.$filters.formatMoney(this.summary.cash_in_total || 0)}`, icon: "bi-arrow-down-circle", iconBg: "bg-primary-soft", iconColor: "text-primary" },
@@ -208,22 +208,22 @@ export default {
    watch: {
       "branch.id": {
          immediate: true,
-         handler() {
+         handler: function () {
             this.fetchLedger();
          },
       },
    },
 
-   mounted() {
+   mounted: function () {
       this.entryModalInst = new Modal(this.$refs.entryModal);
    },
 
-   beforeUnmount() {
+   beforeUnmount: function () {
       this.entryModalInst?.dispose();
    },
 
    methods: {
-      emptyForm() {
+      emptyForm: function () {
          return {
             id: null,
             direction: "in",
@@ -234,7 +234,7 @@ export default {
          };
       },
 
-      toInputDateTime(value) {
+      toInputDateTime: function (value) {
          const date = value instanceof Date ? value : new Date(value);
 
          if (Number.isNaN(date.getTime())) {
@@ -250,25 +250,28 @@ export default {
          return `${year}-${month}-${day}T${hours}:${minutes}`;
       },
 
-      async fetchLedger() {
+      fetchLedger: function () {
          this.loading = true;
          this.pageError = "";
 
-         try {
-            const response = await axios.get(`/panel/branches/${this.branch.id}/cash-ledger`);
-            this.entries = response.data.entries || [];
-            this.summary = response.data.summary || this.summary;
-            this.$emit("updated", {
-               cash_ledger_summary: this.summary,
+         axios
+            .get(`/panel/branches/${this.branch.id}/cash-ledger`)
+            .then((response) => {
+               this.entries = response.data.entries || [];
+               this.summary = response.data.summary || this.summary;
+               this.$emit("updated", {
+                  cash_ledger_summary: this.summary,
+               });
+            })
+            .catch((error) => {
+               this.pageError = error.response?.data?.message || "Failed to load branch cash ledger.";
+            })
+            .finally(() => {
+               this.loading = false;
             });
-         } catch (error) {
-            this.pageError = error.response?.data?.message || "Failed to load branch cash ledger.";
-         } finally {
-            this.loading = false;
-         }
       },
 
-      openCreateModal() {
+      openCreateModal: function () {
          this.modalMode = "create";
          this.form = this.emptyForm();
          this.formErrors = {};
@@ -276,7 +279,7 @@ export default {
          this.entryModalInst.show();
       },
 
-      openEditModal(entry) {
+      openEditModal: function (entry) {
          this.modalMode = "edit";
          this.form = {
             id: entry.id,
@@ -291,7 +294,7 @@ export default {
          this.entryModalInst.show();
       },
 
-      async submit() {
+      submit: function () {
          this.submitting = true;
          this.formErrors = {};
          this.modalError = "";
@@ -304,46 +307,66 @@ export default {
             occurred_at: this.form.occurred_at,
          };
 
-         try {
-            if (this.modalMode === "create") {
-               await axios.post(`/panel/branches/${this.branch.id}/cash-ledger`, payload);
-               this.savedMessage = "Manual cash entry added successfully.";
-            } else {
-               await axios.put(`/panel/branches/${this.branch.id}/cash-ledger/${this.form.id}`, payload);
-               this.savedMessage = "Manual cash entry updated successfully.";
-            }
+         const request = this.modalMode === "create"
+            ? axios.post(`/panel/branches/${this.branch.id}/cash-ledger`, payload)
+            : axios.put(`/panel/branches/${this.branch.id}/cash-ledger/${this.form.id}`, payload);
 
-            this.entryModalInst.hide();
-            await this.fetchLedger();
-            setTimeout(() => (this.savedMessage = ""), 3000);
-         } catch (error) {
-            if (error.response?.status === 422) {
-               const errors = error.response.data.errors || {};
-               this.formErrors = Object.fromEntries(Object.entries(errors).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
-               this.modalError = error.response.data.message || "";
-            } else {
-               this.modalError = error.response?.data?.message || "Something went wrong.";
-            }
-         } finally {
-            this.submitting = false;
-         }
+         request
+            .then(() => {
+               this.savedMessage = this.modalMode === "create"
+                  ? "Manual cash entry added successfully."
+                  : "Manual cash entry updated successfully.";
+               this.entryModalInst.hide();
+
+               return axios.get(`/panel/branches/${this.branch.id}/cash-ledger`);
+            })
+            .then((response) => {
+               this.entries = response.data.entries || [];
+               this.summary = response.data.summary || this.summary;
+               this.$emit("updated", {
+                  cash_ledger_summary: this.summary,
+               });
+               setTimeout(() => (this.savedMessage = ""), 3000);
+            })
+            .catch((error) => {
+               if (error.response?.status === 422) {
+                  const errors = error.response.data.errors || {};
+                  this.formErrors = Object.fromEntries(Object.entries(errors).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
+                  this.modalError = error.response.data.message || "";
+               } else {
+                  this.modalError = error.response?.data?.message || "Something went wrong.";
+               }
+            })
+            .finally(() => {
+               this.submitting = false;
+            });
       },
 
-      async deleteEntry(entry) {
+      deleteEntry: function (entry) {
          if (! window.confirm(`Delete "${entry.title}" from the branch cash ledger?`)) {
             return;
          }
 
          this.pageError = "";
 
-         try {
-            await axios.delete(`/panel/branches/${this.branch.id}/cash-ledger/${entry.id}`);
-            this.savedMessage = "Manual cash entry deleted successfully.";
-            await this.fetchLedger();
-            setTimeout(() => (this.savedMessage = ""), 3000);
-         } catch (error) {
-            this.pageError = error.response?.data?.message || "Failed to delete cash ledger entry.";
-         }
+         axios
+            .delete(`/panel/branches/${this.branch.id}/cash-ledger/${entry.id}`)
+            .then(() => {
+               this.savedMessage = "Manual cash entry deleted successfully.";
+
+               return axios.get(`/panel/branches/${this.branch.id}/cash-ledger`);
+            })
+            .then((response) => {
+               this.entries = response.data.entries || [];
+               this.summary = response.data.summary || this.summary;
+               this.$emit("updated", {
+                  cash_ledger_summary: this.summary,
+               });
+               setTimeout(() => (this.savedMessage = ""), 3000);
+            })
+            .catch((error) => {
+               this.pageError = error.response?.data?.message || "Failed to delete cash ledger entry.";
+            });
       },
    },
 };

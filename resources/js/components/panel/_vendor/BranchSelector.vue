@@ -34,19 +34,19 @@ export default {
     props: {
         branchesData: { type: Array, default: () => [] },
     },
-    data() {
+    data: function () {
         return {
             branchId: localStorage.getItem("selectedBranch"),
         };
     },
     methods: {
-        setBranchId(newVal) {
+        setBranchId: function (newVal) {
             this.branchId = newVal;
             location.reload();
         },
     },
     watch: {
-        branchId(newVal) {
+        branchId: function (newVal) {
             localStorage.setItem("selectedBranch", newVal);
         },
     },

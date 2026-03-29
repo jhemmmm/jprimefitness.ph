@@ -184,7 +184,7 @@ export default {
       branchesData: { type: Array, default: () => [] },
    },
 
-   data() {
+   data: function () {
       return {
          loading: true,
          submitting: false,
@@ -205,18 +205,18 @@ export default {
       };
    },
 
-   mounted() {
+   mounted: function () {
       this.logModalInst = new Modal(this.$refs.logModal);
       this.deleteModalInst = new Modal(this.$refs.deleteModal);
       this.fetchRecords();
    },
 
    computed: {
-      availableBranches() {
+      availableBranches: function () {
          return this.member.branches && this.member.branches.length ? this.member.branches : this.branchesData;
       },
 
-      statCards() {
+      statCards: function () {
          return [
             { label: "Total", value: this.stats.total, icon: "bi-calendar-check", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             { label: "This Month", value: this.stats.this_month, icon: "bi-calendar-month", iconBg: "bg-success-soft", iconColor: "text-success" },
@@ -226,7 +226,7 @@ export default {
    },
 
    methods: {
-      fetchRecords(page) {
+      fetchRecords: function (page) {
          this.loading = true;
          this.pageError = "";
          const currentPage = page || this.currentPage;
@@ -252,20 +252,20 @@ export default {
             .finally(() => (this.loading = false));
       },
 
-      clearFilters() {
+      clearFilters: function () {
          this.dateFrom = "";
          this.dateTo = "";
          this.fetchRecords(1);
       },
 
-      goToPage(link) {
+      goToPage: function (link) {
          if (!link.url) return;
          const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
          this.currentPage = page;
          this.fetchRecords(page);
       },
 
-      openLogModal() {
+      openLogModal: function () {
          this.logForm = {
             branch_id: this.availableBranches[0]?.id || "",
             checked_in_at: new Date().toISOString().slice(0, 16),
@@ -277,7 +277,7 @@ export default {
          this.logModalInst.show();
       },
 
-      submitLog() {
+      submitLog: function () {
          this.submitting = true;
          this.formError = "";
          this.formErrors = {};
@@ -305,7 +305,7 @@ export default {
             .finally(() => (this.submitting = false));
       },
 
-      doCheckout(record) {
+      doCheckout: function (record) {
          this.pageError = "";
          axios
             .post(`/panel/attendance/${record.id}/checkout`)
@@ -313,12 +313,12 @@ export default {
             .catch((err) => (this.pageError = err.response?.data?.message || "Failed to check out attendance record."));
       },
 
-      confirmDelete(record) {
+      confirmDelete: function (record) {
          this.deleteTarget = record;
          this.deleteModalInst.show();
       },
 
-      doDelete() {
+      doDelete: function () {
          if (!this.deleteTarget) return;
          this.deleting = true;
          this.pageError = "";

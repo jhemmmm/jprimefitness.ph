@@ -45,14 +45,14 @@ export default {
         },
     },
 
-    data() {
+    data: function () {
         return {
             open: false,
             search: "",
         };
     },
 
-    mounted() {
+    mounted: function () {
         this.$nextTick(() => {
             this.$el.classList.add("position-relative");
         });

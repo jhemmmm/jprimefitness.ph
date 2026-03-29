@@ -340,7 +340,7 @@ export default {
       ratePlansData: { type: Array, default: () => [] },
    },
 
-   data() {
+   data: function () {
       return {
          loading: true,
          submitting: false,
@@ -365,14 +365,14 @@ export default {
       };
    },
 
-   mounted() {
+   mounted: function () {
       this.formModal = new Modal(this.$refs.walkInFormModal);
       this.deleteModal = new Modal(this.$refs.walkInDeleteModal);
       this.fetchWalkIns();
    },
 
    methods: {
-      emptyForm() {
+      emptyForm: function () {
          return {
             name: "",
             phone: "",
@@ -384,7 +384,7 @@ export default {
          };
       },
 
-      fetchWalkIns(page = 1) {
+      fetchWalkIns: function (page = 1) {
          this.loading = true;
          this.pageError = "";
          axios
@@ -414,12 +414,12 @@ export default {
             .finally(() => (this.loading = false));
       },
 
-      onSearchInput() {
+      onSearchInput: function () {
          clearTimeout(this.searchTimer);
          this.searchTimer = setTimeout(() => this.fetchWalkIns(), 500);
       },
 
-      clearFilters() {
+      clearFilters: function () {
          this.search = "";
          this.selectedBranch = "";
          this.dateFrom = "";
@@ -427,13 +427,13 @@ export default {
          this.fetchWalkIns();
       },
 
-      goToPage(link) {
+      goToPage: function (link) {
          if (!link.url) return;
          const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
          this.fetchWalkIns(page);
       },
 
-      openAddModal() {
+      openAddModal: function () {
          this.modalMode = "add";
          this.form = this.emptyForm();
          this.pageError = "";
@@ -442,7 +442,7 @@ export default {
          this.formModal.show();
       },
 
-      openEditModal(w) {
+      openEditModal: function (w) {
          this.modalMode = "edit";
          this.pageError = "";
          this.formError = "";
@@ -460,12 +460,12 @@ export default {
          this.formModal.show();
       },
 
-      confirmDelete(w) {
+      confirmDelete: function (w) {
          this.deleteTarget = w;
          this.deleteModal.show();
       },
 
-      doDelete() {
+      doDelete: function () {
          if (!this.deleteTarget) return;
          this.deleting = true;
          this.pageError = "";
@@ -480,7 +480,7 @@ export default {
             .finally(() => (this.deleting = false));
       },
 
-      submitForm() {
+      submitForm: function () {
          this.submitting = true;
          this.formError = "";
          this.formErrors = {};
@@ -506,10 +506,10 @@ export default {
    },
 
    computed: {
-      hasActiveFilters() {
+      hasActiveFilters: function () {
          return !!(this.search || this.selectedBranch || this.dateFrom || this.dateTo);
       },
-      statCards() {
+      statCards: function () {
          return [
             { label: "Today's Visits", value: this.stats.today, icon: "bi-person-walking", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             { label: "This Week", value: this.stats.this_week, icon: "bi-calendar-week", iconBg: "bg-success-soft", iconColor: "text-success" },

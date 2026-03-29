@@ -217,7 +217,7 @@ export default {
       employee: { type: Object, required: true },
    },
 
-   data() {
+   data: function () {
       return {
          loading: true,
          submitting: false,
@@ -235,7 +235,7 @@ export default {
       };
    },
 
-   mounted() {
+   mounted: function () {
       this.caModalInst = new Modal(this.$refs.caModal);
       this.fetchAdvances();
    },
@@ -410,7 +410,7 @@ export default {
       },
    },
    computed: {
-      statCards() {
+      statCards: function () {
          return [
             { label: "Remaining", value: this.stats.remaining_amount, isMoney: true, icon: "bi-hourglass-split", iconBg: "bg-danger-soft", iconColor: "text-danger" },
             { label: "Released", value: this.stats.released_count, isMoney: false, icon: "bi-box-arrow-up-right", iconBg: "bg-warning-soft", iconColor: "text-warning" },
@@ -418,7 +418,7 @@ export default {
             { label: "Paid", value: this.stats.paid_count, isMoney: false, icon: "bi-check-circle", iconBg: "bg-success-soft", iconColor: "text-success" },
          ];
       },
-      statusOptions() {
+      statusOptions: function () {
          if (!this.editingAdvance) {
             return ["requested"];
          }

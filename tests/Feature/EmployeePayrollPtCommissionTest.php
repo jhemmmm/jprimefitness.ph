@@ -63,7 +63,6 @@ class EmployeePayrollPtCommissionTest extends TestCase
                 'period_end' => '2026-03-15',
                 'gross_amount' => 4500,
                 'bonus' => 0,
-                'income_tax' => 0,
                 'manual_deductions' => 0,
                 'cash_advance_deduction' => 0,
             ])
@@ -121,7 +120,6 @@ class EmployeePayrollPtCommissionTest extends TestCase
                 'period_end' => '2026-03-15',
                 'gross_amount' => 2250,
                 'bonus' => 0,
-                'income_tax' => 0,
                 'manual_deductions' => 0,
                 'cash_advance_deduction' => 0,
             ])
@@ -172,7 +170,6 @@ class EmployeePayrollPtCommissionTest extends TestCase
                 'period_end' => '2026-03-15',
                 'gross_amount' => 3000,
                 'bonus' => 0,
-                'income_tax' => 0,
                 'manual_deductions' => 0,
                 'cash_advance_deduction' => 0,
             ])
@@ -251,7 +248,6 @@ class EmployeePayrollPtCommissionTest extends TestCase
                 'period_end' => '2026-03-15',
                 'gross_amount' => 4500,
                 'bonus' => 0,
-                'income_tax' => 0,
                 'manual_deductions' => 0,
                 'cash_advance_deduction' => 0,
             ])
@@ -279,11 +275,6 @@ class EmployeePayrollPtCommissionTest extends TestCase
             'name' => $name,
             'status' => Branch::STATUS_OPEN,
             'country_code' => 'PH',
-            'payroll_settings' => [
-                'pay_frequency' => 'semi_monthly',
-                'income_tax_mode' => 'manual',
-                'contributions' => [],
-            ],
             'city' => 'Naga City',
         ]);
     }

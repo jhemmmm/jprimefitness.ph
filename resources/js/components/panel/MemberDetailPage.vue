@@ -62,7 +62,7 @@ export default {
       ratePlansData: { type: Array, default: () => [] },
    },
 
-   data() {
+   data: function () {
       return {
          localMember: { ...this.member },
          activeTab: "information",
@@ -77,7 +77,7 @@ export default {
    },
 
    computed: {
-      activeComponent() {
+      activeComponent: function () {
          return {
             information: "MemberInformationPage",
             attendance: "MemberAttendancePage",
@@ -87,7 +87,7 @@ export default {
          }[this.activeTab];
       },
 
-      activeMembership() {
+      activeMembership: function () {
          if (!this.localMember.member_subscriptions || !this.localMember.member_subscriptions.length) {
             return null;
          }
@@ -100,11 +100,11 @@ export default {
    },
 
    methods: {
-      onMemberUpdated(updatedMember) {
+      onMemberUpdated: function (updatedMember) {
          this.localMember = { ...updatedMember };
       },
 
-      membershipStatusClass(status) {
+      membershipStatusClass: function (status) {
          return {
             active: "m-badge--plan-active",
             expired: "m-badge--plan-expired",

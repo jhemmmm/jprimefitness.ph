@@ -602,11 +602,11 @@ export default {
             selectedBranch: "",
         };
     },
-    mounted() {
+    mounted: function () {
         this.init();
     },
     methods: {
-        viewBranch() {
+        viewBranch: function () {
             if (this.selectedBranch) {
                 window.location.href = "/branches/" + this.selectedBranch;
             }

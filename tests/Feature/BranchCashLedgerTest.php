@@ -100,7 +100,6 @@ class BranchCashLedgerTest extends TestCase
                 'period_end' => '2026-03-15',
                 'gross_amount' => 1000,
                 'bonus' => 0,
-                'income_tax' => 0,
                 'manual_deductions' => 0,
                 'cash_advance_deduction' => 0,
             ])
@@ -209,11 +208,6 @@ class BranchCashLedgerTest extends TestCase
             'name' => $name,
             'status' => Branch::STATUS_OPEN,
             'country_code' => Branch::COUNTRY_PHILIPPINES,
-            'payroll_settings' => [
-                'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
-                'income_tax_mode' => 'manual',
-                'contributions' => [],
-            ],
             'city' => 'Naga City',
         ]);
     }

@@ -96,7 +96,7 @@ export default {
 
    emits: ["updated"],
 
-   data() {
+   data: function () {
       return {
          saving: false,
          saved: false,
@@ -107,19 +107,19 @@ export default {
    },
 
    watch: {
-      member(value) {
+      member: function (value) {
          this.form = this.getForm(value);
       },
    },
 
    computed: {
-      statusOptions() {
+      statusOptions: function () {
          return ["active", "inactive", "suspended"];
       },
    },
 
    methods: {
-      getForm(member) {
+      getForm: function (member) {
          return {
             name: member.name || "",
             email: member.email || "",
@@ -134,7 +134,7 @@ export default {
          };
       },
 
-      save() {
+      save: function () {
          this.saving = true;
          this.saved = false;
          this.generalError = "";

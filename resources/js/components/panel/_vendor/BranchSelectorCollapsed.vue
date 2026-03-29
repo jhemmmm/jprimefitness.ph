@@ -42,45 +42,45 @@ export default {
     props: {
         branchesData: { type: Array, default: () => [] },
     },
-    data() {
+    data: function () {
         return {
             branchId: localStorage.getItem("selectedBranch"),
         };
     },
     computed: {
-        selectedBranchId() {
+        selectedBranchId: function () {
             const parsed = parseInt(this.branchId, 10);
 
             return Number.isNaN(parsed) ? null : parsed;
         },
-        isAllBranches() {
+        isAllBranches: function () {
             return this.branchId === null || this.branchId === "null" || this.selectedBranchId === null;
         },
-        currentBranch() {
+        currentBranch: function () {
             if (this.isAllBranches) {
                 return null;
             }
 
             return this.branchesData.find((branch) => branch.id === this.selectedBranchId) || null;
         },
-        currentBranchLabel() {
+        currentBranchLabel: function () {
             return this.currentBranch?.name || "All Branches";
         },
-        currentBranchBalance() {
+        currentBranchBalance: function () {
             return this.currentBranch?.cash_balance ?? this.totalBalance;
         },
-        totalBalance() {
+        totalBalance: function () {
             return this.branchesData.reduce((sum, branch) => sum + parseFloat(branch.cash_balance || 0), 0);
         },
     },
     methods: {
-        setBranchId(newVal) {
+        setBranchId: function (newVal) {
             this.branchId = newVal;
             location.reload();
         },
     },
     watch: {
-        branchId(newVal) {
+        branchId: function (newVal) {
             localStorage.setItem("selectedBranch", newVal);
         },
     },

@@ -407,7 +407,7 @@ export default {
    props: {
       branchesData: { type: Array, required: true },
    },
-   data() {
+   data: function () {
       return {
          loading: true,
          submitting: false,
@@ -433,7 +433,7 @@ export default {
       };
    },
 
-   mounted() {
+   mounted: function () {
       this.formModal = new Modal(this.$refs.attendanceFormModal);
       this.deleteModal = new Modal(this.$refs.attendanceDeleteModal);
       this.fetchRecords();
@@ -643,7 +643,7 @@ export default {
    },
 
    computed: {
-      attendeeTypes() {
+      attendeeTypes: function () {
          return [
             { value: "member", label: "Member", icon: "bi-people-fill" },
             { value: "walk_in", label: "Walk-in", icon: "bi-person-plus-fill" },
@@ -651,26 +651,26 @@ export default {
          ];
       },
 
-      attendeeAvatarClasses() {
+      attendeeAvatarClasses: function () {
          return {
             employee: "attendance-avatar--employee",
             walk_in: "attendance-avatar--walkin",
          };
       },
 
-      hasActiveFilters() {
+      hasActiveFilters: function () {
          return !!(this.search || this.selectedBranch || this.selectedType || this.dateFrom || this.dateTo);
       },
 
-      personSelectPlaceholder() {
+      personSelectPlaceholder: function () {
          return this.form.attendee_type === "employee" ? "Select an employee..." : "Select a member...";
       },
 
-      personSearchPlaceholder() {
+      personSearchPlaceholder: function () {
          return this.form.attendee_type === "employee" ? "Search employees..." : "Search members...";
       },
 
-      statCards() {
+      statCards: function () {
          return [
             {
                label: "Today",

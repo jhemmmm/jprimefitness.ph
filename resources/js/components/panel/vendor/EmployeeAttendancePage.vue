@@ -188,7 +188,7 @@ export default {
       employee: { type: Object, required: true },
    },
 
-   data() {
+   data: function () {
       return {
          loading: true,
          submitting: false,
@@ -209,7 +209,7 @@ export default {
       };
    },
 
-   mounted() {
+   mounted: function () {
       this.logModalInst = new Modal(this.$refs.logModal);
       this.deleteModalInst = new Modal(this.$refs.deleteModal);
       this.logForm.checked_in_at = new Date().toISOString().slice(0, 16);
@@ -217,7 +217,7 @@ export default {
    },
 
    computed: {
-      statCards() {
+      statCards: function () {
          return [
             { label: "Total", value: this.stats.total, icon: "bi-calendar-check", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             { label: "This Month", value: this.stats.this_month, icon: "bi-calendar-month", iconBg: "bg-success-soft", iconColor: "text-success" },

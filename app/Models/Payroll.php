@@ -21,15 +21,13 @@ class Payroll extends Model
     protected $fillable = [
         'employee_id',
         'branch_id',
+        'pay_frequency',
         'period_start',
         'period_end',
         'gross_amount',
         'bonus',
         'pt_commission_amount',
         'pt_commission_items',
-        'income_tax',
-        'employee_contributions',
-        'employer_contributions',
         'manual_deductions',
         'cash_advance_deduction',
         'net_amount',
@@ -44,13 +42,11 @@ class Payroll extends Model
         'period_start' => 'date',
         'period_end' => 'date',
         'approved_at' => 'datetime',
+        'pay_frequency' => 'string',
         'gross_amount' => 'decimal:2',
         'bonus' => 'decimal:2',
         'pt_commission_amount' => 'decimal:2',
         'pt_commission_items' => 'array',
-        'income_tax' => 'decimal:2',
-        'employee_contributions' => 'array',
-        'employer_contributions' => 'array',
         'manual_deductions' => 'decimal:2',
         'cash_advance_deduction' => 'decimal:2',
         'net_amount' => 'decimal:2',
@@ -96,19 +92,9 @@ class Payroll extends Model
         return max(0, (float) $this->net_amount - $this->totalPaid());
     }
 
-    public function employeeContributionTotal(): float
-    {
-        return round(collect($this->employee_contributions ?? [])->sum(fn ($item) => (float) ($item['amount'] ?? 0)), 2);
-    }
-
-    public function employerContributionTotal(): float
-    {
-        return round(collect($this->employer_contributions ?? [])->sum(fn ($item) => (float) ($item['amount'] ?? 0)), 2);
-    }
-
     public function employeeDeductionsTotal(): float
     {
-        return round((float) $this->income_tax + $this->employeeContributionTotal() + (float) $this->manual_deductions, 2);
+        return round((float) $this->manual_deductions, 2);
     }
 
     public function totalEarnings(): float

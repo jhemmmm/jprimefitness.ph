@@ -204,23 +204,18 @@
                         <label class="form-label form-label-sm">Bonus (₱)</label>
                         <input type="number" class="form-control" v-model="form.bonus" min="0" step="0.01" />
                      </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">PT Commission (₱)</label>
-                        <input type="number" class="form-control" :value="form.pt_commission_amount" readonly />
-                        <div class="form-text">
-                           Auto-added from completed PT packages in this payroll period.
-                           <span v-if="form.pt_commission_items?.length">({{ form.pt_commission_items.length }} item{{ form.pt_commission_items.length !== 1 ? "s" : "" }})</span>
-                        </div>
-                     </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Income Tax (₱)</label>
-                        <input type="number" class="form-control" v-model="form.income_tax" min="0" step="0.01" />
-                        <div class="form-text">Manual for now. Semi-monthly withholding is not a simple flat threshold.</div>
-                     </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Other Deductions (₱)</label>
-                        <input type="number" class="form-control" v-model="form.manual_deductions" min="0" step="0.01" />
-                     </div>
+                      <div class="col-md-6">
+                         <label class="form-label form-label-sm">PT Commission (₱)</label>
+                         <input type="number" class="form-control" :value="form.pt_commission_amount" readonly />
+                         <div class="form-text">
+                            Auto-added from completed PT packages in this payroll period.
+                            <span v-if="form.pt_commission_items?.length">({{ form.pt_commission_items.length }} item{{ form.pt_commission_items.length !== 1 ? "s" : "" }})</span>
+                         </div>
+                      </div>
+                      <div class="col-md-6">
+                         <label class="form-label form-label-sm">Other Deductions (₱)</label>
+                         <input type="number" class="form-control" v-model="form.manual_deductions" min="0" step="0.01" />
+                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm d-flex justify-content-between">
                            <span>Cash Advance Deduction (₱)</span>
@@ -229,44 +224,14 @@
                               <span v-else><i class="bi bi-magic me-1"></i>Auto-fill</span>
                            </button>
                         </label>
-                        <input type="number" class="form-control" v-model="form.cash_advance_deduction" min="0" step="0.01" :class="{ 'is-invalid': formErrors.cash_advance_deduction }" />
-                        <div class="invalid-feedback">{{ formErrors.cash_advance_deduction }}</div>
-                        <div class="form-text text-warning" v-if="suggestedCa > 0 && modalMode === 'create'">Pending advances: ₱{{ $filters.formatMoney(suggestedCa) }}</div>
-                     </div>
-                     <div class="col-12">
-                        <div class="border rounded p-3 bg-light">
-                           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                              <div>
-                                 <div class="fw-semibold">Branch Contribution Preview</div>
-                                 <div class="text-muted small">These are auto-calculated from the branch payroll settings using this payroll’s gross amount.</div>
-                              </div>
-                              <div class="small text-muted">Employer total: ₱{{ $filters.formatMoney(contributionPreview.employer_total) }}</div>
-                           </div>
-                           <div v-if="contributionPreview.employee_contributions.length" class="table-responsive">
-                              <table class="table table-sm align-middle mb-0">
-                                 <thead>
-                                    <tr>
-                                       <th>Contribution</th>
-                                       <th class="text-end">Employee</th>
-                                       <th class="text-end">Employer</th>
-                                    </tr>
-                                 </thead>
-                                 <tbody>
-                                    <tr v-for="item in contributionPreviewRows" :key="item.name">
-                                       <td class="small">{{ item.name }}</td>
-                                       <td class="text-end small">₱{{ $filters.formatMoney(item.employee_amount) }}</td>
-                                       <td class="text-end small">₱{{ $filters.formatMoney(item.employer_amount) }}</td>
-                                    </tr>
-                                 </tbody>
-                              </table>
-                           </div>
-                           <div v-else class="text-muted small">No branch contribution settings configured.</div>
-                        </div>
-                     </div>
-                     <div class="col-12">
-                        <label class="form-label form-label-sm">Notes</label>
-                        <textarea class="form-control" rows="2" v-model="form.notes" placeholder="Optional"></textarea>
-                     </div>
+                         <input type="number" class="form-control" v-model="form.cash_advance_deduction" min="0" step="0.01" :class="{ 'is-invalid': formErrors.cash_advance_deduction }" />
+                         <div class="invalid-feedback">{{ formErrors.cash_advance_deduction }}</div>
+                         <div class="form-text text-warning" v-if="suggestedCa > 0 && modalMode === 'create'">Pending advances: ₱{{ $filters.formatMoney(suggestedCa) }}</div>
+                      </div>
+                      <div class="col-12">
+                         <label class="form-label form-label-sm">Notes</label>
+                         <textarea class="form-control" rows="2" v-model="form.notes" placeholder="Optional"></textarea>
+                      </div>
                      <!-- Net preview -->
                      <div class="col-12">
                         <div class="p-3 rounded bg-light border d-flex justify-content-between align-items-center">
@@ -378,7 +343,7 @@ export default {
       employee: { type: Object, required: true },
    },
 
-   data() {
+   data: function () {
       return {
          loading: true,
          submitting: false,
@@ -408,7 +373,7 @@ export default {
       };
    },
 
-   mounted() {
+   mounted: function () {
       this.payrollModalInst = new Modal(this.$refs.payrollModal);
       this.payoutModalInst = new Modal(this.$refs.payoutModal);
       this.cancelModalInst = new Modal(this.$refs.cancelModal);
@@ -425,85 +390,15 @@ export default {
    },
 
    computed: {
-      netPreview() {
+      netPreview: function () {
          const gross = parseFloat(this.form.gross_amount) || 0;
          const bonus = parseFloat(this.form.bonus) || 0;
          const ptCommission = parseFloat(this.form.pt_commission_amount) || 0;
-         const incomeTax = parseFloat(this.form.income_tax) || 0;
          const ded = parseFloat(this.form.manual_deductions) || 0;
          const ca = parseFloat(this.form.cash_advance_deduction) || 0;
-         return Math.max(0, gross + bonus + ptCommission - incomeTax - ded - this.contributionPreview.employee_total - ca);
+         return Math.max(0, gross + bonus + ptCommission - ded - ca);
       },
-      payrollSettings() {
-         const branch = this.employee.branches?.[0];
-         const defaultSettings = {
-            pay_frequency: "semi_monthly",
-            income_tax_mode: "manual",
-            contributions: [],
-         };
-         const branchSettings = branch?.payroll_settings || {};
-         const contributions = Array.isArray(branchSettings.contributions) && branchSettings.contributions.length ? branchSettings.contributions : defaultSettings.contributions;
-
-         return {
-            pay_frequency: ["monthly", "semi_monthly"].includes(branchSettings.pay_frequency) ? branchSettings.pay_frequency : defaultSettings.pay_frequency,
-            income_tax_mode: "manual",
-            contributions: contributions.filter((item) => item && item.name),
-         };
-      },
-      contributionPreview() {
-         const gross = parseFloat(this.form.gross_amount) || 0;
-         const periodsPerMonth = this.payrollSettings.pay_frequency === "monthly" ? 1 : 2;
-         const monthlyEquivalent = gross * periodsPerMonth;
-         const employee_contributions = [];
-         const employer_contributions = [];
-
-         this.payrollSettings.contributions.forEach((contribution) => {
-            if (contribution.enabled === false) return;
-
-            let baseAmount = monthlyEquivalent;
-            const salaryFloor = contribution.salary_floor !== "" && contribution.salary_floor !== null ? parseFloat(contribution.salary_floor) || 0 : null;
-            const salaryCeiling = contribution.salary_ceiling !== "" && contribution.salary_ceiling !== null ? parseFloat(contribution.salary_ceiling) || 0 : null;
-            const employeeMinimumAmount = contribution.employee_min_amount !== "" && contribution.employee_min_amount !== null ? parseFloat(contribution.employee_min_amount) || 0 : 0;
-            const employerMinimumAmount = contribution.employer_min_amount !== "" && contribution.employer_min_amount !== null ? parseFloat(contribution.employer_min_amount) || 0 : 0;
-
-            if (salaryFloor !== null) {
-               baseAmount = Math.max(baseAmount, salaryFloor);
-            }
-
-            if (salaryCeiling !== null) {
-               baseAmount = Math.min(baseAmount, salaryCeiling);
-            }
-
-            const employeeMonthlyAmount = baseAmount > 0 ? baseAmount * ((parseFloat(contribution.employee_rate) || 0) / 100) : 0;
-            const employerMonthlyAmount = baseAmount > 0 ? baseAmount * ((parseFloat(contribution.employer_rate) || 0) / 100) : 0;
-            const employeeAmount = Math.max(employeeMonthlyAmount, employeeMinimumAmount) / periodsPerMonth;
-            const employerAmount = Math.max(employerMonthlyAmount, employerMinimumAmount) / periodsPerMonth;
-
-            employee_contributions.push({
-               name: contribution.name,
-               amount: Math.round(employeeAmount * 100) / 100,
-            });
-            employer_contributions.push({
-               name: contribution.name,
-               amount: Math.round(employerAmount * 100) / 100,
-            });
-         });
-
-         return {
-            employee_contributions,
-            employer_contributions,
-            employee_total: employee_contributions.reduce((sum, item) => sum + item.amount, 0),
-            employer_total: employer_contributions.reduce((sum, item) => sum + item.amount, 0),
-         };
-      },
-      contributionPreviewRows() {
-         return this.contributionPreview.employee_contributions.map((item, index) => ({
-            name: item.name,
-            employee_amount: item.amount,
-            employer_amount: this.contributionPreview.employer_contributions[index]?.amount || 0,
-         }));
-      },
-      summaryCards() {
+      summaryCards: function () {
          const totalGross = this.payrolls.reduce((s, p) => s + p.gross_amount, 0);
          const totalNet = this.payrolls.reduce((s, p) => s + p.net_amount, 0);
          const totalPaid = this.payrolls.reduce((s, p) => s + p.total_paid, 0);
@@ -555,7 +450,6 @@ export default {
             bonus: p.bonus,
             pt_commission_amount: p.pt_commission_amount,
             pt_commission_items: p.pt_commission_items || [],
-            income_tax: p.income_tax,
             manual_deductions: p.manual_deductions,
             cash_advance_deduction: p.cash_advance_deduction,
             notes: p.notes || "",
@@ -704,7 +598,7 @@ export default {
       },
 
       emptyForm: function () {
-         return { period_start: "", period_end: "", gross_amount: "", bonus: 0, pt_commission_amount: 0, pt_commission_items: [], income_tax: 0, manual_deductions: 0, cash_advance_deduction: 0, notes: "" };
+         return { period_start: "", period_end: "", gross_amount: "", bonus: 0, pt_commission_amount: 0, pt_commission_items: [], manual_deductions: 0, cash_advance_deduction: 0, notes: "" };
       },
 
       emptyPayoutForm: function () {

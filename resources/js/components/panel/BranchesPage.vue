@@ -316,7 +316,7 @@
                      </div>
                   </div>
 
-                  <div class="alert alert-light border mt-4 mb-0 small">Use the branch details page after saving to manage contact information, government contributions, gallery, amenities, and other business settings.</div>
+                  <div class="alert alert-light border mt-4 mb-0 small">Use the branch details page after saving to manage contact information, gallery, amenities, payroll schedule defaults, and other business settings.</div>
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -408,50 +408,12 @@ export default {
             closing_time: "",
             facebook_url: "",
             messenger_url: "",
-            whatsapp_url: "",
-            map_url: "",
-            payroll_settings: this.defaultPayrollSettings("PH"),
-            photos: [],
-         };
-      },
-      defaultPayrollSettings: function (countryCode = "PH") {
-         return {
-            pay_frequency: "semi_monthly",
-            income_tax_mode: "manual",
-            contributions: [],
-         };
-      },
-      normalizePayrollSettings: function (settings, countryCode = "PH") {
-         const defaults = this.defaultPayrollSettings(countryCode);
-         const contributions = Array.isArray(settings?.contributions) && settings.contributions.length ? settings.contributions : defaults.contributions;
-
-         return {
-            pay_frequency: ["monthly", "semi_monthly"].includes(settings?.pay_frequency) ? settings.pay_frequency : defaults.pay_frequency,
-            income_tax_mode: "manual",
-            contributions: contributions.map((contribution) => ({
-               name: contribution.name || "",
-               employee_rate: contribution.employee_rate ?? 0,
-               employer_rate: contribution.employer_rate ?? 0,
-               salary_floor: contribution.salary_floor ?? "",
-               salary_ceiling: contribution.salary_ceiling ?? "",
-               enabled: contribution.enabled !== false,
-            })),
-         };
-      },
-      addPayrollContribution: function () {
-         this.form.payroll_settings.contributions.push({
-            name: "",
-            employee_rate: 0,
-            employer_rate: 0,
-            salary_floor: "",
-            salary_ceiling: "",
-            enabled: true,
-         });
-      },
-      removePayrollContribution: function (index) {
-         this.form.payroll_settings.contributions.splice(index, 1);
-      },
-      fetchBranches: function (page = 1) {
+             whatsapp_url: "",
+             map_url: "",
+             photos: [],
+          };
+       },
+       fetchBranches: function (page = 1) {
          this.loading = true;
          axios
             .get("/panel/branches/list", {
@@ -523,11 +485,10 @@ export default {
             closing_time: b.closing_time ? b.closing_time.slice(0, 5) : "",
             facebook_url: b.facebook_url || "",
             messenger_url: b.messenger_url || "",
-            whatsapp_url: b.whatsapp_url || "",
-            map_url: b.map_url || "",
-            payroll_settings: this.normalizePayrollSettings(b.payroll_settings, b.country_code || "PH"),
-            photos: b.photos || [],
-         };
+             whatsapp_url: b.whatsapp_url || "",
+             map_url: b.map_url || "",
+             photos: b.photos || [],
+          };
          this.formModal.show();
       },
 
