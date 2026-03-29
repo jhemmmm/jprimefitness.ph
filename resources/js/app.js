@@ -35,6 +35,9 @@ app.component("branches-page", BranchesPage);
 import BranchDetailPage from "./components/panel/BranchDetailPage.vue";
 app.component("branch-detail-page", BranchDetailPage);
 
+import InventoryPage from "./components/panel/InventoryPage.vue";
+app.component("inventory-page", InventoryPage);
+
 import AttendancePage from "./components/panel/AttendancePage.vue";
 app.component("attendance-page", AttendancePage);
 
@@ -58,13 +61,30 @@ app.config.globalProperties.$filters = {
       if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
       return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
    },
-   formatDateTime: function (dt) {
-      if (!dt) return "—";
-      return new Date(dt).toLocaleString("en-PH", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+   formatDateTime: function (dt, format = "display") {
+      if (!dt) {
+         return format === "input" ? "" : "—";
+      }
+
+      const date = new Date(dt);
+
+      if (format === "input") {
+         const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+         return localDate.toISOString().slice(0, 16);
+      }
+
+      return date.toLocaleString("en-PH", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
    },
    formatDate: function (dateStr) {
       if (!dateStr) return "—";
       return new Date(dateStr).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+   },
+   formatQuantity: function (value) {
+      if (value === null || value === undefined || value === "") return "0";
+      return parseFloat(value).toLocaleString("en-PH", {
+         minimumFractionDigits: 0,
+         maximumFractionDigits: 2,
+      });
    },
    formatMoney(value) {
       if (!value && value !== 0) return "0.00";

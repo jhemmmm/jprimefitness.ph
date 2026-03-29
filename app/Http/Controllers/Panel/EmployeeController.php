@@ -64,11 +64,8 @@ class EmployeeController extends Controller
                 $qq->where('name', 'like', "%{$request->search}%")->orWhere('email', 'like', "%{$request->search}%");
             }))
             ->when(! empty($request->role), fn ($q) => $q->whereHas('roles', fn ($qq) => $qq->where('id', $request->role)))
-            ->when($request->branch, fn ($q) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $request->branch)), function ($q) {
-                if (! auth()->user()->hasRole('super admin')) {
-                    $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('id')));
-                }
-            })
+            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))
+            ->when($request->branch, fn ($q) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $request->branch)))
             ->when($request->status, fn ($q) => $q->where('status', $request->status))
             ->orderBy('name')
             ->get();

@@ -103,7 +103,7 @@
                     </a>
                 </div>
                 <div class="sidebar-nav-item">
-                    <a href="#" @class(['active' => request()->routeIs('panel.inventory.*')])>
+                    <a href="{{ route('panel.inventory.index') }}" @class(['active' => request()->routeIs('panel.inventory.*')])>
                         <i class="bi bi-box-seam-fill"></i>
                         <span class="sidebar-nav-label">Inventory</span>
                     </a>

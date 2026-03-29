@@ -45,11 +45,8 @@ class MembersController extends Controller
                 $qq->where('name', 'like', "%{$request->search}%")
                     ->orWhere('email', 'like', "%{$request->search}%");
             }))
-            ->when($request->branch, fn ($q, $b) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $b)), function ($q) {
-                if (! auth()->user()->hasRole('super admin')) {
-                    $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id')));
-                }
-            })
+            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))
+            ->when($request->branch, fn ($q, $b) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $b)))
             ->when($request->status, fn ($q, $s) => $q->where('status', $s))
             ->when($request->plan, fn ($q, $p) => $q->whereHas('memberSubscriptions', fn ($rq) => $rq->where('rate_plan_id', $p)))
             ->orderBy('created_at', 'desc')
@@ -58,11 +55,8 @@ class MembersController extends Controller
 
         // Get stats
         $statsQuery = User::role('member')
-            ->when($request->branch, fn ($q, $b) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $b)), function ($q) {
-                if (! auth()->user()->hasRole('super admin')) {
-                    $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id')));
-                }
-            });
+            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))
+            ->when($request->branch, fn ($q, $b) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $b)));
 
         return response()->json([
             'members' => $members,

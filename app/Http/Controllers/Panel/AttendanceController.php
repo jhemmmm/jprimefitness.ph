@@ -30,19 +30,16 @@ class AttendanceController extends Controller
     public function list(Request $request): JsonResponse
     {
         $records = Attendance::with(['branch', 'user', 'walkIn', 'recordedBy'])
-            ->when($request->search, fn($q) => $q->where(function ($qq) use ($request) {
+            ->when($request->search, fn ($q) => $q->where(function ($qq) use ($request) {
                 $qq->where('name', 'like', "%{$request->search}%")
-                    ->orWhereHas('user', fn($qqq) => $qqq->where('name', 'like', "%{$request->search}%"))
-                    ->orWhereHas('walkIn', fn($qqq) => $qqq->where('name', 'like', "%{$request->search}%"));
+                    ->orWhereHas('user', fn ($qqq) => $qqq->where('name', 'like', "%{$request->search}%"))
+                    ->orWhereHas('walkIn', fn ($qqq) => $qqq->where('name', 'like', "%{$request->search}%"));
             }))
-            ->when($request->type, fn($q, $t) => $q->where('attendee_type', $t))
-            ->when($request->date_from, fn($q, $d) => $q->whereDate('checked_in_at', '>=', $d))
-            ->when($request->date_to, fn($q, $d) => $q->whereDate('checked_in_at', '<=', $d))
-            ->when($request->branch, fn($q) => $q->where('branch_id', $request->branch), function ($q) {
-                if (! auth()->user()->hasRole('super admin')) {
-                    $q->whereIn('branch_id', auth()->user()->branches()->pluck('id'));
-                }
-            })
+            ->when($request->type, fn ($q, $t) => $q->where('attendee_type', $t))
+            ->when($request->date_from, fn ($q, $d) => $q->whereDate('checked_in_at', '>=', $d))
+            ->when($request->date_to, fn ($q, $d) => $q->whereDate('checked_in_at', '<=', $d))
+            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
+            ->when($request->branch, fn ($q) => $q->where('branch_id', $request->branch))
             ->orderBy('checked_in_at', 'desc')
             ->paginate(20)
             ->withQueryString();
@@ -66,11 +63,9 @@ class AttendanceController extends Controller
             })
         );
 
-        $baseStatsQuery = Attendance::query()->when($request->branch, fn($q) => $q->where('branch_id', $request->branch), function ($q) {
-            if (! auth()->user()->hasRole('super admin')) {
-                $q->whereIn('branch_id', auth()->user()->branches()->pluck('id'));
-            }
-        });
+        $baseStatsQuery = Attendance::query()
+            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
+            ->when($request->branch, fn ($q) => $q->where('branch_id', $request->branch));
 
         return response()->json([
             'records' => $records,

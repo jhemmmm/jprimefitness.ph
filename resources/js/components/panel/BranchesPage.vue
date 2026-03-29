@@ -408,12 +408,12 @@ export default {
             closing_time: "",
             facebook_url: "",
             messenger_url: "",
-             whatsapp_url: "",
-             map_url: "",
-             photos: [],
-          };
-       },
-       fetchBranches: function (page = 1) {
+            whatsapp_url: "",
+            map_url: "",
+            photos: [],
+         };
+      },
+      fetchBranches: function (page = 1) {
          this.loading = true;
          axios
             .get("/panel/branches/list", {
@@ -485,10 +485,10 @@ export default {
             closing_time: b.closing_time ? b.closing_time.slice(0, 5) : "",
             facebook_url: b.facebook_url || "",
             messenger_url: b.messenger_url || "",
-             whatsapp_url: b.whatsapp_url || "",
-             map_url: b.map_url || "",
-             photos: b.photos || [],
-          };
+            whatsapp_url: b.whatsapp_url || "",
+            map_url: b.map_url || "",
+            photos: b.photos || [],
+         };
          this.formModal.show();
       },
 

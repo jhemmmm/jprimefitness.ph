@@ -86,6 +86,11 @@ class Branch extends Model
         return $this->hasMany(BranchCashLedgerEntry::class)->orderByDesc('occurred_at')->orderByDesc('id');
     }
 
+    public function inventoryItems(): HasMany
+    {
+        return $this->hasMany(InventoryItem::class)->orderBy('name');
+    }
+
     protected static function resolveUniqueSlug(string $value, ?self $ignore = null): string
     {
         $baseSlug = Str::slug($value) ?: 'branch';

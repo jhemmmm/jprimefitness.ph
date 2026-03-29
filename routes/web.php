@@ -6,6 +6,7 @@ use App\Http\Controllers\Panel\AttendanceController;
 use App\Http\Controllers\Panel\BranchesController;
 use App\Http\Controllers\Panel\DashboardController;
 use App\Http\Controllers\Panel\EmployeeController;
+use App\Http\Controllers\Panel\InventoryController;
 use App\Http\Controllers\Panel\MembersController;
 use App\Http\Controllers\Panel\WalkInsController;
 use Illuminate\Support\Facades\Auth;
@@ -55,6 +56,15 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
         Route::delete('/branches/{branch}', [BranchesController::class, 'destroy'])->name('branches.destroy')->whereNumber('branch');
         Route::post('/branches/{branch}/photos', [BranchesController::class, 'storePhoto'])->name('branches.photos.store')->whereNumber('branch');
         Route::delete('/branches/{branch}/photos/{index}', [BranchesController::class, 'destroyPhoto'])->name('branches.photos.destroy')->whereNumber('branch');
+    });
+
+    // Inventory
+    Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+    Route::get('/inventory/list', [InventoryController::class, 'list'])->name('inventory.list');
+    Route::post('/inventory', [InventoryController::class, 'store'])->middleware('branch.input:branch_id')->name('inventory.store');
+    Route::middleware('branch.resource:inventoryItem')->group(function () {
+        Route::put('/inventory/{inventoryItem}', [InventoryController::class, 'update'])->middleware('branch.input:branch_id')->name('inventory.update')->whereNumber('inventoryItem');
+        Route::delete('/inventory/{inventoryItem}', [InventoryController::class, 'destroy'])->name('inventory.destroy')->whereNumber('inventoryItem');
     });
 
     // Attendance

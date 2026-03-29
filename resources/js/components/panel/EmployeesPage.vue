@@ -280,7 +280,7 @@ export default {
          this.search = "";
          this.selectedRole = "";
          this.selectedStatus = "";
-         this.selectedBranch = "";
+         this.selectedBranch = parseInt(localStorage.getItem("selectedBranch"), 10) || "";
          this.fetchEmployees();
       },
       openAdd: function () {

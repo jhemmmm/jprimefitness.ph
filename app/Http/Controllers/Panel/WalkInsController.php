@@ -34,22 +34,17 @@ class WalkInsController extends Controller
                 $qq->where('name', 'like', "%{$request->search}%")
                     ->orWhere('phone', 'like', "%{$request->search}%");
             }))
-            ->when($request->branch, fn ($q) => $q->where('branch_id', $request->branch), function ($q) {
-                if (! auth()->user()->hasRole('super admin')) {
-                    $q->whereIn('branch_id', auth()->user()->branches()->pluck('id'));
-                }
-            })
+            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
+            ->when($request->branch, fn ($q) => $q->where('branch_id', $request->branch))
             ->when($request->date_from, fn ($q) => $q->whereDate('visited_at', '>=', $request->date_from))
             ->when($request->date_to, fn ($q) => $q->whereDate('visited_at', '<=', $request->date_to))
             ->orderBy('visited_at', 'desc')
             ->paginate(20)
             ->withQueryString();
 
-        $baseStats = WalkIn::when($request->branch, fn ($q) => $q->where('branch_id', $request->branch), function ($q) {
-            if (! auth()->user()->hasRole('super admin')) {
-                $q->whereIn('branch_id', auth()->user()->branches()->pluck('id'));
-            }
-        });
+        $baseStats = WalkIn::query()
+            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
+            ->when($request->branch, fn ($q) => $q->where('branch_id', $request->branch));
 
         $stats = [
             'today' => (clone $baseStats)->whereDate('visited_at', Carbon::today())->count(),

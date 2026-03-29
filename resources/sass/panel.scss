@@ -444,7 +444,9 @@ body.panel-body {
         font-weight: 600;
         color: #333;
         cursor: pointer;
-        transition: background 0.15s ease, color 0.15s ease;
+        transition:
+            background 0.15s ease,
+            color 0.15s ease;
         white-space: nowrap;
         max-width: 160px;
 
@@ -480,7 +482,7 @@ body.panel-body {
     }
 
     .topbar-branch-label {
-        max-width: 140px;
+        max-width: 110px;
         overflow: hidden;
         text-overflow: ellipsis;
         font-size: 0.72rem;
@@ -544,7 +546,7 @@ body.panel-body {
         }
 
         .topbar-branch-label {
-            max-width: 90px;
+            max-width: 80px;
         }
     }
 }

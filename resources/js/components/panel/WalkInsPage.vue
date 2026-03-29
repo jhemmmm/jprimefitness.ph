@@ -421,7 +421,7 @@ export default {
 
       clearFilters: function () {
          this.search = "";
-         this.selectedBranch = "";
+         this.selectedBranch = parseInt(localStorage.getItem("selectedBranch"), 10) || "";
          this.dateFrom = "";
          this.dateTo = "";
          this.fetchWalkIns();

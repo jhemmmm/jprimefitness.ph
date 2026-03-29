@@ -198,15 +198,11 @@
                               <span class="m-badge" :class="getPlanStatusClass(getCurrentMembership(member).status)">
                                  {{ $filters.capitalize(getCurrentMembership(member).status) }}
                               </span>
-                              <div class="small text-muted mt-1" v-if="getActivePtPackage(member)">
-                                 {{ getActivePtPackage(member).pt_product?.name || "PT Package" }} • {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} left
-                              </div>
+                              <div class="small text-muted mt-1" v-if="getActivePtPackage(member)">{{ getActivePtPackage(member).pt_product?.name || "PT Package" }} • {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} left</div>
                            </template>
                            <template v-else-if="getActivePtPackage(member)">
                               <div class="plan-name mb-1">{{ getActivePtPackage(member).pt_product?.name || "PT Package" }}</div>
-                              <span class="m-badge m-badge--plan-active">
-                                 {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} left
-                              </span>
+                              <span class="m-badge m-badge--plan-active"> {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} left </span>
                            </template>
                            <span v-else class="text-muted small">—</span>
                         </td>
@@ -257,9 +253,7 @@
                         <span class="text-capitalize m-badge m-badge--plan">{{ getCurrentMembership(member).rate_plan.name }}</span>
                         <span class="m-badge" :class="getPlanStatusClass(getCurrentMembership(member).status)">{{ $filters.capitalize(getCurrentMembership(member).status) }}</span>
                      </template>
-                     <span v-if="getActivePtPackage(member)" class="m-badge m-badge--plan-active">
-                        PT {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }}
-                     </span>
+                     <span v-if="getActivePtPackage(member)" class="m-badge m-badge--plan-active"> PT {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} </span>
                   </div>
                   <div class="small text-muted mt-2" v-if="member.profile && member.profile.notes">
                      {{ member.profile.notes }}
@@ -508,7 +502,7 @@ export default {
 
       clearFilters: function () {
          this.search = "";
-         this.selectedBranch = "";
+         this.selectedBranch = parseInt(localStorage.getItem("selectedBranch"), 10) || "";
          this.selectedStatus = "";
          this.selectedPlan = "";
          this.fetchMembers();
