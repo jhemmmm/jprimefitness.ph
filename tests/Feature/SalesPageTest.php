@@ -480,6 +480,30 @@ class SalesPageTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_sales_store_rejects_inaccessible_branch_via_branch_input_middleware(): void
+    {
+        $accessibleBranch = $this->createBranch('Naga');
+        $otherBranch = $this->createBranch('Legazpi');
+        $staff = $this->createUserWithRole('staff', [$accessibleBranch->id], 'Staff Ana');
+
+        $this->actingAs($staff)
+            ->postJson('/panel/sales', [
+                'branch_id' => $otherBranch->id,
+                'type' => SaleTransaction::TYPE_WALK_IN,
+                'customer_name' => 'Unauthorized Guest',
+                'amount_paid' => 350,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 400,
+                'sold_at' => '2026-03-29 17:30:00',
+            ])
+            ->assertForbidden();
+
+        $this->assertDatabaseMissing('sale_transactions', [
+            'branch_id' => $otherBranch->id,
+            'customer_name' => 'Unauthorized Guest',
+        ]);
+    }
+
     private function createBranch(string $name): Branch
     {
         return Branch::create([

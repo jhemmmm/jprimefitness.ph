@@ -92,18 +92,20 @@ class AttendanceController extends Controller
         ]);
 
         $type = $base['attendee_type'];
+        switch ($type) {
+            case 'walk_in':
+                $extra = $request->validate([
+                    'name' => ['required', 'string', 'max:150'],
+                ]);
+                break;
+            default:
+                $extra = $request->validate([
+                    'user_id' => ['required', 'exists:users,id'],
+                ]);
 
-        if ($type === 'walk_in') {
-            $extra = $request->validate([
-                'name' => ['required', 'string', 'max:150'],
-            ]);
-        } else {
-            $extra = $request->validate([
-                'user_id' => ['required', 'exists:users,id'],
-            ]);
-
-            $user = User::findOrFail($extra['user_id']);
-            $extra['name'] = $user->name;
+                $user = User::findOrFail($extra['user_id']);
+                $extra['name'] = $user->name;
+                break;
         }
 
         $data = array_merge($base, $extra, [
@@ -112,10 +114,13 @@ class AttendanceController extends Controller
             'recorded_by' => Auth::id(),
         ]);
 
+        // Create a new attendance record
         $attendance = Attendance::create($data);
 
+        // Lazy load relationships for response
         $attendance->load(['branch', 'user', 'walkIn', 'recordedBy']);
 
+        // Return the created record as JSON
         return response()->json([
             'id' => $attendance->id,
             'attendee_type' => $attendance->attendee_type,
@@ -146,18 +151,20 @@ class AttendanceController extends Controller
 
         // For walk-ins allow editing the name
         if ($attendance->attendee_type === 'walk_in') {
-            $nameData = $request->validate([
-                'name' => ['required', 'string', 'max:150'],
-            ]);
-            $data = array_merge($data, $nameData);
+            $data = array_merge(
+                $data,
+                $request->validate(['name' => ['required', 'string', 'max:150']])
+            );
         } elseif ($attendance->user) {
             $data['name'] = $attendance->user->name;
         }
 
+        // Update the attendance record
         $attendance->update($data);
-
+        // Lazy load relationships for response
         $attendance = $attendance->fresh()->load(['branch', 'user', 'walkIn', 'recordedBy']);
 
+        // Return the updated record as JSON
         return response()->json([
             'id' => $attendance->id,
             'attendee_type' => $attendance->attendee_type,
@@ -182,11 +189,12 @@ class AttendanceController extends Controller
         if ($attendance->checked_out_at) {
             return response()->json(['message' => 'Already checked out.'], 422);
         }
-
+        // Set checked_out_at to now
         $attendance->update(['checked_out_at' => now()]);
-
+        // Lazy load relationships for response
         $attendance = $attendance->fresh()->load(['branch', 'user', 'walkIn', 'recordedBy']);
 
+        // Return the updated record as JSON
         return response()->json([
             'id' => $attendance->id,
             'attendee_type' => $attendance->attendee_type,
