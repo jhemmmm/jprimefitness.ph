@@ -27,7 +27,9 @@ class MembersController extends Controller
     }
 
     /**
-     * List
+     * List members with filters and pagination
+     * @param Request $request
+     * @return JsonResponse
      */
     public function list(Request $request): JsonResponse
     {
@@ -37,27 +39,27 @@ class MembersController extends Controller
                 'profile',
                 'branches',
                 'memberSubscriptions.ratePlan',
-                'memberPtPackages' => fn ($query) => $query
+                'memberPtPackages' => fn($query) => $query
                     ->with('ptProduct:id,name')
                     ->orderByDesc('assigned_at'),
             ])
-            ->when(! empty($request->search), fn ($q) => $q->where(function ($qq) use ($request) {
+            ->when(!empty($request->search), fn($q) => $q->where(function ($qq) use ($request) {
                 $qq->where('name', 'like', "%{$request->search}%")
                     ->orWhere('email', 'like', "%{$request->search}%")
                     ->orWhere('phone', 'like', "%{$request->search}%");
             }))
-            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))
-            ->when($request->branch, fn ($q, $b) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $b)))
-            ->when($request->status, fn ($q, $s) => $q->where('status', $s))
-            ->when($request->plan, fn ($q, $p) => $q->whereHas('memberSubscriptions', fn ($rq) => $rq->where('rate_plan_id', $p)))
+            ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereHas('branches', fn($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))
+            ->when($request->branch, fn($q, $b) => $q->whereHas('branches', fn($qq) => $qq->where('branches.id', $b)))
+            ->when($request->status, fn($q, $s) => $q->where('status', $s))
+            ->when($request->plan, fn($q, $p) => $q->whereHas('memberSubscriptions', fn($rq) => $rq->where('rate_plan_id', $p)))
             ->orderBy('created_at', 'desc')
             ->paginate(15)
             ->withQueryString();
 
         // Get stats
         $statsQuery = User::role('member')
-            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))
-            ->when($request->branch, fn ($q, $b) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $b)));
+            ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereHas('branches', fn($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))
+            ->when($request->branch, fn($q, $b) => $q->whereHas('branches', fn($qq) => $qq->where('branches.id', $b)));
 
         return response()->json([
             'members' => $members,
@@ -71,7 +73,9 @@ class MembersController extends Controller
     }
 
     /**
-     * Store
+     * Summary of store
+     * @param Request $request
+     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -82,11 +86,14 @@ class MembersController extends Controller
             'password' => ['required', 'string', 'min:8'],
             'branch_ids' => ['required', 'array', 'min:1'],
             'branch_ids.*' => ['integer', 'exists:branches,id'],
-            'status' => ['required', Rule::in([
-                User::STATUS_ACTIVE,
-                User::STATUS_INACTIVE,
-                User::STATUS_SUSPENDED,
-            ])],
+            'status' => [
+                'required',
+                Rule::in([
+                    User::STATUS_ACTIVE,
+                    User::STATUS_INACTIVE,
+                    User::STATUS_SUSPENDED,
+                ])
+            ],
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
@@ -127,26 +134,32 @@ class MembersController extends Controller
     }
 
     /**
-     * Summary of show
+     * Display member details
+     * @param User $member
+     * @return \Illuminate\Contracts\View\View
      */
     public function show(User $member): View
     {
         abort_unless($member->hasRole('member'), 404);
-
         return view('panel.members.show', [
             'member' => $this->loadMemberDetail($member),
         ]);
     }
 
+    /**
+     * Display member attendance records with filters and pagination
+     * @param Request $request
+     * @param User $member
+     * @return JsonResponse
+     */
     public function attendance(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
-
         $records = Attendance::where('user_id', $member->id)
             ->where('attendee_type', Attendance::TYPE_MEMBER)
             ->with('branch')
-            ->when($request->filled('date_from'), fn ($query) => $query->whereDate('checked_in_at', '>=', $request->date_from))
-            ->when($request->filled('date_to'), fn ($query) => $query->whereDate('checked_in_at', '<=', $request->date_to))
+            ->when($request->filled('date_from'), fn($query) => $query->whereDate('checked_in_at', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn($query) => $query->whereDate('checked_in_at', '<=', $request->date_to))
             ->orderByDesc('checked_in_at')
             ->paginate(15);
 
@@ -163,6 +176,12 @@ class MembersController extends Controller
         ]);
     }
 
+    /**
+     * Update member's membership plan
+     * @param Request $request
+     * @param User $member
+     * @return JsonResponse
+     */
     public function updateMembership(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
@@ -180,20 +199,29 @@ class MembersController extends Controller
         );
     }
 
+    /**
+     * Update member's membership status
+     * @param Request $request
+     * @param User $member
+     * @return JsonResponse
+     */
     public function updateMembershipStatus(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
         $data = $request->validate([
-            'status' => ['required', Rule::in([
-                MemberSubscription::STATUS_ACTIVE,
-                MemberSubscription::STATUS_PAUSED,
-                MemberSubscription::STATUS_CANCELLED,
-            ])],
+            'status' => [
+                'required',
+                Rule::in([
+                    MemberSubscription::STATUS_ACTIVE,
+                    MemberSubscription::STATUS_PAUSED,
+                    MemberSubscription::STATUS_CANCELLED,
+                ])
+            ],
         ]);
 
-        if (! $member->currentMembership()) {
+        if (!$member->currentMembership()) {
             return response()->json(['message' => 'No current membership found.'], 422);
         }
 
@@ -204,6 +232,12 @@ class MembersController extends Controller
         );
     }
 
+    /**
+     * Store a new PT package for a member
+     * @param Request $request
+     * @param User $member
+     * @return JsonResponse
+     */
     public function storePtPackage(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
@@ -218,7 +252,7 @@ class MembersController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        if (! $member->branches()->whereKey($data['branch_id'])->exists()) {
+        if (!$member->branches()->whereKey($data['branch_id'])->exists()) {
             return response()->json([
                 'message' => 'The given data was invalid.',
                 'errors' => [
@@ -233,7 +267,7 @@ class MembersController extends Controller
             ->wherePivot('is_active', true)
             ->first();
 
-        if (! $branchPricing) {
+        if (!$branchPricing) {
             return response()->json([
                 'message' => 'The given data was invalid.',
                 'errors' => [
@@ -242,7 +276,7 @@ class MembersController extends Controller
             ], 422);
         }
 
-        if (! empty($data['coach_id']) && ! $this->coachIsAssignableToBranch((int) $data['coach_id'], (int) $data['branch_id'])) {
+        if (!empty($data['coach_id']) && !$this->coachIsAssignableToBranch((int) $data['coach_id'], (int) $data['branch_id'])) {
             return response()->json([
                 'message' => 'The given data was invalid.',
                 'errors' => [
@@ -273,6 +307,12 @@ class MembersController extends Controller
         return response()->json($this->loadMemberDetail($member->fresh()), 201);
     }
 
+    /**
+     * Store PT session usage for a member
+     * @param Request $request
+     * @param User $member
+     * @return JsonResponse
+     */
     public function storePtSessionUsage(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
@@ -291,7 +331,7 @@ class MembersController extends Controller
             ->whereKey($data['member_pt_package_id'])
             ->first();
 
-        if (! $package) {
+        if (!$package) {
             return response()->json([
                 'message' => 'The given data was invalid.',
                 'errors' => [
@@ -300,7 +340,7 @@ class MembersController extends Controller
             ], 422);
         }
 
-        if (! empty($data['coach_id']) && ! $this->coachIsAssignableToBranch((int) $data['coach_id'], (int) $package->branch_id)) {
+        if (!empty($data['coach_id']) && !$this->coachIsAssignableToBranch((int) $data['coach_id'], (int) $package->branch_id)) {
             return response()->json([
                 'message' => 'The given data was invalid.',
                 'errors' => [
@@ -322,21 +362,28 @@ class MembersController extends Controller
     }
 
     /**
-     * Summary of update
+     * Update member's information
+     * @param Request $request
+     * @param User $member
+     * @return JsonResponse
      */
     public function update(Request $request, User $member): JsonResponse
     {
+        abort_unless($member->hasRole('member'), 404);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($member->id)],
             'phone' => ['nullable', 'string', 'max:50'],
             'branch_ids' => ['required', 'array', 'min:1'],
             'branch_ids.*' => ['integer', 'exists:branches,id'],
-            'status' => ['nullable', Rule::in([
-                User::STATUS_ACTIVE,
-                User::STATUS_INACTIVE,
-                User::STATUS_SUSPENDED,
-            ])],
+            'status' => [
+                'nullable',
+                Rule::in([
+                    User::STATUS_ACTIVE,
+                    User::STATUS_INACTIVE,
+                    User::STATUS_SUSPENDED,
+                ])
+            ],
             'date_of_birth' => ['nullable', 'date'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
@@ -376,13 +423,18 @@ class MembersController extends Controller
         );
     }
 
+    /**
+     * Load detailed information for a member
+     * @param User $member
+     * @return User
+     */
     private function loadMemberDetail(User $member): User
     {
         $member->load([
             'profile',
             'branches.ptProducts',
-            'memberSubscriptions' => fn ($query) => $query->with('ratePlan')->orderByDesc('start_date'),
-            'memberPtPackages' => fn ($query) => $query
+            'memberSubscriptions' => fn($query) => $query->with('ratePlan')->orderByDesc('start_date'),
+            'memberPtPackages' => fn($query) => $query
                 ->with([
                     'branch',
                     'ptProduct',
@@ -397,15 +449,26 @@ class MembersController extends Controller
         return $member->setRelation('availableCoaches', $this->availableCoachesForMember($member));
     }
 
+    /**
+     * Check if a coach is assignable to a specific branch
+     * @param int $coachId
+     * @param int $branchId
+     * @return bool
+     */
     private function coachIsAssignableToBranch(int $coachId, int $branchId): bool
     {
         return User::role('coach')
             ->whereKey($coachId)
             ->where('status', User::STATUS_ACTIVE)
-            ->whereHas('branches', fn ($query) => $query->where('branches.id', $branchId))
+            ->whereHas('branches', fn($query) => $query->where('branches.id', $branchId))
             ->exists();
     }
 
+    /**
+     * Get available coaches for a member
+     * @param User $member
+     * @return \Illuminate\Support\Collection
+     */
     private function availableCoachesForMember(User $member)
     {
         $branchIds = $member->branches()->pluck('branches.id');
@@ -416,7 +479,7 @@ class MembersController extends Controller
 
         return User::role('coach')
             ->where('status', User::STATUS_ACTIVE)
-            ->whereHas('branches', fn ($query) => $query->whereIn('branches.id', $branchIds))
+            ->whereHas('branches', fn($query) => $query->whereIn('branches.id', $branchIds))
             ->with(['branches:id,name'])
             ->orderBy('name')
             ->get(['users.id', 'users.name', 'users.status']);

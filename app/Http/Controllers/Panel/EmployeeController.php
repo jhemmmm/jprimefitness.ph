@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Spatie\LaravelPdf\Facades\Pdf;
+use Spatie\LaravelPdf\PdfBuilder;
 
 class EmployeeController extends Controller
 {
@@ -42,7 +43,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Show
+     * Show the specified employee
      *
      * @return View
      */
@@ -54,19 +55,21 @@ class EmployeeController extends Controller
     }
 
     /**
-     * List
+     * List with filters and pagination
+     * @param Request $request
+     * @return JsonResponse
      */
     public function list(Request $request): JsonResponse
     {
         $employees = User::role(['employee', 'coach', 'manager', 'admin', 'staff'])
             ->with('branches', 'roles')
-            ->when(! empty($request->search), fn ($q) => $q->where(function ($qq) use ($request) {
+            ->when(!empty($request->search), fn($q) => $q->where(function ($qq) use ($request) {
                 $qq->where('name', 'like', "%{$request->search}%")->orWhere('email', 'like', "%{$request->search}%");
             }))
-            ->when(! empty($request->role), fn ($q) => $q->whereHas('roles', fn ($qq) => $qq->where('id', $request->role)))
-            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereHas('branches', fn ($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))
-            ->when($request->branch, fn ($q) => $q->whereHas('branches', fn ($qq) => $qq->where('branches.id', $request->branch)))
-            ->when($request->status, fn ($q) => $q->where('status', $request->status))
+            ->when(!empty($request->role), fn($q) => $q->whereHas('roles', fn($qq) => $qq->where('id', $request->role)))
+            ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereHas('branches', fn($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))
+            ->when($request->branch, fn($q) => $q->whereHas('branches', fn($qq) => $qq->where('branches.id', $request->branch)))
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->orderBy('name')
             ->get();
 
@@ -74,7 +77,9 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Store
+     * Store newly created employee
+     * @param Request $request
+     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -109,13 +114,16 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Update
+     * Update the specified employee
+     * @param Request $request
+     * @param User $employee
+     * @return JsonResponse
      */
     public function update(Request $request, User $employee): JsonResponse
     {
         $data = $request->validate([
             'name' => 'required|string|max:100',
-            'email' => 'required|email|unique:users,email,'.$employee->id,
+            'email' => 'required|email|unique:users,email,' . $employee->id,
             'phone' => 'nullable|string|max:20',
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'branch_ids' => 'required|array|min:1',
@@ -145,7 +153,9 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Destroy
+     * Delete the specified employee
+     * @param User $employee
+     * @return JsonResponse
      */
     public function destroy(User $employee): JsonResponse
     {
@@ -157,14 +167,17 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Attendace
+     * Get the attendance of the employee
+     * @param Request $request
+     * @param User $employee
+     * @return JsonResponse
      */
     public function attendance(Request $request, User $employee): JsonResponse
     {
         $record = Attendance::where('user_id', $employee->id)
             ->with('branch')
-            ->when($request->filled('date_from'), fn ($q) => $q->whereDate('checked_in_at', '>=', $request->date_from))
-            ->when($request->filled('date_to'), fn ($q) => $q->whereDate('checked_in_at', '<=', $request->date_to))
+            ->when($request->filled('date_from'), fn($q) => $q->whereDate('checked_in_at', '>=', $request->date_from))
+            ->when($request->filled('date_to'), fn($q) => $q->whereDate('checked_in_at', '<=', $request->date_to))
             ->orderByDesc('checked_in_at')
             ->paginate(15);
 
@@ -180,6 +193,11 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * Get payrolls of the employee
+     * @param User $employee
+     * @return JsonResponse
+     */
     public function payrolls(User $employee): JsonResponse
     {
         $payrolls = Payroll::query()
@@ -187,11 +205,17 @@ class EmployeeController extends Controller
             ->with(['payouts', 'approvedBy:id,name', 'branch:id,country_code'])
             ->orderByDesc('period_start')
             ->get()
-            ->map(fn (Payroll $payroll) => $this->serializePayroll($payroll));
+            ->map(fn(Payroll $payroll) => $this->serializePayroll($payroll));
 
         return response()->json($payrolls);
     }
 
+    /**
+     * Get the payslip of the employee
+     * @param User $employee
+     * @param Payroll $payroll
+     * @return PdfBuilder
+     */
     public function payslip(User $employee, Payroll $payroll): Responsable
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -202,24 +226,26 @@ class EmployeeController extends Controller
             'employee.roles',
             'generatedBy:id,name',
             'approvedBy:id,name',
-            'payouts' => fn ($query) => $query
+            'payouts' => fn($query) => $query
                 ->with('releasedBy:id,name')
                 ->orderBy('paid_at'),
         ]);
 
         $employee = $employee->fresh()->load('branches', 'roles');
-        $fileName = 'payslip-employee-'.$employee->id.'-payroll-'.$payroll->id.'.pdf';
+        $fileName = 'payslip-employee-' . $employee->id . '-payroll-' . $payroll->id . '.pdf';
 
         return Pdf::view('panel.employees.payslip', [
             'employee' => $employee,
             'payroll' => $payroll,
-        ])
-            ->driver('dompdf')
-            ->format('a4')
-            ->margins(8, 8, 8, 8)
-            ->download($fileName);
+        ])->driver('dompdf')->format('a4')->margins(8, 8, 8, 8)->download($fileName);
     }
 
+    /**
+     * Store a newly created payroll for the employee
+     * @param Request $request
+     * @param User $employee
+     * @return JsonResponse
+     */
     public function storePayroll(Request $request, User $employee): JsonResponse
     {
         $data = $request->validate([
@@ -232,9 +258,9 @@ class EmployeeController extends Controller
             'notes' => 'nullable|string|max:1000',
         ]);
 
+        // Check if employee has an assigned branch
         $branch = $employee->branches()->orderBy('branches.id')->first();
-
-        if (! $branch) {
+        if (!$branch) {
             return response()->json(['message' => 'Employee must be assigned to a branch before creating payroll.'], 422);
         }
 
@@ -296,6 +322,13 @@ class EmployeeController extends Controller
         return response()->json($this->serializePayroll($payroll), 201);
     }
 
+    /**
+     * Update the specified payroll of the employee
+     * @param Request $request
+     * @param User $employee
+     * @param Payroll $payroll
+     * @return JsonResponse
+     */
     public function updatePayroll(Request $request, User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -369,6 +402,12 @@ class EmployeeController extends Controller
         return response()->json($this->serializePayroll($payroll));
     }
 
+    /**
+     * Approved the specified payroll of the employee
+     * @param User $employee
+     * @param Payroll $payroll
+     * @return JsonResponse
+     */
     public function approvePayroll(User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -389,6 +428,12 @@ class EmployeeController extends Controller
         return response()->json($this->serializePayroll($payroll));
     }
 
+    /**
+     * Cancel the specified payroll of the employee
+     * @param User $employee
+     * @param Payroll $payroll
+     * @return JsonResponse
+     */
     public function cancelPayroll(User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -404,38 +449,11 @@ class EmployeeController extends Controller
         return response()->json($this->serializePayroll($payroll));
     }
 
-    private function serializePayroll(Payroll $payroll): array
-    {
-        $payroll->loadMissing(['payouts', 'approvedBy:id,name', 'branch:id,country_code']);
-
-        $totalPaid = (float) $payroll->payouts->sum('amount');
-
-        return [
-            'id' => $payroll->id,
-            'period_start' => $payroll->period_start->format('Y-m-d'),
-            'period_end' => $payroll->period_end->format('Y-m-d'),
-            'gross_amount' => (float) $payroll->gross_amount,
-            'bonus' => (float) $payroll->bonus,
-            'pay_frequency' => $payroll->pay_frequency,
-            'pt_commission_amount' => (float) $payroll->pt_commission_amount,
-            'pt_commission_items' => $payroll->pt_commission_items ?? [],
-            'employee_deductions_total' => $payroll->employeeDeductionsTotal(),
-            'total_earnings' => $payroll->totalEarnings(),
-            'manual_deductions' => (float) $payroll->manual_deductions,
-            'cash_advance_deduction' => (float) $payroll->cash_advance_deduction,
-            'net_amount' => (float) $payroll->net_amount,
-            'status' => $payroll->status,
-            'notes' => $payroll->notes,
-            'total_paid' => $totalPaid,
-            'remaining_balance' => max(0, (float) $payroll->net_amount - $totalPaid),
-            'payouts_count' => $payroll->payouts->count(),
-            'approved_by_name' => $payroll->approvedBy?->name,
-            'approved_at' => $payroll->approved_at?->toISOString(),
-            'branch_country_code' => $payroll->branch?->country_code,
-            'created_at' => $payroll->created_at->toISOString(),
-        ];
-    }
-
+    /**
+     * Get suggested cash advance deduction for the specified employee
+     * @param User $employee
+     * @return JsonResponse
+     */
     public function payrollSuggestedCa(User $employee): JsonResponse
     {
         return response()->json([
@@ -443,6 +461,12 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * Get suggested payroll data for the specified employee
+     * @param Request $request
+     * @param User $employee
+     * @return JsonResponse
+     */
     public function payrollSuggest(Request $request, User $employee): JsonResponse
     {
         $data = $request->validate([
@@ -453,7 +477,7 @@ class EmployeeController extends Controller
 
         $payroll = null;
 
-        if (! empty($data['payroll_id'])) {
+        if (!empty($data['payroll_id'])) {
             $payroll = Payroll::find($data['payroll_id']);
 
             if ($payroll && $payroll->employee_id !== $employee->id) {
@@ -486,6 +510,11 @@ class EmployeeController extends Controller
         );
     }
 
+    /**
+     * Get all payouts for the specified employee
+     * @param User $employee
+     * @return JsonResponse
+     */
     public function payouts(User $employee): JsonResponse
     {
         $payouts = Payout::query()
@@ -504,7 +533,7 @@ class EmployeeController extends Controller
                     'paid_at' => $payout->paid_at?->toISOString(),
                     'released_by_name' => $payout->releasedBy?->name,
                     'payroll_period' => $payout->payroll
-                        ? $payout->payroll->period_start->format('Y-m-d').' – '.$payout->payroll->period_end->format('Y-m-d')
+                        ? $payout->payroll->period_start->format('Y-m-d') . ' – ' . $payout->payroll->period_end->format('Y-m-d')
                         : null,
                 ];
             });
@@ -512,6 +541,12 @@ class EmployeeController extends Controller
         return response()->json($payouts);
     }
 
+    /**
+     * Get all payouts for the specified payroll
+     * @param User $employee
+     * @param Payroll $payroll
+     * @return JsonResponse
+     */
     public function payrollPayouts(User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -531,7 +566,7 @@ class EmployeeController extends Controller
                     'paid_at' => $payout->paid_at?->toISOString(),
                     'released_by_name' => $payout->releasedBy?->name,
                     'payroll_period' => $payout->payroll
-                        ? $payout->payroll->period_start->format('Y-m-d').' – '.$payout->payroll->period_end->format('Y-m-d')
+                        ? $payout->payroll->period_start->format('Y-m-d') . ' – ' . $payout->payroll->period_end->format('Y-m-d')
                         : null,
                 ];
             });
@@ -539,11 +574,18 @@ class EmployeeController extends Controller
         return response()->json($payouts);
     }
 
+    /**
+     * Store a new payout for the specified payroll
+     * @param Request $request
+     * @param User $employee
+     * @param Payroll $payroll
+     * @return JsonResponse
+     */
     public function storePayout(Request $request, User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
 
-        if (! in_array($payroll->status, [Payroll::STATUS_APPROVED, Payroll::STATUS_PARTIALLY_PAID], true)) {
+        if (!in_array($payroll->status, [Payroll::STATUS_APPROVED, Payroll::STATUS_PARTIALLY_PAID], true)) {
             return response()->json(['message' => 'Payroll must be approved before adding a payout.'], 422);
         }
 
@@ -589,6 +631,11 @@ class EmployeeController extends Controller
         ], 201);
     }
 
+    /**
+     * Get all cash advances for the specified employee
+     * @param User $employee
+     * @return JsonResponse
+     */
     public function cashAdvances(User $employee): JsonResponse
     {
         $advances = CashAdvance::query()
@@ -635,6 +682,12 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * Store a new cash advance request for the specified employee
+     * @param Request $request
+     * @param User $employee
+     * @return JsonResponse
+     */
     public function storeCashAdvance(Request $request, User $employee): JsonResponse
     {
         $data = $request->validate([
@@ -682,22 +735,39 @@ class EmployeeController extends Controller
         ], 201);
     }
 
+    /**
+     * Update the specified cash advance request of the employee
+     * @param Request $request
+     * @param User $employee
+     * @param CashAdvance $cashAdvance
+     * @return JsonResponse
+     */
     public function updateCashAdvance(Request $request, User $employee, CashAdvance $cashAdvance): JsonResponse
     {
         abort_if($cashAdvance->employee_id !== $employee->id, 404);
 
-        if (in_array($cashAdvance->status, [CashAdvance::STATUS_RELEASED, CashAdvance::STATUS_PARTIALLY_PAID, CashAdvance::STATUS_PAID, CashAdvance::STATUS_CANCELLED], true)) {
+        if (
+            in_array($cashAdvance->status, [
+                CashAdvance::STATUS_RELEASED,
+                CashAdvance::STATUS_PARTIALLY_PAID,
+                CashAdvance::STATUS_PAID,
+                CashAdvance::STATUS_CANCELLED
+            ], true)
+        ) {
             return response()->json(['message' => 'Released and finalized cash advances cannot be edited here.'], 422);
         }
 
         $data = $request->validate([
             'amount' => 'sometimes|numeric|min:1',
-            'status' => ['sometimes', Rule::in([
-                CashAdvance::STATUS_REQUESTED,
-                CashAdvance::STATUS_APPROVED,
-                CashAdvance::STATUS_RELEASED,
-                CashAdvance::STATUS_CANCELLED,
-            ])],
+            'status' => [
+                'sometimes',
+                Rule::in([
+                    CashAdvance::STATUS_REQUESTED,
+                    CashAdvance::STATUS_APPROVED,
+                    CashAdvance::STATUS_RELEASED,
+                    CashAdvance::STATUS_CANCELLED,
+                ])
+            ],
             'notes' => 'nullable|string|max:500',
             'requested_at' => 'nullable|date',
         ]);
@@ -718,7 +788,7 @@ class EmployeeController extends Controller
 
         $nextStatus = $data['status'] ?? $cashAdvance->status;
 
-        if (! in_array($nextStatus, $allowedTransitions, true)) {
+        if (!in_array($nextStatus, $allowedTransitions, true)) {
             return response()->json(['message' => 'Invalid cash advance status transition.'], 422);
         }
 
@@ -728,17 +798,17 @@ class EmployeeController extends Controller
         $cashAdvance->update($data);
 
         if ($previousStatus !== $cashAdvance->status) {
-            if ($cashAdvance->status === CashAdvance::STATUS_APPROVED && ! $cashAdvance->approved_at) {
+            if ($cashAdvance->status === CashAdvance::STATUS_APPROVED && !$cashAdvance->approved_at) {
                 $cashAdvance->approved_at = now();
                 $cashAdvance->approved_by = auth()->id();
             }
 
-            if ($cashAdvance->status === CashAdvance::STATUS_RELEASED && ! $cashAdvance->released_at) {
+            if ($cashAdvance->status === CashAdvance::STATUS_RELEASED && !$cashAdvance->released_at) {
                 $cashAdvance->released_at = now();
                 $cashAdvance->released_by = auth()->id();
             }
 
-            if ($cashAdvance->status === CashAdvance::STATUS_CANCELLED && ! $cashAdvance->cancelled_at) {
+            if ($cashAdvance->status === CashAdvance::STATUS_CANCELLED && !$cashAdvance->cancelled_at) {
                 $cashAdvance->cancelled_at = now();
                 $cashAdvance->cancelled_by = auth()->id();
             }
@@ -785,11 +855,24 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * Delete the specified cash advance request of the employee
+     * @param User $employee
+     * @param CashAdvance $cashAdvance
+     * @return JsonResponse
+     */
     public function destroyCashAdvance(User $employee, CashAdvance $cashAdvance): JsonResponse
     {
         abort_if($cashAdvance->employee_id !== $employee->id, 404);
 
-        if (in_array($cashAdvance->status, [CashAdvance::STATUS_RELEASED, CashAdvance::STATUS_PARTIALLY_PAID, CashAdvance::STATUS_PAID, CashAdvance::STATUS_CANCELLED], true)) {
+        if (
+            in_array($cashAdvance->status, [
+                CashAdvance::STATUS_RELEASED,
+                CashAdvance::STATUS_PARTIALLY_PAID,
+                CashAdvance::STATUS_PAID,
+                CashAdvance::STATUS_CANCELLED
+            ], true)
+        ) {
             return response()->json(['message' => 'Finalized cash advances cannot be deleted.'], 422);
         }
 
@@ -797,5 +880,42 @@ class EmployeeController extends Controller
         $cashAdvance->delete();
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * Get the serialized payroll data
+     * @param Payroll $payroll
+     * @return array{approved_at: string|null, approved_by_name: string|null, bonus: float, branch_country_code: string|null, cash_advance_deduction: float, created_at: string|null, employee_deductions_total: float, gross_amount: float, id: int, manual_deductions: float, net_amount: float, notes: string|null, pay_frequency: string|null, payouts_count: int, period_end: string, period_start: string, pt_commission_amount: float, pt_commission_items: array, remaining_balance: float|int, status: string, total_earnings: float, total_paid: float}
+     */
+    private function serializePayroll(Payroll $payroll): array
+    {
+        $payroll->loadMissing(['payouts', 'approvedBy:id,name', 'branch:id,country_code']);
+
+        $totalPaid = (float) $payroll->payouts->sum('amount');
+
+        return [
+            'id' => $payroll->id,
+            'period_start' => $payroll->period_start->format('Y-m-d'),
+            'period_end' => $payroll->period_end->format('Y-m-d'),
+            'gross_amount' => (float) $payroll->gross_amount,
+            'bonus' => (float) $payroll->bonus,
+            'pay_frequency' => $payroll->pay_frequency,
+            'pt_commission_amount' => (float) $payroll->pt_commission_amount,
+            'pt_commission_items' => $payroll->pt_commission_items ?? [],
+            'employee_deductions_total' => $payroll->employeeDeductionsTotal(),
+            'total_earnings' => $payroll->totalEarnings(),
+            'manual_deductions' => (float) $payroll->manual_deductions,
+            'cash_advance_deduction' => (float) $payroll->cash_advance_deduction,
+            'net_amount' => (float) $payroll->net_amount,
+            'status' => $payroll->status,
+            'notes' => $payroll->notes,
+            'total_paid' => $totalPaid,
+            'remaining_balance' => max(0, (float) $payroll->net_amount - $totalPaid),
+            'payouts_count' => $payroll->payouts->count(),
+            'approved_by_name' => $payroll->approvedBy?->name,
+            'approved_at' => $payroll->approved_at?->toISOString(),
+            'branch_country_code' => $payroll->branch?->country_code,
+            'created_at' => $payroll->created_at->toISOString(),
+        ];
     }
 }

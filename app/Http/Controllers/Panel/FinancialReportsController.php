@@ -15,23 +15,43 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinancialReportsController extends Controller
 {
+    /**
+     * Display the financial reports index page.
+     *
+     * @return View
+     */
     public function index(): View
     {
-        $this->authorizeFinancialAccess();
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
         return view('panel.reports.financial');
     }
 
+    /**
+     * Data endpoint for financial report, returns JSON data based on filters
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function data(Request $request): JsonResponse
     {
-        $this->authorizeFinancialAccess();
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        // Get the report data based on the request filters and return as JSON
+        $report = $this->reportPayload($request);
 
-        return response()->json($this->reportPayload($request));
+        // Return as JSON
+        return response()->json($report);
     }
 
+    /**
+     * Export the financial report as a CSV file based on filters
+     *
+     * @param Request $request
+     * @return StreamedResponse
+     */
     public function export(Request $request): StreamedResponse
     {
-        $this->authorizeFinancialAccess();
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
         $report = $this->reportPayload($request);
         $dateSuffix = now()->format('Ymd_His');
@@ -95,13 +115,14 @@ class FinancialReportsController extends Controller
             }
 
             fclose($handle);
-        }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        }, $fileName, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /**
-     * @return array<string, mixed>
+     * Process the request filters and compile the financial report data payload
+     *
+     * @param Request $request
+     * @return array
      */
     private function reportPayload(Request $request): array
     {
@@ -142,7 +163,7 @@ class FinancialReportsController extends Controller
                     'id' => $selectedBranch->id,
                     'name' => $selectedBranch->name,
                 ] : null,
-                'is_all_branches' => ! $selectedBranch,
+                'is_all_branches' => !$selectedBranch,
             ],
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
@@ -182,24 +203,25 @@ class FinancialReportsController extends Controller
         ];
     }
 
-    private function authorizeFinancialAccess(): void
-    {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
-    }
-
     /**
-     * @param  array<int>  $branchIds
+     * Build the base query for fetching sales transactions based on branch access and date filters
+     * @param array $branchIds
+     * @param array $filters
+     * @return \Illuminate\Database\Query\Builder
      */
     private function salesQuery(array $branchIds, array $filters)
     {
         return SaleTransaction::query()
             ->whereIn('branch_id', $branchIds)
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('sold_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('sold_at', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('sold_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('sold_at', '<=', $filters['date_to']));
     }
 
     /**
-     * @param  array<int>  $branchIds
+     * Build the base query for fetching PT commission transactions based on branch access and date filters
+     * @param array $branchIds
+     * @param array $filters
+     * @return \Illuminate\Database\Query\Builder
      */
     private function ptCommissionQuery(array $branchIds, array $filters)
     {
@@ -210,19 +232,22 @@ class FinancialReportsController extends Controller
                 MemberPtPackage::COMMISSION_STATUS_PAID,
             ])
             ->whereNotNull('coach_commission_earned_at')
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('coach_commission_earned_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('coach_commission_earned_at', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('coach_commission_earned_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('coach_commission_earned_at', '<=', $filters['date_to']));
     }
 
     /**
-     * @param  array<int>  $branchIds
+     * Build the base query for fetching direct walk-in transactions (not recorded through POS) based on branch access and date filters
+     * @param array $branchIds
+     * @param array $filters
+     * @return \Illuminate\Database\Query\Builder
      */
     private function directWalkInQuery(array $branchIds, array $filters)
     {
         $query = WalkIn::query()
             ->whereIn('branch_id', $branchIds)
-            ->when($filters['date_from'] ?? null, fn ($builder) => $builder->whereDate('visited_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($builder) => $builder->whereDate('visited_at', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($builder) => $builder->whereDate('visited_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($builder) => $builder->whereDate('visited_at', '<=', $filters['date_to']));
 
         $posBackedWalkInIds = $this->posBackedWalkInIds($branchIds, $filters);
 
@@ -234,19 +259,25 @@ class FinancialReportsController extends Controller
     }
 
     /**
-     * @param  array<int>  $branchIds
+     * Build the base query for fetching payroll transactions based on branch access and date filters
+     * @param array $branchIds
+     * @param array $filters
+     * @return \Illuminate\Database\Query\Builder
      */
     private function payrollQuery(array $branchIds, array $filters)
     {
         return Payroll::query()
             ->whereIn('branch_id', $branchIds)
             ->whereNotIn('status', [Payroll::STATUS_DRAFT, Payroll::STATUS_CANCELED])
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('period_end', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('period_end', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('period_end', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('period_end', '<=', $filters['date_to']));
     }
 
     /**
-     * @param  array<int>  $branchIds
+     * Build the base query for fetching operating expense transactions based on branch access and date filters
+     * @param array $branchIds
+     * @param array $filters
+     * @return \Illuminate\Database\Query\Builder
      */
     private function operatingExpenseQuery(array $branchIds, array $filters)
     {
@@ -254,12 +285,15 @@ class FinancialReportsController extends Controller
             ->whereIn('branch_id', $branchIds)
             ->where('direction', BranchCashLedgerEntry::DIRECTION_OUT)
             ->where('entry_type', BranchCashLedgerEntry::TYPE_MANUAL_ADJUSTMENT)
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('occurred_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('occurred_at', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('occurred_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('occurred_at', '<=', $filters['date_to']));
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Compile the revenue breakdown by transaction type, including POS recorded sales and direct walk-ins, based on the provided queries
+     * @param mixed $query
+     * @param mixed $directWalkInQuery
+     * @return array[]
      */
     private function revenueBreakdown($query, $directWalkInQuery): array
     {
@@ -296,7 +330,9 @@ class FinancialReportsController extends Controller
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Compile the operating expense breakdown by category, including total amount and entry count for each category, based on the provided query
+     * @param mixed $query
+     * @return array
      */
     private function operatingExpenseCategories($query): array
     {
@@ -320,7 +356,9 @@ class FinancialReportsController extends Controller
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Compile a list of recent operating expenses with details such as branch, title, description, amount, date, and creator, based on the provided query
+     * @param mixed $query
+     * @return array
      */
     private function recentOperatingExpenses($query): array
     {
@@ -346,19 +384,20 @@ class FinancialReportsController extends Controller
     }
 
     /**
-     * @param  array<int>  $branchIds
-     * @param  array<string, mixed>  $filters
-     * @return array<int>
+     * Fetch the IDs of walk-in records that are associated with POS transactions to exclude them from direct walk-in calculations
+     * @param array $branchIds
+     * @param array $filters
+     * @return array
      */
     private function posBackedWalkInIds(array $branchIds, array $filters): array
     {
         return SaleTransaction::query()
             ->whereIn('branch_id', $branchIds)
             ->where('type', SaleTransaction::TYPE_WALK_IN)
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('sold_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('sold_at', '<=', $filters['date_to']))
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('sold_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('sold_at', '<=', $filters['date_to']))
             ->get(['details'])
-            ->map(fn (SaleTransaction $transaction) => (int) data_get($transaction->details, 'walk_in_id'))
+            ->map(fn(SaleTransaction $transaction) => (int) data_get($transaction->details, 'walk_in_id'))
             ->filter()
             ->unique()
             ->values()

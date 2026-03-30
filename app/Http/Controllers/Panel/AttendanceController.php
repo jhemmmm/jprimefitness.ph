@@ -16,7 +16,6 @@ class AttendanceController extends Controller
 {
     /**
      * Index
-     *
      * @return \Illuminate\Contracts\View\View
      */
     public function index(): View
@@ -25,21 +24,23 @@ class AttendanceController extends Controller
     }
 
     /**
-     * List
+     * List with filters and pagination
+     * @param Request $request
+     * @return JsonResponse
      */
     public function list(Request $request): JsonResponse
     {
         $records = Attendance::with(['branch', 'user', 'walkIn', 'recordedBy'])
-            ->when($request->search, fn ($q) => $q->where(function ($qq) use ($request) {
+            ->when($request->search, fn($q) => $q->where(function ($qq) use ($request) {
                 $qq->where('name', 'like', "%{$request->search}%")
-                    ->orWhereHas('user', fn ($qqq) => $qqq->where('name', 'like', "%{$request->search}%"))
-                    ->orWhereHas('walkIn', fn ($qqq) => $qqq->where('name', 'like', "%{$request->search}%"));
+                    ->orWhereHas('user', fn($qqq) => $qqq->where('name', 'like', "%{$request->search}%"))
+                    ->orWhereHas('walkIn', fn($qqq) => $qqq->where('name', 'like', "%{$request->search}%"));
             }))
-            ->when($request->type, fn ($q, $t) => $q->where('attendee_type', $t))
-            ->when($request->date_from, fn ($q, $d) => $q->whereDate('checked_in_at', '>=', $d))
-            ->when($request->date_to, fn ($q, $d) => $q->whereDate('checked_in_at', '<=', $d))
-            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
-            ->when($request->branch, fn ($q) => $q->where('branch_id', $request->branch))
+            ->when($request->type, fn($q, $t) => $q->where('attendee_type', $t))
+            ->when($request->date_from, fn($q, $d) => $q->whereDate('checked_in_at', '>=', $d))
+            ->when($request->date_to, fn($q, $d) => $q->whereDate('checked_in_at', '<=', $d))
+            ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
+            ->when($request->branch, fn($q) => $q->where('branch_id', $request->branch))
             ->orderBy('checked_in_at', 'desc')
             ->paginate(20)
             ->withQueryString();
@@ -64,8 +65,8 @@ class AttendanceController extends Controller
         );
 
         $baseStatsQuery = Attendance::query()
-            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
-            ->when($request->branch, fn ($q) => $q->where('branch_id', $request->branch));
+            ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
+            ->when($request->branch, fn($q) => $q->where('branch_id', $request->branch));
 
         return response()->json([
             'records' => $records,
@@ -79,7 +80,9 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Store
+     * Store new attendance record
+     * @param Request $request
+     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -138,7 +141,10 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Update
+     * Update attendance record
+     * @param Request $request
+     * @param Attendance $attendance
+     * @return JsonResponse
      */
     public function update(Request $request, Attendance $attendance): JsonResponse
     {
@@ -182,7 +188,9 @@ class AttendanceController extends Controller
     }
 
     /**
-     * Checkout shortcut
+     * Checkout
+     * @param Attendance $attendance
+     * @return JsonResponse
      */
     public function checkout(Attendance $attendance): JsonResponse
     {
@@ -213,6 +221,8 @@ class AttendanceController extends Controller
 
     /**
      * Destroy
+     * @param Attendance $attendance
+     * @return JsonResponse
      */
     public function destroy(Attendance $attendance): JsonResponse
     {

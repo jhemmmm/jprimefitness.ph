@@ -189,7 +189,7 @@
         .summary-total td {
             background: #f9fafb;
             font-size: 12px;
-            font-weight: 800;
+            font-weight: 700;
         }
 
         .note-box {
@@ -232,10 +232,12 @@
                 <tr>
                     <td>
                         @if ($logoData)
-                            <img src="{{ $logoData }}" alt="JPRIME FITNESS Logo" style="width: 28px; height: 28px; display: block; margin-bottom: 6px;">
+                            <img src="{{ $logoData }}" alt="JPRIME FITNESS Logo"
+                                style="width: 28px; height: 28px; display: block; margin-bottom: 6px;">
                         @endif
                         <h1 class="document-title">Sales Receipt</h1>
-                        <p class="document-copy">POS receipt for inventory products, memberships, PT packages, and walk-in access.</p>
+                        <p class="document-copy">POS receipt for inventory products, memberships, PT packages, and
+                            walk-in access.</p>
                     </td>
                     <td style="width: 230px;">
                         <table class="meta-table">
@@ -249,7 +251,8 @@
                             </tr>
                             <tr>
                                 <td class="meta-label">Type</td>
-                                <td class="meta-value">{{ str((string) $saleTransaction->type)->replace('_', ' ')->title() }}</td>
+                                <td class="meta-value">
+                                    {{ str((string) $saleTransaction->type)->replace('_', ' ')->title() }}</td>
                             </tr>
                         </table>
                     </td>
@@ -264,7 +267,9 @@
                     <td>
                         <span class="field-label">Branch</span>
                         <div class="field-value">{{ $saleTransaction->branch?->name }}</div>
-                        <div class="field-copy">{{ collect([$saleTransaction->branch?->city, $saleTransaction->branch?->province])->filter()->join(', ') }}</div>
+                        <div class="field-copy">
+                            {{ collect([$saleTransaction->branch?->city, $saleTransaction->branch?->province])->filter()->join(', ') }}
+                        </div>
                     </td>
                     <td>
                         <span class="field-label">Processed By</span>
@@ -274,14 +279,20 @@
                 <tr>
                     <td>
                         <span class="field-label">Customer</span>
-                        <div class="field-value">{{ $saleTransaction->customer_name ?: $saleTransaction->member?->name ?: 'Walk-in Customer' }}</div>
+                        <div class="field-value">
+                            {{ $saleTransaction->customer_name ?: $saleTransaction->member?->name ?: 'Walk-in Customer' }}
+                        </div>
                         @if ($saleTransaction->member?->email || $saleTransaction->member?->phone)
-                            <div class="field-copy">{{ collect([$saleTransaction->member?->email, $saleTransaction->member?->phone])->filter()->join(' · ') }}</div>
+                            <div class="field-copy">
+                                {{ collect([$saleTransaction->member?->email, $saleTransaction->member?->phone])->filter()->join(' · ') }}
+                            </div>
                         @endif
                     </td>
                     <td>
                         <span class="field-label">Payment</span>
-                        <div class="field-value">{{ \App\Models\SaleTransaction::paymentMethodLabel($saleTransaction->payment_method) }}</div>
+                        <div class="field-value">
+                            {{ \App\Models\SaleTransaction::paymentMethodLabel($saleTransaction->payment_method) }}
+                        </div>
                         @if ($payment['reference'])
                             <div class="field-copy">Reference: {{ $payment['reference'] }}</div>
                         @endif

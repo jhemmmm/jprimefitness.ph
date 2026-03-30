@@ -14,23 +14,37 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PayrollReportsController extends Controller
 {
+    /**
+     * Payroll Reports Index
+     * @return View
+     */
     public function index(): View
     {
-        $this->authorizePayrollAccess();
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
         return view('panel.reports.payroll');
     }
 
+    /**
+     * Generate payroll report data based on filters
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function data(Request $request): JsonResponse
     {
-        $this->authorizePayrollAccess();
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
         return response()->json($this->reportPayload($request));
     }
 
+    /**
+     * Export payroll report as CSV based on filters
+     * @param Request $request
+     * @return StreamedResponse
+     */
     public function export(Request $request): StreamedResponse
     {
-        $this->authorizePayrollAccess();
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
         $report = $this->reportPayload($request);
         $dateSuffix = now()->format('Ymd_His');
@@ -129,23 +143,31 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * Report payload
+     * @param Request $request
+     * @return array{branch_breakdown: array, filters: array{date_from: mixed, date_to: mixed, pay_frequency: mixed, pay_frequency_label: string|null, status: mixed, status_label: string|null, pay_frequency_breakdown: array, payout_method_breakdown: array, payroll_trend: array, recent_payrolls: array, scope: array, status_breakdown: array, summary: array{gross_payroll: float, net_payroll: float, outstanding_balance: float, payroll_count: int, pt_commission: float, total_bonus: float, total_deductions: float, total_paid: float}}}
      */
     private function reportPayload(Request $request): array
     {
         $data = $request->validate([
             'branch' => ['nullable', 'integer', 'exists:branches,id'],
-            'status' => ['nullable', Rule::in([
-                Payroll::STATUS_DRAFT,
-                Payroll::STATUS_APPROVED,
-                Payroll::STATUS_PARTIALLY_PAID,
-                Payroll::STATUS_PAID,
-                Payroll::STATUS_CANCELED,
-            ])],
-            'pay_frequency' => ['nullable', Rule::in([
-                Branch::PAYROLL_FREQUENCY_MONTHLY,
-                Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
-            ])],
+            'status' => [
+                'nullable',
+                Rule::in([
+                    Payroll::STATUS_DRAFT,
+                    Payroll::STATUS_APPROVED,
+                    Payroll::STATUS_PARTIALLY_PAID,
+                    Payroll::STATUS_PAID,
+                    Payroll::STATUS_CANCELED,
+                ])
+            ],
+            'pay_frequency' => [
+                'nullable',
+                Rule::in([
+                    Branch::PAYROLL_FREQUENCY_MONTHLY,
+                    Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+                ])
+            ],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
@@ -176,7 +198,7 @@ class PayrollReportsController extends Controller
                     'id' => $selectedBranch->id,
                     'name' => $selectedBranch->name,
                 ] : null,
-                'is_all_branches' => ! $selectedBranch,
+                'is_all_branches' => !$selectedBranch,
             ],
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
@@ -205,40 +227,43 @@ class PayrollReportsController extends Controller
         ];
     }
 
-    private function authorizePayrollAccess(): void
-    {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
-    }
-
     /**
-     * @param  array<int>  $branchIds
+     * Generate payroll query based on filters
+     * @param array $branchIds
+     * @param Request $request
+     * @return \Illuminate\Database\Query\Builder
      */
     private function payrollQuery(array $branchIds, Request $request)
     {
         return Payroll::query()
             ->whereIn('payrolls.branch_id', $branchIds)
-            ->when($request->status, fn ($query) => $query->where('payrolls.status', $request->status), fn ($query) => $query->where('payrolls.status', '!=', Payroll::STATUS_CANCELED))
-            ->when($request->pay_frequency, fn ($query) => $query->where('payrolls.pay_frequency', $request->pay_frequency))
-            ->when($request->date_from, fn ($query) => $query->whereDate('payrolls.period_end', '>=', $request->date_from))
-            ->when($request->date_to, fn ($query) => $query->whereDate('payrolls.period_end', '<=', $request->date_to));
+            ->when($request->status, fn($query) => $query->where('payrolls.status', $request->status), fn($query) => $query->where('payrolls.status', '!=', Payroll::STATUS_CANCELED))
+            ->when($request->pay_frequency, fn($query) => $query->where('payrolls.pay_frequency', $request->pay_frequency))
+            ->when($request->date_from, fn($query) => $query->whereDate('payrolls.period_end', '>=', $request->date_from))
+            ->when($request->date_to, fn($query) => $query->whereDate('payrolls.period_end', '<=', $request->date_to));
     }
 
     /**
-     * @param  array<int>  $branchIds
+     * Generate payout query based on filters
+     * @param array $branchIds
+     * @param Request $request
+     * @return \Illuminate\Database\Query\Builder
      */
     private function payoutQuery(array $branchIds, Request $request)
     {
         return Payout::query()
             ->join('payrolls', 'payrolls.id', '=', 'payouts.payroll_id')
             ->whereIn('payrolls.branch_id', $branchIds)
-            ->when($request->status, fn ($query) => $query->where('payrolls.status', $request->status), fn ($query) => $query->where('payrolls.status', '!=', Payroll::STATUS_CANCELED))
-            ->when($request->pay_frequency, fn ($query) => $query->where('payrolls.pay_frequency', $request->pay_frequency))
-            ->when($request->date_from, fn ($query) => $query->whereDate('payrolls.period_end', '>=', $request->date_from))
-            ->when($request->date_to, fn ($query) => $query->whereDate('payrolls.period_end', '<=', $request->date_to));
+            ->when($request->status, fn($query) => $query->where('payrolls.status', $request->status), fn($query) => $query->where('payrolls.status', '!=', Payroll::STATUS_CANCELED))
+            ->when($request->pay_frequency, fn($query) => $query->where('payrolls.pay_frequency', $request->pay_frequency))
+            ->when($request->date_from, fn($query) => $query->whereDate('payrolls.period_end', '>=', $request->date_from))
+            ->when($request->date_to, fn($query) => $query->whereDate('payrolls.period_end', '<=', $request->date_to));
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Generate status breakdown based on payroll query
+     * @param mixed $query
+     * @return array[]
      */
     private function statusBreakdown($query): array
     {
@@ -265,13 +290,15 @@ class PayrollReportsController extends Controller
                 'payroll_count' => (int) ($row->payroll_count ?? 0),
                 'net_payroll' => round((float) ($row->net_payroll ?? 0), 2),
             ];
-        })->filter(fn (array $row) => $row['payroll_count'] > 0)
+        })->filter(fn(array $row) => $row['payroll_count'] > 0)
             ->values()
             ->all();
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Generate pay frequency breakdown based on payroll query
+     * @param mixed $query
+     * @return array[]
      */
     private function payFrequencyBreakdown($query): array
     {
@@ -295,13 +322,16 @@ class PayrollReportsController extends Controller
                 'payroll_count' => (int) ($row->payroll_count ?? 0),
                 'net_payroll' => round((float) ($row->net_payroll ?? 0), 2),
             ];
-        })->filter(fn (array $row) => $row['payroll_count'] > 0)
+        })->filter(fn(array $row) => $row['payroll_count'] > 0)
             ->values()
             ->all();
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Generate branch breakdown based on payroll and payout queries
+     * @param mixed $payrollQuery
+     * @param mixed $payoutQuery
+     * @return array[]
      */
     private function branchBreakdown($payrollQuery, $payoutQuery): array
     {
@@ -338,7 +368,9 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Generate payout method breakdown based on payout query
+     * @param mixed $query
+     * @return array[]
      */
     private function payoutMethodBreakdown($query): array
     {
@@ -362,7 +394,9 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Generate payroll trend based on payroll query
+     * @param mixed $query
+     * @return array[]
      */
     private function payrollTrend($query): array
     {
@@ -391,7 +425,9 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * Generate recent payrolls based on payroll query
+     * @param mixed $query
+     * @return array[]
      */
     private function recentPayrolls($query): array
     {
@@ -415,7 +451,7 @@ class PayrollReportsController extends Controller
                     'branch_name' => $payroll->branch?->name,
                     'period_start' => $payroll->period_start?->toDateString(),
                     'period_end' => $payroll->period_end?->toDateString(),
-                    'period_label' => $payroll->period_start?->format('Y-m-d').' – '.$payroll->period_end?->format('Y-m-d'),
+                    'period_label' => $payroll->period_start?->format('Y-m-d') . ' – ' . $payroll->period_end?->format('Y-m-d'),
                     'pay_frequency' => $payroll->pay_frequency,
                     'pay_frequency_label' => $this->payFrequencyLabel($payroll->pay_frequency),
                     'status' => $payroll->status,
@@ -435,6 +471,11 @@ class PayrollReportsController extends Controller
             ->all();
     }
 
+    /**
+     * Generate status label based on status code
+     * @param string $status
+     * @return string
+     */
     private function statusLabel(string $status): string
     {
         return match ($status) {
@@ -447,6 +488,11 @@ class PayrollReportsController extends Controller
         };
     }
 
+    /**
+     * Generate pay frequency label based on frequency code
+     * @param string|null $payFrequency
+     * @return string
+     */
     private function payFrequencyLabel(?string $payFrequency): string
     {
         return match ($payFrequency) {
@@ -456,6 +502,11 @@ class PayrollReportsController extends Controller
         };
     }
 
+    /**
+     * Generate payout method label based on method code
+     * @param string $method
+     * @return string
+     */
     private function payoutMethodLabel(string $method): string
     {
         return match ($method) {

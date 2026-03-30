@@ -16,16 +16,33 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SalesReportsController extends Controller
 {
+    /**
+     * Sales report index
+     * @return View
+     */
     public function index(): View
     {
         return view('panel.reports.sales');
     }
 
+    /**
+     * Get sales report data
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function data(Request $request): JsonResponse
     {
-        return response()->json($this->reportPayload($request));
+        // Get report data based on filters and return as JSON
+        $report = $this->reportPayload($request);
+        // Return as JSON response
+        return response()->json($report);
     }
 
+    /**
+     * Export sales report data
+     * @param Request $request
+     * @return StreamedResponse
+     */
     public function export(Request $request): StreamedResponse
     {
         $report = $this->reportPayload($request);
@@ -112,21 +129,29 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * Get sales report payload based on filters
+     * @param Request $request
+     * @return array{branch_breakdown: array, daily_trend: array, filters: array{date_from: mixed, date_to: mixed, payment_method: mixed, payment_method_label: string|null, type: mixed, payment_breakdown: array, recent_transactions: array, scope: array, summary: array<float|int>, top_items: array, type_breakdown: array}}
      */
     private function reportPayload(Request $request): array
     {
         $data = $request->validate([
             'branch' => ['nullable', 'integer', 'exists:branches,id'],
-            'type' => ['nullable', Rule::in([
-                SaleTransaction::TYPE_INVENTORY,
-                SaleTransaction::TYPE_MEMBERSHIP,
-                SaleTransaction::TYPE_PT_PACKAGE,
-                SaleTransaction::TYPE_WALK_IN,
-            ])],
-            'payment_method' => ['nullable', Rule::in([
-                ...SaleTransaction::supportedPaymentMethods(),
-            ])],
+            'type' => [
+                'nullable',
+                Rule::in([
+                    SaleTransaction::TYPE_INVENTORY,
+                    SaleTransaction::TYPE_MEMBERSHIP,
+                    SaleTransaction::TYPE_PT_PACKAGE,
+                    SaleTransaction::TYPE_WALK_IN,
+                ])
+            ],
+            'payment_method' => [
+                'nullable',
+                Rule::in([
+                    ...SaleTransaction::supportedPaymentMethods(),
+                ])
+            ],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
@@ -139,11 +164,11 @@ class SalesReportsController extends Controller
 
         $salesQuery = SaleTransaction::query()
             ->whereIn('branch_id', $accessibleBranchIds)
-            ->when($selectedBranch, fn ($query) => $query->where('branch_id', $selectedBranch->id))
-            ->when($request->type, fn ($query) => $query->where('type', $request->type))
-            ->when($request->payment_method, fn ($query) => $query->where('payment_method', $request->payment_method))
-            ->when($request->date_from, fn ($query) => $query->whereDate('sold_at', '>=', $request->date_from))
-            ->when($request->date_to, fn ($query) => $query->whereDate('sold_at', '<=', $request->date_to));
+            ->when($selectedBranch, fn($query) => $query->where('branch_id', $selectedBranch->id))
+            ->when($request->type, fn($query) => $query->where('type', $request->type))
+            ->when($request->payment_method, fn($query) => $query->where('payment_method', $request->payment_method))
+            ->when($request->date_from, fn($query) => $query->whereDate('sold_at', '>=', $request->date_from))
+            ->when($request->date_to, fn($query) => $query->whereDate('sold_at', '<=', $request->date_to));
 
         return [
             'scope' => [
@@ -151,7 +176,7 @@ class SalesReportsController extends Controller
                     'id' => $selectedBranch->id,
                     'name' => $selectedBranch->name,
                 ] : null,
-                'is_all_branches' => ! $selectedBranch,
+                'is_all_branches' => !$selectedBranch,
             ],
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
@@ -173,8 +198,9 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * @param  Builder  $query
-     * @return array<string, float|int>
+     * Get the summary
+     * @param mixed $query
+     * @return array{average_sale: float, cash_sales: float, total_sales: float, transaction_count: int}
      */
     private function summary($query): array
     {
@@ -194,8 +220,9 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * @param  Builder  $query
-     * @return array<int, array<string, mixed>>
+     * Get the type breakdown
+     * @param mixed $query
+     * @return array[]
      */
     private function typeBreakdown($query): array
     {
@@ -225,8 +252,9 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * @param  Builder  $query
-     * @return array<int, array<string, mixed>>
+     * Get the payment method breakdown
+     * @param mixed $query
+     * @return array[]
      */
     private function paymentBreakdown($query): array
     {
@@ -249,14 +277,15 @@ class SalesReportsController extends Controller
                     'total_sales' => round((float) ($row->total_sales ?? 0), 2),
                 ];
             })
-            ->filter(fn (array $row) => $row['transaction_count'] > 0)
+            ->filter(fn(array $row) => $row['transaction_count'] > 0)
             ->values()
             ->all();
     }
 
     /**
-     * @param  Builder  $query
-     * @return array<int, array<string, mixed>>
+     * Get the daily sales trend
+     * @param mixed $query
+     * @return array[]
      */
     private function dailyTrend($query): array
     {
@@ -279,8 +308,9 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * @param  Builder  $query
-     * @return array<int, array<string, mixed>>
+     * Get the branch breakdown
+     * @param mixed $query
+     * @return array[]
      */
     private function branchBreakdown($query): array
     {
@@ -305,8 +335,9 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * @param  Collection<int, SaleTransaction>  $transactions
-     * @return array<int, array<string, mixed>>
+     * Get the top items
+     * @param Collection $transactions
+     * @return array[]
      */
     private function topItems(Collection $transactions): array
     {
@@ -363,8 +394,9 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * @param  Collection<int, SaleTransaction>  $transactions
-     * @return array<int, array<string, mixed>>
+     * Get the recent transactions
+     * @param Collection $transactions
+     * @return array[]
      */
     private function recentTransactions(Collection $transactions): array
     {

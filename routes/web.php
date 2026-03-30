@@ -94,7 +94,6 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::post('/sales', [SalesController::class, 'store'])->middleware('branch.input:branch_id')->name('sales.store');
     Route::middleware('branch.resource:saleTransaction')->group(function () {
         Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
-        Route::get('/sales/{saleTransaction}/receipt/print', [SalesController::class, 'printReceipt'])->name('sales.receipt.print')->whereNumber('saleTransaction');
     });
 
     // Reports

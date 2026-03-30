@@ -13,13 +13,19 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceReportsController extends Controller
 {
+    /**
+     * Index Page
+     * @return View
+     */
     public function index(): View
     {
         return view('panel.reports.attendance');
     }
 
     /**
-     * data
+     * Data endpoint for attendance report with filters
+     * @param Request $request
+     * @return JsonResponse
      */
     public function data(Request $request): JsonResponse
     {
@@ -31,7 +37,9 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * export
+     * Export attendance report as CSV
+     * @param Request $request
+     * @return StreamedResponse
      */
     public function export(Request $request): StreamedResponse
     {
@@ -115,19 +123,22 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * reportPayload
-     *
-     * @return array<string, mixed>
+     * Generate the payload for the attendance report
+     * @param Request $request
+     * @return array{branch_breakdown: array, busiest_hours: array, daily_trend: array, filters: array{date_from: mixed, date_to: mixed, type: mixed, type_label: string|null, recent_records: array, scope: array, summary: array<float|int>, type_breakdown: array}}
      */
     private function reportPayload(Request $request): array
     {
         $data = $request->validate([
             'branch' => ['nullable', 'integer', 'exists:branches,id'],
-            'type' => ['nullable', Rule::in([
-                Attendance::TYPE_MEMBER,
-                Attendance::TYPE_WALK_IN,
-                Attendance::TYPE_EMPLOYEE,
-            ])],
+            'type' => [
+                'nullable',
+                Rule::in([
+                    Attendance::TYPE_MEMBER,
+                    Attendance::TYPE_WALK_IN,
+                    Attendance::TYPE_EMPLOYEE,
+                ])
+            ],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
@@ -143,9 +154,9 @@ class AttendanceReportsController extends Controller
 
         $attendanceRecords = Attendance::query()
             ->whereIn('branch_id', $accessibleBranchIds)
-            ->when($request->type, fn ($query) => $query->where('attendee_type', $request->type))
-            ->when($request->date_from, fn ($query) => $query->whereDate('checked_in_at', '>=', $request->date_from))
-            ->when($request->date_to, fn ($query) => $query->whereDate('checked_in_at', '<=', $request->date_to))
+            ->when($request->type, fn($query) => $query->where('attendee_type', $request->type))
+            ->when($request->date_from, fn($query) => $query->whereDate('checked_in_at', '>=', $request->date_from))
+            ->when($request->date_to, fn($query) => $query->whereDate('checked_in_at', '<=', $request->date_to))
             ->orderByDesc('checked_in_at')
             ->get([
                 'id',
@@ -164,7 +175,7 @@ class AttendanceReportsController extends Controller
                     'id' => $selectedBranch->id,
                     'name' => $selectedBranch->name,
                 ] : null,
-                'is_all_branches' => ! $selectedBranch,
+                'is_all_branches' => !$selectedBranch,
             ],
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
@@ -184,15 +195,15 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * summary
-     *
-     * @return array<string, float|int>
+     * Summary
+     * @param Collection $attendanceRecords
+     * @return array{average_visit_minutes: float|int, checked_out_count: int, currently_in_count: int, total_check_ins: int, unique_attendees: int}
      */
     private function summary(Collection $attendanceRecords): array
     {
-        $checkedOutRecords = $attendanceRecords->filter(fn (Attendance $attendance) => $attendance->checked_out_at !== null);
+        $checkedOutRecords = $attendanceRecords->filter(fn(Attendance $attendance) => $attendance->checked_out_at !== null);
         $averageVisitMinutes = $checkedOutRecords->count() > 0
-            ? round((float) $checkedOutRecords->avg(fn (Attendance $attendance) => $this->durationMinutes($attendance) ?? 0), 2)
+            ? round((float) $checkedOutRecords->avg(fn(Attendance $attendance) => $this->durationMinutes($attendance) ?? 0), 2)
             : 0;
 
         return [
@@ -205,9 +216,9 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * typeBreakdown
-     *
-     * @return array<int, array<string, mixed>>
+     * Type breakdown
+     * @param Collection $attendanceRecords
+     * @return array[]
      */
     private function typeBreakdown(Collection $attendanceRecords): array
     {
@@ -229,7 +240,7 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * branchBreakdown
+     * Branch breakdown
      *
      * @param  Collection<int, string>  $branchNames
      * @return array<int, array<string, mixed>>
@@ -253,14 +264,14 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * dailyTrend
-     *
+     * Daily trend
+     * @param Collection $attendanceRecords
      * @return array[]
      */
     private function dailyTrend(Collection $attendanceRecords): array
     {
         return $attendanceRecords
-            ->groupBy(fn (Attendance $attendance) => $attendance->checked_in_at?->toDateString() ?? 'unknown')
+            ->groupBy(fn(Attendance $attendance) => $attendance->checked_in_at?->toDateString() ?? 'unknown')
             ->map(function (Collection $records, string $date): array {
                 return [
                     'attendance_date' => $date,
@@ -274,18 +285,18 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * busiestHours
-     *
+     * Busiest hours
+     * @param Collection $attendanceRecords
      * @return array[]
      */
     private function busiestHours(Collection $attendanceRecords): array
     {
         return $attendanceRecords
-            ->groupBy(fn (Attendance $attendance) => $attendance->checked_in_at?->format('H:00') ?? 'Unknown')
+            ->groupBy(fn(Attendance $attendance) => $attendance->checked_in_at?->format('H:00') ?? 'Unknown')
             ->map(function (Collection $records, string $hourSlot): array {
                 return [
                     'hour_slot' => $hourSlot,
-                    'label' => $hourSlot === 'Unknown' ? 'Unknown' : "{$hourSlot} - ".substr($hourSlot, 0, 2).':59',
+                    'label' => $hourSlot === 'Unknown' ? 'Unknown' : "{$hourSlot} - " . substr($hourSlot, 0, 2) . ':59',
                     'check_in_count' => $records->count(),
                 ];
             })
@@ -302,8 +313,9 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * recentRecords
-     *
+     * Recent records
+     * @param Collection $attendanceRecords
+     * @param Collection $branchNames
      * @return array[]
      */
     private function recentRecords(Collection $attendanceRecords, Collection $branchNames): array
@@ -328,18 +340,22 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * uniqueAttendeeCount
+     * Unique attendee count
+     * @param Collection $attendanceRecords
+     * @return int
      */
     private function uniqueAttendeeCount(Collection $attendanceRecords): int
     {
         return $attendanceRecords
-            ->map(fn (Attendance $attendance) => $this->attendeeKey($attendance))
+            ->map(fn(Attendance $attendance) => $this->attendeeKey($attendance))
             ->unique()
             ->count();
     }
 
     /**
-     * attendeeKey
+     * Attendee key
+     * @param Attendance $attendance
+     * @return string
      */
     private function attendeeKey(Attendance $attendance): string
     {
@@ -367,13 +383,13 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * durationMinutes
-     *
+     * Duration in minutes
+     * @param Attendance $attendance
      * @return float|int|null
      */
     private function durationMinutes(Attendance $attendance): ?int
     {
-        if (! $attendance->checked_in_at || ! $attendance->checked_out_at) {
+        if (!$attendance->checked_in_at || !$attendance->checked_out_at) {
             return null;
         }
 
@@ -381,7 +397,9 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * typeLabel
+     * Type label
+     * @param string $type
+     * @return string
      */
     private function typeLabel(string $type): string
     {

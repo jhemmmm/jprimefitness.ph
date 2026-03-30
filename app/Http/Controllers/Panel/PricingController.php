@@ -12,6 +12,10 @@ use Illuminate\Http\Request;
 
 class PricingController extends Controller
 {
+    /**
+     * Pricing index page
+     * @return View
+     */
     public function index(): View
     {
         return view('panel.pricing', [
@@ -19,60 +23,53 @@ class PricingController extends Controller
         ]);
     }
 
+    /**
+     * Show pricing details for a specific branch
+     * @param Branch $branch
+     * @return JsonResponse
+     */
     public function show(Branch $branch): JsonResponse
     {
-        $branchRatePlans = $branch->ratePlans()
-            ->orderBy('duration_days')
-            ->orderBy('name')
-            ->get()
-            ->keyBy('id');
+        $branchRatePlans = $branch->ratePlans()->orderBy('duration_days')->orderBy('name')->get()->keyBy('id');
 
-        $branchPtProducts = $branch->ptProducts()
-            ->orderBy('session_count')
-            ->orderBy('name')
-            ->get()
-            ->keyBy('id');
+        $branchPtProducts = $branch->ptProducts()->orderBy('session_count')->orderBy('name')->get()->keyBy('id');
 
-        $membershipRates = $branchRatePlans
-            ->map(function (RatePlan $ratePlan) {
-                return [
-                    'id' => $ratePlan->id,
-                    'name' => $ratePlan->name,
-                    'duration_days' => $ratePlan->duration_days,
-                    'description' => $ratePlan->description,
-                    'is_active' => (bool) $ratePlan->is_active,
-                    'branch_price' => round((float) $ratePlan->pivot->price, 2),
-                    'branch_is_active' => (bool) $ratePlan->pivot->is_active,
-                    'effective_from' => $ratePlan->pivot->effective_from,
-                    'effective_until' => $ratePlan->pivot->effective_until,
-                ];
-            })
-            ->values();
+        $membershipRates = $branchRatePlans->map(function (RatePlan $ratePlan) {
+            return [
+                'id' => $ratePlan->id,
+                'name' => $ratePlan->name,
+                'duration_days' => $ratePlan->duration_days,
+                'description' => $ratePlan->description,
+                'is_active' => (bool) $ratePlan->is_active,
+                'branch_price' => round((float) $ratePlan->pivot->price, 2),
+                'branch_is_active' => (bool) $ratePlan->pivot->is_active,
+                'effective_from' => $ratePlan->pivot->effective_from,
+                'effective_until' => $ratePlan->pivot->effective_until,
+            ];
+        })->values();
 
-        $ptRates = $branchPtProducts
-            ->map(function (PTProduct $ptProduct) {
-                return [
-                    'id' => $ptProduct->id,
-                    'name' => $ptProduct->name,
-                    'session_count' => $ptProduct->session_count,
-                    'category' => $ptProduct->category,
-                    'description' => $ptProduct->description,
-                    'is_active' => (bool) $ptProduct->is_active,
-                    'branch_price' => round((float) $ptProduct->pivot->price, 2),
-                    'branch_is_active' => (bool) $ptProduct->pivot->is_active,
-                    'coach_commission_rate' => round((float) $ptProduct->pivot->coach_commission_rate, 2),
-                    'effective_from' => $ptProduct->pivot->effective_from,
-                    'effective_until' => $ptProduct->pivot->effective_until,
-                ];
-            })
-            ->values();
+        $ptRates = $branchPtProducts->map(function (PTProduct $ptProduct) {
+            return [
+                'id' => $ptProduct->id,
+                'name' => $ptProduct->name,
+                'session_count' => $ptProduct->session_count,
+                'category' => $ptProduct->category,
+                'description' => $ptProduct->description,
+                'is_active' => (bool) $ptProduct->is_active,
+                'branch_price' => round((float) $ptProduct->pivot->price, 2),
+                'branch_is_active' => (bool) $ptProduct->pivot->is_active,
+                'coach_commission_rate' => round((float) $ptProduct->pivot->coach_commission_rate, 2),
+                'effective_from' => $ptProduct->pivot->effective_from,
+                'effective_until' => $ptProduct->pivot->effective_until,
+            ];
+        })->values();
 
         $availableMembershipRatePlans = RatePlan::query()
             ->where('is_active', true)
             ->orderBy('duration_days')
             ->orderBy('name')
             ->get()
-            ->reject(fn (RatePlan $ratePlan) => $branchRatePlans->has($ratePlan->id))
+            ->reject(fn(RatePlan $ratePlan) => $branchRatePlans->has($ratePlan->id))
             ->map(function (RatePlan $ratePlan) {
                 return [
                     'id' => $ratePlan->id,
@@ -81,15 +78,14 @@ class PricingController extends Controller
                     'description' => $ratePlan->description,
                     'is_active' => (bool) $ratePlan->is_active,
                 ];
-            })
-            ->values();
+            })->values();
 
         $availablePtProducts = PTProduct::query()
             ->where('is_active', true)
             ->orderBy('session_count')
             ->orderBy('name')
             ->get()
-            ->reject(fn (PTProduct $ptProduct) => $branchPtProducts->has($ptProduct->id))
+            ->reject(fn(PTProduct $ptProduct) => $branchPtProducts->has($ptProduct->id))
             ->map(function (PTProduct $ptProduct) {
                 return [
                     'id' => $ptProduct->id,
@@ -99,8 +95,7 @@ class PricingController extends Controller
                     'description' => $ptProduct->description,
                     'is_active' => (bool) $ptProduct->is_active,
                 ];
-            })
-            ->values();
+            })->values();
 
         return response()->json([
             'branch' => [
@@ -123,11 +118,17 @@ class PricingController extends Controller
         ]);
     }
 
+    /**
+     * Store newly create rate plan
+     * @param Request $request
+     * @param Branch $branch
+     * @param RatePlan $ratePlan
+     * @return JsonResponse
+     */
     public function storeRatePlan(Request $request, Branch $branch, RatePlan $ratePlan): JsonResponse
     {
-        $this->ensureCanManagePricing();
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
         abort_unless($ratePlan->is_active, 404);
-
         abort_if($branch->ratePlans()->where('rate_plan_id', $ratePlan->id)->exists(), 422, 'Rate plan pricing already exists for this branch.');
 
         $data = $request->validate([
@@ -142,10 +143,16 @@ class PricingController extends Controller
         return response()->json(['message' => 'Rate plan pricing created successfully.'], 201);
     }
 
+    /**
+     * Update rate plan
+     * @param Request $request
+     * @param Branch $branch
+     * @param RatePlan $ratePlan
+     * @return JsonResponse
+     */
     public function updateRatePlan(Request $request, Branch $branch, RatePlan $ratePlan): JsonResponse
     {
-        $this->ensureCanManagePricing();
-
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
         abort_unless($branch->ratePlans()->where('rate_plan_id', $ratePlan->id)->exists(), 404);
 
         $data = $request->validate([
@@ -160,20 +167,32 @@ class PricingController extends Controller
         return response()->json(['message' => 'Rate plan pricing updated successfully.']);
     }
 
+    /**
+     * Destroy rate plan
+     * @param Branch $branch
+     * @param RatePlan $ratePlan
+     * @return JsonResponse
+     */
     public function destroyRatePlan(Branch $branch, RatePlan $ratePlan): JsonResponse
     {
-        $this->ensureCanManagePricing();
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
         $branch->ratePlans()->detach($ratePlan->id);
 
         return response()->json(null, 204);
     }
 
+    /**
+     * Store newly create PT product rate
+     * @param Request $request
+     * @param Branch $branch
+     * @param PTProduct $ptProduct
+     * @return JsonResponse
+     */
     public function storePtProduct(Request $request, Branch $branch, PTProduct $ptProduct): JsonResponse
     {
-        $this->ensureCanManagePricing();
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
         abort_unless($ptProduct->is_active, 404);
-
         abort_if($branch->ptProducts()->where('pt_product_id', $ptProduct->id)->exists(), 422, 'PT rate already exists for this branch.');
 
         $data = $request->validate([
@@ -189,10 +208,16 @@ class PricingController extends Controller
         return response()->json(['message' => 'PT rate created successfully.'], 201);
     }
 
+    /**
+     * Update PT product rate
+     * @param Request $request
+     * @param Branch $branch
+     * @param PTProduct $ptProduct
+     * @return JsonResponse
+     */
     public function updatePtProduct(Request $request, Branch $branch, PTProduct $ptProduct): JsonResponse
     {
-        $this->ensureCanManagePricing();
-
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
         abort_unless($branch->ptProducts()->where('pt_product_id', $ptProduct->id)->exists(), 404);
 
         $data = $request->validate([
@@ -208,9 +233,15 @@ class PricingController extends Controller
         return response()->json(['message' => 'PT rate updated successfully.']);
     }
 
+    /**
+     * Destroy PT product rate
+     * @param Branch $branch
+     * @param PTProduct $ptProduct
+     * @return JsonResponse
+     */
     public function destroyPtProduct(Branch $branch, PTProduct $ptProduct): JsonResponse
     {
-        $this->ensureCanManagePricing();
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
         $branch->ptProducts()->detach($ptProduct->id);
 
@@ -218,18 +249,9 @@ class PricingController extends Controller
     }
 
     /**
-     * @param  array{
-     *     price:numeric-string|int|float,
-     *     is_active:bool,
-     *     effective_from?:string|null,
-     *     effective_until?:string|null
-     * }  $data
-     * @return array{
-     *     price:float,
-     *     is_active:bool,
-     *     effective_from:string|null,
-     *     effective_until:string|null
-     * }
+     * Transform rate plan payload for database storage.
+     * @param array $data
+     * @return array{effective_from: mixed, effective_until: mixed, is_active: bool, price: float}
      */
     private function transformRatePlanPayload(array $data): array
     {
@@ -242,20 +264,9 @@ class PricingController extends Controller
     }
 
     /**
-     * @param  array{
-     *     price:numeric-string|int|float,
-     *     coach_commission_rate:numeric-string|int|float,
-     *     is_active:bool,
-     *     effective_from?:string|null,
-     *     effective_until?:string|null
-     * }  $data
-     * @return array{
-     *     price:float,
-     *     coach_commission_rate:float,
-     *     is_active:bool,
-     *     effective_from:string|null,
-     *     effective_until:string|null
-     * }
+     * Transform PT product payload for database storage.
+     * @param array $data
+     * @return array{coach_commission_rate: float, effective_from: mixed, effective_until: mixed, is_active: bool, price: float}
      */
     private function transformPtProductPayload(array $data): array
     {
@@ -266,10 +277,5 @@ class PricingController extends Controller
             'effective_from' => $data['effective_from'] ?? null,
             'effective_until' => $data['effective_until'] ?? null,
         ];
-    }
-
-    private function ensureCanManagePricing(): void
-    {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
     }
 }

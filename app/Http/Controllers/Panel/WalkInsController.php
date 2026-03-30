@@ -14,7 +14,9 @@ use Illuminate\View\View;
 
 class WalkInsController extends Controller
 {
-    public function __construct(private BranchCashLedgerService $branchCashLedgerService) {}
+    public function __construct(private BranchCashLedgerService $branchCashLedgerService)
+    {
+    }
 
     /**
      * Walk In Index
@@ -32,21 +34,21 @@ class WalkInsController extends Controller
     public function list(Request $request): JsonResponse
     {
         $walkIns = WalkIn::with(['branch', 'ratePlan'])
-            ->when(! empty($request->search), fn ($q) => $q->where(function ($qq) use ($request) {
+            ->when(!empty($request->search), fn($q) => $q->where(function ($qq) use ($request) {
                 $qq->where('name', 'like', "%{$request->search}%")
                     ->orWhere('phone', 'like', "%{$request->search}%");
             }))
-            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
-            ->when($request->branch, fn ($q) => $q->where('branch_id', $request->branch))
-            ->when($request->date_from, fn ($q) => $q->whereDate('visited_at', '>=', $request->date_from))
-            ->when($request->date_to, fn ($q) => $q->whereDate('visited_at', '<=', $request->date_to))
+            ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
+            ->when($request->branch, fn($q) => $q->where('branch_id', $request->branch))
+            ->when($request->date_from, fn($q) => $q->whereDate('visited_at', '>=', $request->date_from))
+            ->when($request->date_to, fn($q) => $q->whereDate('visited_at', '<=', $request->date_to))
             ->orderBy('visited_at', 'desc')
             ->paginate(20)
             ->withQueryString();
 
         $baseStats = WalkIn::query()
-            ->when(! auth()->user()->hasRole('super admin'), fn ($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
-            ->when($request->branch, fn ($q) => $q->where('branch_id', $request->branch));
+            ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
+            ->when($request->branch, fn($q) => $q->where('branch_id', $request->branch));
 
         $stats = [
             'today' => (clone $baseStats)->whereDate('visited_at', Carbon::today())->count(),

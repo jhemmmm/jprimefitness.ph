@@ -12,23 +12,29 @@ use Illuminate\Validation\Rule;
 
 class InventoryController extends Controller
 {
+    /**
+     * Index inventory page
+     * @return View
+     */
     public function index(): View
     {
         return view('panel.inventory', [
-            'inventoryCategories' => InventoryCategory::query()
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->get(['id', 'name']),
+            'inventoryCategories' => InventoryCategory::query()->orderBy('sort_order')->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
+    /**
+     * List inventory items with filters and pagination
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function list(Request $request): JsonResponse
     {
         $itemsQuery = InventoryItem::query()
             ->with(['branch:id,name', 'category:id,name'])
-            ->when(! auth()->user()->hasRole('super admin'), fn ($query) => $query->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
-            ->when($request->branch, fn ($query) => $query->where('branch_id', $request->branch))
-            ->when($request->category, fn ($query) => $query->where('inventory_category_id', $request->category))
+            ->when(!auth()->user()->hasRole('super admin'), fn($query) => $query->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
+            ->when($request->branch, fn($query) => $query->where('branch_id', $request->branch))
+            ->when($request->category, fn($query) => $query->where('inventory_category_id', $request->category))
             ->when($request->search, function ($query) use ($request) {
                 $search = trim((string) $request->search);
 
@@ -36,10 +42,10 @@ class InventoryController extends Controller
                     $inner->where('name', 'like', "%{$search}%")
                         ->orWhere('sku', 'like', "%{$search}%")
                         ->orWhere('unit', 'like', "%{$search}%")
-                        ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('name', 'like', "%{$search}%"));
+                        ->orWhereHas('category', fn($categoryQuery) => $categoryQuery->where('name', 'like', "%{$search}%"));
                 });
             })
-            ->when($request->status, fn ($query) => $query->where('status', $request->status))
+            ->when($request->status, fn($query) => $query->where('status', $request->status))
             ->when($request->stock_state, function ($query) use ($request) {
                 $stockState = $request->stock_state;
 
@@ -62,10 +68,8 @@ class InventoryController extends Controller
                 }
             });
 
-        $inventory = (clone $itemsQuery)
-            ->orderBy('name')
-            ->paginate(20)
-            ->withQueryString();
+        // Clone the query for pagination and stats to avoid modifying the original query builder instance
+        $inventory = (clone $itemsQuery)->orderBy('name')->paginate(20)->withQueryString();
 
         $stats = [
             'total' => (clone $itemsQuery)->count(),
@@ -81,6 +85,11 @@ class InventoryController extends Controller
         return response()->json(compact('inventory', 'stats'));
     }
 
+    /**
+     * Store a new inventory item
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function store(Request $request): JsonResponse
     {
         $item = InventoryItem::create($this->validatePayload($request))
@@ -89,6 +98,12 @@ class InventoryController extends Controller
         return response()->json($item, 201);
     }
 
+    /**
+     * Update an existing inventory item
+     * @param Request $request
+     * @param InventoryItem $inventoryItem
+     * @return JsonResponse
+     */
     public function update(Request $request, InventoryItem $inventoryItem): JsonResponse
     {
         $inventoryItem->update($this->validatePayload($request, $inventoryItem));
@@ -96,6 +111,11 @@ class InventoryController extends Controller
         return response()->json($inventoryItem->fresh()->load(['branch:id,name', 'category:id,name']));
     }
 
+    /**
+     * Delete an existing inventory item
+     * @param InventoryItem $inventoryItem
+     * @return JsonResponse
+     */
     public function destroy(InventoryItem $inventoryItem): JsonResponse
     {
         $inventoryItem->delete();
@@ -104,6 +124,9 @@ class InventoryController extends Controller
     }
 
     /**
+     * Validate the payload for creating or updating an inventory item
+     * @param Request $request
+     * @param InventoryItem|null $inventoryItem
      * @return array<string, mixed>
      */
     private function validatePayload(Request $request, ?InventoryItem $inventoryItem = null): array
@@ -117,7 +140,7 @@ class InventoryController extends Controller
                 'string',
                 'max:80',
                 Rule::unique('inventory_items', 'sku')
-                    ->where(fn ($query) => $query->where('branch_id', (int) $request->input('branch_id')))
+                    ->where(fn($query) => $query->where('branch_id', (int) $request->input('branch_id')))
                     ->ignore($inventoryItem?->id),
             ],
             'unit' => ['required', 'string', 'max:40'],
