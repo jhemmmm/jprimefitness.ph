@@ -56,6 +56,9 @@ app.component("financial-reports-page", FinancialReportsPage);
 import AttendanceReportsPage from "./components/panel/AttendanceReportsPage.vue";
 app.component("attendance-reports-page", AttendanceReportsPage);
 
+import PayrollReportsPage from "./components/panel/PayrollReportsPage.vue";
+app.component("payroll-reports-page", PayrollReportsPage);
+
 import AttendancePage from "./components/panel/AttendancePage.vue";
 app.component("attendance-page", AttendancePage);
 

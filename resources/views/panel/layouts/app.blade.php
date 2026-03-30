@@ -137,12 +137,14 @@
                         <span class="sidebar-nav-label">Attendance Reports</span>
                     </a>
                 </div>
-                <div class="sidebar-nav-item">
-                    <a href="#" @class(['active' => request()->routeIs('panel.reports.payroll')])>
-                        <i class="bi bi-receipt"></i>
-                        <span class="sidebar-nav-label">Payroll Reports</span>
-                    </a>
-                </div>
+                @if (auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']))
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.reports.payroll') }}" @class(['active' => request()->routeIs('panel.reports.payroll*')])>
+                            <i class="bi bi-receipt"></i>
+                            <span class="sidebar-nav-label">Payroll Reports</span>
+                        </a>
+                    </div>
+                @endif
 
                 {{-- System --}}
                 <div class="sidebar-menu-heading">System</div>

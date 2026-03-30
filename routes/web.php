@@ -10,6 +10,7 @@ use App\Http\Controllers\Panel\EmployeeController;
 use App\Http\Controllers\Panel\FinancialReportsController;
 use App\Http\Controllers\Panel\InventoryController;
 use App\Http\Controllers\Panel\MembersController;
+use App\Http\Controllers\Panel\PayrollReportsController;
 use App\Http\Controllers\Panel\PricingController;
 use App\Http\Controllers\Panel\SalesController;
 use App\Http\Controllers\Panel\SalesReportsController;
@@ -104,6 +105,9 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/reports/attendance', [AttendanceReportsController::class, 'index'])->name('reports.attendance');
     Route::get('/reports/attendance/data', [AttendanceReportsController::class, 'data'])->name('reports.attendance.data');
     Route::get('/reports/attendance/export', [AttendanceReportsController::class, 'export'])->name('reports.attendance.export');
+    Route::get('/reports/payroll', [PayrollReportsController::class, 'index'])->name('reports.payroll');
+    Route::get('/reports/payroll/data', [PayrollReportsController::class, 'data'])->name('reports.payroll.data');
+    Route::get('/reports/payroll/export', [PayrollReportsController::class, 'export'])->name('reports.payroll.export');
 
     // Attendance
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');

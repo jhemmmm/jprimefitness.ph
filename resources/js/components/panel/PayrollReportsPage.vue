@@ -1,0 +1,638 @@
+<template>
+   <div class="payroll-reports-page">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+         <div>
+            <h4 class="panel-page-title mb-0">Payroll Reports</h4>
+            <p class="text-muted small mb-0">Review payroll runs and current payout progress for payrolls ending within the selected period for {{ currentBranchLabel }}</p>
+         </div>
+      </div>
+
+      <div v-if="!branchesData.length" class="panel-card p-5 text-center text-muted">
+         <i class="bi bi-receipt fs-1 d-block mb-2 opacity-25"></i>
+         <div>No accessible branches found.</div>
+      </div>
+
+      <template v-else>
+         <div class="panel-card mb-4">
+            <div class="panel-card-header">
+               <div>
+                  <div class="panel-card-title">Filters</div>
+                  <div class="panel-card-sub">Use the sidebar branch selector, payroll period end date range, payroll status, and pay frequency to review this report.</div>
+               </div>
+            </div>
+            <div class="p-3 p-md-4">
+               <div class="row g-3 align-items-end">
+                  <div class="col-12 col-md-6 col-xl-3">
+                     <label class="form-label">Date From</label>
+                     <input type="date" class="form-control" v-model="filters.date_from" />
+                  </div>
+                  <div class="col-12 col-md-6 col-xl-3">
+                     <label class="form-label">Date To</label>
+                     <input type="date" class="form-control" v-model="filters.date_to" />
+                  </div>
+                  <div class="col-12 col-md-6 col-xl-3">
+                     <label class="form-label">Status</label>
+                     <select class="form-select" v-model="filters.status">
+                        <option value="">All Active Statuses</option>
+                        <option v-for="status in payrollStatuses" :key="status.value" :value="status.value">{{ status.label }}</option>
+                     </select>
+                  </div>
+                  <div class="col-12 col-md-6 col-xl-3">
+                     <label class="form-label">Pay Frequency</label>
+                     <select class="form-select" v-model="filters.pay_frequency">
+                        <option value="">All Frequencies</option>
+                        <option v-for="frequency in payFrequencies" :key="frequency.value" :value="frequency.value">{{ frequency.label }}</option>
+                     </select>
+                  </div>
+               </div>
+
+               <div class="d-flex gap-2 mt-3">
+                  <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport" :disabled="loading">
+                     <i class="bi bi-arrow-repeat me-1"></i>
+                     Refresh
+                  </button>
+                  <a class="btn btn-outline-dark btn-sm px-3" :href="exportUrl">
+                     <i class="bi bi-download me-1"></i>
+                     Export CSV
+                  </a>
+               </div>
+            </div>
+         </div>
+
+         <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-6 col-xl-4" v-for="stat in statCards" :key="stat.label">
+               <div class="stat-card h-100">
+                  <div class="stat-card-icon" :class="stat.iconBg">
+                     <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+                  </div>
+                  <div class="stat-card-body">
+                     <div class="stat-card-label">{{ stat.label }}</div>
+                     <div class="stat-card-value" v-if="loading">
+                        <div class="skeleton-box" style="width: 88px; height: 18px; border-radius: 5px"></div>
+                     </div>
+                     <div class="stat-card-value small" v-else :class="stat.valueClass">
+                        {{ stat.prefix }}{{ stat.isMoney ? "₱" : "" }}{{ stat.isMoney ? $filters.formatMoney(stat.value) : stat.value }}
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-12 col-xl-8">
+               <div v-if="loading" class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div>
+                        <div class="panel-card-title">Payroll Trend</div>
+                        <div class="panel-card-sub">Net payroll by period end for the current report filter</div>
+                     </div>
+                  </div>
+                  <div class="panel-card-body chart-wrapper">
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 6" :key="'chart-trend-sk-' + index"></div>
+                  </div>
+               </div>
+               <div v-else-if="report.payroll_trend.length === 0" class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div>
+                        <div class="panel-card-title">Payroll Trend</div>
+                        <div class="panel-card-sub">Net payroll by period end for the current report filter</div>
+                     </div>
+                  </div>
+                  <div class="panel-card-body text-center py-5 text-muted">
+                     <i class="bi bi-graph-up-arrow empty-icon"></i>
+                     <p class="mt-2 mb-1">No payroll trend data for this filter.</p>
+                  </div>
+               </div>
+               <payroll-trend-chart v-else :trend="report.payroll_trend"></payroll-trend-chart>
+            </div>
+
+            <div class="col-12 col-xl-4">
+               <div v-if="loading" class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div>
+                        <div class="panel-card-title">Payroll Status Mix</div>
+                        <div class="panel-card-sub">Share of net payroll grouped by payroll status</div>
+                     </div>
+                  </div>
+                  <div class="panel-card-body chart-wrapper chart-wrapper-pie d-flex flex-column justify-content-center">
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 5" :key="'chart-status-sk-' + index"></div>
+                  </div>
+               </div>
+               <div v-else-if="chartStatusBreakdown.length === 0" class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div>
+                        <div class="panel-card-title">Payroll Status Mix</div>
+                        <div class="panel-card-sub">Share of net payroll grouped by payroll status</div>
+                     </div>
+                  </div>
+                  <div class="panel-card-body text-center py-5 text-muted">
+                     <i class="bi bi-pie-chart empty-icon"></i>
+                     <p class="mt-2 mb-1">No payroll status totals for this filter.</p>
+                  </div>
+               </div>
+               <payroll-status-breakdown-chart v-else :breakdown="chartStatusBreakdown"></payroll-status-breakdown-chart>
+            </div>
+         </div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-12 col-xl-6">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">Status Breakdown</div>
+                  </div>
+                  <div class="p-3 p-md-4">
+                     <div v-if="loading">
+                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 4" :key="'status-sk-' + index"></div>
+                     </div>
+                     <div v-else-if="report.status_breakdown.length === 0" class="text-center py-4 text-muted">
+                        <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+                        <div>No payroll records for this filter.</div>
+                     </div>
+                     <div v-else>
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom" v-for="row in report.status_breakdown" :key="row.status">
+                           <div>
+                              <span :class="['m-badge', $filters.statusBadge(row.status)]">{{ row.label }}</span>
+                              <div class="text-muted small mt-1">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
+                           </div>
+                           <div class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">Pay Frequency Breakdown</div>
+                  </div>
+                  <div class="p-3 p-md-4">
+                     <div v-if="loading">
+                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 2" :key="'frequency-sk-' + index"></div>
+                     </div>
+                     <div v-else-if="report.pay_frequency_breakdown.length === 0" class="text-center py-4 text-muted">
+                        <i class="bi bi-calendar-week fs-1 d-block mb-2 opacity-25"></i>
+                        <div>No pay frequency activity for this filter.</div>
+                     </div>
+                     <div v-else>
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom" v-for="row in report.pay_frequency_breakdown" :key="row.pay_frequency">
+                           <div>
+                              <div class="fw-semibold">{{ row.label }}</div>
+                              <div class="text-muted small">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
+                           </div>
+                           <div class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-12 col-xl-6">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">{{ report.scope.is_all_branches ? "Branch Breakdown" : "Selected Branch" }}</div>
+                  </div>
+                  <div class="p-3 p-md-4">
+                     <div v-if="loading">
+                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 3" :key="'branch-sk-' + index"></div>
+                     </div>
+                     <div v-else-if="report.branch_breakdown.length === 0" class="text-center py-4 text-muted">
+                        <i class="bi bi-diagram-3 fs-1 d-block mb-2 opacity-25"></i>
+                        <div>No branch payroll records for this filter.</div>
+                     </div>
+                     <div v-else>
+                        <div class="border rounded-3 px-3 py-2 mb-2" v-for="row in report.branch_breakdown" :key="row.branch_id">
+                           <div class="d-flex justify-content-between align-items-start gap-3">
+                              <div>
+                                 <div class="fw-semibold">{{ row.branch_name }}</div>
+                                 <div class="text-muted small">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
+                                 <div class="small text-muted">Paid Out To Date: ₱{{ $filters.formatMoney(row.total_paid) }}</div>
+                              </div>
+                              <div class="text-end flex-shrink-0">
+                                 <div class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</div>
+                                 <div class="small" :class="row.outstanding_balance > 0 ? 'text-danger' : 'text-success'">
+                                    {{ row.outstanding_balance > 0 ? "Outstanding To Date ₱" + $filters.formatMoney(row.outstanding_balance) : "Fully Paid" }}
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div>
+                        <div class="panel-card-title">Payout Methods for Selected Payrolls</div>
+                        <div class="panel-card-sub">Current payout methods recorded against payrolls within the selected period.</div>
+                     </div>
+                  </div>
+                  <div class="p-3 p-md-4">
+                     <div v-if="loading">
+                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 3" :key="'method-sk-' + index"></div>
+                     </div>
+                     <div v-else-if="report.payout_method_breakdown.length === 0" class="text-center py-4 text-muted">
+                        <i class="bi bi-cash-stack fs-1 d-block mb-2 opacity-25"></i>
+                        <div>No payouts recorded for this filter.</div>
+                     </div>
+                     <div v-else>
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom" v-for="row in report.payout_method_breakdown" :key="row.method">
+                           <div>
+                              <div class="fw-semibold">{{ row.label }}</div>
+                              <div class="text-muted small">{{ row.payout_count }} payout{{ row.payout_count !== 1 ? "s" : "" }}</div>
+                           </div>
+                           <div class="fw-semibold">₱{{ $filters.formatMoney(row.total_paid) }}</div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-12">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">Payroll Trend</div>
+                  </div>
+                  <div class="panel-card-body p-0">
+                     <div v-if="loading">
+                        <div class="p-3">
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 5" :key="'trend-sk-' + index"></div>
+                        </div>
+                     </div>
+                     <div v-else-if="report.payroll_trend.length === 0" class="text-center py-5 text-muted">
+                        <i class="bi bi-graph-up-arrow empty-icon"></i>
+                        <p class="mt-2 mb-1">No payroll trend data for this filter.</p>
+                     </div>
+                     <div v-else>
+                        <div class="table-responsive d-none d-md-block">
+                           <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
+                              <thead>
+                                 <tr>
+                                    <th>Period End</th>
+                                    <th>Payroll Runs</th>
+                                    <th>Net Payroll</th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 <tr v-for="row in report.payroll_trend" :key="row.period_end">
+                                    <td>{{ $filters.formatDate(row.period_end) }}</td>
+                                    <td>{{ row.payroll_count }}</td>
+                                    <td class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</td>
+                                 </tr>
+                              </tbody>
+                           </table>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div class="member-card" v-for="row in report.payroll_trend" :key="'trend-mobile-' + row.period_end">
+                              <div class="member-card-top">
+                                 <div>
+                                    <div class="member-card-name">{{ $filters.formatDate(row.period_end) }}</div>
+                                    <div class="member-card-sub">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
+                                 </div>
+                                 <div class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div class="panel-card">
+            <div class="panel-card-header">
+               <div>
+                  <div class="panel-card-title">Recent Payrolls</div>
+                  <div class="panel-card-sub">Latest payroll runs, payout progress, and approval context for the selected report scope.</div>
+               </div>
+            </div>
+            <div class="panel-card-body p-0">
+               <div v-if="loading">
+                  <div class="p-3 d-none d-md-block">
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'recent-sk-' + index"></div>
+                  </div>
+                  <div class="d-md-none p-3">
+                     <div class="member-card" v-for="index in 4" :key="'recent-mobile-sk-' + index">
+                        <div class="member-card-top">
+                           <div>
+                              <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
+                              <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               <div v-else-if="report.recent_payrolls.length === 0" class="text-center py-5 text-muted">
+                  <i class="bi bi-receipt empty-icon"></i>
+                  <p class="mt-2 mb-1">No payroll records found for this filter.</p>
+               </div>
+               <div v-else>
+                  <div class="table-responsive d-none d-md-block">
+                     <table class="table table-hover table-striped align-middle mb-0 panel-table text-nowrap">
+                        <thead>
+                           <tr>
+                              <th>Employee</th>
+                              <th>Branch</th>
+                              <th>Period</th>
+                              <th>Frequency</th>
+                              <th>Status</th>
+                              <th>Gross</th>
+                              <th>Net</th>
+                              <th>Paid Out To Date</th>
+                              <th>Outstanding To Date</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           <tr v-for="payroll in report.recent_payrolls" :key="payroll.id">
+                              <td>
+                                 <div class="fw-semibold">{{ payroll.employee_name || "—" }}</div>
+                                 <div class="small text-muted" v-if="payroll.approved_by_name">Approved by {{ payroll.approved_by_name }}</div>
+                              </td>
+                              <td>{{ payroll.branch_name || "—" }}</td>
+                              <td>{{ payroll.period_label }}</td>
+                              <td>{{ payroll.pay_frequency_label }}</td>
+                              <td>
+                                 <span :class="['m-badge', $filters.statusBadge(payroll.status)]">{{ payroll.status_label }}</span>
+                              </td>
+                              <td>₱{{ $filters.formatMoney(payroll.gross_amount) }}</td>
+                              <td class="fw-semibold">₱{{ $filters.formatMoney(payroll.net_amount) }}</td>
+                              <td class="text-success">₱{{ $filters.formatMoney(payroll.total_paid) }}</td>
+                              <td :class="payroll.outstanding_balance > 0 ? 'text-danger' : 'text-success'">
+                                 {{ payroll.outstanding_balance > 0 ? "₱" + $filters.formatMoney(payroll.outstanding_balance) : "✓" }}
+                              </td>
+                           </tr>
+                        </tbody>
+                     </table>
+                  </div>
+                  <div class="d-md-none p-3">
+                     <div class="member-card" v-for="payroll in report.recent_payrolls" :key="'recent-mobile-' + payroll.id">
+                        <div class="member-card-top">
+                           <div>
+                              <div class="member-card-name">{{ payroll.employee_name || "—" }}</div>
+                              <div class="member-card-sub">{{ payroll.branch_name || "—" }} · {{ payroll.period_label }}</div>
+                           </div>
+                           <span :class="['m-badge', $filters.statusBadge(payroll.status)]">{{ payroll.status_label }}</span>
+                        </div>
+                        <div class="member-card-tags ps-0">
+                           <span class="m-badge m-badge--plan">{{ payroll.pay_frequency_label }}</span>
+                        </div>
+                        <div class="small text-muted mb-2" v-if="payroll.approved_by_name">Approved by {{ payroll.approved_by_name }}</div>
+                        <div class="member-card-footer flex-column align-items-start gap-1">
+                           <span>Gross: ₱{{ $filters.formatMoney(payroll.gross_amount) }}</span>
+                           <span>Net: ₱{{ $filters.formatMoney(payroll.net_amount) }}</span>
+                           <span>Paid Out To Date: ₱{{ $filters.formatMoney(payroll.total_paid) }}</span>
+                           <span :class="payroll.outstanding_balance > 0 ? 'text-danger' : 'text-success'">
+                              {{ payroll.outstanding_balance > 0 ? "Outstanding To Date: ₱" + $filters.formatMoney(payroll.outstanding_balance) : "Outstanding To Date: None" }}
+                           </span>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </template>
+   </div>
+</template>
+
+<script>
+import PayrollStatusBreakdownChart from "./charts/PayrollStatusBreakdownChart.vue";
+import PayrollTrendChart from "./charts/PayrollTrendChart.vue";
+
+export default {
+   components: {
+      PayrollStatusBreakdownChart,
+      PayrollTrendChart,
+   },
+   props: {
+      branchesData: {
+         type: Array,
+         default: function () {
+            return [];
+         },
+      },
+   },
+   data: function () {
+      return {
+         loading: false,
+         pageError: "",
+         selectedBranch: null,
+         filters: {
+            date_from: this.defaultDateFrom(),
+            date_to: this.defaultDateTo(),
+            status: "",
+            pay_frequency: "",
+         },
+         report: this.emptyReport(),
+      };
+   },
+   computed: {
+      payrollStatuses: function () {
+         return [
+            { value: "draft", label: "Draft" },
+            { value: "approved", label: "Approved" },
+            { value: "partially_paid", label: "Partially Paid" },
+            { value: "paid", label: "Paid" },
+            { value: "canceled", label: "Canceled" },
+         ];
+      },
+      payFrequencies: function () {
+         return [
+            { value: "semi_monthly", label: "Semi Monthly" },
+            { value: "monthly", label: "Monthly" },
+         ];
+      },
+      currentBranchLabel: function () {
+         if (!this.selectedBranch) {
+            return "all accessible branches";
+         }
+
+         const branch = this.branchesData.find((item) => item.id === this.selectedBranch);
+         return branch ? branch.name : "the selected branch";
+      },
+      exportUrl: function () {
+         const params = new URLSearchParams();
+         const payload = {
+            branch: this.report.scope.branch?.id || undefined,
+            date_from: this.report.filters.date_from || undefined,
+            date_to: this.report.filters.date_to || undefined,
+            status: this.report.filters.status || undefined,
+            pay_frequency: this.report.filters.pay_frequency || undefined,
+         };
+
+         Object.keys(payload).forEach((key) => {
+            if (payload[key] !== undefined && payload[key] !== null && payload[key] !== "") {
+               params.append(key, payload[key]);
+            }
+         });
+
+         return `/panel/reports/payroll/export${params.toString() ? `?${params.toString()}` : ""}`;
+      },
+      statCards: function () {
+         return [
+            {
+               label: "Payroll Runs",
+               value: this.report.summary.payroll_count,
+               isMoney: false,
+               prefix: "",
+               icon: "bi-receipt",
+               iconBg: "bg-secondary-soft",
+               iconColor: "text-secondary",
+               valueClass: "",
+            },
+            {
+               label: "Gross Payroll",
+               value: this.report.summary.gross_payroll,
+               isMoney: true,
+               prefix: "",
+               icon: "bi-cash-stack",
+               iconBg: "bg-primary-soft",
+               iconColor: "text-primary",
+               valueClass: "",
+            },
+            {
+               label: "Bonuses",
+               value: this.report.summary.total_bonus,
+               isMoney: true,
+               prefix: "",
+               icon: "bi-gift",
+               iconBg: "bg-success-soft",
+               iconColor: "text-success",
+               valueClass: "",
+            },
+            {
+               label: "PT Commission",
+               value: this.report.summary.pt_commission,
+               isMoney: true,
+               prefix: "",
+               icon: "bi-person-video3",
+               iconBg: "bg-warning-soft",
+               iconColor: "text-warning",
+               valueClass: "",
+            },
+            {
+               label: "Net Payroll",
+               value: this.report.summary.net_payroll,
+               isMoney: true,
+               prefix: "",
+               icon: "bi-calculator",
+               iconBg: "bg-success-soft",
+               iconColor: "text-success",
+               valueClass: "",
+            },
+            {
+               label: "Outstanding To Date",
+               value: this.report.summary.outstanding_balance,
+               isMoney: true,
+               prefix: "",
+               icon: "bi-exclamation-circle",
+               iconBg: this.report.summary.outstanding_balance > 0 ? "bg-danger-soft" : "bg-success-soft",
+               iconColor: this.report.summary.outstanding_balance > 0 ? "text-danger" : "text-success",
+               valueClass: this.report.summary.outstanding_balance > 0 ? "text-danger" : "text-success",
+            },
+         ];
+      },
+      chartStatusBreakdown: function () {
+         return this.report.status_breakdown.filter((row) => Number(row.net_payroll) > 0);
+      },
+   },
+   mounted: function () {
+      this.selectedBranch = this.resolveSelectedBranch();
+      this.fetchReport();
+   },
+   methods: {
+      emptyReport: function () {
+         return {
+            scope: {
+               branch: null,
+               is_all_branches: true,
+            },
+            filters: {
+               date_from: null,
+               date_to: null,
+               status: null,
+               status_label: null,
+               pay_frequency: null,
+               pay_frequency_label: null,
+            },
+            summary: {
+               payroll_count: 0,
+               gross_payroll: 0,
+               total_bonus: 0,
+               pt_commission: 0,
+               total_deductions: 0,
+               net_payroll: 0,
+               total_paid: 0,
+               outstanding_balance: 0,
+            },
+            status_breakdown: [],
+            pay_frequency_breakdown: [],
+            branch_breakdown: [],
+            payout_method_breakdown: [],
+            payroll_trend: [],
+            recent_payrolls: [],
+         };
+      },
+      defaultDateFrom: function () {
+         const now = new Date();
+         const month = String(now.getMonth() + 1).padStart(2, "0");
+         return `${now.getFullYear()}-${month}-01`;
+      },
+      defaultDateTo: function () {
+         const now = new Date();
+         const month = String(now.getMonth() + 1).padStart(2, "0");
+         const day = String(now.getDate()).padStart(2, "0");
+         return `${now.getFullYear()}-${month}-${day}`;
+      },
+      resolveSelectedBranch: function () {
+         const storedBranchId = localStorage.getItem("selectedBranch");
+
+         if (!storedBranchId || storedBranchId === "null") {
+            return null;
+         }
+
+         const branchId = parseInt(storedBranchId, 10);
+         if (Number.isNaN(branchId)) {
+            return null;
+         }
+
+         return this.branchesData.some((branch) => branch.id === branchId) ? branchId : null;
+      },
+      buildParams: function () {
+         return {
+            branch: this.selectedBranch || undefined,
+            date_from: this.filters.date_from || undefined,
+            date_to: this.filters.date_to || undefined,
+            status: this.filters.status || undefined,
+            pay_frequency: this.filters.pay_frequency || undefined,
+         };
+      },
+      fetchReport: function () {
+         this.loading = true;
+         this.pageError = "";
+
+         axios
+            .get("/panel/reports/payroll/data", {
+               params: this.buildParams(),
+            })
+            .then((response) => {
+               this.report = response.data;
+            })
+            .catch((error) => {
+               this.pageError = error.response?.data?.message || "Unable to load payroll reports right now.";
+               this.report = this.emptyReport();
+            })
+            .finally(() => {
+               this.loading = false;
+            });
+      },
+   },
+};
+</script>
