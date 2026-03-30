@@ -47,6 +47,9 @@ app.component("pricing-page", PricingPage);
 import SalesPage from "./components/panel/SalesPage.vue";
 app.component("sales-page", SalesPage);
 
+import SalesReportsPage from "./components/panel/SalesReportsPage.vue";
+app.component("sales-reports-page", SalesReportsPage);
+
 import AttendancePage from "./components/panel/AttendancePage.vue";
 app.component("attendance-page", AttendancePage);
 

@@ -37,12 +37,12 @@
             <div class="col-12 col-xl-8">
                <div class="panel-card">
                   <div class="panel-card-header">
-                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                     <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 w-100">
                         <div>
                            <span class="panel-card-title">New Sale</span>
                            <div class="small text-muted mt-1">Processing sale for {{ currentBranchName }}</div>
                         </div>
-                        <div class="btn-group btn-group-sm flex-wrap" role="group">
+                        <div class="btn-group btn-group-sm ms-md-auto sales-type-group" role="group">
                            <button type="button" :class="['btn', saleType === 'inventory' ? 'btn-danger' : 'btn-outline-secondary']" @click="setSaleType('inventory')">Inventory</button>
                            <button type="button" :class="['btn', saleType === 'membership' ? 'btn-danger' : 'btn-outline-secondary']" @click="setSaleType('membership')">Membership</button>
                            <button type="button" :class="['btn', saleType === 'pt_package' ? 'btn-danger' : 'btn-outline-secondary']" @click="setSaleType('pt_package')">PT Package</button>
@@ -91,7 +91,7 @@
                                        <div class="form-control bg-light fw-semibold">₱{{ $filters.formatMoney(inventoryLineTotal(line)) }}</div>
                                     </div>
                                     <div class="col-12 col-lg-2 d-flex justify-content-lg-end">
-                                       <button type="button" class="btn btn-outline-danger w-100 w-lg-auto" @click="removeInventoryLine(line)" :disabled="form.inventory_lines.length === 1"><i class="bi bi-trash me-1"></i>Remove</button>
+                                       <button type="button" class="btn btn-outline-danger w-100 w-lg-auto d-flex align-items-center justify-content-center" @click="removeInventoryLine(line)" :disabled="form.inventory_lines.length === 1"><i class="bi bi-trash me-1"></i>Remove</button>
                                     </div>
                                  </div>
 
@@ -127,7 +127,8 @@
 
                                  <div class="col-12" v-if="form.member_mode === 'existing'">
                                     <label class="form-label">Search Member <span class="text-danger">*</span></label>
-                                    <async-search-select v-model="form.member_id" :selected-label="form.member_label" placeholder="Search member by name, email, or phone" search-placeholder="Search member..." :fetch-options="fetchMemberOptions" :invalid="!!formErrors.member_id" @select-option="handleMemberSelect"></async-search-select>
+                                    <async-search-select v-model="form.member_id" :selected-label="form.member_label" placeholder="Select member" search-placeholder="Search by name, email, or phone" :fetch-options="fetchMemberOptions" :invalid="!!formErrors.member_id" @select-option="handleMemberSelect"></async-search-select>
+                                    <div class="form-text small">Search by member name, email, or phone number.</div>
                                     <div class="invalid-feedback d-block">{{ formErrors.member_id }}</div>
                                  </div>
 
@@ -1128,3 +1129,40 @@ export default {
    },
 };
 </script>
+
+<style scoped>
+.sales-type-group {
+   width: 100%;
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 0.5rem;
+}
+
+.sales-type-group > .btn {
+   width: 100%;
+   border-radius: 0.5rem !important;
+}
+
+@media (min-width: 768px) {
+   .sales-type-group {
+      width: auto;
+      display: inline-flex;
+      gap: 0;
+   }
+
+   .sales-type-group > .btn {
+      width: auto;
+      border-radius: 0 !important;
+   }
+
+   .sales-type-group > .btn:first-child {
+      border-top-left-radius: 0.375rem !important;
+      border-bottom-left-radius: 0.375rem !important;
+   }
+
+   .sales-type-group > .btn:last-child {
+      border-top-right-radius: 0.375rem !important;
+      border-bottom-right-radius: 0.375rem !important;
+   }
+}
+</style>

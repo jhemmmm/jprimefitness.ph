@@ -30,7 +30,7 @@
 
       <div class="panel-card mb-4 p-3">
          <div class="row g-2 align-items-center">
-            <div class="col-12 col-lg-4">
+            <div class="col-12 col-lg-5">
                <div class="input-group">
                   <span class="input-group-text bg-transparent border-end-0">
                      <i class="bi bi-search text-muted search-icon"></i>
@@ -38,35 +38,26 @@
                   <input type="text" class="form-control border-start-0" placeholder="Search item, SKU, category..." v-model="search" @input="onSearchInput" />
                </div>
             </div>
-            <div class="col-6 col-md-3 col-lg-2">
-               <select class="form-select" v-model="selectedBranch" @change="fetchItems(1)">
-                  <option value="">All Branches</option>
-                  <option v-for="branch in branchesData" :key="branch.id" :value="branch.id">{{ branch.name }}</option>
-               </select>
-            </div>
-            <div class="col-6 col-md-3 col-lg-2">
+            <div class="col-6 col-md-4 col-lg-2">
                <select class="form-select" v-model="selectedCategory" @change="fetchItems(1)">
                   <option value="">All Categories</option>
                   <option v-for="category in categoriesData" :key="category.id" :value="category.id">{{ category.name }}</option>
                </select>
             </div>
-            <div class="col-6 col-md-3 col-lg-2">
+            <div class="col-6 col-md-4 col-lg-2">
                <select class="form-select" v-model="selectedStatus" @change="fetchItems(1)">
                   <option value="">All Statuses</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
                </select>
             </div>
-            <div class="col-6 col-md-3 col-lg-2">
+            <div class="col-6 col-md-4 col-lg-2">
                <select class="form-select" v-model="selectedStockState" @change="fetchItems(1)">
                   <option value="">All Stock</option>
                   <option value="in_stock">In Stock</option>
                   <option value="low_stock">Low Stock</option>
                   <option value="out_of_stock">Out of Stock</option>
                </select>
-            </div>
-            <div class="col-6 col-md-3 col-lg-2" v-if="hasActiveFilters">
-               <button class="btn btn-outline-secondary" @click="clearFilters"><i class="bi bi-x me-1"></i> Clear</button>
             </div>
          </div>
       </div>
@@ -514,14 +505,6 @@ export default {
          clearTimeout(this.searchTimer);
          this.searchTimer = setTimeout(() => this.fetchItems(1), 400);
       },
-      clearFilters: function () {
-         this.search = "";
-         this.selectedBranch = parseInt(localStorage.getItem("selectedBranch"), 10) || "";
-         this.selectedCategory = "";
-         this.selectedStatus = "";
-         this.selectedStockState = "";
-         this.fetchItems(1);
-      },
       goToPage: function (link) {
          if (!link.url) {
             return;
@@ -626,7 +609,7 @@ export default {
    },
    computed: {
       hasActiveFilters: function () {
-         return !!(this.search || this.selectedBranch || this.selectedCategory || this.selectedStatus || this.selectedStockState);
+         return !!(this.search || this.selectedCategory || this.selectedStatus || this.selectedStockState);
       },
       statCards: function () {
          return [

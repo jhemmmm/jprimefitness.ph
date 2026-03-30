@@ -10,6 +10,7 @@ use App\Http\Controllers\Panel\InventoryController;
 use App\Http\Controllers\Panel\MembersController;
 use App\Http\Controllers\Panel\PricingController;
 use App\Http\Controllers\Panel\SalesController;
+use App\Http\Controllers\Panel\SalesReportsController;
 use App\Http\Controllers\Panel\WalkInsController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -90,6 +91,11 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
         Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
         Route::get('/sales/{saleTransaction}/receipt/print', [SalesController::class, 'printReceipt'])->name('sales.receipt.print')->whereNumber('saleTransaction');
     });
+
+    // Sales Reports
+    Route::get('/reports/sales', [SalesReportsController::class, 'index'])->name('reports.sales');
+    Route::get('/reports/sales/data', [SalesReportsController::class, 'data'])->name('reports.sales.data');
+    Route::get('/reports/sales/export', [SalesReportsController::class, 'export'])->name('reports.sales.export');
 
     // Attendance
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');

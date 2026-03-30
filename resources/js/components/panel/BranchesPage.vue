@@ -49,9 +49,6 @@
                   <option value="coming_soon">Coming Soon</option>
                </select>
             </div>
-            <div class="col-6 col-md-2" v-if="hasActiveFilters">
-               <button class="btn btn-outline-secondary w-100" @click="clearFilters"><i class="bi bi-x me-1"></i> Clear</button>
-            </div>
          </div>
       </div>
 
@@ -443,12 +440,6 @@ export default {
       onSearchInput: function () {
          clearTimeout(this.searchTimer);
          this.searchTimer = setTimeout(() => this.fetchBranches(), 500);
-      },
-
-      clearFilters: function () {
-         this.search = "";
-         this.selectedStatus = "";
-         this.fetchBranches();
       },
 
       goToPage: function (link) {

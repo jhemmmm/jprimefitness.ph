@@ -35,7 +35,7 @@
       <!-- ── Filters ──────────────────────────────────────────────────────── -->
       <div class="panel-card mb-4 p-3">
          <div class="row g-2 align-items-center">
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-6 col-lg-8">
                <div class="input-group">
                   <span class="input-group-text bg-transparent border-end-0">
                      <i class="bi bi-search text-muted search-icon"></i>
@@ -43,20 +43,11 @@
                   <input type="text" class="form-control border-start-0" placeholder="Search name or phone…" v-model="search" @input="onSearchInput" />
                </div>
             </div>
-            <div class="col-6 col-md-2">
-               <select class="form-select" v-model="selectedBranch" @change="fetchWalkIns(1)" title="Filter by branch">
-                  <option value="">All Branches</option>
-                  <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
-               </select>
-            </div>
-            <div class="col-6 col-md-2">
+            <div class="col-6 col-md-3 col-lg-2">
                <input type="date" class="form-control" v-model="dateFrom" @change="fetchWalkIns(1)" title="From date" />
             </div>
-            <div class="col-6 col-md-2">
+            <div class="col-6 col-md-3 col-lg-2">
                <input type="date" class="form-control" v-model="dateTo" @change="fetchWalkIns(1)" title="To date" />
-            </div>
-            <div class="col-6 col-md-2" v-if="hasActiveFilters">
-               <button class="btn btn-outline-secondary w-100" @click="clearFilters"><i class="bi bi-x me-1"></i> Clear</button>
             </div>
          </div>
       </div>
@@ -435,14 +426,6 @@ export default {
          this.searchTimer = setTimeout(() => this.fetchWalkIns(), 500);
       },
 
-      clearFilters: function () {
-         this.search = "";
-         this.selectedBranch = parseInt(localStorage.getItem("selectedBranch"), 10) || "";
-         this.dateFrom = "";
-         this.dateTo = "";
-         this.fetchWalkIns();
-      },
-
       goToPage: function (link) {
          if (!link.url) return;
          const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
@@ -524,7 +507,7 @@ export default {
 
    computed: {
       hasActiveFilters: function () {
-         return !!(this.search || this.selectedBranch || this.dateFrom || this.dateTo);
+         return !!(this.search || this.dateFrom || this.dateTo);
       },
       statCards: function () {
          return [

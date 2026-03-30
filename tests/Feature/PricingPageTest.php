@@ -51,11 +51,15 @@ class PricingPageTest extends TestCase
         $accessibleBranch->ratePlans()->attach($ratePlan->id, [
             'price' => 1499,
             'is_active' => true,
+            'effective_from' => '2026-04-01',
+            'effective_until' => '2026-04-30',
         ]);
         $accessibleBranch->ptProducts()->attach($ptProduct->id, [
             'price' => 3600,
             'coach_commission_rate' => 40,
             'is_active' => true,
+            'effective_from' => '2026-04-01',
+            'effective_until' => '2026-04-30',
         ]);
         $otherBranch->ratePlans()->attach($ratePlan->id, [
             'price' => 1999,
@@ -72,9 +76,14 @@ class PricingPageTest extends TestCase
             ->assertJsonCount(1, 'available_pt_products')
             ->assertJsonPath('membership_rates.0.id', $ratePlan->id)
             ->assertJsonPath('membership_rates.0.branch_price', 1499)
+            ->assertJsonPath('membership_rates.0.effective_from', '2026-04-01')
+            ->assertJsonPath('membership_rates.0.effective_until', '2026-04-30')
             ->assertJsonPath('available_membership_rate_plans.0.id', $unusedRatePlan->id)
             ->assertJsonPath('pt_rates.0.id', $ptProduct->id)
             ->assertJsonPath('pt_rates.0.branch_price', 3600)
+            ->assertJsonPath('pt_rates.0.coach_commission_rate', 40)
+            ->assertJsonPath('pt_rates.0.effective_from', '2026-04-01')
+            ->assertJsonPath('pt_rates.0.effective_until', '2026-04-30')
             ->assertJsonPath('available_pt_products.0.id', $unusedPtProduct->id);
 
         $this->actingAs($staff)

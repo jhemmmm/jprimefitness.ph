@@ -34,9 +34,6 @@
          <div class="col-md-3">
             <input type="date" class="form-control" v-model="dateTo" @change="fetchRecords(1)" placeholder="To" />
          </div>
-         <div class="col-md-2">
-            <button class="btn btn-outline-secondary w-100" v-if="dateFrom || dateTo" @click="clearFilters"><i class="bi bi-x-lg me-1"></i>Clear</button>
-         </div>
          <div class="col-md-4 text-end">
             <button class="btn btn-danger btn-sm" @click="openLogModal"><i class="bi bi-plus-lg me-1"></i>Log Attendance</button>
          </div>
@@ -250,12 +247,6 @@ export default {
             })
             .catch((err) => (this.pageError = err.response?.data?.message || "Failed to load attendance records."))
             .finally(() => (this.loading = false));
-      },
-
-      clearFilters: function () {
-         this.dateFrom = "";
-         this.dateTo = "";
-         this.fetchRecords(1);
       },
 
       goToPage: function (link) {

@@ -118,7 +118,7 @@
                 {{-- Reports --}}
                 <div class="sidebar-menu-heading">Reports</div>
                 <div class="sidebar-nav-item">
-                    <a href="#" @class(['active' => request()->routeIs('panel.reports.sales')])>
+                    <a href="{{ route('panel.reports.sales') }}" @class(['active' => request()->routeIs('panel.reports.sales*')])>
                         <i class="bi bi-bar-chart-fill"></i>
                         <span class="sidebar-nav-label">Sales Reports</span>
                     </a>

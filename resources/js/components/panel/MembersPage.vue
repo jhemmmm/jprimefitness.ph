@@ -35,7 +35,7 @@
       <!-- Filters -->
       <div class="panel-card mb-4 p-3">
          <div class="row g-2 align-items-center">
-            <div class="col-12 col-md-4">
+            <div class="col-12 col-md-6">
                <div class="input-group">
                   <span class="input-group-text bg-transparent border-end-0">
                      <i class="bi bi-search text-muted search-icon"></i>
@@ -43,13 +43,7 @@
                   <input type="text" class="form-control border-start-0" placeholder="Search name or email…" v-model="search" @input="onSearchInput" />
                </div>
             </div>
-            <div class="col-6 col-md-2">
-               <select class="form-select" v-model="selectedBranch" @change="fetchMembers(1)">
-                  <option value="">All Branches</option>
-                  <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
-               </select>
-            </div>
-            <div class="col-6 col-md-2">
+            <div class="col-6 col-md-3">
                <select class="form-select" v-model="selectedStatus" @change="fetchMembers(1)">
                   <option value="">All Status</option>
                   <option value="active">Active</option>
@@ -57,14 +51,11 @@
                   <option value="suspended">Suspended</option>
                </select>
             </div>
-            <div class="col-6 col-md-2">
+            <div class="col-6 col-md-3">
                <select class="form-select" v-model="selectedPlan" @change="fetchMembers(1)">
                   <option value="">All Plans</option>
                   <option v-for="p in ratePlansData" :key="p.id" :value="p.id">{{ p.name }}</option>
                </select>
-            </div>
-            <div class="col-6 col-md-2" v-if="hasActiveFilters">
-               <button class="btn btn-outline-secondary w-100" @click="clearFilters"><i class="bi bi-x me-1"></i> Clear</button>
             </div>
          </div>
       </div>
@@ -500,14 +491,6 @@ export default {
          this.searchTimer = setTimeout(() => this.fetchMembers(), 500);
       },
 
-      clearFilters: function () {
-         this.search = "";
-         this.selectedBranch = parseInt(localStorage.getItem("selectedBranch"), 10) || "";
-         this.selectedStatus = "";
-         this.selectedPlan = "";
-         this.fetchMembers();
-      },
-
       goToPage: function (link) {
          if (!link.url) return;
          var page = parseInt(new URL(link.url).searchParams.get("page") || "1");
@@ -612,7 +595,7 @@ export default {
 
    computed: {
       hasActiveFilters: function () {
-         return !!(this.search || this.selectedBranch || this.selectedStatus || this.selectedPlan);
+         return !!(this.search || this.selectedStatus || this.selectedPlan);
       },
       statCards: function () {
          return [
