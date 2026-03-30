@@ -132,8 +132,8 @@
                     </div>
                 @endif
                 <div class="sidebar-nav-item">
-                    <a href="#" @class(['active' => request()->routeIs('panel.reports.attendance')])>
-                        <i class="bi bi-graph-up-arrow"></i>
+                    <a href="{{ route('panel.reports.attendance') }}" @class(['active' => request()->routeIs('panel.reports.attendance*')])>
+                        <i class="bi bi-clipboard2-data-fill"></i>
                         <span class="sidebar-nav-label">Attendance Reports</span>
                     </a>
                 </div>

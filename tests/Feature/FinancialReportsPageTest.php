@@ -153,6 +153,37 @@ class FinancialReportsPageTest extends TestCase
         $response->assertJsonPath('recent_operating_expenses.0.title', 'Utilities');
     }
 
+    public function test_financial_reports_can_be_exported_to_csv(): void
+    {
+        $branch = $this->createBranch('Naga');
+        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Ana');
+
+        SaleTransaction::create([
+            'branch_id' => $branch->id,
+            'type' => SaleTransaction::TYPE_INVENTORY,
+            'total' => 850,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'processed_by' => $manager->id,
+            'sold_at' => '2026-03-05 09:00:00',
+            'customer_name' => 'Counter Sale',
+            'item_name' => 'Bottled Water',
+            'details' => [],
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->get('/panel/reports/financial/export?branch='.$branch->id.'&date_from=2026-03-01&date_to=2026-03-31');
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
+        $content = $response->streamedContent();
+
+        $this->assertStringContainsString('Financial Reports', $content);
+        $this->assertStringContainsString('Summary', $content);
+        $this->assertStringContainsString('Revenue Breakdown', $content);
+        $this->assertStringContainsString('Gross Revenue', $content);
+        $this->assertStringContainsString('850', $content);
+    }
+
     public function test_financial_reports_can_aggregate_all_accessible_branches(): void
     {
         $naga = $this->createBranch('Naga');

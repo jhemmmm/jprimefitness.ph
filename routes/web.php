@@ -3,6 +3,7 @@
 use App\Http\Controllers\Home\BranchController;
 use App\Http\Controllers\Home\HomeController;
 use App\Http\Controllers\Panel\AttendanceController;
+use App\Http\Controllers\Panel\AttendanceReportsController;
 use App\Http\Controllers\Panel\BranchesController;
 use App\Http\Controllers\Panel\DashboardController;
 use App\Http\Controllers\Panel\EmployeeController;
@@ -99,6 +100,10 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/reports/sales/export', [SalesReportsController::class, 'export'])->name('reports.sales.export');
     Route::get('/reports/financial', [FinancialReportsController::class, 'index'])->name('reports.financial');
     Route::get('/reports/financial/data', [FinancialReportsController::class, 'data'])->name('reports.financial.data');
+    Route::get('/reports/financial/export', [FinancialReportsController::class, 'export'])->name('reports.financial.export');
+    Route::get('/reports/attendance', [AttendanceReportsController::class, 'index'])->name('reports.attendance');
+    Route::get('/reports/attendance/data', [AttendanceReportsController::class, 'data'])->name('reports.attendance.data');
+    Route::get('/reports/attendance/export', [AttendanceReportsController::class, 'export'])->name('reports.attendance.export');
 
     // Attendance
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');

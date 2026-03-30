@@ -22,20 +22,25 @@
             </div>
             <div class="p-3 p-md-4">
                <div class="row g-3 align-items-end">
-                  <div class="col-12 col-md-6 col-xl-4">
+                  <div class="col-12 col-md-6">
                      <label class="form-label">Date From</label>
                      <input type="date" class="form-control" v-model="filters.date_from" />
                   </div>
-                  <div class="col-12 col-md-6 col-xl-4">
+                  <div class="col-12 col-md-6">
                      <label class="form-label">Date To</label>
                      <input type="date" class="form-control" v-model="filters.date_to" />
                   </div>
-                  <div class="col-12 col-xl-4">
-                     <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport" :disabled="loading">
-                        <i class="bi bi-arrow-repeat me-1"></i>
-                        Refresh
-                     </button>
-                  </div>
+               </div>
+
+               <div class="d-flex gap-2 mt-3">
+                  <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport" :disabled="loading">
+                     <i class="bi bi-arrow-repeat me-1"></i>
+                     Refresh
+                  </button>
+                  <a class="btn btn-outline-dark btn-sm px-3" :href="exportUrl">
+                     <i class="bi bi-download me-1"></i>
+                     Export CSV
+                  </a>
                </div>
             </div>
          </div>
@@ -240,6 +245,22 @@ export default {
 
          const branch = this.branchesData.find((item) => item.id === this.selectedBranch);
          return branch ? branch.name : "the selected branch";
+      },
+      exportUrl: function () {
+         const params = new URLSearchParams();
+         const payload = {
+            branch: this.report.scope.branch?.id || undefined,
+            date_from: this.report.filters.date_from || undefined,
+            date_to: this.report.filters.date_to || undefined,
+         };
+
+         Object.keys(payload).forEach((key) => {
+            if (payload[key] !== undefined && payload[key] !== null && payload[key] !== "") {
+               params.append(key, payload[key]);
+            }
+         });
+
+         return `/panel/reports/financial/export${params.toString() ? `?${params.toString()}` : ""}`;
       },
       statCards: function () {
          return [

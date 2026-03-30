@@ -12,6 +12,7 @@ use App\Models\WalkIn;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class FinancialReportsController extends Controller
 {
@@ -27,6 +28,77 @@ class FinancialReportsController extends Controller
         $this->authorizeFinancialAccess();
 
         return response()->json($this->reportPayload($request));
+    }
+
+    public function export(Request $request): StreamedResponse
+    {
+        $this->authorizeFinancialAccess();
+
+        $report = $this->reportPayload($request);
+        $dateSuffix = now()->format('Ymd_His');
+        $fileName = "financial-report-{$dateSuffix}.csv";
+
+        return response()->streamDownload(function () use ($report): void {
+            $handle = fopen('php://output', 'w');
+
+            if ($handle === false) {
+                return;
+            }
+
+            fputcsv($handle, ['Financial Reports']);
+            fputcsv($handle, ['Branch', $report['scope']['branch']['name'] ?? 'All Accessible Branches']);
+            fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '—']);
+            fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '—']);
+            fputcsv($handle, []);
+
+            fputcsv($handle, ['Summary']);
+            fputcsv($handle, ['Metric', 'Value']);
+            fputcsv($handle, ['Gross Revenue', $report['summary']['gross_revenue']]);
+            fputcsv($handle, ['PT Commission', $report['summary']['pt_commission']]);
+            fputcsv($handle, ['Adjusted Revenue', $report['summary']['adjusted_revenue']]);
+            fputcsv($handle, ['Payroll Wages', $report['summary']['payroll_wages']]);
+            fputcsv($handle, ['Operating Expenses', $report['summary']['other_operating_expenses']]);
+            fputcsv($handle, ['Net Profit', $report['summary']['net_profit']]);
+            fputcsv($handle, []);
+
+            fputcsv($handle, ['Revenue Breakdown']);
+            fputcsv($handle, ['Type', 'Transactions', 'Total Sales']);
+            foreach ($report['revenue_breakdown'] as $row) {
+                fputcsv($handle, [$row['label'], $row['transaction_count'], $row['total_sales']]);
+            }
+            fputcsv($handle, []);
+
+            fputcsv($handle, ['Expense Breakdown']);
+            fputcsv($handle, ['Category', 'Description', 'Amount']);
+            foreach ($report['expense_breakdown'] as $row) {
+                fputcsv($handle, [$row['label'], $row['description'], $row['amount']]);
+            }
+            fputcsv($handle, []);
+
+            fputcsv($handle, ['Operating Expense Categories']);
+            fputcsv($handle, ['Category', 'Entries', 'Total Amount']);
+            foreach ($report['operating_expense_categories'] as $row) {
+                fputcsv($handle, [$row['title'], $row['entry_count'], $row['total_amount']]);
+            }
+            fputcsv($handle, []);
+
+            fputcsv($handle, ['Recent Operating Expenses']);
+            fputcsv($handle, ['Branch', 'Title', 'Description', 'Amount', 'Occurred At', 'Created By']);
+            foreach ($report['recent_operating_expenses'] as $row) {
+                fputcsv($handle, [
+                    $row['branch_name'],
+                    $row['title'],
+                    $row['description'],
+                    $row['amount'],
+                    $row['occurred_at'],
+                    $row['created_by_name'],
+                ]);
+            }
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     /**
