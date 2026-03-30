@@ -7,8 +7,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Attendance extends Model
 {
-    const TYPE_MEMBER   = 'member';
-    const TYPE_WALK_IN  = 'walk_in';
+    const TYPE_MEMBER = 'member';
+
+    const TYPE_WALK_IN = 'walk_in';
+
     const TYPE_EMPLOYEE = 'employee';
 
     protected $fillable = [
@@ -24,7 +26,7 @@ class Attendance extends Model
     ];
 
     protected $casts = [
-        'checked_in_at'  => 'datetime',
+        'checked_in_at' => 'datetime',
         'checked_out_at' => 'datetime',
     ];
 

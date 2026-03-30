@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
 use App\Models\SaleTransaction;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Query\Builder;
@@ -132,8 +131,11 @@ class SalesReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $selectedBranch = ($data['branch'] ?? null) ? $this->findAccessibleBranch((int) $data['branch']) : null;
-        $accessibleBranchIds = $this->accessibleBranchIds();
+        $branches = auth()->user()->getBranches();
+        $selectedBranch = ($data['branch'] ?? null) ? $branches->find((int) $data['branch']) : null;
+        $accessibleBranchIds = $selectedBranch
+            ? [$selectedBranch->id]
+            : $branches->pluck('id')->all();
 
         $salesQuery = SaleTransaction::query()
             ->whereIn('branch_id', $accessibleBranchIds)
@@ -168,25 +170,6 @@ class SalesReportsController extends Controller
             'branch_breakdown' => $this->branchBreakdown((clone $salesQuery)->toBase()),
             'recent_transactions' => $this->recentTransactions((clone $salesQuery)->with(['branch:id,name', 'processedBy:id,name'])->orderByDesc('sold_at')->limit(10)->get()),
         ];
-    }
-
-    private function findAccessibleBranch(int $branchId): Branch
-    {
-        return Branch::query()
-            ->when(! auth()->user()->hasRole('super admin'), fn ($query) => $query->whereIn('id', auth()->user()->branches()->pluck('branches.id')))
-            ->findOrFail($branchId);
-    }
-
-    /**
-     * @return array<int>
-     */
-    private function accessibleBranchIds(): array
-    {
-        if (auth()->user()->hasRole('super admin')) {
-            return Branch::query()->pluck('id')->all();
-        }
-
-        return auth()->user()->branches()->pluck('branches.id')->all();
     }
 
     /**

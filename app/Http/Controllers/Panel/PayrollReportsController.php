@@ -150,10 +150,11 @@ class PayrollReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $selectedBranch = $request->branch ? $this->findAccessibleBranch((int) $request->branch) : null;
+        $branches = auth()->user()->getBranches();
+        $selectedBranch = ($data['branch'] ?? null) ? $branches->find((int) $data['branch']) : null;
         $accessibleBranchIds = $selectedBranch
             ? [$selectedBranch->id]
-            : $this->accessibleBranchIds();
+            : $branches->pluck('id')->all();
 
         $payrollQuery = $this->payrollQuery($accessibleBranchIds, $request);
         $payoutQuery = $this->payoutQuery($accessibleBranchIds, $request);
@@ -207,25 +208,6 @@ class PayrollReportsController extends Controller
     private function authorizePayrollAccess(): void
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
-    }
-
-    private function findAccessibleBranch(int $branchId): Branch
-    {
-        return Branch::query()
-            ->when(! auth()->user()->hasRole('super admin'), fn ($query) => $query->whereIn('id', auth()->user()->branches()->pluck('branches.id')))
-            ->findOrFail($branchId);
-    }
-
-    /**
-     * @return array<int>
-     */
-    private function accessibleBranchIds(): array
-    {
-        if (auth()->user()->hasRole('super admin')) {
-            return Branch::query()->pluck('id')->all();
-        }
-
-        return auth()->user()->branches()->pluck('branches.id')->all();
     }
 
     /**

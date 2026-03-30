@@ -248,7 +248,7 @@ class FinancialReportsPageTest extends TestCase
 
         $this->actingAs($manager)
             ->getJson('/panel/reports/financial/data?branch='.$legazpi->id)
-            ->assertNotFound();
+            ->assertForbidden();
     }
 
     public function test_financial_reports_forbid_staff_access(): void

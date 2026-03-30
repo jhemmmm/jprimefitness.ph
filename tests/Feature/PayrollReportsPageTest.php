@@ -272,7 +272,7 @@ class PayrollReportsPageTest extends TestCase
 
         $this->actingAs($manager)
             ->getJson('/panel/reports/payroll/data?branch='.$legazpi->id)
-            ->assertNotFound();
+            ->assertForbidden();
     }
 
     public function test_payroll_reports_forbid_staff_access(): void

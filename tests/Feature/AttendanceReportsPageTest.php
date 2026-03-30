@@ -216,7 +216,7 @@ class AttendanceReportsPageTest extends TestCase
 
         $this->actingAs($staff)
             ->getJson('/panel/reports/attendance/data?branch='.$legazpi->id)
-            ->assertNotFound();
+            ->assertForbidden();
     }
 
     private function createBranch(string $name): Branch

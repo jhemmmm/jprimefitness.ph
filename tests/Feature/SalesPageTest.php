@@ -477,7 +477,7 @@ class SalesPageTest extends TestCase
 
         $this->actingAs($staff)
             ->getJson('/panel/sales/history?branch='.$otherBranch->id)
-            ->assertNotFound();
+            ->assertForbidden();
     }
 
     public function test_sales_store_rejects_inaccessible_branch_via_branch_input_middleware(): void

@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\Branch;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,17 +18,31 @@ class AttendanceReportsController extends Controller
         return view('panel.reports.attendance');
     }
 
+    /**
+     * data
+     */
     public function data(Request $request): JsonResponse
     {
-        return response()->json($this->reportPayload($request));
+        // Get report data
+        $report = $this->reportPayload($request);
+
+        // Return as JSON
+        return response()->json($report);
     }
 
+    /**
+     * export
+     */
     public function export(Request $request): StreamedResponse
     {
+        // Get report data
         $report = $this->reportPayload($request);
+        // Generate filename with timestamp
         $dateSuffix = now()->format('Ymd_His');
+        // Sanitize branch name for filename if present
         $fileName = "attendance-report-{$dateSuffix}.csv";
 
+        // Stream CSV download
         return response()->streamDownload(function () use ($report): void {
             $handle = fopen('php://output', 'w');
 
@@ -102,6 +115,8 @@ class AttendanceReportsController extends Controller
     }
 
     /**
+     * reportPayload
+     *
      * @return array<string, mixed>
      */
     private function reportPayload(Request $request): array
@@ -117,11 +132,12 @@ class AttendanceReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $selectedBranch = $request->branch ? $this->findAccessibleBranch((int) $request->branch) : null;
+        $branches = auth()->user()->getBranches();
+        $selectedBranch = ($data['branch'] ?? null) ? $branches->find((int) $data['branch']) : null;
         $accessibleBranchIds = $selectedBranch
             ? [$selectedBranch->id]
-            : $this->accessibleBranchIds();
-        $branchNames = Branch::query()
+            : $branches->pluck('id')->all();
+        $branchNames = $branches
             ->whereIn('id', $accessibleBranchIds)
             ->pluck('name', 'id');
 
@@ -167,26 +183,9 @@ class AttendanceReportsController extends Controller
         ];
     }
 
-    private function findAccessibleBranch(int $branchId): Branch
-    {
-        return Branch::query()
-            ->when(! auth()->user()->hasRole('super admin'), fn ($query) => $query->whereIn('id', auth()->user()->branches()->pluck('branches.id')))
-            ->findOrFail($branchId);
-    }
-
     /**
-     * @return array<int>
-     */
-    private function accessibleBranchIds(): array
-    {
-        if (auth()->user()->hasRole('super admin')) {
-            return Branch::query()->pluck('id')->all();
-        }
-
-        return auth()->user()->branches()->pluck('branches.id')->all();
-    }
-
-    /**
+     * summary
+     *
      * @return array<string, float|int>
      */
     private function summary(Collection $attendanceRecords): array
@@ -206,6 +205,8 @@ class AttendanceReportsController extends Controller
     }
 
     /**
+     * typeBreakdown
+     *
      * @return array<int, array<string, mixed>>
      */
     private function typeBreakdown(Collection $attendanceRecords): array
@@ -228,6 +229,8 @@ class AttendanceReportsController extends Controller
     }
 
     /**
+     * branchBreakdown
+     *
      * @param  Collection<int, string>  $branchNames
      * @return array<int, array<string, mixed>>
      */
@@ -250,7 +253,9 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * dailyTrend
+     *
+     * @return array[]
      */
     private function dailyTrend(Collection $attendanceRecords): array
     {
@@ -269,7 +274,9 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * busiestHours
+     *
+     * @return array[]
      */
     private function busiestHours(Collection $attendanceRecords): array
     {
@@ -295,8 +302,9 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * @param  Collection<int, string>  $branchNames
-     * @return array<int, array<string, mixed>>
+     * recentRecords
+     *
+     * @return array[]
      */
     private function recentRecords(Collection $attendanceRecords, Collection $branchNames): array
     {
@@ -319,6 +327,9 @@ class AttendanceReportsController extends Controller
             ->all();
     }
 
+    /**
+     * uniqueAttendeeCount
+     */
     private function uniqueAttendeeCount(Collection $attendanceRecords): int
     {
         return $attendanceRecords
@@ -327,6 +338,9 @@ class AttendanceReportsController extends Controller
             ->count();
     }
 
+    /**
+     * attendeeKey
+     */
     private function attendeeKey(Attendance $attendance): string
     {
         if ($attendance->attendee_type === Attendance::TYPE_WALK_IN) {
@@ -352,6 +366,11 @@ class AttendanceReportsController extends Controller
         return "{$attendance->attendee_type}:{$referenceId}";
     }
 
+    /**
+     * durationMinutes
+     *
+     * @return float|int|null
+     */
     private function durationMinutes(Attendance $attendance): ?int
     {
         if (! $attendance->checked_in_at || ! $attendance->checked_out_at) {
@@ -361,6 +380,9 @@ class AttendanceReportsController extends Controller
         return max(0, $attendance->checked_in_at->diffInMinutes($attendance->checked_out_at));
     }
 
+    /**
+     * typeLabel
+     */
     private function typeLabel(string $type): string
     {
         return match ($type) {

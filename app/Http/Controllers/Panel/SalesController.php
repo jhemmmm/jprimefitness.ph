@@ -30,7 +30,7 @@ class SalesController extends Controller
             'branch' => ['required', 'integer', 'exists:branches,id'],
         ]);
 
-        $branch = $this->findAccessibleBranch((int) $data['branch']);
+        $branch = Branch::query()->findOrFail((int) $data['branch']);
 
         return response()->json([
             'branch' => [
@@ -58,7 +58,7 @@ class SalesController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $branch = $this->findAccessibleBranch((int) $data['branch']);
+        $branch = Branch::query()->findOrFail((int) $data['branch']);
 
         $history = SaleTransaction::query()
             ->with(['member:id,name', 'processedBy:id,name'])
@@ -93,7 +93,7 @@ class SalesController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $this->validateStorePayload($request);
-        $branch = $this->findAccessibleBranch((int) $data['branch_id']);
+        $branch = Branch::query()->findOrFail((int) $data['branch_id']);
         $transaction = $this->posSaleService->processSale($branch, $data, auth()->user())
             ->load(['branch:id,name', 'member:id,name', 'processedBy:id,name']);
 
@@ -236,13 +236,6 @@ class SalesController extends Controller
         return $validated;
     }
 
-    private function findAccessibleBranch(int $branchId): Branch
-    {
-        return Branch::query()
-            ->when(! auth()->user()->hasRole('super admin'), fn ($query) => $query->whereIn('id', auth()->user()->branches()->pluck('branches.id')))
-            ->findOrFail($branchId);
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -313,8 +306,6 @@ class SalesController extends Controller
      */
     private function receiptPayload(SaleTransaction $saleTransaction): array
     {
-        $this->findAccessibleBranch((int) $saleTransaction->branch_id);
-
         $saleTransaction->loadMissing([
             'branch:id,name,city,province,address',
             'member:id,name,email,phone',

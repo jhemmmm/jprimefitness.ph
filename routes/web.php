@@ -87,27 +87,43 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
 
     // Sales
     Route::get('/sales', [SalesController::class, 'index'])->name('sales.index');
-    Route::get('/sales/context', [SalesController::class, 'context'])->name('sales.context');
-    Route::get('/sales/history', [SalesController::class, 'history'])->name('sales.history');
+    Route::group(['prefix' => 'sales', 'as' => 'sales.', 'middleware' => 'branch.input:branch'], function () {
+        Route::get('/context', [SalesController::class, 'context'])->name('context');
+        Route::get('/history', [SalesController::class, 'history'])->name('history');
+    });
     Route::post('/sales', [SalesController::class, 'store'])->middleware('branch.input:branch_id')->name('sales.store');
     Route::middleware('branch.resource:saleTransaction')->group(function () {
         Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
         Route::get('/sales/{saleTransaction}/receipt/print', [SalesController::class, 'printReceipt'])->name('sales.receipt.print')->whereNumber('saleTransaction');
     });
 
+    // Reports
+    Route::group(['prefix' => 'reports', 'as' => 'reports.'], function () {
+        Route::get('/sales', [SalesReportsController::class, 'index'])->name('sales');
+        Route::group(['prefix' => 'sales', 'as' => 'sales.', 'middleware' => 'branch.input:branch'], function () {
+            Route::get('/data', [SalesReportsController::class, 'data'])->name('data');
+            Route::get('/export', [SalesReportsController::class, 'export'])->name('export');
+        });
+        Route::get('/financial', [FinancialReportsController::class, 'index'])->name('financial');
+        Route::group(['prefix' => 'financial', 'as' => 'financial.', 'middleware' => 'branch.input:branch'], function () {
+            Route::get('/data', [FinancialReportsController::class, 'data'])->name('data');
+            Route::get('/export', [FinancialReportsController::class, 'export'])->name('export');
+        });
+
+        // Attendance reports with branch input validation
+        Route::get('/attendance', [AttendanceReportsController::class, 'index'])->name('attendance');
+        Route::group(['prefix' => 'attendance', 'as' => 'attendance.', 'middleware' => 'branch.input:branch'], function () {
+            Route::get('/data', [AttendanceReportsController::class, 'data'])->name('data');
+            Route::get('/export', [AttendanceReportsController::class, 'export'])->name('export');
+        });
+
+        Route::get('/payroll', [PayrollReportsController::class, 'index'])->name('payroll');
+        Route::group(['prefix' => 'payroll', 'as' => 'payroll.', 'middleware' => 'branch.input:branch'], function () {
+            Route::get('/data', [PayrollReportsController::class, 'data'])->name('data');
+            Route::get('/export', [PayrollReportsController::class, 'export'])->name('export');
+        });
+    });
     // Sales Reports
-    Route::get('/reports/sales', [SalesReportsController::class, 'index'])->name('reports.sales');
-    Route::get('/reports/sales/data', [SalesReportsController::class, 'data'])->name('reports.sales.data');
-    Route::get('/reports/sales/export', [SalesReportsController::class, 'export'])->name('reports.sales.export');
-    Route::get('/reports/financial', [FinancialReportsController::class, 'index'])->name('reports.financial');
-    Route::get('/reports/financial/data', [FinancialReportsController::class, 'data'])->name('reports.financial.data');
-    Route::get('/reports/financial/export', [FinancialReportsController::class, 'export'])->name('reports.financial.export');
-    Route::get('/reports/attendance', [AttendanceReportsController::class, 'index'])->name('reports.attendance');
-    Route::get('/reports/attendance/data', [AttendanceReportsController::class, 'data'])->name('reports.attendance.data');
-    Route::get('/reports/attendance/export', [AttendanceReportsController::class, 'export'])->name('reports.attendance.export');
-    Route::get('/reports/payroll', [PayrollReportsController::class, 'index'])->name('reports.payroll');
-    Route::get('/reports/payroll/data', [PayrollReportsController::class, 'data'])->name('reports.payroll.data');
-    Route::get('/reports/payroll/export', [PayrollReportsController::class, 'export'])->name('reports.payroll.export');
 
     // Attendance
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');

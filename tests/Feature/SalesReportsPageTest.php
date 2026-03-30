@@ -211,7 +211,7 @@ class SalesReportsPageTest extends TestCase
 
         $this->actingAs($staff)
             ->getJson('/panel/reports/sales/data?branch='.$legazpi->id)
-            ->assertNotFound();
+            ->assertForbidden();
     }
 
     private function createBranch(string $name): Branch
