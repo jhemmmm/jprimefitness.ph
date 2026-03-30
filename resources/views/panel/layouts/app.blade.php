@@ -123,6 +123,14 @@
                         <span class="sidebar-nav-label">Sales Reports</span>
                     </a>
                 </div>
+                @if (auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']))
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.reports.financial') }}" @class(['active' => request()->routeIs('panel.reports.financial*')])>
+                            <i class="bi bi-graph-up"></i>
+                            <span class="sidebar-nav-label">Financial Reports</span>
+                        </a>
+                    </div>
+                @endif
                 <div class="sidebar-nav-item">
                     <a href="#" @class(['active' => request()->routeIs('panel.reports.attendance')])>
                         <i class="bi bi-graph-up-arrow"></i>

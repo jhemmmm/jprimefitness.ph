@@ -1,0 +1,375 @@
+<template>
+   <div class="financial-reports-page">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+         <div>
+            <h4 class="panel-page-title mb-0">Financial Reports</h4>
+            <p class="text-muted small mb-0">Review profitability, payroll costs, and operating expenses for {{ currentBranchLabel }}</p>
+         </div>
+      </div>
+
+      <div v-if="!branchesData.length" class="panel-card p-5 text-center text-muted">
+         <i class="bi bi-graph-up fs-1 d-block mb-2 opacity-25"></i>
+         <div>No accessible branches found.</div>
+      </div>
+
+      <template v-else>
+         <div class="panel-card mb-4">
+            <div class="panel-card-header">
+               <div>
+                  <div class="panel-card-title">Filters</div>
+                  <div class="panel-card-sub">Use the sidebar branch selector and date range to review this financial breakdown.</div>
+               </div>
+            </div>
+            <div class="p-3 p-md-4">
+               <div class="row g-3 align-items-end">
+                  <div class="col-12 col-md-6 col-xl-4">
+                     <label class="form-label">Date From</label>
+                     <input type="date" class="form-control" v-model="filters.date_from" />
+                  </div>
+                  <div class="col-12 col-md-6 col-xl-4">
+                     <label class="form-label">Date To</label>
+                     <input type="date" class="form-control" v-model="filters.date_to" />
+                  </div>
+                  <div class="col-12 col-xl-4">
+                     <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport" :disabled="loading">
+                        <i class="bi bi-arrow-repeat me-1"></i>
+                        Refresh
+                     </button>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-6 col-xl-4" v-for="stat in statCards" :key="stat.label">
+               <div class="stat-card">
+                  <div class="stat-card-icon" :class="stat.iconBg">
+                     <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+                  </div>
+                  <div class="stat-card-body">
+                     <div class="stat-card-label">{{ stat.label }}</div>
+                     <div class="stat-card-value" v-if="loading">
+                        <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 5px"></div>
+                     </div>
+                     <div class="stat-card-value" v-else :class="stat.valueClass">
+                        {{ stat.amount < 0 ? "-₱" : "₱" }}{{ $filters.formatMoney(Math.abs(stat.amount)) }}
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div class="panel-card mb-4">
+            <div class="panel-card-header">
+               <div>
+                  <div class="panel-card-title">Financial Breakdown</div>
+                  <div class="panel-card-sub">This view separates revenue, PT commissions, payroll wages, and manual operating expenses.</div>
+               </div>
+            </div>
+            <div class="p-3 p-md-4">
+               <div class="d-flex justify-content-between align-items-center py-2">
+                  <span class="fw-semibold">Gross Revenue</span>
+                  <span class="fw-semibold">₱{{ $filters.formatMoney(report.summary.gross_revenue) }}</span>
+               </div>
+               <div class="d-flex justify-content-between align-items-center py-2 text-danger">
+                  <span>PT Commission</span>
+                  <span>-₱{{ $filters.formatMoney(report.summary.pt_commission) }}</span>
+               </div>
+               <div class="border-top my-2"></div>
+               <div class="d-flex justify-content-between align-items-center py-2 fw-semibold">
+                  <span>Adjusted Revenue</span>
+                  <span>₱{{ $filters.formatMoney(report.summary.adjusted_revenue) }}</span>
+               </div>
+               <div class="d-flex justify-content-between align-items-center py-2 text-danger">
+                  <span>Payroll Wages</span>
+                  <span>-₱{{ $filters.formatMoney(report.summary.payroll_wages) }}</span>
+               </div>
+               <div class="d-flex justify-content-between align-items-center py-2 text-danger">
+                  <span>Operating Expenses</span>
+                  <span>-₱{{ $filters.formatMoney(report.summary.other_operating_expenses) }}</span>
+               </div>
+               <div class="border-top my-2"></div>
+               <div class="d-flex justify-content-between align-items-center py-2 fw-bold" :class="report.summary.net_profit >= 0 ? 'text-success' : 'text-danger'">
+                  <span>Net Profit</span>
+                  <span>{{ report.summary.net_profit < 0 ? "-₱" : "₱" }}{{ $filters.formatMoney(Math.abs(report.summary.net_profit)) }}</span>
+               </div>
+               <div class="text-muted small mt-2">Cash balance still lives in the Branch Cash Ledger. This page focuses on period profitability.</div>
+            </div>
+         </div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-12 col-xl-6">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">Revenue Breakdown</div>
+                  </div>
+                  <div class="p-3 p-md-4">
+                     <div v-if="loading">
+                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 4" :key="'rev-sk-' + index"></div>
+                     </div>
+                     <div v-else-if="report.revenue_breakdown.length === 0" class="text-center py-4 text-muted">
+                        <i class="bi bi-receipt-cutoff fs-1 d-block mb-2 opacity-25"></i>
+                        <div>No revenue records for this filter.</div>
+                     </div>
+                     <div v-else>
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom" v-for="row in report.revenue_breakdown" :key="row.type">
+                           <div>
+                              <div class="fw-semibold">{{ row.label }}</div>
+                              <div class="text-muted small">{{ row.transaction_count }} transaction{{ row.transaction_count !== 1 ? "s" : "" }}</div>
+                           </div>
+                           <div class="fw-semibold">₱{{ $filters.formatMoney(row.total_sales) }}</div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="col-12 col-xl-6">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">Expense Breakdown</div>
+                  </div>
+                  <div class="p-3 p-md-4">
+                     <div v-if="loading">
+                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 3" :key="'exp-sk-' + index"></div>
+                     </div>
+                     <div v-else>
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom" v-for="row in report.expense_breakdown" :key="row.key">
+                           <div>
+                              <div class="fw-semibold">{{ row.label }}</div>
+                              <div class="text-muted small">{{ row.description }}</div>
+                           </div>
+                           <div class="fw-semibold text-danger">-₱{{ $filters.formatMoney(row.amount) }}</div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div class="row g-3">
+            <div class="col-12 col-xl-5">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">Operating Expense Categories</div>
+                  </div>
+                  <div class="p-3 p-md-4">
+                     <div v-if="loading">
+                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 5" :key="'cat-sk-' + index"></div>
+                     </div>
+                     <div v-else-if="report.operating_expense_categories.length === 0" class="text-center py-4 text-muted">
+                        <i class="bi bi-wallet2 fs-1 d-block mb-2 opacity-25"></i>
+                        <div>No operating expense entries for this filter.</div>
+                     </div>
+                     <div v-else>
+                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom" v-for="row in report.operating_expense_categories" :key="row.title">
+                           <div>
+                              <div class="fw-semibold">{{ row.title }}</div>
+                              <div class="text-muted small">{{ row.entry_count }} entr{{ row.entry_count === 1 ? "y" : "ies" }}</div>
+                           </div>
+                           <div class="fw-semibold text-danger">-₱{{ $filters.formatMoney(row.total_amount) }}</div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="col-12 col-xl-7">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">Recent Operating Expenses</div>
+                  </div>
+                  <div class="p-3 p-md-4">
+                     <div v-if="loading">
+                        <div class="skeleton-box mb-2" style="height: 44px; border-radius: 4px" v-for="index in 5" :key="'recent-sk-' + index"></div>
+                     </div>
+                     <div v-else-if="report.recent_operating_expenses.length === 0" class="text-center py-4 text-muted">
+                        <i class="bi bi-receipt fs-1 d-block mb-2 opacity-25"></i>
+                        <div>No recent operating expense entries for this filter.</div>
+                     </div>
+                     <div v-else>
+                        <div class="border rounded-3 px-3 py-2 mb-2" v-for="entry in report.recent_operating_expenses" :key="entry.id">
+                           <div class="d-flex justify-content-between align-items-start gap-3">
+                              <div>
+                                 <div class="fw-semibold">{{ entry.title }}</div>
+                                 <div class="text-muted small">{{ entry.branch_name || "—" }} · {{ $filters.formatDateTime(entry.occurred_at) }}</div>
+                                 <div class="text-muted small" v-if="entry.description">{{ entry.description }}</div>
+                                 <div class="text-muted small" v-if="entry.created_by_name">Logged by {{ entry.created_by_name }}</div>
+                              </div>
+                              <div class="fw-semibold text-danger flex-shrink-0">-₱{{ $filters.formatMoney(entry.amount) }}</div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </template>
+   </div>
+</template>
+
+<script>
+export default {
+   props: {
+      branchesData: {
+         type: Array,
+         default: function () {
+            return [];
+         },
+      },
+   },
+   data: function () {
+      return {
+         loading: false,
+         pageError: "",
+         selectedBranch: null,
+         filters: {
+            date_from: this.defaultDateFrom(),
+            date_to: this.defaultDateTo(),
+         },
+         report: this.emptyReport(),
+      };
+   },
+   computed: {
+      currentBranchLabel: function () {
+         if (!this.selectedBranch) {
+            return "all accessible branches";
+         }
+
+         const branch = this.branchesData.find((item) => item.id === this.selectedBranch);
+         return branch ? branch.name : "the selected branch";
+      },
+      statCards: function () {
+         return [
+            {
+               label: "Gross Revenue",
+               amount: this.report.summary.gross_revenue,
+               icon: "bi-cash-stack",
+               iconBg: "bg-primary-soft",
+               iconColor: "text-primary",
+               valueClass: "",
+            },
+            {
+               label: "PT Commission",
+               amount: -1 * this.report.summary.pt_commission,
+               icon: "bi-person-video3",
+               iconBg: "bg-danger-soft",
+               iconColor: "text-danger",
+               valueClass: "text-danger",
+            },
+            {
+               label: "Adjusted Revenue",
+               amount: this.report.summary.adjusted_revenue,
+               icon: "bi-graph-up-arrow",
+               iconBg: "bg-success-soft",
+               iconColor: "text-success",
+               valueClass: "",
+            },
+            {
+               label: "Payroll Wages",
+               amount: -1 * this.report.summary.payroll_wages,
+               icon: "bi-wallet2",
+               iconBg: "bg-warning-soft",
+               iconColor: "text-warning",
+               valueClass: "text-danger",
+            },
+            {
+               label: "Operating Expenses",
+               amount: -1 * this.report.summary.other_operating_expenses,
+               icon: "bi-receipt-cutoff",
+               iconBg: "bg-secondary-soft",
+               iconColor: "text-secondary",
+               valueClass: "text-danger",
+            },
+            {
+               label: "Net Profit",
+               amount: this.report.summary.net_profit,
+               icon: "bi-pie-chart-fill",
+               iconBg: this.report.summary.net_profit >= 0 ? "bg-success-soft" : "bg-danger-soft",
+               iconColor: this.report.summary.net_profit >= 0 ? "text-success" : "text-danger",
+               valueClass: this.report.summary.net_profit >= 0 ? "text-success" : "text-danger",
+            },
+         ];
+      },
+   },
+   mounted: function () {
+      this.selectedBranch = this.resolveSelectedBranch();
+      this.fetchReport();
+   },
+   methods: {
+      emptyReport: function () {
+         return {
+            scope: {
+               branch: null,
+               is_all_branches: true,
+            },
+            filters: {
+               date_from: null,
+               date_to: null,
+            },
+            summary: {
+               gross_revenue: 0,
+               pt_commission: 0,
+               adjusted_revenue: 0,
+               payroll_wages: 0,
+               other_operating_expenses: 0,
+               net_profit: 0,
+            },
+            revenue_breakdown: [],
+            expense_breakdown: [],
+            operating_expense_categories: [],
+            recent_operating_expenses: [],
+         };
+      },
+      defaultDateFrom: function () {
+         const now = new Date();
+         const month = String(now.getMonth() + 1).padStart(2, "0");
+         return `${now.getFullYear()}-${month}-01`;
+      },
+      defaultDateTo: function () {
+         const now = new Date();
+         const month = String(now.getMonth() + 1).padStart(2, "0");
+         const day = String(now.getDate()).padStart(2, "0");
+         return `${now.getFullYear()}-${month}-${day}`;
+      },
+      resolveSelectedBranch: function () {
+         const storedBranchId = localStorage.getItem("selectedBranch");
+
+         if (!storedBranchId || storedBranchId === "null") {
+            return null;
+         }
+
+         const branchId = parseInt(storedBranchId, 10);
+         return Number.isNaN(branchId) ? null : branchId;
+      },
+      buildParams: function () {
+         return {
+            branch: this.selectedBranch || undefined,
+            date_from: this.filters.date_from || undefined,
+            date_to: this.filters.date_to || undefined,
+         };
+      },
+      fetchReport: function () {
+         this.loading = true;
+         this.pageError = "";
+
+         axios
+            .get("/panel/reports/financial/data", {
+               params: this.buildParams(),
+            })
+            .then((response) => {
+               this.report = response.data;
+            })
+            .catch((error) => {
+               this.pageError = error.response?.data?.message || "Unable to load financial reports right now.";
+               this.report = this.emptyReport();
+            })
+            .finally(() => {
+               this.loading = false;
+            });
+      },
+   },
+};
+</script>

@@ -50,6 +50,9 @@ app.component("sales-page", SalesPage);
 import SalesReportsPage from "./components/panel/SalesReportsPage.vue";
 app.component("sales-reports-page", SalesReportsPage);
 
+import FinancialReportsPage from "./components/panel/FinancialReportsPage.vue";
+app.component("financial-reports-page", FinancialReportsPage);
+
 import AttendancePage from "./components/panel/AttendancePage.vue";
 app.component("attendance-page", AttendancePage);
 

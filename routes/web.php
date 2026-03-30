@@ -6,6 +6,7 @@ use App\Http\Controllers\Panel\AttendanceController;
 use App\Http\Controllers\Panel\BranchesController;
 use App\Http\Controllers\Panel\DashboardController;
 use App\Http\Controllers\Panel\EmployeeController;
+use App\Http\Controllers\Panel\FinancialReportsController;
 use App\Http\Controllers\Panel\InventoryController;
 use App\Http\Controllers\Panel\MembersController;
 use App\Http\Controllers\Panel\PricingController;
@@ -96,6 +97,8 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/reports/sales', [SalesReportsController::class, 'index'])->name('reports.sales');
     Route::get('/reports/sales/data', [SalesReportsController::class, 'data'])->name('reports.sales.data');
     Route::get('/reports/sales/export', [SalesReportsController::class, 'export'])->name('reports.sales.export');
+    Route::get('/reports/financial', [FinancialReportsController::class, 'index'])->name('reports.financial');
+    Route::get('/reports/financial/data', [FinancialReportsController::class, 'data'])->name('reports.financial.data');
 
     // Attendance
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
