@@ -2018,3 +2018,131 @@ body.auth-body {
     width: 60px;
     height: 12px;
 }
+
+// =============================================
+// DARK MODE OVERRIDES
+// =============================================
+[data-bs-theme="dark"] {
+    --panel-body-bg: #0d0f12;
+    --panel-topbar-bg: #15181c;
+    --panel-card-bg: #15181c;
+    --panel-text: #e4e4e7;
+    --panel-text-muted: #a1a1aa;
+    --panel-border: rgba(255, 255, 255, 0.08);
+
+    body.panel-body {
+        background-color: var(--panel-body-bg);
+        color: var(--panel-text);
+    }
+
+    .panel-topbar,
+    .panel-card,
+    .stat-card {
+        background-color: var(--panel-card-bg);
+        border-color: var(--panel-border);
+    }
+
+    .panel-card-header {
+        border-bottom-color: var(--panel-border);
+    }
+
+    .topbar-title,
+    .panel-card-title,
+    .stat-card-label,
+    .stat-card-value {
+        color: #fff;
+    }
+
+    .stat-card-sub,
+    .panel-card-sub,
+    .text-muted {
+        color: var(--panel-text-muted) !important;
+    }
+
+    // Bug fixes
+    .bg-light {
+        background-color: rgba(255, 255, 255, 0.03) !important;
+    }
+
+    .btn-outline-dark {
+        color: var(--panel-text) !important;
+        border-color: rgba(255, 255, 255, 0.15) !important;
+        &:hover {
+            background-color: var(--panel-text) !important;
+            color: var(--panel-body-bg) !important;
+        }
+    }
+
+    .multi-select-menu {
+        background-color: var(--panel-card-bg) !important;
+        border-color: var(--panel-border) !important;
+    }
+
+    .topbar-icon-btn {
+        color: var(--panel-text-muted);
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+    }
+
+    .topbar-user {
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+    }
+
+    .topbar-user-name {
+        color: #fff;
+    }
+
+    .topbar-user-role {
+        color: var(--panel-text-muted);
+    }
+
+    .topbar-branch-selector {
+        .topbar-branch-btn {
+            background-color: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            &:hover {
+                background-color: rgba(255, 255, 255, 0.12);
+            }
+        }
+        .topbar-branch-label {
+            color: var(--panel-text-muted);
+        }
+        .topbar-branch-value,
+        .topbar-branch-menu-value {
+            color: #fff !important;
+        }
+        .topbar-branch-menu-name {
+            color: var(--panel-text-muted);
+        }
+    }
+
+    .panel-table {
+        th, thead tr {
+            border-color: var(--panel-border);
+            color: var(--panel-text-muted);
+            background-color: rgba(255, 255, 255, 0.02) !important;
+            background: rgba(255, 255, 255, 0.02) !important;
+        }
+        td {
+            border-color: var(--panel-border);
+            color: var(--panel-text);
+            background-color: transparent !important;
+            background: transparent !important;
+        }
+        tbody tr:hover, tbody tr:hover td {
+            background-color: rgba(255, 255, 255, 0.04) !important;
+            background: rgba(255, 255, 255, 0.04) !important;
+        }
+    }
+
+    .branch-status-row {
+        border-color: var(--panel-border);
+        .branch-status-name {
+            color: #fff;
+        }
+    }
+}

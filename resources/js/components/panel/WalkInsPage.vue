@@ -148,6 +148,7 @@
                         <th>Branch</th>
                         <th>Rate Plan</th>
                         <th>Amount</th>
+                        <th>Method</th>
                         <th>Visited At</th>
                         <th class="col-actions"></th>
                      </tr>

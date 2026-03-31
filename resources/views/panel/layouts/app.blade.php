@@ -11,6 +11,13 @@
         rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     @vite(['resources/sass/panel.scss', 'resources/js/app.js'])
+    <script>
+        const storedTheme = localStorage.getItem('panel-theme');
+        const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        if (theme === 'dark') {
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+        }
+    </script>
 </head>
 
 <body class="panel-body">
