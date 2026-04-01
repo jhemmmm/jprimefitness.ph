@@ -2042,6 +2042,12 @@ body.auth-body {
         border-color: var(--panel-border);
     }
 
+    .table-light {
+        --bs-table-bg: var(--panel-topbar-bg);
+        --bs-table-color: var(--panel-text);
+        --bs-table-border-color: var(--panel-border);
+    }
+
     .panel-card-header {
         border-bottom-color: var(--panel-border);
     }
