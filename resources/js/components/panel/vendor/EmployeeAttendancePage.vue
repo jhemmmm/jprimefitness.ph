@@ -36,7 +36,7 @@
          <div class="col-md-3">
             <input type="date" class="form-control" v-model="dateTo" @change="fetchRecords(1)" placeholder="To" />
          </div>
-         <div class="col-md-4 text-end">
+         <div class="col-md-6 text-end">
             <button class="btn btn-danger btn-sm" @click="openLogModal"><i class="bi bi-plus-lg me-1"></i>Log Attendance</button>
          </div>
       </div>
