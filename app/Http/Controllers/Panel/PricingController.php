@@ -42,6 +42,7 @@ class PricingController extends Controller
                 'description' => $ratePlan->description,
                 'is_active' => (bool) $ratePlan->is_active,
                 'branch_price' => round((float) $ratePlan->pivot->price, 2),
+                'manager_commission_rate' => round((float) ($ratePlan->pivot->manager_commission_rate ?? 0), 2),
                 'branch_is_active' => (bool) $ratePlan->pivot->is_active,
                 'effective_from' => $ratePlan->pivot->effective_from,
                 'effective_until' => $ratePlan->pivot->effective_until,
@@ -127,12 +128,13 @@ class PricingController extends Controller
      */
     public function storeRatePlan(Request $request, Branch $branch, RatePlan $ratePlan): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
         abort_unless($ratePlan->is_active, 404);
         abort_if($branch->ratePlans()->where('rate_plan_id', $ratePlan->id)->exists(), 422, 'Rate plan pricing already exists for this branch.');
 
         $data = $request->validate([
             'price' => ['required', 'numeric', 'min:0'],
+            'manager_commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['required', 'boolean'],
             'effective_from' => ['nullable', 'date'],
             'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
@@ -152,11 +154,12 @@ class PricingController extends Controller
      */
     public function updateRatePlan(Request $request, Branch $branch, RatePlan $ratePlan): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
         abort_unless($branch->ratePlans()->where('rate_plan_id', $ratePlan->id)->exists(), 404);
 
         $data = $request->validate([
             'price' => ['required', 'numeric', 'min:0'],
+            'manager_commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['required', 'boolean'],
             'effective_from' => ['nullable', 'date'],
             'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
@@ -175,7 +178,7 @@ class PricingController extends Controller
      */
     public function destroyRatePlan(Branch $branch, RatePlan $ratePlan): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
 
         $branch->ratePlans()->detach($ratePlan->id);
 
@@ -191,7 +194,7 @@ class PricingController extends Controller
      */
     public function storePtProduct(Request $request, Branch $branch, PTProduct $ptProduct): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
         abort_unless($ptProduct->is_active, 404);
         abort_if($branch->ptProducts()->where('pt_product_id', $ptProduct->id)->exists(), 422, 'PT rate already exists for this branch.');
 
@@ -217,7 +220,7 @@ class PricingController extends Controller
      */
     public function updatePtProduct(Request $request, Branch $branch, PTProduct $ptProduct): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
         abort_unless($branch->ptProducts()->where('pt_product_id', $ptProduct->id)->exists(), 404);
 
         $data = $request->validate([
@@ -241,7 +244,7 @@ class PricingController extends Controller
      */
     public function destroyPtProduct(Branch $branch, PTProduct $ptProduct): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
 
         $branch->ptProducts()->detach($ptProduct->id);
 
@@ -251,12 +254,13 @@ class PricingController extends Controller
     /**
      * Transform rate plan payload for database storage.
      * @param array $data
-     * @return array{effective_from: mixed, effective_until: mixed, is_active: bool, price: float}
+     * @return array{effective_from: mixed, effective_until: mixed, is_active: bool, manager_commission_rate: float, price: float}
      */
     private function transformRatePlanPayload(array $data): array
     {
         return [
             'price' => round((float) $data['price'], 2),
+            'manager_commission_rate' => round((float) ($data['manager_commission_rate'] ?? 0), 2),
             'is_active' => (bool) $data['is_active'],
             'effective_from' => $data['effective_from'] ?? null,
             'effective_until' => $data['effective_until'] ?? null,

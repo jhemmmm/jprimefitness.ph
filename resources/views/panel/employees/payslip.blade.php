@@ -437,6 +437,12 @@
                                 </td>
                             </tr>
                             <tr>
+                                <td class="breakdown-label">Membership commission</td>
+                                <td class="breakdown-amount {{ (float) $payroll->membership_commission_amount > 0 ? 'amount-positive' : '' }}">
+                                    {{ (float) $payroll->membership_commission_amount > 0 ? '+ PHP ' . number_format((float) $payroll->membership_commission_amount, 2) : '—' }}
+                                </td>
+                            </tr>
+                            <tr>
                                 <td class="breakdown-label">Other deductions</td>
                                 <td class="breakdown-amount {{ (float) $payroll->manual_deductions > 0 ? 'amount-negative' : '' }}">
                                     {{ (float) $payroll->manual_deductions > 0 ? '- PHP ' . number_format((float) $payroll->manual_deductions, 2) : '—' }}

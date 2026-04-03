@@ -65,7 +65,7 @@ class Branch extends Model
     public function ratePlans(): BelongsToMany
     {
         return $this->belongsToMany(RatePlan::class, 'branch_rate_prices')
-            ->withPivot(['price', 'is_active', 'effective_from', 'effective_until'])
+            ->withPivot(['price', 'manager_commission_rate', 'is_active', 'effective_from', 'effective_until'])
             ->withTimestamps();
     }
 

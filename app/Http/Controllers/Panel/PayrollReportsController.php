@@ -72,6 +72,7 @@ class PayrollReportsController extends Controller
             fputcsv($handle, ['Gross Payroll', $report['summary']['gross_payroll']]);
             fputcsv($handle, ['Bonuses', $report['summary']['total_bonus']]);
             fputcsv($handle, ['PT Commission', $report['summary']['pt_commission']]);
+            fputcsv($handle, ['Membership Commission', $report['summary']['membership_commission']]);
             fputcsv($handle, ['Total Deductions', $report['summary']['total_deductions']]);
             fputcsv($handle, ['Net Payroll', $report['summary']['net_payroll']]);
             fputcsv($handle, ['Paid Out To Date', $report['summary']['total_paid']]);
@@ -145,7 +146,7 @@ class PayrollReportsController extends Controller
     /**
      * Report payload
      * @param Request $request
-     * @return array{branch_breakdown: array, filters: array{date_from: mixed, date_to: mixed, pay_frequency: mixed, pay_frequency_label: string|null, status: mixed, status_label: string|null, pay_frequency_breakdown: array, payout_method_breakdown: array, payroll_trend: array, recent_payrolls: array, scope: array, status_breakdown: array, summary: array{gross_payroll: float, net_payroll: float, outstanding_balance: float, payroll_count: int, pt_commission: float, total_bonus: float, total_deductions: float, total_paid: float}}}
+     * @return array{branch_breakdown: array, filters: array{date_from: mixed, date_to: mixed, pay_frequency: mixed, pay_frequency_label: string|null, status: mixed, status_label: string|null, pay_frequency_breakdown: array, payout_method_breakdown: array, payroll_trend: array, recent_payrolls: array, scope: array, status_breakdown: array, summary: array{gross_payroll: float, membership_commission: float, net_payroll: float, outstanding_balance: float, payroll_count: int, pt_commission: float, total_bonus: float, total_deductions: float, total_paid: float}}}
      */
     private function reportPayload(Request $request): array
     {
@@ -184,6 +185,7 @@ class PayrollReportsController extends Controller
         $grossPayroll = round((float) (clone $payrollQuery)->sum('gross_amount'), 2);
         $totalBonus = round((float) (clone $payrollQuery)->sum('bonus'), 2);
         $ptCommission = round((float) (clone $payrollQuery)->sum('pt_commission_amount'), 2);
+        $membershipCommission = round((float) (clone $payrollQuery)->sum('membership_commission_amount'), 2);
         $manualDeductions = round((float) (clone $payrollQuery)->sum('manual_deductions'), 2);
         $cashAdvanceDeductions = round((float) (clone $payrollQuery)->sum('cash_advance_deduction'), 2);
         $totalDeductions = round($manualDeductions + $cashAdvanceDeductions, 2);
@@ -213,6 +215,7 @@ class PayrollReportsController extends Controller
                 'gross_payroll' => $grossPayroll,
                 'total_bonus' => $totalBonus,
                 'pt_commission' => $ptCommission,
+                'membership_commission' => $membershipCommission,
                 'total_deductions' => $totalDeductions,
                 'net_payroll' => $netPayroll,
                 'total_paid' => $totalPaid,

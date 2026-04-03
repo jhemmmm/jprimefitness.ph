@@ -276,12 +276,20 @@ class EmployeeController extends Controller
             null,
             $branch->id
         );
+        $membershipCommissionSummary = $this->payrollService->previewMembershipCommissions(
+            $employee,
+            $data['period_start'],
+            $data['period_end'],
+            null,
+            $branch->id
+        );
         $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
             $employee->id,
             $gross,
             $bonus,
             $ptCommissionSummary['amount'],
-            $manualDeductions
+            $manualDeductions,
+            $membershipCommissionSummary['amount']
         );
 
         if ($cashAdvanceDeduction > $maxCashAdvanceDeduction) {
@@ -303,6 +311,8 @@ class EmployeeController extends Controller
             'bonus' => $bonus,
             'pt_commission_amount' => $ptCommissionSummary['amount'],
             'pt_commission_items' => $ptCommissionSummary['items'],
+            'membership_commission_amount' => $membershipCommissionSummary['amount'],
+            'membership_commission_items' => $membershipCommissionSummary['items'],
             'manual_deductions' => $manualDeductions,
             'cash_advance_deduction' => $cashAdvanceDeduction,
             'net_amount' => $this->payrollService->computeNet(
@@ -310,7 +320,8 @@ class EmployeeController extends Controller
                 $bonus,
                 $ptCommissionSummary['amount'],
                 $manualDeductions,
-                $cashAdvanceDeduction
+                $cashAdvanceDeduction,
+                $membershipCommissionSummary['amount']
             ),
             'status' => Payroll::STATUS_DRAFT,
             'notes' => $data['notes'] ?? null,
@@ -318,6 +329,7 @@ class EmployeeController extends Controller
         ]);
 
         $this->payrollService->syncPtCommissions($payroll);
+        $this->payrollService->syncMembershipCommissions($payroll);
 
         return response()->json($this->serializePayroll($payroll), 201);
     }
@@ -360,12 +372,20 @@ class EmployeeController extends Controller
             $payroll,
             $payroll->branch_id
         );
+        $membershipCommissionSummary = $this->payrollService->previewMembershipCommissions(
+            $employee,
+            $data['period_start'],
+            $data['period_end'],
+            $payroll,
+            $payroll->branch_id
+        );
         $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
             $employee->id,
             $gross,
             $bonus,
             $ptCommissionSummary['amount'],
-            $manualDeductions
+            $manualDeductions,
+            $membershipCommissionSummary['amount']
         );
 
         if ($cashAdvanceDeduction > $maxCashAdvanceDeduction) {
@@ -385,6 +405,8 @@ class EmployeeController extends Controller
             'bonus' => $bonus,
             'pt_commission_amount' => $ptCommissionSummary['amount'],
             'pt_commission_items' => $ptCommissionSummary['items'],
+            'membership_commission_amount' => $membershipCommissionSummary['amount'],
+            'membership_commission_items' => $membershipCommissionSummary['items'],
             'manual_deductions' => $manualDeductions,
             'cash_advance_deduction' => $cashAdvanceDeduction,
             'net_amount' => $this->payrollService->computeNet(
@@ -392,12 +414,14 @@ class EmployeeController extends Controller
                 $bonus,
                 $ptCommissionSummary['amount'],
                 $manualDeductions,
-                $cashAdvanceDeduction
+                $cashAdvanceDeduction,
+                $membershipCommissionSummary['amount']
             ),
             'notes' => $data['notes'] ?? null,
         ]);
 
         $this->payrollService->syncPtCommissions($payroll);
+        $this->payrollService->syncMembershipCommissions($payroll);
 
         return response()->json($this->serializePayroll($payroll));
     }
@@ -443,6 +467,7 @@ class EmployeeController extends Controller
         }
 
         $this->payrollService->releasePtCommissions($payroll);
+        $this->payrollService->releaseMembershipCommissions($payroll);
         $payroll->status = Payroll::STATUS_CANCELED;
         $payroll->save();
 
@@ -494,6 +519,13 @@ class EmployeeController extends Controller
             $payroll,
             $branchId
         );
+        $membershipCommissionSummary = $this->payrollService->previewMembershipCommissions(
+            $employee,
+            $data['period_start'],
+            $data['period_end'],
+            $payroll,
+            $branchId
+        );
 
         return response()->json(
             array_merge(
@@ -505,6 +537,8 @@ class EmployeeController extends Controller
                 [
                     'pt_commission_amount' => $ptCommissionSummary['amount'],
                     'pt_commission_items' => $ptCommissionSummary['items'],
+                    'membership_commission_amount' => $membershipCommissionSummary['amount'],
+                    'membership_commission_items' => $membershipCommissionSummary['items'],
                 ]
             )
         );
@@ -885,7 +919,7 @@ class EmployeeController extends Controller
     /**
      * Get the serialized payroll data
      * @param Payroll $payroll
-     * @return array{approved_at: string|null, approved_by_name: string|null, bonus: float, branch_country_code: string|null, cash_advance_deduction: float, created_at: string|null, employee_deductions_total: float, gross_amount: float, id: int, manual_deductions: float, net_amount: float, notes: string|null, pay_frequency: string|null, payouts_count: int, period_end: string, period_start: string, pt_commission_amount: float, pt_commission_items: array, remaining_balance: float|int, status: string, total_earnings: float, total_paid: float}
+     * @return array{approved_at: string|null, approved_by_name: string|null, bonus: float, branch_country_code: string|null, cash_advance_deduction: float, created_at: string|null, employee_deductions_total: float, gross_amount: float, id: int, manual_deductions: float, membership_commission_amount: float, membership_commission_items: array, net_amount: float, notes: string|null, pay_frequency: string|null, payouts_count: int, period_end: string, period_start: string, pt_commission_amount: float, pt_commission_items: array, remaining_balance: float|int, status: string, total_earnings: float, total_paid: float}
      */
     private function serializePayroll(Payroll $payroll): array
     {
@@ -902,6 +936,8 @@ class EmployeeController extends Controller
             'pay_frequency' => $payroll->pay_frequency,
             'pt_commission_amount' => (float) $payroll->pt_commission_amount,
             'pt_commission_items' => $payroll->pt_commission_items ?? [],
+            'membership_commission_amount' => (float) $payroll->membership_commission_amount,
+            'membership_commission_items' => $payroll->membership_commission_items ?? [],
             'employee_deductions_total' => $payroll->employeeDeductionsTotal(),
             'total_earnings' => $payroll->totalEarnings(),
             'manual_deductions' => (float) $payroll->manual_deductions,

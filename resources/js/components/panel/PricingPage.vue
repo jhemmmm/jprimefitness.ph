@@ -95,6 +95,7 @@
                            <th>Plan</th>
                            <th>Duration</th>
                            <th>Branch Price</th>
+                           <th>Manager Commission</th>
                            <th>Status</th>
                            <th>Effectivity</th>
                            <th class="col-actions"></th>
@@ -108,6 +109,7 @@
                            </td>
                            <td><div class="skeleton-box" style="width: 88px; height: 12px; border-radius: 4px"></div></td>
                            <td><div class="skeleton-box" style="width: 74px; height: 12px; border-radius: 4px"></div></td>
+                           <td><div class="skeleton-box" style="width: 70px; height: 12px; border-radius: 4px"></div></td>
                            <td><div class="skeleton-box" style="width: 84px; height: 22px; border-radius: 999px"></div></td>
                            <td>
                               <div class="skeleton-box mb-1" style="width: 96px; height: 12px; border-radius: 4px"></div>
@@ -161,6 +163,7 @@
                            <th>Plan</th>
                            <th>Duration</th>
                            <th>Branch Price</th>
+                           <th>Manager Commission</th>
                            <th>Status</th>
                            <th>Effectivity</th>
                            <th class="col-actions"></th>
@@ -174,6 +177,7 @@
                            </td>
                            <td class="small">{{ membershipDurationLabel(rate.duration_days) }}</td>
                            <td class="fw-semibold">₱{{ $filters.formatMoney(rate.branch_price) }}</td>
+                           <td class="small">{{ $filters.formatMoney(rate.manager_commission_rate) }}%</td>
                            <td>
                               <span :class="['m-badge', rate.branch_is_active ? 'm-badge--active' : 'm-badge--inactive']">
                                  {{ rate.branch_is_active ? "Active" : "Inactive" }}
@@ -233,6 +237,7 @@
                      </div>
                      <div class="small text-muted mb-2">
                         <div>Branch Price: ₱{{ $filters.formatMoney(rate.branch_price) }}</div>
+                        <div>Manager Commission: {{ $filters.formatMoney(rate.manager_commission_rate) }}%</div>
                         <div>From: {{ $filters.formatDate(rate.effective_from) }}</div>
                         <div>Until: {{ $filters.formatDate(rate.effective_until) }}</div>
                      </div>
@@ -440,9 +445,18 @@
                      <input type="text" class="form-control" :value="membershipForm.name" disabled />
                   </div>
                   <div class="mb-3">
-                     <label class="form-label form-label-sm">Branch Price <span class="text-danger">*</span></label>
-                     <input type="number" min="0" step="0.01" class="form-control" v-model="membershipForm.price" :class="{ 'is-invalid': membershipFormErrors.price }" />
-                     <div class="invalid-feedback" v-if="membershipFormErrors.price">{{ membershipFormErrors.price }}</div>
+                     <div class="row g-3">
+                        <div class="col-md-6">
+                           <label class="form-label form-label-sm">Branch Price <span class="text-danger">*</span></label>
+                           <input type="number" min="0" step="0.01" class="form-control" v-model="membershipForm.price" :class="{ 'is-invalid': membershipFormErrors.price }" />
+                           <div class="invalid-feedback" v-if="membershipFormErrors.price">{{ membershipFormErrors.price }}</div>
+                        </div>
+                        <div class="col-md-6">
+                           <label class="form-label form-label-sm">Manager Commission Rate</label>
+                           <input type="number" min="0" max="100" step="0.01" class="form-control" v-model="membershipForm.manager_commission_rate" :class="{ 'is-invalid': membershipFormErrors.manager_commission_rate }" />
+                           <div class="invalid-feedback" v-if="membershipFormErrors.manager_commission_rate">{{ membershipFormErrors.manager_commission_rate }}</div>
+                        </div>
+                     </div>
                   </div>
                   <div class="row g-3">
                      <div class="col-md-6">
@@ -634,6 +648,7 @@ export default {
             id: "",
             name: "",
             price: "",
+            manager_commission_rate: "0.00",
             is_active: true,
             effective_from: "",
             effective_until: "",
@@ -695,6 +710,7 @@ export default {
             id: rate.id,
             name: rate.name,
             price: rate.branch_price,
+            manager_commission_rate: rate.manager_commission_rate,
             is_active: !!rate.branch_is_active,
             effective_from: rate.effective_from || "",
             effective_until: rate.effective_until || "",
@@ -738,6 +754,7 @@ export default {
 
          var payload = {
             price: this.membershipForm.price,
+            manager_commission_rate: this.membershipForm.manager_commission_rate,
             is_active: this.membershipForm.is_active,
             effective_from: this.membershipForm.effective_from || null,
             effective_until: this.membershipForm.effective_until || null,

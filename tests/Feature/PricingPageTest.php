@@ -50,6 +50,7 @@ class PricingPageTest extends TestCase
 
         $accessibleBranch->ratePlans()->attach($ratePlan->id, [
             'price' => 1499,
+            'manager_commission_rate' => 12.5,
             'is_active' => true,
             'effective_from' => '2026-04-01',
             'effective_until' => '2026-04-30',
@@ -63,6 +64,7 @@ class PricingPageTest extends TestCase
         ]);
         $otherBranch->ratePlans()->attach($ratePlan->id, [
             'price' => 1999,
+            'manager_commission_rate' => 8,
             'is_active' => true,
         ]);
 
@@ -76,6 +78,7 @@ class PricingPageTest extends TestCase
             ->assertJsonCount(1, 'available_pt_products')
             ->assertJsonPath('membership_rates.0.id', $ratePlan->id)
             ->assertJsonPath('membership_rates.0.branch_price', 1499)
+            ->assertJsonPath('membership_rates.0.manager_commission_rate', 12.5)
             ->assertJsonPath('membership_rates.0.effective_from', '2026-04-01')
             ->assertJsonPath('membership_rates.0.effective_until', '2026-04-30')
             ->assertJsonPath('available_membership_rate_plans.0.id', $unusedRatePlan->id)
@@ -129,6 +132,7 @@ class PricingPageTest extends TestCase
         $this->actingAs($admin)
             ->postJson('/panel/pricing/branches/'.$branch->id.'/rate-plans/'.$ratePlan->id, [
                 'price' => 4999.50,
+                'manager_commission_rate' => 15,
                 'is_active' => true,
                 'effective_from' => '2026-04-01',
                 'effective_until' => null,
@@ -138,6 +142,7 @@ class PricingPageTest extends TestCase
         $this->actingAs($admin)
             ->putJson('/panel/pricing/branches/'.$branch->id.'/rate-plans/'.$ratePlan->id, [
                 'price' => 5499.50,
+                'manager_commission_rate' => 17.5,
                 'is_active' => false,
                 'effective_from' => '2026-04-01',
                 'effective_until' => '2026-06-30',
@@ -148,6 +153,7 @@ class PricingPageTest extends TestCase
             'branch_id' => $branch->id,
             'rate_plan_id' => $ratePlan->id,
             'price' => 5499.50,
+            'manager_commission_rate' => 17.5,
             'is_active' => false,
             'effective_from' => '2026-04-01',
             'effective_until' => '2026-06-30',

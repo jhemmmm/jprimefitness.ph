@@ -77,27 +77,20 @@ class User extends Authenticatable
         return $this->hasMany(MemberPtPackage::class)->orderByDesc('assigned_at');
     }
 
-    public function attachPlan(int $ratePlanId, string $startDate): void
+    public function attachPlan(int $ratePlanId, string $startDate, array $attributes = []): MemberSubscription
     {
         $plan = RatePlan::findOrFail($ratePlanId);
-
-        $endDate = null;
-
-        if ($plan->duration_days > 1) {
-            $endDate = Carbon::parse($startDate)
-                ->addDays($plan->duration_days - 1)
-                ->toDateString();
-        }
-
-        $this->memberSubscriptions()->create([
+        $subscription = $this->memberSubscriptions()->create(array_merge([
             'rate_plan_id' => $plan->id,
             'status' => MemberSubscription::STATUS_ACTIVE,
             'start_date' => $startDate,
-            'end_date' => $endDate,
-        ]);
+            'end_date' => $this->membershipEndDate($plan, $startDate),
+        ], $attributes));
+
+        return $subscription;
     }
 
-    public function syncRatePlan(?int $ratePlanId, string $startDate): void
+    public function syncRatePlan(?int $ratePlanId, string $startDate, array $attributes = []): void
     {
         if (! $ratePlanId) {
             return;
@@ -105,19 +98,13 @@ class User extends Authenticatable
 
         $activePlan = $this->currentMembership();
         $plan = RatePlan::findOrFail($ratePlanId);
-        $endDate = null;
-
-        if ($plan->duration_days > 1) {
-            $endDate = Carbon::parse($startDate)
-                ->addDays($plan->duration_days - 1)
-                ->toDateString();
-        }
+        $endDate = $this->membershipEndDate($plan, $startDate);
 
         if ($activePlan && (int) $activePlan->rate_plan_id === $ratePlanId) {
-            $activePlan->update([
+            $activePlan->update(array_merge([
                 'start_date' => $startDate,
                 'end_date' => $endDate,
-            ]);
+            ], $attributes));
 
             return;
         }
@@ -128,7 +115,7 @@ class User extends Authenticatable
             ]);
         }
 
-        $this->attachPlan($ratePlanId, $startDate);
+        $this->attachPlan($ratePlanId, $startDate, $attributes);
     }
 
     public function currentMembership(): ?MemberSubscription
@@ -139,26 +126,20 @@ class User extends Authenticatable
             ->first();
     }
 
-    public function changeMembershipPlan(int $ratePlanId, string $startDate): void
+    public function changeMembershipPlan(int $ratePlanId, string $startDate, array $attributes = []): MemberSubscription
     {
         $currentPlan = $this->currentMembership();
         $plan = RatePlan::findOrFail($ratePlanId);
-        $endDate = null;
-
-        if ($plan->duration_days > 1) {
-            $endDate = Carbon::parse($startDate)
-                ->addDays($plan->duration_days - 1)
-                ->toDateString();
-        }
+        $endDate = $this->membershipEndDate($plan, $startDate);
 
         if ($currentPlan && (int) $currentPlan->rate_plan_id === $ratePlanId) {
-            $currentPlan->update([
+            $currentPlan->update(array_merge([
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'status' => $currentPlan->status,
-            ]);
+            ], $attributes));
 
-            return;
+            return $currentPlan->fresh();
         }
 
         if ($currentPlan) {
@@ -167,12 +148,20 @@ class User extends Authenticatable
             ]);
         }
 
-        $this->memberSubscriptions()->create([
-            'rate_plan_id' => $plan->id,
-            'status' => MemberSubscription::STATUS_ACTIVE,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
-        ]);
+        return $this->attachPlan($ratePlanId, $startDate, $attributes);
+    }
+
+    public function sellMembershipPlan(int $ratePlanId, string $startDate, array $attributes = []): MemberSubscription
+    {
+        $currentPlan = $this->currentMembership();
+
+        if ($currentPlan) {
+            $currentPlan->update([
+                'status' => MemberSubscription::STATUS_CANCELLED,
+            ]);
+        }
+
+        return $this->attachPlan($ratePlanId, $startDate, $attributes);
     }
 
     public function updateCurrentMembershipStatus(string $status): void
@@ -233,5 +222,16 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    private function membershipEndDate(RatePlan $plan, string $startDate): ?string
+    {
+        if ($plan->duration_days <= 1) {
+            return null;
+        }
+
+        return Carbon::parse($startDate)
+            ->addDays($plan->duration_days - 1)
+            ->toDateString();
     }
 }

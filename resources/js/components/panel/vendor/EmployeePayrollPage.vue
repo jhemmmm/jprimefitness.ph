@@ -55,6 +55,7 @@
                      <th class="text-end">Gross</th>
                      <th class="text-end">Bonus</th>
                      <th class="text-end">PT Comm.</th>
+                     <th class="text-end">Mbr Comm.</th>
                      <th class="text-end">Deductions</th>
                      <th class="text-end">CA Deduction</th>
                      <th class="text-end fw-bold">Net</th>
@@ -73,6 +74,7 @@
                      <td class="text-end small">₱{{ $filters.formatMoney(p.gross_amount) }}</td>
                      <td class="text-end small text-success">{{ p.bonus > 0 ? "+₱" + $filters.formatMoney(p.bonus) : "—" }}</td>
                      <td class="text-end small text-success">{{ p.pt_commission_amount > 0 ? "+₱" + $filters.formatMoney(p.pt_commission_amount) : "—" }}</td>
+                     <td class="text-end small text-success">{{ p.membership_commission_amount > 0 ? "+₱" + $filters.formatMoney(p.membership_commission_amount) : "—" }}</td>
                      <td class="text-end small text-danger">{{ p.employee_deductions_total > 0 ? "-₱" + $filters.formatMoney(p.employee_deductions_total) : "—" }}</td>
                      <td class="text-end small text-warning">{{ p.cash_advance_deduction > 0 ? "-₱" + $filters.formatMoney(p.cash_advance_deduction) : "—" }}</td>
                      <td class="text-end fw-bold small">₱{{ $filters.formatMoney(p.net_amount) }}</td>
@@ -145,6 +147,7 @@
                <div class="member-card-tags ps-0 mt-1">
                   <span class="small text-muted">Gross: ₱{{ $filters.formatMoney(p.gross_amount) }}</span>
                   <span class="small text-success" v-if="p.pt_commission_amount > 0"> · PT: +₱{{ $filters.formatMoney(p.pt_commission_amount) }}</span>
+                  <span class="small text-success" v-if="p.membership_commission_amount > 0"> · Membership: +₱{{ $filters.formatMoney(p.membership_commission_amount) }}</span>
                   <span class="small text-danger" v-if="p.remaining_balance > 0"> · Balance: ₱{{ $filters.formatMoney(p.remaining_balance) }}</span>
                   <span class="small text-success" v-else> · Fully Paid</span>
                </div>
@@ -178,8 +181,10 @@
                         <template v-else> &mdash; <span class="text-warning fw-semibold">No daily rate set.</span> Set it on the employee profile to auto-compute gross. </template>
                         <span v-if="suggestion.suggested_ca > 0"> &nbsp;· Pending CA: ₱{{ $filters.formatMoney(suggestion.suggested_ca) }}</span>
                         <span v-if="suggestion.pt_commission_amount > 0"> &nbsp;· PT commissions: ₱{{ $filters.formatMoney(suggestion.pt_commission_amount) }}</span>
+                        <span v-if="suggestion.membership_commission_amount > 0"> &nbsp;· Membership commissions: ₱{{ $filters.formatMoney(suggestion.membership_commission_amount) }}</span>
                         <span v-if="suggestion.days_worked === 0" class="d-block text-muted mt-1"><i class="bi bi-info-circle me-1"></i>No attendance records found for this period.</span>
                         <span v-if="suggestion.pt_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-stopwatch me-1"></i>{{ suggestion.pt_commission_items.length }} completed PT package{{ suggestion.pt_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
+                        <span v-if="suggestion.membership_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-person-check me-1"></i>{{ suggestion.membership_commission_items.length }} membership sale commission{{ suggestion.membership_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
                      </div>
                      <div v-else-if="!form.period_start || !form.period_end" class="alert alert-secondary py-2 small text-muted"><i class="bi bi-info-circle me-1"></i>Set the period dates to auto-compute from attendance.</div>
                   </div>
@@ -210,6 +215,14 @@
                          <div class="form-text">
                             Auto-added from completed PT packages in this payroll period.
                             <span v-if="form.pt_commission_items?.length">({{ form.pt_commission_items.length }} item{{ form.pt_commission_items.length !== 1 ? "s" : "" }})</span>
+                         </div>
+                      </div>
+                      <div class="col-md-6">
+                         <label class="form-label form-label-sm">Membership Commission (₱)</label>
+                         <input type="number" class="form-control" :value="form.membership_commission_amount" readonly />
+                         <div class="form-text">
+                            Auto-added from membership sales that you processed in this payroll period.
+                            <span v-if="form.membership_commission_items?.length">({{ form.membership_commission_items.length }} item{{ form.membership_commission_items.length !== 1 ? "s" : "" }})</span>
                          </div>
                       </div>
                       <div class="col-md-6">
@@ -394,9 +407,10 @@ export default {
          const gross = parseFloat(this.form.gross_amount) || 0;
          const bonus = parseFloat(this.form.bonus) || 0;
          const ptCommission = parseFloat(this.form.pt_commission_amount) || 0;
+         const membershipCommission = parseFloat(this.form.membership_commission_amount) || 0;
          const ded = parseFloat(this.form.manual_deductions) || 0;
          const ca = parseFloat(this.form.cash_advance_deduction) || 0;
-         return Math.max(0, gross + bonus + ptCommission - ded - ca);
+         return Math.max(0, gross + bonus + ptCommission + membershipCommission - ded - ca);
       },
       summaryCards: function () {
          const totalGross = this.payrolls.reduce((s, p) => s + p.gross_amount, 0);
@@ -450,6 +464,8 @@ export default {
             bonus: p.bonus,
             pt_commission_amount: p.pt_commission_amount,
             pt_commission_items: p.pt_commission_items || [],
+            membership_commission_amount: p.membership_commission_amount,
+            membership_commission_items: p.membership_commission_items || [],
             manual_deductions: p.manual_deductions,
             cash_advance_deduction: p.cash_advance_deduction,
             notes: p.notes || "",
@@ -487,6 +503,8 @@ export default {
                   if (res.data.suggested_ca > 0) this.form.cash_advance_deduction = res.data.suggested_ca;
                   this.form.pt_commission_amount = res.data.pt_commission_amount || 0;
                   this.form.pt_commission_items = res.data.pt_commission_items || [];
+                  this.form.membership_commission_amount = res.data.membership_commission_amount || 0;
+                  this.form.membership_commission_items = res.data.membership_commission_items || [];
                }
             })
             .finally(() => (this.loadingSuggestion = false));
@@ -598,7 +616,19 @@ export default {
       },
 
       emptyForm: function () {
-         return { period_start: "", period_end: "", gross_amount: "", bonus: 0, pt_commission_amount: 0, pt_commission_items: [], manual_deductions: 0, cash_advance_deduction: 0, notes: "" };
+         return {
+            period_start: "",
+            period_end: "",
+            gross_amount: "",
+            bonus: 0,
+            pt_commission_amount: 0,
+            pt_commission_items: [],
+            membership_commission_amount: 0,
+            membership_commission_items: [],
+            manual_deductions: 0,
+            cash_advance_deduction: 0,
+            notes: "",
+         };
       },
 
       emptyPayoutForm: function () {

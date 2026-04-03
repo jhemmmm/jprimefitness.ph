@@ -168,6 +168,7 @@
                                  <div class="small text-muted mt-1">{{ selectedMembershipPlan.description || "Membership plan" }}</div>
                                  <div class="small mt-2"><strong>Price:</strong> ₱{{ $filters.formatMoney(selectedMembershipPlan.price) }}</div>
                                  <div class="small"><strong>Duration:</strong> {{ selectedMembershipPlan.duration_days }} days</div>
+                                 <div class="small"><strong>Manager Commission:</strong> {{ $filters.formatMoney(selectedMembershipPlan.manager_commission_rate || 0) }}%</div>
                               </div>
                            </div>
                            <div class="col-12 col-md-6">

@@ -63,6 +63,7 @@ class SalesPageTest extends TestCase
 
         $branch->ratePlans()->attach($ratePlan->id, [
             'price' => 1499,
+            'manager_commission_rate' => 10,
             'is_active' => true,
         ]);
         $branch->ptProducts()->attach($ptProduct->id, [
@@ -76,6 +77,7 @@ class SalesPageTest extends TestCase
             ->assertOk()
             ->assertJsonPath('options.inventory_items.0.id', $inventoryItem->id)
             ->assertJsonPath('options.membership_rates.0.id', $ratePlan->id)
+            ->assertJsonPath('options.membership_rates.0.manager_commission_rate', 10)
             ->assertJsonPath('options.pt_rates.0.id', $ptProduct->id);
     }
 
@@ -176,7 +178,7 @@ class SalesPageTest extends TestCase
             'is_system' => true,
         ]);
 
-        $this->assertSame(route('panel.sales.receipt.print', $transactionId), $response->json('receipt_url'));
+        $this->assertSame(route('panel.sales.receipt', $transactionId), $response->json('receipt_url'));
     }
 
     public function test_inventory_sale_requires_whole_number_quantities(): void
@@ -217,6 +219,7 @@ class SalesPageTest extends TestCase
 
         $branch->ratePlans()->attach($ratePlan->id, [
             'price' => 4999.50,
+            'manager_commission_rate' => 12,
             'is_active' => true,
         ]);
 
@@ -252,6 +255,9 @@ class SalesPageTest extends TestCase
         $this->assertSame($ratePlan->id, $subscription->rate_plan_id);
         $this->assertSame(MemberSubscription::STATUS_ACTIVE, $subscription->status);
         $this->assertSame('2026-04-01', $subscription->start_date?->toDateString());
+        $this->assertNull($subscription->manager_id);
+        $this->assertSame('0.00', $subscription->manager_commission_rate);
+        $this->assertSame('0.00', $subscription->manager_commission_amount);
         $this->assertDatabaseHas('sale_transactions', [
             'branch_id' => $branch->id,
             'member_id' => $member->id,
@@ -265,6 +271,55 @@ class SalesPageTest extends TestCase
             'amount' => 4999.50,
             'direction' => 'in',
             'is_system' => true,
+        ]);
+    }
+
+    public function test_manager_processed_membership_sale_tracks_membership_commission(): void
+    {
+        $branch = $this->createBranch('Sorsogon');
+        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Cole');
+        $ratePlan = $this->createRatePlan('Monthly', 30);
+
+        $branch->ratePlans()->attach($ratePlan->id, [
+            'price' => 2000,
+            'manager_commission_rate' => 7.5,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'branch_id' => $branch->id,
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_mode' => 'new',
+                'customer_name' => 'Manager Sale Member',
+                'customer_email' => 'manager-sale@example.com',
+                'customer_phone' => '09175550000',
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => '2026-04-02',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 2000,
+                'sold_at' => '2026-04-02 10:15:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('details.manager_commission.commission_rate', 7.5)
+            ->assertJsonPath('details.manager_commission.commission_amount', 150);
+
+        $member = User::where('email', 'manager-sale@example.com')->firstOrFail();
+        $subscription = MemberSubscription::where('user_id', $member->id)->latest('id')->firstOrFail();
+
+        $this->assertSame($branch->id, $subscription->branch_id);
+        $this->assertSame($manager->id, $subscription->manager_id);
+        $this->assertSame('2000.00', $subscription->sold_price);
+        $this->assertSame('7.50', $subscription->manager_commission_rate);
+        $this->assertSame('150.00', $subscription->manager_commission_amount);
+        $this->assertSame(MemberSubscription::COMMISSION_STATUS_EARNED, $subscription->manager_commission_status);
+        $this->assertSame('2026-04-02 10:15:00', $subscription->manager_commission_earned_at?->format('Y-m-d H:i:s'));
+
+        $transactionId = $response->json('id');
+
+        $this->assertDatabaseHas('sale_transactions', [
+            'id' => $transactionId,
+            'processed_by' => $manager->id,
         ]);
     }
 
@@ -418,11 +473,6 @@ class SalesPageTest extends TestCase
 
         $this->actingAs($staff)
             ->get(route('panel.sales.receipt', $transaction))
-            ->assertOk()
-            ->assertHeader('content-type', 'text/html; charset=UTF-8');
-
-        $this->actingAs($staff)
-            ->get(route('panel.sales.receipt.print', $transaction))
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
     }

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Branch;
 use App\Models\InventoryItem;
 use App\Models\MemberPtPackage;
+use App\Models\MemberSubscription;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
@@ -64,6 +65,7 @@ class PosSaleService
                     'duration_days' => $ratePlan->duration_days,
                     'description' => $ratePlan->description,
                     'price' => round((float) $ratePlan->pivot->price, 2),
+                    'manager_commission_rate' => round((float) ($ratePlan->pivot->manager_commission_rate ?? 0), 2),
                 ];
             })
             ->values()
@@ -221,8 +223,25 @@ class PosSaleService
             $member = $this->resolveMember($branch, $data);
             $member->branches()->syncWithoutDetaching([$branch->id]);
 
-            $member->changeMembershipPlan($ratePlan->id, $data['start_date']);
             $saleTotal = round((float) $ratePlan->pivot->price, 2);
+            $managerProcessedSale = $processedBy->hasRole('manager');
+            $managerCommissionRate = $managerProcessedSale
+                ? round((float) ($ratePlan->pivot->manager_commission_rate ?? 0), 2)
+                : 0.0;
+            $managerCommissionAmount = $managerProcessedSale
+                ? MemberSubscription::calculateCommissionAmount($saleTotal, $managerCommissionRate)
+                : 0.0;
+            $subscription = $member->sellMembershipPlan($ratePlan->id, $data['start_date'], [
+                'branch_id' => $branch->id,
+                'sold_price' => $saleTotal,
+                'manager_id' => $managerProcessedSale ? $processedBy->id : null,
+                'manager_commission_rate' => $managerCommissionRate,
+                'manager_commission_amount' => $managerCommissionAmount,
+                'manager_commission_status' => $managerProcessedSale
+                    ? MemberSubscription::COMMISSION_STATUS_EARNED
+                    : MemberSubscription::COMMISSION_STATUS_UNASSIGNED,
+                'manager_commission_earned_at' => $managerProcessedSale ? $data['sold_at'] : null,
+            ]);
             $payment = $this->resolvePayment($saleTotal, $data);
 
             $saleTransaction = SaleTransaction::create([
@@ -237,8 +256,16 @@ class PosSaleService
                 'item_name' => $ratePlan->name,
                 'details' => [
                     'rate_plan_id' => $ratePlan->id,
+                    'subscription_id' => $subscription->id,
                     'duration_days' => $ratePlan->duration_days,
                     'start_date' => $data['start_date'],
+                    'manager_commission' => [
+                        'manager_id' => $managerProcessedSale ? $processedBy->id : null,
+                        'manager_name' => $managerProcessedSale ? $processedBy->name : null,
+                        'commission_rate' => $managerCommissionRate,
+                        'commission_amount' => $managerCommissionAmount,
+                        'status' => $subscription->manager_commission_status,
+                    ],
                     'line_items' => [[
                         'name' => $ratePlan->name,
                         'description' => $ratePlan->description,
