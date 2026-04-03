@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\BranchCashLedgerEntry;
 use App\Models\MemberPtPackage;
+use App\Models\MemberSubscription;
 use App\Models\Payroll;
 use App\Models\PTProduct;
+use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\User;
 use App\Models\WalkIn;
@@ -51,6 +53,7 @@ class FinancialReportsPageTest extends TestCase
         $coach = $this->createUserWithRole('coach', [$branch->id], 'Coach Abe');
         $member = $this->createUserWithRole('member', [$branch->id], 'Member Joy');
         $employee = $this->createUserWithRole('staff', [$branch->id], 'Payroll Ana');
+        $ratePlan = $this->createRatePlan('Monthly', 30);
         $ptProduct = PTProduct::create([
             'name' => '12 Sessions',
             'session_count' => 12,
@@ -82,6 +85,21 @@ class FinancialReportsPageTest extends TestCase
             'customer_name' => $member->name,
             'item_name' => 'Monthly Membership',
             'details' => [],
+        ]);
+
+        MemberSubscription::create([
+            'user_id' => $member->id,
+            'branch_id' => $branch->id,
+            'rate_plan_id' => $ratePlan->id,
+            'sold_price' => 1500,
+            'manager_id' => $manager->id,
+            'manager_commission_rate' => 10,
+            'manager_commission_amount' => 150,
+            'start_date' => '2026-03-03',
+            'end_date' => '2026-04-01',
+            'status' => MemberSubscription::STATUS_ACTIVE,
+            'manager_commission_status' => MemberSubscription::COMMISSION_STATUS_EARNED,
+            'manager_commission_earned_at' => '2026-03-04 09:00:00',
         ]);
 
         MemberPtPackage::create([
@@ -140,10 +158,13 @@ class FinancialReportsPageTest extends TestCase
         $response->assertJsonPath('filters.date_to', '2026-03-31');
         $response->assertJsonPath('summary.gross_revenue', 3500);
         $response->assertJsonPath('summary.pt_commission', 400);
-        $response->assertJsonPath('summary.adjusted_revenue', 3100);
+        $response->assertJsonPath('summary.membership_commission', 150);
+        $response->assertJsonPath('summary.adjusted_revenue', 2950);
         $response->assertJsonPath('summary.payroll_wages', 1050);
         $response->assertJsonPath('summary.other_operating_expenses', 300);
-        $response->assertJsonPath('summary.net_profit', 1750);
+        $response->assertJsonPath('summary.net_profit', 1600);
+        $response->assertJsonPath('expense_breakdown.1.key', 'membership_commission');
+        $response->assertJsonPath('expense_breakdown.1.amount', 150);
         $response->assertJsonPath('revenue_breakdown.0.type', SaleTransaction::TYPE_INVENTORY);
         $response->assertJsonPath('revenue_breakdown.0.total_sales', 2000);
         $response->assertJsonPath('revenue_breakdown.1.type', SaleTransaction::TYPE_MEMBERSHIP);
@@ -181,6 +202,7 @@ class FinancialReportsPageTest extends TestCase
         $this->assertStringContainsString('Summary', $content);
         $this->assertStringContainsString('Revenue Breakdown', $content);
         $this->assertStringContainsString('Gross Revenue', $content);
+        $this->assertStringContainsString('Membership Commission', $content);
         $this->assertStringContainsString('850', $content);
     }
 
@@ -328,6 +350,16 @@ class FinancialReportsPageTest extends TestCase
             'status' => Branch::STATUS_OPEN,
             'country_code' => Branch::COUNTRY_PHILIPPINES,
             'city' => 'Naga City',
+        ]);
+    }
+
+    private function createRatePlan(string $name, int $durationDays): RatePlan
+    {
+        return RatePlan::create([
+            'name' => $name,
+            'duration_days' => $durationDays,
+            'description' => $name.' description',
+            'is_active' => true,
         ]);
     }
 

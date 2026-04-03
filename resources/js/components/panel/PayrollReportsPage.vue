@@ -62,7 +62,7 @@
          <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
 
          <div class="row g-3 mb-4">
-            <div class="col-6 col-xl-4" v-for="stat in statCards" :key="stat.label">
+            <div class="col-12 col-md-6 col-xl-3" v-for="stat in statCards" :key="stat.label">
                <div class="stat-card h-100">
                   <div class="stat-card-icon" :class="stat.iconBg">
                      <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
@@ -72,9 +72,10 @@
                      <div class="stat-card-value" v-if="loading">
                         <div class="skeleton-box" style="width: 88px; height: 18px; border-radius: 5px"></div>
                      </div>
-                     <div class="stat-card-value small" v-else :class="stat.valueClass">
-                        {{ stat.prefix }}{{ stat.isMoney ? "₱" : "" }}{{ stat.isMoney ? $filters.formatMoney(stat.value) : stat.value }}
+                     <div class="stat-card-value" v-else :class="stat.valueClass">
+                        {{ stat.value }}
                      </div>
+                     <div class="stat-card-sub" v-if="stat.sub">{{ stat.sub }}</div>
                   </div>
                </div>
             </div>
@@ -479,9 +480,8 @@ export default {
          return [
             {
                label: "Payroll Runs",
-               value: this.report.summary.payroll_count,
-               isMoney: false,
-               prefix: "",
+               value: `${this.report.summary.payroll_count}`,
+               sub: this.currentPayrollScopeLabel(),
                icon: "bi-receipt",
                iconBg: "bg-secondary-soft",
                iconColor: "text-secondary",
@@ -489,9 +489,8 @@ export default {
             },
             {
                label: "Gross Payroll",
-               value: this.report.summary.gross_payroll,
-               isMoney: true,
-               prefix: "",
+               value: this.formatCurrencyLabel(this.report.summary.gross_payroll),
+               sub: "Base wages in scope",
                icon: "bi-cash-stack",
                iconBg: "bg-primary-soft",
                iconColor: "text-primary",
@@ -499,49 +498,53 @@ export default {
             },
             {
                label: "Bonuses",
-               value: this.report.summary.total_bonus,
-               isMoney: true,
-               prefix: "",
+               value: this.formatCurrencyLabel(this.report.summary.total_bonus),
+               sub: "Approved bonuses added",
                icon: "bi-gift",
                iconBg: "bg-success-soft",
                iconColor: "text-success",
-               valueClass: "",
+               valueClass: "text-success",
             },
             {
                label: "PT Commission",
-               value: this.report.summary.pt_commission,
-               isMoney: true,
-               prefix: "",
+               value: this.formatCurrencyLabel(this.report.summary.pt_commission),
+               sub: "Coach earnings attached",
                icon: "bi-person-video3",
                iconBg: "bg-warning-soft",
                iconColor: "text-warning",
-               valueClass: "",
+               valueClass: "text-warning",
             },
             {
                label: "Membership Commission",
-               value: this.report.summary.membership_commission,
-               isMoney: true,
-               prefix: "",
+               value: this.formatCurrencyLabel(this.report.summary.membership_commission),
+               sub: "Membership sale earnings",
                icon: "bi-person-check",
                iconBg: "bg-info-soft",
                iconColor: "text-info",
-               valueClass: "",
+               valueClass: "text-info",
             },
             {
                label: "Net Payroll",
-               value: this.report.summary.net_payroll,
-               isMoney: true,
-               prefix: "",
+               value: this.formatCurrencyLabel(this.report.summary.net_payroll),
+               sub: "Before payout progress",
                icon: "bi-calculator",
                iconBg: "bg-success-soft",
                iconColor: "text-success",
                valueClass: "",
             },
             {
+               label: "Paid Out To Date",
+               value: this.formatCurrencyLabel(this.report.summary.total_paid),
+               sub: this.payoutProgressLabel(),
+               icon: "bi-cash-coin",
+               iconBg: "bg-primary-soft",
+               iconColor: "text-primary",
+               valueClass: "text-success",
+            },
+            {
                label: "Outstanding To Date",
-               value: this.report.summary.outstanding_balance,
-               isMoney: true,
-               prefix: "",
+               value: this.formatCurrencyLabel(this.report.summary.outstanding_balance),
+               sub: this.report.summary.outstanding_balance > 0 ? "Remaining payout balance" : "Fully settled",
                icon: "bi-exclamation-circle",
                iconBg: this.report.summary.outstanding_balance > 0 ? "bg-danger-soft" : "bg-success-soft",
                iconColor: this.report.summary.outstanding_balance > 0 ? "text-danger" : "text-success",
@@ -601,6 +604,24 @@ export default {
          const month = String(now.getMonth() + 1).padStart(2, "0");
          const day = String(now.getDate()).padStart(2, "0");
          return `${now.getFullYear()}-${month}-${day}`;
+      },
+      formatCurrencyLabel: function (amount) {
+         return `₱${this.$filters.formatMoney(amount || 0)}`;
+      },
+      currentPayrollScopeLabel: function () {
+         const statusLabel = this.report.filters.status_label || "Active statuses";
+         const payFrequencyLabel = this.report.filters.pay_frequency_label || "All frequencies";
+
+         return `${statusLabel} · ${payFrequencyLabel}`;
+      },
+      payoutProgressLabel: function () {
+         if (this.report.summary.net_payroll <= 0) {
+            return "No payouts released yet";
+         }
+
+         const progress = Math.min(100, Math.round((this.report.summary.total_paid / this.report.summary.net_payroll) * 100));
+
+         return `${progress}% released so far`;
       },
       resolveSelectedBranch: function () {
          const storedBranchId = localStorage.getItem("selectedBranch");

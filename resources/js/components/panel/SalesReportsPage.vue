@@ -58,7 +58,6 @@
                      <i class="bi bi-download me-1"></i>
                      Export CSV
                   </a>
-                  <button type="button" class="btn btn-outline-secondary btn-sm px-3" @click="resetFilters" :disabled="loading">Reset</button>
                </div>
             </div>
          </div>
@@ -797,13 +796,6 @@ export default {
             .finally(() => {
                this.loading = false;
             });
-      },
-      resetFilters: function () {
-         this.filters.date_from = this.defaultDateFrom();
-         this.filters.date_to = this.defaultDateTo();
-         this.filters.type = "";
-         this.filters.payment_method = "";
-         this.fetchReport();
       },
    },
 };

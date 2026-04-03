@@ -3,7 +3,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Financial Reports</h4>
-            <p class="text-muted small mb-0">Review profitability, payroll costs, and operating expenses for {{ currentBranchLabel }}</p>
+            <p class="text-muted small mb-0">Review profitability, commission load, payroll costs, and operating expenses for {{ currentBranchLabel }}</p>
          </div>
       </div>
 
@@ -70,7 +70,7 @@
             <div class="panel-card-header">
                <div>
                   <div class="panel-card-title">Financial Breakdown</div>
-                  <div class="panel-card-sub">This view separates revenue, PT commissions, payroll wages, and manual operating expenses.</div>
+                  <div class="panel-card-sub">This view separates revenue, PT and membership commissions, payroll wages, and manual operating expenses.</div>
                </div>
             </div>
             <div class="p-3 p-md-4">
@@ -81,6 +81,10 @@
                <div class="d-flex justify-content-between align-items-center py-2 text-danger">
                   <span>PT Commission</span>
                   <span>-₱{{ $filters.formatMoney(report.summary.pt_commission) }}</span>
+               </div>
+               <div class="d-flex justify-content-between align-items-center py-2 text-danger">
+                  <span>Membership Commission</span>
+                  <span>-₱{{ $filters.formatMoney(report.summary.membership_commission) }}</span>
                </div>
                <div class="border-top my-2"></div>
                <div class="d-flex justify-content-between align-items-center py-2 fw-semibold">
@@ -138,7 +142,7 @@
                   </div>
                   <div class="p-3 p-md-4">
                      <div v-if="loading">
-                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 3" :key="'exp-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 4" :key="'exp-sk-' + index"></div>
                      </div>
                      <div v-else>
                         <div class="d-flex justify-content-between align-items-center py-2 border-bottom" v-for="row in report.expense_breakdown" :key="row.key">
@@ -281,12 +285,12 @@ export default {
                valueClass: "text-danger",
             },
             {
-               label: "Adjusted Revenue",
-               amount: this.report.summary.adjusted_revenue,
-               icon: "bi-graph-up-arrow",
-               iconBg: "bg-success-soft",
-               iconColor: "text-success",
-               valueClass: "",
+               label: "Membership Commission",
+               amount: -1 * this.report.summary.membership_commission,
+               icon: "bi-person-check",
+               iconBg: "bg-warning-soft",
+               iconColor: "text-warning",
+               valueClass: "text-danger",
             },
             {
                label: "Payroll Wages",
@@ -333,6 +337,7 @@ export default {
             summary: {
                gross_revenue: 0,
                pt_commission: 0,
+               membership_commission: 0,
                adjusted_revenue: 0,
                payroll_wages: 0,
                other_operating_expenses: 0,
