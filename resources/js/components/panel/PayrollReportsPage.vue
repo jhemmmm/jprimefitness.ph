@@ -354,10 +354,10 @@
                         <tbody>
                            <tr v-for="payroll in report.recent_payrolls" :key="payroll.id">
                               <td>
-                                 <div class="fw-semibold">{{ payroll.employee_name || "—" }}</div>
+                                 <div class="fw-semibold">{{ payroll.employee_name || "-" }}</div>
                                  <div class="small text-muted" v-if="payroll.approved_by_name">Approved by {{ payroll.approved_by_name }}</div>
                               </td>
-                              <td>{{ payroll.branch_name || "—" }}</td>
+                              <td>{{ payroll.branch_name || "-" }}</td>
                               <td>{{ payroll.period_label }}</td>
                               <td>{{ payroll.pay_frequency_label }}</td>
                               <td>
@@ -377,8 +377,8 @@
                      <div class="member-card" v-for="payroll in report.recent_payrolls" :key="'recent-mobile-' + payroll.id">
                         <div class="member-card-top">
                            <div>
-                              <div class="member-card-name">{{ payroll.employee_name || "—" }}</div>
-                              <div class="member-card-sub">{{ payroll.branch_name || "—" }} · {{ payroll.period_label }}</div>
+                              <div class="member-card-name">{{ payroll.employee_name || "-" }}</div>
+                              <div class="member-card-sub">{{ payroll.branch_name || "-" }} · {{ payroll.period_label }}</div>
                            </div>
                            <span :class="['m-badge', $filters.statusBadge(payroll.status)]">{{ payroll.status_label }}</span>
                         </div>

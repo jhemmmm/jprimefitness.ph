@@ -65,7 +65,7 @@
          <div class="panel-card-header d-flex justify-content-between align-items-center">
             <span class="panel-card-title">
                Attendance Log
-               <span class="badge-count ms-1">{{ loading ? "—" : pagination.total }}</span>
+               <span class="badge-count ms-1">{{ loading ? "-" : pagination.total }}</span>
             </span>
             <span class="text-muted small" v-if="!loading && pagination.total > 0"> Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }} </span>
          </div>
@@ -178,7 +178,7 @@
                               {{ $filters.capitalize(r.attendee_type) }}
                            </span>
                         </td>
-                        <td class="small">{{ r.branch ? r.branch.name : "—" }}</td>
+                        <td class="small">{{ r.branch ? r.branch.name : "-" }}</td>
                         <td class="text-muted small">{{ $filters.formatDateTime(r.checked_in_at) }}</td>
                         <td>
                            <span v-if="r.checked_out_at" class="text-muted small">{{ $filters.formatDateTime(r.checked_out_at) }}</span>
@@ -209,7 +209,7 @@
                         </div>
                         <div>
                            <div class="member-card-name">{{ r.name }}</div>
-                           <div class="member-card-sub">{{ r.branch ? r.branch.name : "—" }}</div>
+                           <div class="member-card-sub">{{ r.branch ? r.branch.name : "-" }}</div>
                         </div>
                      </a>
                      <div v-else class="member-card-identity">
@@ -218,7 +218,7 @@
                         </div>
                         <div>
                            <div class="member-card-name">{{ r.name }}</div>
-                           <div class="member-card-sub">{{ r.branch ? r.branch.name : "—" }}</div>
+                           <div class="member-card-sub">{{ r.branch ? r.branch.name : "-" }}</div>
                         </div>
                      </div>
                      <div class="dropdown">

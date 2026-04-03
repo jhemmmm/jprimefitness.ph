@@ -66,7 +66,7 @@ export default {
       },
       formatDateLabel: function (value) {
          if (!value) {
-            return "—";
+            return "-";
          }
 
          return new Date(value).toLocaleDateString("en-PH", { month: "short", day: "numeric" });

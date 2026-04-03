@@ -34,9 +34,7 @@
          </button>
       </div>
 
-      <div v-if="membershipLockReason" class="alert alert-warning py-2 small mb-4">
-         <i class="bi bi-lock me-1"></i>{{ membershipLockReason }}
-      </div>
+      <div v-if="membershipLockReason" class="alert alert-warning py-2 small mb-4"><i class="bi bi-lock me-1"></i>{{ membershipLockReason }}</div>
 
       <div class="row g-3 mb-4">
          <div class="col-lg-6">
@@ -61,7 +59,7 @@
                   </div>
                   <div class="col-sm-6">
                      <div class="text-muted">Branch</div>
-                     <div class="fw-semibold">{{ currentMembership.branch?.name || "—" }}</div>
+                     <div class="fw-semibold">{{ currentMembership.branch?.name || "-" }}</div>
                   </div>
                   <div class="col-sm-6">
                      <div class="text-muted">Recorded</div>
@@ -106,13 +104,7 @@
                   </div>
                   <div class="col-12" v-if="currentCommissionSummary.status === 'unassigned'">
                      <div class="d-flex flex-wrap align-items-center gap-2">
-                        <button
-                           v-if="canManageMembership"
-                           type="button"
-                           class="btn btn-outline-primary btn-sm"
-                           @click="openManagerModal"
-                           :disabled="savingManager || !canAssignManager"
-                        >
+                        <button v-if="canManageMembership" type="button" class="btn btn-outline-primary btn-sm" @click="openManagerModal" :disabled="savingManager || !canAssignManager">
                            <span class="spinner-border spinner-border-sm me-1" v-if="savingManager"></span>
                            {{ assignManagerButtonLabel }}
                         </button>
@@ -166,9 +158,7 @@
                   <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                </div>
                <div class="modal-body">
-                  <div class="small text-muted mb-3">
-                     Assign this unclaimed membership commission to a manager. It will move from <strong>Unassigned</strong> to <strong>Earned</strong> once saved.
-                  </div>
+                  <div class="small text-muted mb-3">Assign this unclaimed membership commission to a manager. It will move from <strong>Unassigned</strong> to <strong>Earned</strong> once saved.</div>
                   <div class="row g-3">
                      <div class="col-12">
                         <label class="form-label form-label-sm fw-semibold">Manager</label>
@@ -177,9 +167,7 @@
                            <option v-for="manager in availableManagers" :key="manager.id" :value="String(manager.id)">{{ manager.name }}</option>
                         </select>
                      </div>
-                     <div class="col-12 small text-muted" v-if="currentCommissionSummary.commission_amount">
-                        Commission amount: ₱{{ $filters.formatMoney(currentCommissionSummary.commission_amount || 0) }}
-                     </div>
+                     <div class="col-12 small text-muted" v-if="currentCommissionSummary.commission_amount">Commission amount: ₱{{ $filters.formatMoney(currentCommissionSummary.commission_amount || 0) }}</div>
                   </div>
                </div>
                <div class="modal-footer">

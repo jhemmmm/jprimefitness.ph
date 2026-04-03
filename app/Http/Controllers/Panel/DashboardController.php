@@ -80,16 +80,16 @@ class DashboardController extends Controller
                 'total_members' => $this->totalMembers($accessibleBranchIds),
                 'check_ins_today' => $this->todayCheckInCount($accessibleBranchIds, $todayStart, $todayEnd),
             ], $canViewFinancialData ? [
-                'revenue_today' => $this->revenueForWindow($accessibleBranchIds, $todayStart, $todayEnd),
-                'revenue_this_month' => $this->revenueForWindow($accessibleBranchIds, $monthStart, $monthEnd),
-            ] : []),
+                    'revenue_today' => $this->revenueForWindow($accessibleBranchIds, $todayStart, $todayEnd),
+                    'revenue_this_month' => $this->revenueForWindow($accessibleBranchIds, $monthStart, $monthEnd),
+                ] : []),
             'stats_row_2' => array_merge([
                 'active_trainers' => $this->activeTrainerCount($accessibleBranchIds),
                 'active_employees' => $this->activeEmployeeCount($accessibleBranchIds),
                 'walk_ins_today' => $this->walkInCountForWindow($accessibleBranchIds, $todayStart, $todayEnd),
             ], $canViewFinancialData ? [
-                'pending_payroll_balance' => $this->pendingPayrollBalance($accessibleBranchIds),
-            ] : []),
+                    'pending_payroll_balance' => $this->pendingPayrollBalance($accessibleBranchIds),
+                ] : []),
             'peak_hours' => $this->peakHours($accessibleBranchIds, $monthStart, $monthEnd),
             'branch_load' => $branchLoadRows
                 ->sort(function (array $left, array $right): int {
@@ -131,7 +131,7 @@ class DashboardController extends Controller
     private function totalMembers(array $branchIds): int
     {
         return User::role('member')
-            ->whereHas('branches', fn ($query) => $query->whereIn('branches.id', $branchIds))
+            ->whereHas('branches', fn($query) => $query->whereIn('branches.id', $branchIds))
             ->count();
     }
 
@@ -144,7 +144,7 @@ class DashboardController extends Controller
     {
         return User::role('coach')
             ->where('status', User::STATUS_ACTIVE)
-            ->whereHas('branches', fn ($query) => $query->whereIn('branches.id', $branchIds))
+            ->whereHas('branches', fn($query) => $query->whereIn('branches.id', $branchIds))
             ->count();
     }
 
@@ -157,7 +157,7 @@ class DashboardController extends Controller
     {
         return User::role(['employee', 'manager', 'admin', 'staff'])
             ->where('status', User::STATUS_ACTIVE)
-            ->whereHas('branches', fn ($query) => $query->whereIn('branches.id', $branchIds))
+            ->whereHas('branches', fn($query) => $query->whereIn('branches.id', $branchIds))
             ->count();
     }
 
@@ -216,13 +216,13 @@ class DashboardController extends Controller
             ->whereIn('branch_id', $branchIds)
             ->whereBetween('checked_in_at', [$start, $end])
             ->get(['checked_in_at'])
-            ->map(fn (Attendance $attendance) => $attendance->checked_in_at ? (int) $attendance->checked_in_at->format('H') : null)
-            ->filter(fn (?int $hour) => $hour !== null)
+            ->map(fn(Attendance $attendance) => $attendance->checked_in_at ? (int) $attendance->checked_in_at->format('H') : null)
+            ->filter(fn(?int $hour) => $hour !== null)
             ->countBy();
 
         return collect(range(0, 23))
             ->map(function (int $hour) use ($rows): array {
-                $hourSlot = str_pad((string) $hour, 2, '0', STR_PAD_LEFT).':00';
+                $hourSlot = str_pad((string) $hour, 2, '0', STR_PAD_LEFT) . ':00';
 
                 return [
                     'hour_number' => $hour,
@@ -251,7 +251,7 @@ class DashboardController extends Controller
             ->selectRaw('COUNT(*) as current_occupancy')
             ->groupBy('branch_id')
             ->get()
-            ->mapWithKeys(fn (Attendance $attendance) => [
+            ->mapWithKeys(fn(Attendance $attendance) => [
                 (int) $attendance->branch_id => (int) $attendance->current_occupancy,
             ]);
         $todayCheckInsByBranch = Attendance::query()
@@ -261,7 +261,7 @@ class DashboardController extends Controller
             ->selectRaw('COUNT(*) as today_check_ins')
             ->groupBy('branch_id')
             ->get()
-            ->mapWithKeys(fn (Attendance $attendance) => [
+            ->mapWithKeys(fn(Attendance $attendance) => [
                 (int) $attendance->branch_id => (int) $attendance->today_check_ins,
             ]);
 
@@ -289,7 +289,7 @@ class DashboardController extends Controller
             ->whereBetween('checked_in_at', [$start, $end])
             ->with([
                 'branch:id,name',
-                'user.memberSubscriptions' => fn ($query) => $query
+                'user.memberSubscriptions' => fn($query) => $query
                     ->with(['ratePlan:id,name', 'branch:id,name'])
                     ->whereIn('status', [MemberSubscription::STATUS_ACTIVE, MemberSubscription::STATUS_PAUSED])
                     ->orderByDesc('start_date'),
@@ -316,7 +316,7 @@ class DashboardController extends Controller
                         Attendance::TYPE_MEMBER => $membership?->ratePlan?->name ?? 'Membership',
                         Attendance::TYPE_WALK_IN => $attendance->walkIn?->ratePlan?->name ?? 'Walk-in Rate',
                         Attendance::TYPE_EMPLOYEE => $employeeRole ?: 'Employee',
-                        default => '—',
+                        default => '-',
                     },
                     'checked_in_at' => $attendance->checked_in_at?->toISOString(),
                 ];
@@ -335,7 +335,7 @@ class DashboardController extends Controller
     {
         return User::role('coach')
             ->where('status', User::STATUS_ACTIVE)
-            ->whereHas('branches', fn ($query) => $query->whereIn('branches.id', $branchIds))
+            ->whereHas('branches', fn($query) => $query->whereIn('branches.id', $branchIds))
             ->with(['branches:id,name'])
             ->orderBy('name')
             ->limit(6)
@@ -361,10 +361,10 @@ class DashboardController extends Controller
     private function recentMembers(array $branchIds): array
     {
         return User::role('member')
-            ->whereHas('branches', fn ($query) => $query->whereIn('branches.id', $branchIds))
+            ->whereHas('branches', fn($query) => $query->whereIn('branches.id', $branchIds))
             ->with([
                 'branches:id,name',
-                'memberSubscriptions' => fn ($query) => $query
+                'memberSubscriptions' => fn($query) => $query
                     ->with(['ratePlan:id,name', 'branch:id,name'])
                     ->orderByDesc('start_date'),
             ])
@@ -375,12 +375,12 @@ class DashboardController extends Controller
                 $membership = $this->loadedCurrentMembership($member);
                 $branchName = $membership?->branch?->name
                     ?? $member->branches->pluck('name')->first()
-                    ?? '—';
+                    ?? '-';
 
                 return [
                     'id' => $member->id,
                     'name' => $member->name,
-                    'plan_name' => $membership?->ratePlan?->name ?? '—',
+                    'plan_name' => $membership?->ratePlan?->name ?? '-',
                     'branch_name' => $branchName,
                     'status' => $member->status,
                 ];
@@ -481,10 +481,10 @@ class DashboardController extends Controller
                     'status' => $payroll->status,
                     'net_amount' => round((float) $payroll->net_amount, 2),
                     'outstanding_balance' => $outstandingBalance,
-                    'period_label' => $payroll->period_start?->format('Y-m-d').' – '.$payroll->period_end?->format('Y-m-d'),
+                    'period_label' => $payroll->period_start?->format('Y-m-d') . ' – ' . $payroll->period_end?->format('Y-m-d'),
                 ];
             })
-            ->filter(fn (array $payroll) => $payroll['outstanding_balance'] > 0)
+            ->filter(fn(array $payroll) => $payroll['outstanding_balance'] > 0)
             ->take(8)
             ->values()
             ->all();
@@ -526,7 +526,7 @@ class DashboardController extends Controller
             ->where('type', SaleTransaction::TYPE_WALK_IN)
             ->whereBetween('sold_at', [$start, $end])
             ->get(['details'])
-            ->map(fn (SaleTransaction $transaction) => (int) data_get($transaction->details, 'walk_in_id'))
+            ->map(fn(SaleTransaction $transaction) => (int) data_get($transaction->details, 'walk_in_id'))
             ->filter()
             ->unique()
             ->values()
@@ -548,12 +548,12 @@ class DashboardController extends Controller
             return null;
         }
 
-        if (! $user->relationLoaded('memberSubscriptions')) {
+        if (!$user->relationLoaded('memberSubscriptions')) {
             return $user->currentMembership();
         }
 
         return $user->memberSubscriptions
-            ->first(fn (MemberSubscription $subscription) => in_array($subscription->status, [
+            ->first(fn(MemberSubscription $subscription) => in_array($subscription->status, [
                 MemberSubscription::STATUS_ACTIVE,
                 MemberSubscription::STATUS_PAUSED,
             ], true));

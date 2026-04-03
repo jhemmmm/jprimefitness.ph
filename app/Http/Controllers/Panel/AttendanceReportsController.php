@@ -60,8 +60,8 @@ class AttendanceReportsController extends Controller
 
             fputcsv($handle, ['Attendance Reports']);
             fputcsv($handle, ['Branch', $report['scope']['branch']['name'] ?? 'All Accessible Branches']);
-            fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '—']);
-            fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '—']);
+            fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '-']);
+            fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '-']);
             fputcsv($handle, ['Attendee Type', $report['filters']['type_label'] ?: 'All Types']);
             fputcsv($handle, []);
 

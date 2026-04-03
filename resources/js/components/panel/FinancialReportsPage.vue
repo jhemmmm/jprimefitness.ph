@@ -58,9 +58,7 @@
                      <div class="stat-card-value" v-if="loading">
                         <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 5px"></div>
                      </div>
-                     <div class="stat-card-value" v-else :class="stat.valueClass">
-                        {{ stat.amount < 0 ? "-₱" : "₱" }}{{ $filters.formatMoney(Math.abs(stat.amount)) }}
-                     </div>
+                     <div class="stat-card-value" v-else :class="stat.valueClass">{{ stat.amount < 0 ? "-₱" : "₱" }}{{ $filters.formatMoney(Math.abs(stat.amount)) }}</div>
                   </div>
                </div>
             </div>
@@ -203,7 +201,7 @@
                            <div class="d-flex justify-content-between align-items-start gap-3">
                               <div>
                                  <div class="fw-semibold">{{ entry.title }}</div>
-                                 <div class="text-muted small">{{ entry.branch_name || "—" }} · {{ $filters.formatDateTime(entry.occurred_at) }}</div>
+                                 <div class="text-muted small">{{ entry.branch_name || "-" }} · {{ $filters.formatDateTime(entry.occurred_at) }}</div>
                                  <div class="text-muted small" v-if="entry.description">{{ entry.description }}</div>
                                  <div class="text-muted small" v-if="entry.created_by_name">Logged by {{ entry.created_by_name }}</div>
                               </div>

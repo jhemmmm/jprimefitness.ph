@@ -65,7 +65,7 @@
          <div class="panel-card-header d-flex justify-content-between align-items-center">
             <span class="panel-card-title">
                Member List
-               <span class="badge-count ms-1">{{ loading ? "—" : pagination.total }}</span>
+               <span class="badge-count ms-1">{{ loading ? "-" : pagination.total }}</span>
             </span>
             <span class="text-muted small" v-if="!loading && pagination.total > 0"> Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }} </span>
          </div>
@@ -181,8 +181,8 @@
                               </div>
                            </a>
                         </td>
-                        <td class="text-muted small">{{ member.phone || "—" }}</td>
-                        <td class="small">{{ member.branches && member.branches.length ? member.branches.map((b) => b.name).join(", ") : "—" }}</td>
+                        <td class="text-muted small">{{ member.phone || "-" }}</td>
+                        <td class="small">{{ member.branches && member.branches.length ? member.branches.map((b) => b.name).join(", ") : "-" }}</td>
                         <td>
                            <template v-if="getCurrentMembership(member)">
                               <div class="plan-name mb-1">{{ getCurrentMembership(member).rate_plan.name }}</div>
@@ -195,7 +195,7 @@
                               <div class="plan-name mb-1">{{ getActivePtPackage(member).pt_product?.name || "PT Package" }}</div>
                               <span class="m-badge m-badge--plan-active"> {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} left </span>
                            </template>
-                           <span v-else class="text-muted small">—</span>
+                           <span v-else class="text-muted small">-</span>
                         </td>
                         <td>
                            <span :class="['m-badge', $filters.statusBadge(member.status)]">{{ $filters.capitalize(member.status) }}</span>
@@ -586,7 +586,7 @@ export default {
          var notes = member.profile && member.profile.notes ? member.profile.notes.trim() : "";
 
          if (!notes) {
-            return "—";
+            return "-";
          }
 
          return notes.length > 60 ? `${notes.slice(0, 57)}...` : notes;

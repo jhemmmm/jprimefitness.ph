@@ -72,13 +72,13 @@
                         <div class="text-muted" style="font-size: 0.75rem">{{ p.notes }}</div>
                      </td>
                      <td class="text-end small">₱{{ $filters.formatMoney(p.gross_amount) }}</td>
-                     <td class="text-end small text-success">{{ p.bonus > 0 ? "+₱" + $filters.formatMoney(p.bonus) : "—" }}</td>
-                     <td class="text-end small text-success">{{ p.pt_commission_amount > 0 ? "+₱" + $filters.formatMoney(p.pt_commission_amount) : "—" }}</td>
-                     <td class="text-end small text-success">{{ p.membership_commission_amount > 0 ? "+₱" + $filters.formatMoney(p.membership_commission_amount) : "—" }}</td>
-                     <td class="text-end small text-danger">{{ p.employee_deductions_total > 0 ? "-₱" + $filters.formatMoney(p.employee_deductions_total) : "—" }}</td>
-                     <td class="text-end small text-warning">{{ p.cash_advance_deduction > 0 ? "-₱" + $filters.formatMoney(p.cash_advance_deduction) : "—" }}</td>
+                     <td class="text-end small text-success">{{ p.bonus > 0 ? "+₱" + $filters.formatMoney(p.bonus) : "-" }}</td>
+                     <td class="text-end small text-success">{{ p.pt_commission_amount > 0 ? "+₱" + $filters.formatMoney(p.pt_commission_amount) : "-" }}</td>
+                     <td class="text-end small text-success">{{ p.membership_commission_amount > 0 ? "+₱" + $filters.formatMoney(p.membership_commission_amount) : "-" }}</td>
+                     <td class="text-end small text-danger">{{ p.employee_deductions_total > 0 ? "-₱" + $filters.formatMoney(p.employee_deductions_total) : "-" }}</td>
+                     <td class="text-end small text-warning">{{ p.cash_advance_deduction > 0 ? "-₱" + $filters.formatMoney(p.cash_advance_deduction) : "-" }}</td>
                      <td class="text-end fw-bold small">₱{{ $filters.formatMoney(p.net_amount) }}</td>
-                     <td class="text-end small text-success">{{ p.total_paid > 0 ? "₱" + $filters.formatMoney(p.total_paid) : "—" }}</td>
+                     <td class="text-end small text-success">{{ p.total_paid > 0 ? "₱" + $filters.formatMoney(p.total_paid) : "-" }}</td>
                      <td class="text-end small" :class="p.remaining_balance > 0 ? 'text-danger' : 'text-success'">
                         {{ p.remaining_balance > 0 ? "₱" + $filters.formatMoney(p.remaining_balance) : "✓" }}
                      </td>
@@ -183,12 +183,8 @@
                         <span v-if="suggestion.max_cash_advance_deduction < suggestion.pending_ca_total"> &nbsp;· Eligible CA this payroll: ₱{{ $filters.formatMoney(suggestion.suggested_ca) }}</span>
                         <span v-if="suggestion.pt_commission_amount > 0"> &nbsp;· PT commissions: ₱{{ $filters.formatMoney(suggestion.pt_commission_amount) }}</span>
                         <span v-if="suggestion.membership_commission_amount > 0"> &nbsp;· Membership commissions: ₱{{ $filters.formatMoney(suggestion.membership_commission_amount) }}</span>
-                        <span v-if="suggestion.branch_country_code === 'PH' && suggestion.bonus_non_taxable_amount > 0" class="d-block text-muted mt-1">
-                           <i class="bi bi-gift me-1"></i>PH exempt bonus applied this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }}
-                        </span>
-                        <span v-if="suggestion.branch_country_code === 'PH' && suggestion.bonus_taxable_amount > 0" class="d-block text-muted mt-1">
-                           <i class="bi bi-calculator me-1"></i>Taxable bonus excess this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}
-                        </span>
+                        <span v-if="suggestion.branch_country_code === 'PH' && suggestion.bonus_non_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-gift me-1"></i>PH exempt bonus applied this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }} </span>
+                        <span v-if="suggestion.branch_country_code === 'PH' && suggestion.bonus_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-calculator me-1"></i>Taxable bonus excess this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }} </span>
                         <span v-if="suggestion.days_worked === 0" class="d-block text-muted mt-1"><i class="bi bi-info-circle me-1"></i>No attendance records found for this period.</span>
                         <span v-if="suggestion.pt_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-stopwatch me-1"></i>{{ suggestion.pt_commission_items.length }} completed PT package{{ suggestion.pt_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
                         <span v-if="suggestion.membership_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-person-check me-1"></i>{{ suggestion.membership_commission_items.length }} membership sale commission{{ suggestion.membership_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
@@ -222,35 +218,35 @@
                            <span v-if="suggestion.bonus_taxable_amount > 0"> Taxable excess: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}.</span>
                         </div>
                      </div>
-                      <div class="col-md-6">
-                         <label class="form-label form-label-sm">PT Commission (₱)</label>
-                         <input type="number" class="form-control" :value="form.pt_commission_amount" readonly />
-                         <div class="form-text">
-                            Auto-added from completed PT packages in this payroll period.
-                            <span v-if="form.pt_commission_items?.length">({{ form.pt_commission_items.length }} item{{ form.pt_commission_items.length !== 1 ? "s" : "" }})</span>
-                         </div>
-                      </div>
-                      <div class="col-md-6">
-                         <label class="form-label form-label-sm">Membership Commission (₱)</label>
-                         <input type="number" class="form-control" :value="form.membership_commission_amount" readonly />
-                         <div class="form-text">
-                            Auto-added from membership sales that you processed in this payroll period.
-                            <span v-if="form.membership_commission_items?.length">({{ form.membership_commission_items.length }} item{{ form.membership_commission_items.length !== 1 ? "s" : "" }})</span>
-                         </div>
-                      </div>
-                      <div class="col-md-6">
-                         <label class="form-label form-label-sm">Income Tax (₱)</label>
-                         <input type="number" class="form-control" :value="form.income_tax" readonly />
-                         <div class="form-text" v-if="suggestion && suggestion.taxable_earnings > 0">
-                            Calculated from ₱{{ $filters.formatMoney(suggestion.taxable_earnings) }} taxable earnings.
-                            <span v-if="suggestion.bonus_taxable_amount > 0">Taxable bonus portion: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}.</span>
-                         </div>
-                         <div class="form-text" v-else>Calculated automatically from the payroll branch and pay frequency.</div>
-                      </div>
-                      <div class="col-md-6">
-                         <label class="form-label form-label-sm">Other Deductions (₱)</label>
-                         <input type="number" class="form-control" v-model="form.manual_deductions" min="0" step="0.01" />
-                      </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm">PT Commission (₱)</label>
+                        <input type="number" class="form-control" :value="form.pt_commission_amount" readonly />
+                        <div class="form-text">
+                           Auto-added from completed PT packages in this payroll period.
+                           <span v-if="form.pt_commission_items?.length">({{ form.pt_commission_items.length }} item{{ form.pt_commission_items.length !== 1 ? "s" : "" }})</span>
+                        </div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm">Membership Commission (₱)</label>
+                        <input type="number" class="form-control" :value="form.membership_commission_amount" readonly />
+                        <div class="form-text">
+                           Auto-added from membership sales that you processed in this payroll period.
+                           <span v-if="form.membership_commission_items?.length">({{ form.membership_commission_items.length }} item{{ form.membership_commission_items.length !== 1 ? "s" : "" }})</span>
+                        </div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm">Income Tax (₱)</label>
+                        <input type="number" class="form-control" :value="form.income_tax" readonly />
+                        <div class="form-text" v-if="suggestion && suggestion.taxable_earnings > 0">
+                           Calculated from ₱{{ $filters.formatMoney(suggestion.taxable_earnings) }} taxable earnings.
+                           <span v-if="suggestion.bonus_taxable_amount > 0">Taxable bonus portion: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}.</span>
+                        </div>
+                        <div class="form-text" v-else>Calculated automatically from the payroll branch and pay frequency.</div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm">Other Deductions (₱)</label>
+                        <input type="number" class="form-control" v-model="form.manual_deductions" min="0" step="0.01" />
+                     </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm d-flex justify-content-between">
                            <span>Cash Advance Deduction (₱)</span>
@@ -259,17 +255,17 @@
                               <span v-else><i class="bi bi-magic me-1"></i>Auto-fill</span>
                            </button>
                         </label>
-                         <input type="number" class="form-control" v-model="form.cash_advance_deduction" min="0" step="0.01" :class="{ 'is-invalid': formErrors.cash_advance_deduction }" />
-                         <div class="invalid-feedback">{{ formErrors.cash_advance_deduction }}</div>
-                         <div class="form-text text-warning" v-if="suggestion?.pending_ca_total > 0 && modalMode === 'create'">
-                            Pending advances: ₱{{ $filters.formatMoney(suggestion.pending_ca_total) }}
-                            <span v-if="suggestion.max_cash_advance_deduction < suggestion.pending_ca_total"> · Eligible this payroll: ₱{{ $filters.formatMoney(suggestion.suggested_ca) }}</span>
-                         </div>
-                      </div>
-                      <div class="col-12">
-                         <label class="form-label form-label-sm">Notes</label>
-                         <textarea class="form-control" rows="2" v-model="form.notes" placeholder="Optional"></textarea>
-                      </div>
+                        <input type="number" class="form-control" v-model="form.cash_advance_deduction" min="0" step="0.01" :class="{ 'is-invalid': formErrors.cash_advance_deduction }" />
+                        <div class="invalid-feedback">{{ formErrors.cash_advance_deduction }}</div>
+                        <div class="form-text text-warning" v-if="suggestion?.pending_ca_total > 0 && modalMode === 'create'">
+                           Pending advances: ₱{{ $filters.formatMoney(suggestion.pending_ca_total) }}
+                           <span v-if="suggestion.max_cash_advance_deduction < suggestion.pending_ca_total"> · Eligible this payroll: ₱{{ $filters.formatMoney(suggestion.suggested_ca) }}</span>
+                        </div>
+                     </div>
+                     <div class="col-12">
+                        <label class="form-label form-label-sm">Notes</label>
+                        <textarea class="form-control" rows="2" v-model="form.notes" placeholder="Optional"></textarea>
+                     </div>
                      <!-- Net preview -->
                      <div class="col-12">
                         <div class="p-3 rounded bg-light border d-flex justify-content-between align-items-center">

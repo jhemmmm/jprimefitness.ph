@@ -57,7 +57,7 @@
          <div class="panel-card-header d-flex justify-content-between align-items-center">
             <span class="panel-card-title">
                Walk-in Log
-               <span class="badge-count ms-1">{{ loading ? "—" : pagination.total }}</span>
+               <span class="badge-count ms-1">{{ loading ? "-" : pagination.total }}</span>
             </span>
             <span class="text-muted small" v-if="!loading && pagination.total > 0"> Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }} </span>
          </div>
@@ -163,11 +163,11 @@
                               </div>
                            </div>
                         </td>
-                        <td class="text-muted small">{{ w.phone || "—" }}</td>
-                        <td class="small">{{ w.branch ? w.branch.name : "—" }}</td>
+                        <td class="text-muted small">{{ w.phone || "-" }}</td>
+                        <td class="small">{{ w.branch ? w.branch.name : "-" }}</td>
                         <td>
                            <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
-                           <span class="text-muted small" v-else>—</span>
+                           <span class="text-muted small" v-else>-</span>
                         </td>
                         <td class="fw-semibold small">₱{{ $filters.formatMoney(w.amount_paid) }}</td>
                         <td class="small">{{ $filters.capitalize(w.payment_method || "cash") }}</td>
@@ -214,9 +214,9 @@
                      </div>
                   </div>
                   <div class="member-card-tags">
-                      <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(w.amount_paid) }}</span>
-                      <span class="m-badge m-badge--plan">{{ $filters.capitalize(w.payment_method || "cash") }}</span>
-                      <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
+                     <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(w.amount_paid) }}</span>
+                     <span class="m-badge m-badge--plan">{{ $filters.capitalize(w.payment_method || "cash") }}</span>
+                     <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
                   </div>
                   <div class="member-card-footer">
                      <span><i class="bi bi-calendar3 me-1"></i>{{ $filters.formatDateTime(w.visited_at) }}</span>

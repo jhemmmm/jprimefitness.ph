@@ -454,7 +454,7 @@ export default {
                   icon: "bi-cash-stack",
                   iconBg: "bg-danger-soft",
                   iconColor: "text-danger",
-               }
+               },
             );
          }
 
@@ -622,7 +622,7 @@ export default {
       },
       formatTime: function (value) {
          if (!value) {
-            return "—";
+            return "-";
          }
 
          return new Date(value).toLocaleTimeString("en-PH", {

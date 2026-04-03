@@ -609,10 +609,10 @@
                               </td>
                            </tr>
                            <tr v-for="transaction in report.recent_transactions" :key="transaction.id">
-                              <td>{{ transaction.branch_name || "—" }}</td>
+                              <td>{{ transaction.branch_name || "-" }}</td>
                               <td>
                                  <div class="fw-semibold">{{ transaction.customer_name || "Walk-in / Counter Sale" }}</div>
-                                 <div class="small text-muted">{{ transaction.item_name || "—" }}</div>
+                                 <div class="small text-muted">{{ transaction.item_name || "-" }}</div>
                               </td>
                               <td>
                                  <span class="m-badge m-badge--open">{{ $filters.capitalize(transaction.type) }}</span>
@@ -621,7 +621,7 @@
                               <td class="fw-semibold">₱{{ $filters.formatMoney(transaction.total) }}</td>
                               <td class="small text-muted">
                                  <div>{{ $filters.formatDateTime(transaction.sold_at) }}</div>
-                                 <div>{{ transaction.processed_by || "—" }}</div>
+                                 <div>{{ transaction.processed_by || "-" }}</div>
                               </td>
                            </tr>
                         </tbody>
@@ -637,7 +637,7 @@
                               </div>
                               <div>
                                  <div class="member-card-name">{{ transaction.customer_name || "Walk-in / Counter Sale" }}</div>
-                                 <div class="member-card-sub">{{ transaction.item_name || "—" }}</div>
+                                 <div class="member-card-sub">{{ transaction.item_name || "-" }}</div>
                               </div>
                            </div>
                         </div>
@@ -646,9 +646,9 @@
                            <span class="m-badge m-badge--plan">{{ transaction.payment_method_label }}</span>
                         </div>
                         <div class="small text-muted mb-2">
-                           <div>Branch: {{ transaction.branch_name || "—" }}</div>
+                           <div>Branch: {{ transaction.branch_name || "-" }}</div>
                            <div>Sold At: {{ $filters.formatDateTime(transaction.sold_at) }}</div>
-                           <div>Processed By: {{ transaction.processed_by || "—" }}</div>
+                           <div>Processed By: {{ transaction.processed_by || "-" }}</div>
                         </div>
                         <div class="member-card-footer">
                            <span>Total</span>

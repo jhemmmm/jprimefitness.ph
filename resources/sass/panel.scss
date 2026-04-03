@@ -2079,7 +2079,7 @@ body.auth-body {
     }
 }
 
-// ── Members — plan section & view modal ──────────────────────────────────────
+// ── Members - plan section & view modal ──────────────────────────────────────
 
 .plan-section {
     background: rgba(220, 53, 69, 0.04);
@@ -2253,7 +2253,8 @@ body.auth-body {
     }
 
     .panel-table {
-        th, thead tr {
+        th,
+        thead tr {
             border-color: var(--panel-border);
             color: var(--panel-text-muted);
             background-color: rgba(255, 255, 255, 0.02) !important;
@@ -2265,7 +2266,8 @@ body.auth-body {
             background-color: transparent !important;
             background: transparent !important;
         }
-        tbody tr:hover, tbody tr:hover td {
+        tbody tr:hover,
+        tbody tr:hover td {
             background-color: rgba(255, 255, 255, 0.04) !important;
             background: rgba(255, 255, 255, 0.04) !important;
         }

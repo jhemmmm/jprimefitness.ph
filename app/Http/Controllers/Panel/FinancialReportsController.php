@@ -60,8 +60,8 @@ class FinancialReportsController extends Controller
 
             fputcsv($handle, ['Financial Reports']);
             fputcsv($handle, ['Branch', $report['scope']['branch']['name'] ?? 'All Accessible Branches']);
-            fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '—']);
-            fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '—']);
+            fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '-']);
+            fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '-']);
             fputcsv($handle, []);
 
             fputcsv($handle, ['Summary']);
@@ -157,7 +157,7 @@ class FinancialReportsController extends Controller
                     'id' => $selectedBranch->id,
                     'name' => $selectedBranch->name,
                 ] : null,
-                'is_all_branches' => ! $selectedBranch,
+                'is_all_branches' => !$selectedBranch,
             ],
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
@@ -213,8 +213,8 @@ class FinancialReportsController extends Controller
     {
         return SaleTransaction::query()
             ->whereIn('branch_id', $branchIds)
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('sold_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('sold_at', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('sold_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('sold_at', '<=', $filters['date_to']));
     }
 
     /**
@@ -231,8 +231,8 @@ class FinancialReportsController extends Controller
                 MemberPtPackage::COMMISSION_STATUS_PAID,
             ])
             ->whereNotNull('coach_commission_earned_at')
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('coach_commission_earned_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('coach_commission_earned_at', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('coach_commission_earned_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('coach_commission_earned_at', '<=', $filters['date_to']));
     }
 
     /**
@@ -249,8 +249,8 @@ class FinancialReportsController extends Controller
                 MemberSubscription::COMMISSION_STATUS_PAID,
             ])
             ->whereNotNull('manager_commission_earned_at')
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('manager_commission_earned_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('manager_commission_earned_at', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('manager_commission_earned_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('manager_commission_earned_at', '<=', $filters['date_to']));
     }
 
     /**
@@ -262,8 +262,8 @@ class FinancialReportsController extends Controller
     {
         $query = WalkIn::query()
             ->whereIn('branch_id', $branchIds)
-            ->when($filters['date_from'] ?? null, fn ($builder) => $builder->whereDate('visited_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($builder) => $builder->whereDate('visited_at', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($builder) => $builder->whereDate('visited_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($builder) => $builder->whereDate('visited_at', '<=', $filters['date_to']));
 
         $posBackedWalkInIds = $this->posBackedWalkInIds($branchIds, $filters);
 
@@ -284,8 +284,8 @@ class FinancialReportsController extends Controller
         return Payroll::query()
             ->whereIn('branch_id', $branchIds)
             ->whereNotIn('status', [Payroll::STATUS_DRAFT, Payroll::STATUS_CANCELED])
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('period_end', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('period_end', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('period_end', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('period_end', '<=', $filters['date_to']));
     }
 
     /**
@@ -299,8 +299,8 @@ class FinancialReportsController extends Controller
             ->whereIn('branch_id', $branchIds)
             ->where('direction', BranchCashLedgerEntry::DIRECTION_OUT)
             ->where('entry_type', BranchCashLedgerEntry::TYPE_MANUAL_ADJUSTMENT)
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('occurred_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('occurred_at', '<=', $filters['date_to']));
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('occurred_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('occurred_at', '<=', $filters['date_to']));
     }
 
     /**
@@ -406,10 +406,10 @@ class FinancialReportsController extends Controller
         return SaleTransaction::query()
             ->whereIn('branch_id', $branchIds)
             ->where('type', SaleTransaction::TYPE_WALK_IN)
-            ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('sold_at', '>=', $filters['date_from']))
-            ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('sold_at', '<=', $filters['date_to']))
+            ->when($filters['date_from'] ?? null, fn($query) => $query->whereDate('sold_at', '>=', $filters['date_from']))
+            ->when($filters['date_to'] ?? null, fn($query) => $query->whereDate('sold_at', '<=', $filters['date_to']))
             ->get(['details'])
-            ->map(fn (SaleTransaction $transaction) => (int) data_get($transaction->details, 'walk_in_id'))
+            ->map(fn(SaleTransaction $transaction) => (int) data_get($transaction->details, 'walk_in_id'))
             ->filter()
             ->unique()
             ->values()

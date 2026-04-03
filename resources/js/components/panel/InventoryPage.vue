@@ -66,7 +66,7 @@
          <div class="panel-card-header d-flex justify-content-between align-items-center">
             <span class="panel-card-title">
                Inventory List
-               <span class="badge-count ms-1">{{ loading ? "—" : pagination.total }}</span>
+               <span class="badge-count ms-1">{{ loading ? "-" : pagination.total }}</span>
             </span>
             <span class="text-muted small" v-if="!loading && pagination.total > 0">Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }}</span>
          </div>
@@ -186,7 +186,7 @@
                                     <span v-if="item.category">{{ item.category.name }}</span>
                                     <span v-if="item.category && item.sku"> • </span>
                                     <span v-if="item.sku">{{ item.sku }}</span>
-                                    <span v-if="!item.category && !item.sku">—</span>
+                                    <span v-if="!item.category && !item.sku">-</span>
                                  </div>
                                  <div class="mt-1 d-flex gap-1 flex-wrap">
                                     <span :class="['m-badge', item.is_out_of_stock ? 'm-badge--suspended' : item.is_low_stock ? 'm-badge--pending' : 'm-badge--active']">
@@ -199,14 +199,14 @@
                               </div>
                            </div>
                         </td>
-                        <td class="small">{{ item.branch?.name || "—" }}</td>
+                        <td class="small">{{ item.branch?.name || "-" }}</td>
                         <td>
                            <div class="fw-semibold">{{ $filters.formatQuantity(item.quantity) }} {{ item.unit }}</div>
                            <div class="text-muted small">Low stock at {{ $filters.formatQuantity(item.low_stock_threshold) }} {{ item.unit }}</div>
                         </td>
                         <td class="small">
-                           <div>Cost: {{ item.cost_price !== null ? `₱${$filters.formatMoney(item.cost_price)}` : "—" }}</div>
-                           <div>Selling: {{ item.selling_price !== null ? `₱${$filters.formatMoney(item.selling_price)}` : "—" }}</div>
+                           <div>Cost: {{ item.cost_price !== null ? `₱${$filters.formatMoney(item.cost_price)}` : "-" }}</div>
+                           <div>Selling: {{ item.selling_price !== null ? `₱${$filters.formatMoney(item.selling_price)}` : "-" }}</div>
                         </td>
                         <td class="small text-muted">
                            <div>{{ $filters.formatDateTime(item.updated_at) }}</div>
@@ -237,7 +237,7 @@
                         </div>
                         <div>
                            <div class="member-card-name">{{ item.name }}</div>
-                           <div class="member-card-sub">{{ item.branch?.name || "—" }}</div>
+                           <div class="member-card-sub">{{ item.branch?.name || "-" }}</div>
                         </div>
                      </div>
                      <div class="dropdown">
@@ -270,7 +270,7 @@
                      <div>Low stock at {{ $filters.formatQuantity(item.low_stock_threshold) }} {{ item.unit }}</div>
                   </div>
                   <div class="member-card-footer">
-                     <span>{{ item.selling_price !== null ? `₱${$filters.formatMoney(item.selling_price)}` : "—" }}</span>
+                     <span>{{ item.selling_price !== null ? `₱${$filters.formatMoney(item.selling_price)}` : "-" }}</span>
                      <span class="member-card-num">#{{ item.id }}</span>
                   </div>
                </div>
@@ -390,7 +390,7 @@
                <div class="modal-body" v-if="deleteTarget">
                   <p class="mb-1">Are you sure you want to delete this inventory item?</p>
                   <p class="fw-semibold mb-0">{{ deleteTarget.name }}</p>
-                  <p class="text-muted small mb-0">{{ deleteTarget.branch?.name || "—" }}</p>
+                  <p class="text-muted small mb-0">{{ deleteTarget.branch?.name || "-" }}</p>
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

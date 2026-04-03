@@ -43,11 +43,11 @@
                <tbody>
                   <tr v-for="pkg in packages" :key="pkg.id">
                      <td>
-                        <div class="fw-semibold">{{ pkg.pt_product?.name || "—" }}</div>
+                        <div class="fw-semibold">{{ pkg.pt_product?.name || "-" }}</div>
                         <div class="small text-muted" v-if="pkg.notes">{{ pkg.notes }}</div>
                      </td>
-                     <td class="small">{{ pkg.branch?.name || "—" }}</td>
-                     <td class="small">{{ pkg.coach?.name || "—" }}</td>
+                     <td class="small">{{ pkg.branch?.name || "-" }}</td>
+                     <td class="small">{{ pkg.coach?.name || "-" }}</td>
                      <td class="small">
                         <span class="fw-semibold">{{ pkg.remaining_sessions }}</span>
                         <span class="text-muted"> / {{ pkg.total_sessions }}</span>
@@ -63,7 +63,7 @@
                         <div>{{ $filters.formatDate(pkg.assigned_at) }}</div>
                         <div class="text-muted" v-if="pkg.expires_at">Expires {{ $filters.formatDate(pkg.expires_at) }}</div>
                      </td>
-                     <td class="small text-muted">{{ pkg.created_by?.name || "—" }}</td>
+                     <td class="small text-muted">{{ pkg.created_by?.name || "-" }}</td>
                   </tr>
                </tbody>
             </table>
@@ -73,8 +73,8 @@
             <div class="member-card" v-for="pkg in packages" :key="'pt-' + pkg.id">
                <div class="member-card-top">
                   <div>
-                     <div class="fw-semibold">{{ pkg.pt_product?.name || "—" }}</div>
-                     <div class="text-muted small">{{ pkg.branch?.name || "—" }}</div>
+                     <div class="fw-semibold">{{ pkg.pt_product?.name || "-" }}</div>
+                     <div class="text-muted small">{{ pkg.branch?.name || "-" }}</div>
                      <div class="text-muted small" v-if="pkg.coach?.name">Coach: {{ pkg.coach.name }}</div>
                      <div class="text-muted small">Commission: ₱{{ $filters.formatMoney(pkg.coach_commission_amount || 0) }} · {{ commissionLabel(pkg) }}</div>
                   </div>
@@ -109,14 +109,14 @@
                      <tr v-for="usage in usageEntries" :key="usage.id">
                         <td class="small">{{ $filters.formatDateTime(usage.used_at) }}</td>
                         <td>
-                           <div class="fw-semibold">{{ usage.package.pt_product?.name || "—" }}</div>
+                           <div class="fw-semibold">{{ usage.package.pt_product?.name || "-" }}</div>
                            <div class="small text-muted" v-if="usage.notes">{{ usage.notes }}</div>
                         </td>
-                        <td class="small">{{ usage.package.branch?.name || "—" }}</td>
+                        <td class="small">{{ usage.package.branch?.name || "-" }}</td>
                         <td class="small">{{ usage.sessions_used }}</td>
-                        <td class="small">{{ usage.coach?.name || usage.package.coach?.name || "—" }}</td>
-                        <td class="small">{{ usage.confirmed_by || "—" }}</td>
-                        <td class="small text-muted">{{ usage.recorded_by?.name || "—" }}</td>
+                        <td class="small">{{ usage.coach?.name || usage.package.coach?.name || "-" }}</td>
+                        <td class="small">{{ usage.confirmed_by || "-" }}</td>
+                        <td class="small text-muted">{{ usage.recorded_by?.name || "-" }}</td>
                      </tr>
                   </tbody>
                </table>
@@ -126,14 +126,14 @@
                <div class="member-card" v-for="usage in usageEntries" :key="'usage-' + usage.id">
                   <div class="member-card-top">
                      <div>
-                        <div class="fw-semibold">{{ usage.package.pt_product?.name || "—" }}</div>
+                        <div class="fw-semibold">{{ usage.package.pt_product?.name || "-" }}</div>
                         <div class="text-muted small">{{ $filters.formatDateTime(usage.used_at) }}</div>
                      </div>
                      <span class="m-badge m-badge--plan-active">{{ usage.sessions_used }} used</span>
                   </div>
                   <div class="member-card-footer">
-                     <span>{{ usage.package.branch?.name || "—" }}</span>
-                     <span class="text-muted small">{{ usage.coach?.name || usage.package.coach?.name || usage.confirmed_by || usage.recorded_by?.name || "—" }}</span>
+                     <span>{{ usage.package.branch?.name || "-" }}</span>
+                     <span class="text-muted small">{{ usage.coach?.name || usage.package.coach?.name || usage.confirmed_by || usage.recorded_by?.name || "-" }}</span>
                   </div>
                </div>
             </div>

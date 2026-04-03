@@ -93,7 +93,7 @@ app.config.globalProperties.$filters = {
    },
    formatDateTime: function (dt, format = "display") {
       if (!dt) {
-         return format === "input" ? "" : "—";
+         return format === "input" ? "" : "-";
       }
 
       const date = new Date(dt);
@@ -106,7 +106,7 @@ app.config.globalProperties.$filters = {
       return date.toLocaleString("en-PH", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
    },
    formatDate: function (dateStr) {
-      if (!dateStr) return "—";
+      if (!dateStr) return "-";
       return new Date(dateStr).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
    },
    formatQuantity: function (value) {
@@ -210,19 +210,19 @@ app.mount("#app");
    });
 
    // Dark Mode Toggle
-   const darkModeToggle = document.getElementById('darkModeToggle');
+   const darkModeToggle = document.getElementById("darkModeToggle");
    if (darkModeToggle) {
-       const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
-       darkModeToggle.checked = isDark;
-       
-       darkModeToggle.addEventListener('change', (e) => {
-           if (e.target.checked) {
-               document.documentElement.setAttribute('data-bs-theme', 'dark');
-               localStorage.setItem('panel-theme', 'dark');
-           } else {
-               document.documentElement.setAttribute('data-bs-theme', 'light');
-               localStorage.setItem('panel-theme', 'light');
-           }
-       });
+      const isDark = document.documentElement.getAttribute("data-bs-theme") === "dark";
+      darkModeToggle.checked = isDark;
+
+      darkModeToggle.addEventListener("change", (e) => {
+         if (e.target.checked) {
+            document.documentElement.setAttribute("data-bs-theme", "dark");
+            localStorage.setItem("panel-theme", "dark");
+         } else {
+            document.documentElement.setAttribute("data-bs-theme", "light");
+            localStorage.setItem("panel-theme", "light");
+         }
+      });
    }
 })();

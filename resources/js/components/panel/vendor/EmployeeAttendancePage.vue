@@ -71,7 +71,7 @@
                      <span v-if="r.checked_out_at" class="text-muted small">{{ $filters.formatDateTime(r.checked_out_at) }}</span>
                      <button v-else class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                   </td>
-                  <td class="small">{{ r.branch?.name ?? "—" }}</td>
+                  <td class="small">{{ r.branch?.name ?? "-" }}</td>
                   <td>
                      <span :class="['m-badge', $filters.statusBadge(r.checked_out_at ? 'inactive' : 'active')]">
                         {{ r.checked_out_at ? "Out" : "In" }}
@@ -93,7 +93,7 @@
             <div class="member-card-top">
                <div>
                   <div class="fw-semibold small">{{ $filters.formatDateTime(r.checked_in_at) }}</div>
-                  <div class="text-muted small">{{ r.branch?.name ?? "—" }}</div>
+                  <div class="text-muted small">{{ r.branch?.name ?? "-" }}</div>
                </div>
                <span :class="['m-badge', $filters.statusBadge(r.checked_out_at ? 'inactive' : 'active')]">
                   {{ r.checked_out_at ? "Out" : "In" }}
@@ -133,7 +133,7 @@
                   <div class="row g-3">
                      <div class="col-12">
                         <label class="form-label form-label-sm">Branch <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" :value="employee.branches && employee.branches.length ? employee.branches.map((b) => b.name).join(', ') : '—'" disabled />
+                        <input type="text" class="form-control" :value="employee.branches && employee.branches.length ? employee.branches.map((b) => b.name).join(', ') : '-'" disabled />
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Checked In <span class="text-danger">*</span></label>

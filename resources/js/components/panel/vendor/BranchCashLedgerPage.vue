@@ -5,9 +5,7 @@
             <h6 class="fw-bold mb-1">Branch Cash Ledger</h6>
             <div class="text-muted small">Track branch cash-in and cash-out entries, including walk-ins, payroll payouts, cash advances, and manual adjustments.</div>
          </div>
-         <button v-if="is('super admin') || is('admin') || is('manager')" class="btn btn-danger" @click="openCreateModal">
-            <i class="bi bi-plus-circle me-1"></i>Add Manual Entry
-         </button>
+         <button v-if="is('super admin') || is('admin') || is('manager')" class="btn btn-danger" @click="openCreateModal"><i class="bi bi-plus-circle me-1"></i>Add Manual Entry</button>
       </div>
 
       <div class="alert alert-success py-2 small" v-if="savedMessage"><i class="bi bi-check-circle me-1"></i>{{ savedMessage }}</div>
@@ -41,7 +39,7 @@
 
          <div v-else>
             <div class="table-responsive d-none d-md-block">
-                  <table class="table align-middle">
+               <table class="table align-middle">
                   <thead>
                      <tr>
                         <th>Date</th>
@@ -65,13 +63,11 @@
                            <span class="m-badge m-badge--plan">{{ entry.entry_type_label }}</span>
                            <span class="m-badge m-badge--inactive ms-1" v-if="entry.is_deleted">Deleted</span>
                         </td>
-                        <td class="text-end fw-semibold" :class="entry.direction === 'in' ? 'text-success' : 'text-danger'">
-                           {{ entry.direction === "in" ? "+" : "-" }}₱{{ $filters.formatMoney(entry.amount) }}
-                        </td>
+                        <td class="text-end fw-semibold" :class="entry.direction === 'in' ? 'text-success' : 'text-danger'">{{ entry.direction === "in" ? "+" : "-" }}₱{{ $filters.formatMoney(entry.amount) }}</td>
                         <td>
                            <span :class="['m-badge', entry.is_system ? 'm-badge--inactive' : 'm-badge--active']">{{ entry.is_system ? "System" : "Manual" }}</span>
                         </td>
-                        <td class="small text-muted">{{ entry.created_by_name || "—" }}</td>
+                        <td class="small text-muted">{{ entry.created_by_name || "-" }}</td>
                         <td class="text-end" v-if="is('super admin') || is('admin') || is('manager')">
                            <div v-if="!entry.is_system && !entry.is_deleted" class="btn-group btn-group-sm">
                               <button class="btn btn-outline-secondary" @click="openEditModal(entry)"><i class="bi bi-pencil"></i></button>
@@ -92,9 +88,7 @@
                         <div class="small text-muted">{{ $filters.formatDateTime(entry.occurred_at) }}</div>
                         <div class="small text-danger" v-if="entry.is_deleted">Deleted {{ $filters.formatDateTime(entry.deleted_at) }}</div>
                      </div>
-                     <span class="fw-semibold" :class="entry.direction === 'in' ? 'text-success' : 'text-danger'">
-                        {{ entry.direction === "in" ? "+" : "-" }}₱{{ $filters.formatMoney(entry.amount) }}
-                     </span>
+                     <span class="fw-semibold" :class="entry.direction === 'in' ? 'text-success' : 'text-danger'"> {{ entry.direction === "in" ? "+" : "-" }}₱{{ $filters.formatMoney(entry.amount) }} </span>
                   </div>
 
                   <div class="small text-muted mt-2" v-if="entry.description">{{ entry.description }}</div>
@@ -346,15 +340,11 @@ export default {
             occurred_at: this.form.occurred_at,
          };
 
-         const request = this.modalMode === "create"
-            ? axios.post(`/panel/branches/${this.branch.id}/cash-ledger`, payload)
-            : axios.put(`/panel/branches/${this.branch.id}/cash-ledger/${this.form.id}`, payload);
+         const request = this.modalMode === "create" ? axios.post(`/panel/branches/${this.branch.id}/cash-ledger`, payload) : axios.put(`/panel/branches/${this.branch.id}/cash-ledger/${this.form.id}`, payload);
 
          request
             .then(() => {
-               this.savedMessage = this.modalMode === "create"
-                  ? "Manual cash entry added successfully."
-                  : "Manual cash entry updated successfully.";
+               this.savedMessage = this.modalMode === "create" ? "Manual cash entry added successfully." : "Manual cash entry updated successfully.";
                this.entryModalInst.hide();
 
                return axios.get(`/panel/branches/${this.branch.id}/cash-ledger`);

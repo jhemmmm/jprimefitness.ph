@@ -60,8 +60,8 @@ class PayrollReportsController extends Controller
 
             fputcsv($handle, ['Payroll Reports']);
             fputcsv($handle, ['Branch', $report['scope']['branch']['name'] ?? 'All Accessible Branches']);
-            fputcsv($handle, ['Period End From', $report['filters']['date_from'] ?: '—']);
-            fputcsv($handle, ['Period End To', $report['filters']['date_to'] ?: '—']);
+            fputcsv($handle, ['Period End From', $report['filters']['date_from'] ?: '-']);
+            fputcsv($handle, ['Period End To', $report['filters']['date_to'] ?: '-']);
             fputcsv($handle, ['Status', $report['filters']['status_label'] ?: 'All Active Statuses']);
             fputcsv($handle, ['Pay Frequency', $report['filters']['pay_frequency_label'] ?: 'All Frequencies']);
             fputcsv($handle, ['Payout Scope', 'Current payout progress for payrolls ending within the selected period']);
@@ -511,7 +511,7 @@ class PayrollReportsController extends Controller
         return match ($payFrequency) {
             Branch::PAYROLL_FREQUENCY_MONTHLY => 'Monthly',
             Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY => 'Semi Monthly',
-            default => '—',
+            default => '-',
         };
     }
 

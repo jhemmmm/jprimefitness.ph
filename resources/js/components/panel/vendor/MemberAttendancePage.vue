@@ -66,7 +66,7 @@
                      <span v-if="record.checked_out_at" class="text-muted small">{{ $filters.formatDateTime(record.checked_out_at) }}</span>
                      <button v-else class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(record)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                   </td>
-                  <td class="small">{{ record.branch?.name ?? "—" }}</td>
+                  <td class="small">{{ record.branch?.name ?? "-" }}</td>
                   <td>
                      <span :class="['m-badge', $filters.statusBadge(record.checked_out_at ? 'inactive' : 'active')]">
                         {{ record.checked_out_at ? "Out" : "In" }}
@@ -87,7 +87,7 @@
             <div class="member-card-top">
                <div>
                   <div class="fw-semibold small">{{ $filters.formatDateTime(record.checked_in_at) }}</div>
-                  <div class="text-muted small">{{ record.branch?.name ?? "—" }}</div>
+                  <div class="text-muted small">{{ record.branch?.name ?? "-" }}</div>
                </div>
                <span :class="['m-badge', $filters.statusBadge(record.checked_out_at ? 'inactive' : 'active')]">
                   {{ record.checked_out_at ? "Out" : "In" }}

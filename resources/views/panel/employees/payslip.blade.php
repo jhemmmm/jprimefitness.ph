@@ -293,7 +293,7 @@
     $remainingBalance = $payroll->remainingBalance();
     $totalEarnings = $payroll->totalEarnings();
     $branchName = $payroll->branch?->name ?? $employee->branches->pluck('name')->join(', ');
-    $roleNames = $employee->roles->pluck('name')->map(fn ($role) => ucfirst($role))->join(', ');
+    $roleNames = $employee->roles->pluck('name')->map(fn($role) => ucfirst($role))->join(', ');
     $statusClass = 'status-pill--' . $payroll->status;
     $methodLabels = [
         'cash' => 'Cash',
@@ -311,233 +311,254 @@
 <body>
     <div class="sheet">
         <div class="header-band">
-        <table class="header-table">
-            <tr>
-                <td style="width: 58%;" class="header-left">
-                    <table class="brand-table">
-                        <tr>
-                            <td style="width: 36px;">
-                                @if ($logoData)
-                                    <img src="{{ $logoData }}" alt="JPRIME FITNESS Logo" class="brand-mark">
-                                @endif
-                            </td>
-                            <td>
-                                <div class="header-kicker">Official Payroll Document</div>
-                                <p class="brand-copy">Employee compensation statement with payroll totals, payouts, deductions, and approval trail.</p>
-                            </td>
-                        </tr>
-                    </table>
-                </td>
-                <td style="width: 42%;">
-                    <h1 class="document-title">Payslip</h1>
-                    <table class="meta-table">
-                        <tr>
-                            <td class="meta-label">Payroll ID</td>
-                            <td><strong>#{{ $payroll->id }}</strong></td>
-                        </tr>
-                        <tr>
-                            <td class="meta-label">Pay Period</td>
-                            <td><strong>{{ $payroll->period_start->format('M d, Y') }} - {{ $payroll->period_end->format('M d, Y') }}</strong></td>
-                        </tr>
-                        <tr>
-                            <td class="meta-label">Generated</td>
-                            <td><strong>{{ $payroll->created_at->format('M d, Y h:i A') }}</strong></td>
-                        </tr>
-                        <tr>
-                            <td class="meta-label">Status</td>
-                            <td><span class="status-pill {{ $statusClass }}">{{ str_replace('_', ' ', ucfirst($payroll->status)) }}</span></td>
-                        </tr>
-                    </table>
-                </td>
-            </tr>
-        </table>
+            <table class="header-table">
+                <tr>
+                    <td style="width: 58%;" class="header-left">
+                        <table class="brand-table">
+                            <tr>
+                                <td style="width: 36px;">
+                                    @if ($logoData)
+                                        <img src="{{ $logoData }}" alt="JPRIME FITNESS Logo" class="brand-mark">
+                                    @endif
+                                </td>
+                                <td>
+                                    <div class="header-kicker">Official Payroll Document</div>
+                                    <p class="brand-copy">Employee compensation statement with payroll totals, payouts,
+                                        deductions, and approval trail.</p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                    <td style="width: 42%;">
+                        <h1 class="document-title">Payslip</h1>
+                        <table class="meta-table">
+                            <tr>
+                                <td class="meta-label">Payroll ID</td>
+                                <td><strong>#{{ $payroll->id }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="meta-label">Pay Period</td>
+                                <td><strong>{{ $payroll->period_start->format('M d, Y') }} -
+                                        {{ $payroll->period_end->format('M d, Y') }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="meta-label">Generated</td>
+                                <td><strong>{{ $payroll->created_at->format('M d, Y h:i A') }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="meta-label">Status</td>
+                                <td><span
+                                        class="status-pill {{ $statusClass }}">{{ str_replace('_', ' ', ucfirst($payroll->status)) }}</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
         </div>
 
         <div class="content">
-        <div class="divider"></div>
+            <div class="divider"></div>
 
-        <div class="section-title">Employee Details</div>
-        <table class="info-table">
-            <tr>
-                <td>
-                    <span class="field-label">Employee Name</span>
-                    <span class="field-value">{{ $employee->name }}</span>
-                </td>
-                <td>
-                    <span class="field-label">Branch</span>
-                    <span class="field-value">{{ $branchName ?: '—' }}</span>
-                </td>
-            </tr>
-            <tr>
-                <td>
-                    <span class="field-label">Email Address</span>
-                    <span class="field-value">{{ $employee->email }}</span>
-                </td>
-                <td>
-                    <span class="field-label">Role</span>
-                    <span class="field-value">{{ $roleNames ?: 'Employee' }}</span>
-                </td>
-            </tr>
-            <tr>
-                <td colspan="2">
-                    <span class="field-label">Phone</span>
-                    <span class="field-value">{{ $employee->phone ?: '—' }}</span>
-                </td>
-            </tr>
-        </table>
-
-        <div style="height: 12px;"></div>
-
-        <div class="section-title">Payroll Summary</div>
-        <table class="summary-table">
-            <tr>
-                <td>
-                    <div class="summary-label">Total Earnings</div>
-                    <div class="summary-value">PHP {{ number_format($totalEarnings, 2) }}</div>
-                </td>
-                <td>
-                    <div class="summary-label">Net Pay</div>
-                    <div class="summary-value summary-value--success">PHP {{ number_format((float) $payroll->net_amount, 2) }}</div>
-                </td>
-                <td>
-                    <div class="summary-label">Paid To Date</div>
-                    <div class="summary-value">PHP {{ number_format($totalPaid, 2) }}</div>
-                </td>
-                <td>
-                    <div class="summary-label">Outstanding</div>
-                    <div class="summary-value {{ $remainingBalance > 0 ? 'summary-value--warning' : 'summary-value--success' }}">
-                        {{ $remainingBalance > 0 ? 'PHP ' . number_format($remainingBalance, 2) : 'Settled' }}
-                    </div>
-                </td>
-            </tr>
-        </table>
-
-        <div style="height: 12px;"></div>
-
-        <table style="width: 100%; border-collapse: collapse;">
-            <tr>
-                <td style="width: 54%; padding-right: 8px; vertical-align: top;">
-                    <div class="box">
-                        <div class="box-heading">Compensation Breakdown</div>
-                        <table class="breakdown-table">
-                            <tr>
-                                <td class="breakdown-label">Gross amount</td>
-                                <td class="breakdown-amount">PHP {{ number_format((float) $payroll->gross_amount, 2) }}</td>
-                            </tr>
-                            <tr>
-                                <td class="breakdown-label">Bonus</td>
-                                <td class="breakdown-amount {{ (float) $payroll->bonus > 0 ? 'amount-positive' : '' }}">
-                                    {{ (float) $payroll->bonus > 0 ? '+ PHP ' . number_format((float) $payroll->bonus, 2) : '—' }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="breakdown-label">PT commission</td>
-                                <td class="breakdown-amount {{ (float) $payroll->pt_commission_amount > 0 ? 'amount-positive' : '' }}">
-                                    {{ (float) $payroll->pt_commission_amount > 0 ? '+ PHP ' . number_format((float) $payroll->pt_commission_amount, 2) : '—' }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="breakdown-label">Membership commission</td>
-                                <td class="breakdown-amount {{ (float) $payroll->membership_commission_amount > 0 ? 'amount-positive' : '' }}">
-                                    {{ (float) $payroll->membership_commission_amount > 0 ? '+ PHP ' . number_format((float) $payroll->membership_commission_amount, 2) : '—' }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="breakdown-label">Income tax</td>
-                                <td class="breakdown-amount {{ (float) $payroll->income_tax > 0 ? 'amount-negative' : '' }}">
-                                    {{ (float) $payroll->income_tax > 0 ? '- PHP ' . number_format((float) $payroll->income_tax, 2) : '—' }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="breakdown-label">Other deductions</td>
-                                <td class="breakdown-amount {{ (float) $payroll->manual_deductions > 0 ? 'amount-negative' : '' }}">
-                                    {{ (float) $payroll->manual_deductions > 0 ? '- PHP ' . number_format((float) $payroll->manual_deductions, 2) : '—' }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="breakdown-label">Cash advance deduction</td>
-                                <td class="breakdown-amount {{ (float) $payroll->cash_advance_deduction > 0 ? 'amount-negative' : '' }}">
-                                    {{ (float) $payroll->cash_advance_deduction > 0 ? '- PHP ' . number_format((float) $payroll->cash_advance_deduction, 2) : '—' }}
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="breakdown-label"><strong>Net pay</strong></td>
-                                <td class="breakdown-amount amount-positive">PHP {{ number_format((float) $payroll->net_amount, 2) }}</td>
-                            </tr>
-                        </table>
-                    </div>
-                </td>
-                <td style="width: 46%; padding-left: 8px; vertical-align: top;">
-                    <div class="box">
-                        <div class="box-heading">Notes & Approval</div>
-                        <div class="notes-copy">{{ $payroll->notes ?: 'No additional payroll notes recorded.' }}</div>
-                        <div class="meta-note"><strong>Prepared By:</strong> {{ $payroll->generatedBy?->name ?: 'System' }}</div>
-                        <div class="meta-note"><strong>Approved By:</strong> {{ $payroll->approvedBy?->name ?: 'Pending approval' }}</div>
-                        <div class="meta-note"><strong>Approved At:</strong> {{ $payroll->approved_at?->format('M d, Y h:i A') ?: 'Pending approval' }}</div>
-                    </div>
-                </td>
-            </tr>
-        </table>
-
-        <div style="height: 12px;"></div>
-
-        <div class="section-title">Payout History</div>
-        <table class="payout-table">
-            <thead>
+            <div class="section-title">Employee Details</div>
+            <table class="info-table">
                 <tr>
-                    <th>Date</th>
-                    <th>Method</th>
-                    <th>Reference</th>
-                    <th>Released By</th>
-                    <th>Amount</th>
+                    <td>
+                        <span class="field-label">Employee Name</span>
+                        <span class="field-value">{{ $employee->name }}</span>
+                    </td>
+                    <td>
+                        <span class="field-label">Branch</span>
+                        <span class="field-value">{{ $branchName ?: '-' }}</span>
+                    </td>
                 </tr>
-            </thead>
-            <tbody>
-                @forelse ($payroll->payouts as $payout)
+                <tr>
+                    <td>
+                        <span class="field-label">Email Address</span>
+                        <span class="field-value">{{ $employee->email }}</span>
+                    </td>
+                    <td>
+                        <span class="field-label">Role</span>
+                        <span class="field-value">{{ $roleNames ?: 'Employee' }}</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="2">
+                        <span class="field-label">Phone</span>
+                        <span class="field-value">{{ $employee->phone ?: '-' }}</span>
+                    </td>
+                </tr>
+            </table>
+
+            <div style="height: 12px;"></div>
+
+            <div class="section-title">Payroll Summary</div>
+            <table class="summary-table">
+                <tr>
+                    <td>
+                        <div class="summary-label">Total Earnings</div>
+                        <div class="summary-value">PHP {{ number_format($totalEarnings, 2) }}</div>
+                    </td>
+                    <td>
+                        <div class="summary-label">Net Pay</div>
+                        <div class="summary-value summary-value--success">PHP
+                            {{ number_format((float) $payroll->net_amount, 2) }}</div>
+                    </td>
+                    <td>
+                        <div class="summary-label">Paid To Date</div>
+                        <div class="summary-value">PHP {{ number_format($totalPaid, 2) }}</div>
+                    </td>
+                    <td>
+                        <div class="summary-label">Outstanding</div>
+                        <div
+                            class="summary-value {{ $remainingBalance > 0 ? 'summary-value--warning' : 'summary-value--success' }}">
+                            {{ $remainingBalance > 0 ? 'PHP ' . number_format($remainingBalance, 2) : 'Settled' }}
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <div style="height: 12px;"></div>
+
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                    <td style="width: 54%; padding-right: 8px; vertical-align: top;">
+                        <div class="box">
+                            <div class="box-heading">Compensation Breakdown</div>
+                            <table class="breakdown-table">
+                                <tr>
+                                    <td class="breakdown-label">Gross amount</td>
+                                    <td class="breakdown-amount">PHP
+                                        {{ number_format((float) $payroll->gross_amount, 2) }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="breakdown-label">Bonus</td>
+                                    <td
+                                        class="breakdown-amount {{ (float) $payroll->bonus > 0 ? 'amount-positive' : '' }}">
+                                        {{ (float) $payroll->bonus > 0 ? '+ PHP ' . number_format((float) $payroll->bonus, 2) : '-' }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="breakdown-label">PT commission</td>
+                                    <td
+                                        class="breakdown-amount {{ (float) $payroll->pt_commission_amount > 0 ? 'amount-positive' : '' }}">
+                                        {{ (float) $payroll->pt_commission_amount > 0 ? '+ PHP ' . number_format((float) $payroll->pt_commission_amount, 2) : '-' }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="breakdown-label">Membership commission</td>
+                                    <td
+                                        class="breakdown-amount {{ (float) $payroll->membership_commission_amount > 0 ? 'amount-positive' : '' }}">
+                                        {{ (float) $payroll->membership_commission_amount > 0 ? '+ PHP ' . number_format((float) $payroll->membership_commission_amount, 2) : '-' }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="breakdown-label">Income tax</td>
+                                    <td
+                                        class="breakdown-amount {{ (float) $payroll->income_tax > 0 ? 'amount-negative' : '' }}">
+                                        {{ (float) $payroll->income_tax > 0 ? '- PHP ' . number_format((float) $payroll->income_tax, 2) : '-' }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="breakdown-label">Other deductions</td>
+                                    <td
+                                        class="breakdown-amount {{ (float) $payroll->manual_deductions > 0 ? 'amount-negative' : '' }}">
+                                        {{ (float) $payroll->manual_deductions > 0 ? '- PHP ' . number_format((float) $payroll->manual_deductions, 2) : '-' }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="breakdown-label">Cash advance deduction</td>
+                                    <td
+                                        class="breakdown-amount {{ (float) $payroll->cash_advance_deduction > 0 ? 'amount-negative' : '' }}">
+                                        {{ (float) $payroll->cash_advance_deduction > 0 ? '- PHP ' . number_format((float) $payroll->cash_advance_deduction, 2) : '-' }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="breakdown-label"><strong>Net pay</strong></td>
+                                    <td class="breakdown-amount amount-positive">PHP
+                                        {{ number_format((float) $payroll->net_amount, 2) }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </td>
+                    <td style="width: 46%; padding-left: 8px; vertical-align: top;">
+                        <div class="box">
+                            <div class="box-heading">Notes & Approval</div>
+                            <div class="notes-copy">{{ $payroll->notes ?: 'No additional payroll notes recorded.' }}
+                            </div>
+                            <div class="meta-note"><strong>Prepared By:</strong>
+                                {{ $payroll->generatedBy?->name ?: 'System' }}</div>
+                            <div class="meta-note"><strong>Approved By:</strong>
+                                {{ $payroll->approvedBy?->name ?: 'Pending approval' }}</div>
+                            <div class="meta-note"><strong>Approved At:</strong>
+                                {{ $payroll->approved_at?->format('M d, Y h:i A') ?: 'Pending approval' }}</div>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+
+            <div style="height: 12px;"></div>
+
+            <div class="section-title">Payout History</div>
+            <table class="payout-table">
+                <thead>
                     <tr>
-                        <td>{{ $payout->paid_at?->format('M d, Y h:i A') ?: '—' }}</td>
-                        <td>{{ $methodLabels[$payout->method] ?? ucfirst(str_replace('_', ' ', $payout->method)) }}</td>
-                        <td>{{ $payout->reference_number ?: '—' }}</td>
-                        <td>{{ $payout->releasedBy?->name ?: '—' }}</td>
-                        <td>PHP {{ number_format((float) $payout->amount, 2) }}</td>
+                        <th>Date</th>
+                        <th>Method</th>
+                        <th>Reference</th>
+                        <th>Released By</th>
+                        <th>Amount</th>
                     </tr>
-                @empty
-                    <tr>
-                        <td colspan="5" style="text-align: center; color: #6b7280;">No payout has been recorded for this payroll yet.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @forelse ($payroll->payouts as $payout)
+                        <tr>
+                            <td>{{ $payout->paid_at?->format('M d, Y h:i A') ?: '-' }}</td>
+                            <td>{{ $methodLabels[$payout->method] ?? ucfirst(str_replace('_', ' ', $payout->method)) }}
+                            </td>
+                            <td>{{ $payout->reference_number ?: '-' }}</td>
+                            <td>{{ $payout->releasedBy?->name ?: '-' }}</td>
+                            <td>PHP {{ number_format((float) $payout->amount, 2) }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: #6b7280;">No payout has been recorded
+                                for this payroll yet.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
 
-        <div style="height: 18px;"></div>
+            <div style="height: 18px;"></div>
 
-        <div class="section-title">Acknowledgement</div>
-        <table class="signature-table">
-            <tr>
-                <td style="padding-right: 16px;">
-                    <div class="signature-line">
-                        <strong>{{ $employee->name }}</strong><br>
-                        Employee Signature
-                    </div>
-                </td>
-                <td style="padding: 18px 8px 0;">
-                    <div class="signature-line">
-                        <strong>{{ $payroll->approvedBy?->name ?: 'Pending approval' }}</strong><br>
-                        Approved By
-                    </div>
-                </td>
-                <td style="padding-left: 16px;">
-                    <div class="signature-line">
-                        <strong>{{ $payroll->generatedBy?->name ?: 'Payroll Officer' }}</strong><br>
-                        Prepared By
-                    </div>
-                </td>
-            </tr>
-        </table>
+            <div class="section-title">Acknowledgement</div>
+            <table class="signature-table">
+                <tr>
+                    <td style="padding-right: 16px;">
+                        <div class="signature-line">
+                            <strong>{{ $employee->name }}</strong><br>
+                            Employee Signature
+                        </div>
+                    </td>
+                    <td style="padding: 18px 8px 0;">
+                        <div class="signature-line">
+                            <strong>{{ $payroll->approvedBy?->name ?: 'Pending approval' }}</strong><br>
+                            Approved By
+                        </div>
+                    </td>
+                    <td style="padding-left: 16px;">
+                        <div class="signature-line">
+                            <strong>{{ $payroll->generatedBy?->name ?: 'Payroll Officer' }}</strong><br>
+                            Prepared By
+                        </div>
+                    </td>
+                </tr>
+            </table>
 
-        <div class="footer-note">
-            This payslip is generated from the JPRIME FITNESS panel and is intended for payroll documentation and employee payout reference.
-        </div>
+            <div class="footer-note">
+                This payslip is generated from the JPRIME FITNESS panel and is intended for payroll documentation and
+                employee payout reference.
+            </div>
         </div>
     </div>
 </body>

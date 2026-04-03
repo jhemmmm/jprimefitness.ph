@@ -39,14 +39,14 @@
             </thead>
             <tbody>
                <tr v-for="p in payouts" :key="p.id">
-                  <td class="small text-muted">{{ p.payroll_period ?? "—" }}</td>
+                  <td class="small text-muted">{{ p.payroll_period ?? "-" }}</td>
                   <td class="small">{{ $filters.formatDateTime(p.paid_at) }}</td>
                   <td>
                      <span class="m-badge" :class="$filters.statusBadge(p.method)">{{ $filters.capitalize(p.method) }}</span>
                   </td>
-                  <td class="small text-muted">{{ p.reference_number || "—" }}</td>
+                  <td class="small text-muted">{{ p.reference_number || "-" }}</td>
                   <td class="text-end fw-bold text-success small">₱{{ $filters.formatMoney(p.amount) }}</td>
-                  <td class="small text-muted">{{ p.released_by_name || "—" }}</td>
+                  <td class="small text-muted">{{ p.released_by_name || "-" }}</td>
                </tr>
             </tbody>
          </table>
@@ -58,7 +58,7 @@
             <div class="member-card-top">
                <div>
                   <div class="fw-semibold small">₱{{ $filters.formatMoney(p.amount) }}</div>
-                  <div class="text-muted small">{{ p.payroll_period ?? "—" }}</div>
+                  <div class="text-muted small">{{ p.payroll_period ?? "-" }}</div>
                </div>
                <div class="d-flex gap-2 align-items-center">
                   <span class="m-badge" :class="$filters.statusBadge(p.method)">{{ $filters.capitalize(p.method) }}</span>

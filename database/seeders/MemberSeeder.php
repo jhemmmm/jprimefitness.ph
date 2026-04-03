@@ -144,7 +144,7 @@ class MemberSeeder extends Seeder
                 'profile' => [
                     'date_of_birth' => '1985-12-25',
                     'gender' => 'male',
-                    'notes' => 'Has knee injury — avoid heavy leg press.',
+                    'notes' => 'Has knee injury - avoid heavy leg press.',
                 ],
                 'rate_plan' => $monthly,
                 'start_date' => now()->startOfMonth(),
@@ -180,10 +180,10 @@ class MemberSeeder extends Seeder
             $user->assignRole($role);
 
             $branchIds = [];
-            if (! empty($entry['user']['branch_id'])) {
+            if (!empty($entry['user']['branch_id'])) {
                 $branchIds[] = $entry['user']['branch_id'];
             }
-            if (! empty($branchIds)) {
+            if (!empty($branchIds)) {
                 $user->syncBranches($branchIds);
             }
 

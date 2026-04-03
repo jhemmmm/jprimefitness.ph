@@ -58,8 +58,8 @@ class SalesReportsController extends Controller
 
             fputcsv($handle, ['Sales Reports']);
             fputcsv($handle, ['Branch', $report['scope']['branch']['name'] ?? 'All Accessible Branches']);
-            fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '—']);
-            fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '—']);
+            fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '-']);
+            fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '-']);
             fputcsv($handle, ['Sale Type', $report['filters']['type'] ?: 'All Types']);
             fputcsv($handle, ['Payment Method', $report['filters']['payment_method_label'] ?: 'All Methods']);
             fputcsv($handle, []);

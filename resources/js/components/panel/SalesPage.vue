@@ -299,11 +299,11 @@
                      </div>
                      <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
                         <span class="text-muted small">Customer</span>
-                        <span class="fw-semibold text-end">{{ summaryCustomer || "—" }}</span>
+                        <span class="fw-semibold text-end">{{ summaryCustomer || "-" }}</span>
                      </div>
                      <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
                         <span class="text-muted small">Item</span>
-                        <span class="fw-semibold text-end">{{ summaryItem || "—" }}</span>
+                        <span class="fw-semibold text-end">{{ summaryItem || "-" }}</span>
                      </div>
                      <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
                         <span class="text-muted small">Payment</span>
@@ -496,15 +496,15 @@
                         <tr v-for="transaction in history" :key="transaction.id">
                            <td>
                               <a class="text-decoration-none" :href="transaction.source_url" v-if="transaction.source_url" title="Open source record">
-                                 <div class="member-name">{{ transaction.customer_name || "—" }}</div>
+                                 <div class="member-name">{{ transaction.customer_name || "-" }}</div>
                               </a>
-                              <div v-else class="member-name">{{ transaction.customer_name || "—" }}</div>
-                              <div class="small text-muted">{{ transaction.receipt_number }} · {{ transaction.processed_by || "—" }}</div>
+                              <div v-else class="member-name">{{ transaction.customer_name || "-" }}</div>
+                              <div class="small text-muted">{{ transaction.receipt_number }} · {{ transaction.processed_by || "-" }}</div>
                            </td>
                            <td>
                               <span class="m-badge m-badge--open">{{ $filters.capitalize(transaction.type) }}</span>
                            </td>
-                           <td class="small">{{ transaction.item_name || "—" }}</td>
+                           <td class="small">{{ transaction.item_name || "-" }}</td>
                            <td class="small">
                               <div>{{ transaction.payment_method_label || $filters.capitalize(transaction.payment_method) }}</div>
                               <div class="text-muted" v-if="transaction.payment_reference">{{ transaction.payment_reference }}</div>
@@ -532,7 +532,7 @@
                         <div class="member-card-identity">
                            <div class="member-avatar">{{ $filters.getNameInitials(transaction.customer_name || transaction.item_name) }}</div>
                            <div>
-                              <div class="member-card-name">{{ transaction.customer_name || "—" }}</div>
+                              <div class="member-card-name">{{ transaction.customer_name || "-" }}</div>
                               <div class="member-card-sub">{{ transaction.receipt_number }}</div>
                            </div>
                         </div>
@@ -542,7 +542,7 @@
                         <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(transaction.total) }}</span>
                      </div>
                      <div class="small text-muted mt-2">
-                        <div>{{ transaction.item_name || "—" }}</div>
+                        <div>{{ transaction.item_name || "-" }}</div>
                         <div>{{ transaction.payment_method_label || $filters.capitalize(transaction.payment_method) }}</div>
                         <div>{{ $filters.formatDateTime(transaction.sold_at) }}</div>
                      </div>

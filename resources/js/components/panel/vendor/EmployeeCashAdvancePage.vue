@@ -63,14 +63,14 @@
                   <tr role="button" @click="toggleAudit(a.id)">
                      <td class="small">{{ $filters.formatDate(a.requested_at) }}</td>
                      <td class="text-end small fw-semibold">₱{{ $filters.formatMoney(a.amount) }}</td>
-                     <td class="text-end small text-success">{{ a.deducted_amount > 0 ? "₱" + $filters.formatMoney(a.deducted_amount) : "—" }}</td>
+                     <td class="text-end small text-success">{{ a.deducted_amount > 0 ? "₱" + $filters.formatMoney(a.deducted_amount) : "-" }}</td>
                      <td class="text-end small" :class="a.remaining_amount > 0 ? 'text-danger' : 'text-success'">
                         {{ a.remaining_amount > 0 ? "₱" + $filters.formatMoney(a.remaining_amount) : "✓" }}
                      </td>
                      <td>
                         <span :class="['m-badge', $filters.statusBadge(a.status)]">{{ $filters.capitalize(a.status) }}</span>
                      </td>
-                     <td class="small text-muted">{{ a.notes || "—" }}</td>
+                     <td class="small text-muted">{{ a.notes || "-" }}</td>
                      <td>
                         <div class="d-flex gap-1">
                            <button v-if="canApproveAdvance(a.status)" class="btn btn-sm btn-outline-success" title="Approve" :disabled="isActioning(a.id, 'approved')" @click.stop="setAdvanceStatus(a, 'approved')">
@@ -100,7 +100,7 @@
                               <div v-for="event in auditEvents(a)" :key="`${a.id}-${event.key}`" class="d-flex justify-content-between align-items-start border rounded px-3 py-2 bg-white">
                                  <div>
                                     <div class="small fw-semibold">{{ event.label }}</div>
-                                    <div class="small text-muted">{{ event.by_name || "—" }}</div>
+                                    <div class="small text-muted">{{ event.by_name || "-" }}</div>
                                     <div v-if="event.details" class="small text-muted mt-1">{{ event.details }}</div>
                                  </div>
                                  <div class="small text-muted text-end">{{ $filters.formatDateTime(event.at) }}</div>
@@ -154,7 +154,7 @@
                <div class="d-flex flex-column gap-2">
                   <div v-for="event in auditEvents(a)" :key="`mobile-${a.id}-${event.key}`" class="border rounded px-3 py-2 bg-light">
                      <div class="small fw-semibold">{{ event.label }}</div>
-                     <div class="small text-muted">{{ event.by_name || "—" }}</div>
+                     <div class="small text-muted">{{ event.by_name || "-" }}</div>
                      <div v-if="event.details" class="small text-muted mt-1">{{ event.details }}</div>
                      <div class="small text-muted mt-1">{{ $filters.formatDateTime(event.at) }}</div>
                   </div>

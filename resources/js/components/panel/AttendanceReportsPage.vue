@@ -423,7 +423,7 @@
                               </td>
                               <td>{{ record.branch_name }}</td>
                               <td class="small text-muted">{{ $filters.formatDateTime(record.checked_in_at) }}</td>
-                              <td class="small text-muted">{{ record.checked_out_at ? $filters.formatDateTime(record.checked_out_at) : "—" }}</td>
+                              <td class="small text-muted">{{ record.checked_out_at ? $filters.formatDateTime(record.checked_out_at) : "-" }}</td>
                               <td>{{ formatDuration(record.duration_minutes) }}</td>
                               <td>
                                  <span :class="['m-badge', $filters.statusBadge(record.is_currently_in ? 'active' : 'inactive')]">
@@ -656,7 +656,7 @@ export default {
       },
       formatDuration: function (minutes) {
          if (!minutes && minutes !== 0) {
-            return "—";
+            return "-";
          }
 
          const roundedMinutes = Math.round(parseFloat(minutes));

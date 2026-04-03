@@ -7,15 +7,15 @@
                <div class="row g-3">
                   <div class="col-md-6">
                      <div class="small text-muted">Email</div>
-                     <div class="fw-semibold small">{{ member.email || "—" }}</div>
+                     <div class="fw-semibold small">{{ member.email || "-" }}</div>
                   </div>
                   <div class="col-md-6">
                      <div class="small text-muted">Phone</div>
-                     <div class="fw-semibold small">{{ member.phone || "—" }}</div>
+                     <div class="fw-semibold small">{{ member.phone || "-" }}</div>
                   </div>
                   <div class="col-md-6">
                      <div class="small text-muted">Branches</div>
-                     <div class="fw-semibold small">{{ member.branches && member.branches.length ? member.branches.map((branch) => branch.name).join(", ") : "—" }}</div>
+                     <div class="fw-semibold small">{{ member.branches && member.branches.length ? member.branches.map((branch) => branch.name).join(", ") : "-" }}</div>
                   </div>
                   <div class="col-md-6">
                      <div class="small text-muted">Status</div>
@@ -27,19 +27,19 @@
                   </div>
                   <div class="col-md-6">
                      <div class="small text-muted">Gender</div>
-                     <div class="fw-semibold small">{{ $filters.capitalize(member.profile?.gender || "—") }}</div>
+                     <div class="fw-semibold small">{{ $filters.capitalize(member.profile?.gender || "-") }}</div>
                   </div>
                   <div class="col-md-6">
                      <div class="small text-muted">Emergency Contact</div>
-                     <div class="fw-semibold small">{{ member.profile?.emergency_contact_name || "—" }}</div>
+                     <div class="fw-semibold small">{{ member.profile?.emergency_contact_name || "-" }}</div>
                   </div>
                   <div class="col-md-6">
                      <div class="small text-muted">Emergency Phone</div>
-                     <div class="fw-semibold small">{{ member.profile?.emergency_contact_phone || "—" }}</div>
+                     <div class="fw-semibold small">{{ member.profile?.emergency_contact_phone || "-" }}</div>
                   </div>
                   <div class="col-12">
                      <div class="small text-muted">Notes</div>
-                     <div class="fw-semibold small">{{ member.profile?.notes || "—" }}</div>
+                     <div class="fw-semibold small">{{ member.profile?.notes || "-" }}</div>
                   </div>
                </div>
             </div>
@@ -85,21 +85,20 @@ export default {
             return null;
          }
 
-         return (
-            this.member.member_subscriptions.find((membership) => membership.status === "active" || membership.status === "paused") ||
-            this.member.member_subscriptions[0]
-         );
+         return this.member.member_subscriptions.find((membership) => membership.status === "active" || membership.status === "paused") || this.member.member_subscriptions[0];
       },
    },
 
    methods: {
       planStatusClass: function (status) {
-         return {
-            active: "m-badge--plan-active",
-            expired: "m-badge--plan-expired",
-            cancelled: "m-badge--plan-cancelled",
-            paused: "m-badge--plan-paused",
-         }[status] || "m-badge--plan-expired";
+         return (
+            {
+               active: "m-badge--plan-active",
+               expired: "m-badge--plan-expired",
+               cancelled: "m-badge--plan-cancelled",
+               paused: "m-badge--plan-paused",
+            }[status] || "m-badge--plan-expired"
+         );
       },
    },
 };

@@ -57,7 +57,7 @@
          <div class="panel-card-header d-flex justify-content-between align-items-center">
             <span class="panel-card-title">
                Branch List
-               <span class="badge-count ms-1">{{ loading ? "—" : pagination.total }}</span>
+               <span class="badge-count ms-1">{{ loading ? "-" : pagination.total }}</span>
             </span>
             <span class="text-muted small" v-if="!loading && pagination.total > 0"> Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }} </span>
          </div>
@@ -181,11 +181,11 @@
                               <a v-if="b.messenger_url" :href="b.messenger_url" target="_blank" rel="noopener noreferrer" class="social-link" title="Messenger"><i class="bi bi-messenger"></i></a>
                               <a v-if="b.whatsapp_url" :href="b.whatsapp_url" target="_blank" rel="noopener noreferrer" class="social-link" title="WhatsApp"><i class="bi bi-whatsapp"></i></a>
                            </div>
-                           <span v-if="!b.phone && !b.email && !b.facebook_url && !b.messenger_url && !b.whatsapp_url" class="text-muted">—</span>
+                           <span v-if="!b.phone && !b.email && !b.facebook_url && !b.messenger_url && !b.whatsapp_url" class="text-muted">-</span>
                         </td>
                         <td class="small text-muted">
                            <span v-if="b.opening_time && b.closing_time"> {{ formatTime(b.opening_time) }} – {{ formatTime(b.closing_time) }} </span>
-                           <span v-else>—</span>
+                           <span v-else>-</span>
                         </td>
                         <td v-if="is('super admin') || is('admin')">
                            <div class="d-flex gap-1">
@@ -239,7 +239,7 @@
                      <span class="m-badge m-badge--plan" v-if="b.opening_time && b.closing_time"> {{ formatTime(b.opening_time) }} – {{ formatTime(b.closing_time) }} </span>
                   </div>
                   <div class="member-card-footer">
-                     <span><i class="bi bi-telephone me-1"></i>{{ b.phone || "—" }}</span>
+                     <span><i class="bi bi-telephone me-1"></i>{{ b.phone || "-" }}</span>
                      <span class="d-flex gap-2 align-items-center">
                         <a v-if="b.email" :href="'mailto:' + b.email" class="social-link" title="Email"><i class="bi bi-envelope"></i></a>
                         <a v-if="b.facebook_url" :href="b.facebook_url" target="_blank" rel="noopener noreferrer" class="social-link" title="Facebook"><i class="bi bi-facebook"></i></a>
