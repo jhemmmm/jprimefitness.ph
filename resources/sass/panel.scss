@@ -644,13 +644,111 @@ body.panel-body {
 
 .topbar-badge {
     position: absolute;
-    top: 4px;
-    right: 4px;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    background: $sidebar-accent;
+    border-radius: 999px;
+    border: 2px solid #fff;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.panel-notifications {
+    position: relative;
+}
+
+.notifications-dropdown {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    width: min(380px, 92vw);
+    max-height: 520px;
+    overflow: hidden;
+    z-index: 1030;
+}
+
+.notifications-dropdown-list {
+    max-height: 430px;
+    overflow-y: auto;
+}
+
+.notifications-dropdown-item {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid #efefef;
+    background: transparent;
+    padding: 0.9rem 1rem;
+    text-align: left;
+    transition: background 0.15s ease;
+
+    &:hover {
+        background: #faf7f7;
+    }
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &.is-unread {
+        background: rgba(220, 53, 69, 0.04);
+    }
+}
+
+.notifications-history-item {
+    transition: background 0.15s ease;
+
+    &.is-unread {
+        background: rgba(220, 53, 69, 0.04);
+    }
+}
+
+.notification-state-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    flex-shrink: 0;
+    margin-top: 0.35rem;
+
+    &.is-success {
+        background: #198754;
+    }
+
+    &.is-info {
+        background: #0d6efd;
+    }
+
+    &.is-warning {
+        background: #f59f00;
+    }
+
+    &.is-danger {
+        background: #dc3545;
+    }
+
+    &.is-muted {
+        background: #6c757d;
+    }
+}
+
+.notification-unread-dot {
     width: 8px;
     height: 8px;
-    background: $sidebar-accent;
-    border-radius: 50%;
-    border: 1.5px solid #fff;
+    border-radius: 999px;
+    background: #dc3545;
+    flex-shrink: 0;
+    margin-top: 0.4rem;
+}
+
+.notification-unread-badge {
+    color: #842029;
 }
 
 .topbar-user {
@@ -2095,6 +2193,28 @@ body.auth-body {
         &:hover {
             background-color: rgba(255, 255, 255, 0.05);
             color: #fff;
+        }
+    }
+
+    .topbar-badge {
+        border-color: var(--panel-card-bg);
+    }
+
+    .notifications-dropdown-item {
+        border-bottom-color: var(--panel-border);
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        &.is-unread {
+            background: rgba(220, 53, 69, 0.08);
+        }
+    }
+
+    .notifications-history-item {
+        &.is-unread {
+            background: rgba(220, 53, 69, 0.08);
         }
     }
 

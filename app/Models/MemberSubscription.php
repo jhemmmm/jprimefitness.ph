@@ -44,6 +44,7 @@ class MemberSubscription extends Model
         'manager_commission_rate' => 'decimal:2',
         'manager_commission_amount' => 'decimal:2',
         'manager_commission_earned_at' => 'datetime',
+        'expiration_notification_sent_for_date' => 'date',
     ];
 
     protected static function booted(): void

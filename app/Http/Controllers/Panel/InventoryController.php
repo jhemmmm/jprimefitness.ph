@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
+use App\Services\InventoryStockAlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -12,9 +13,12 @@ use Illuminate\Validation\Rule;
 
 class InventoryController extends Controller
 {
+    public function __construct(private InventoryStockAlertService $inventoryStockAlertService)
+    {
+    }
+
     /**
      * Index inventory page
-     * @return View
      */
     public function index(): View
     {
@@ -25,8 +29,6 @@ class InventoryController extends Controller
 
     /**
      * List inventory items with filters and pagination
-     * @param Request $request
-     * @return JsonResponse
      */
     public function list(Request $request): JsonResponse
     {
@@ -87,34 +89,34 @@ class InventoryController extends Controller
 
     /**
      * Store a new inventory item
-     * @param Request $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
         $item = InventoryItem::create($this->validatePayload($request))
             ->load(['branch:id,name', 'category:id,name']);
 
+        $this->inventoryStockAlertService->sync($item);
+
         return response()->json($item, 201);
     }
 
     /**
      * Update an existing inventory item
-     * @param Request $request
-     * @param InventoryItem $inventoryItem
-     * @return JsonResponse
      */
     public function update(Request $request, InventoryItem $inventoryItem): JsonResponse
     {
-        $inventoryItem->update($this->validatePayload($request, $inventoryItem));
+        $previousAlertState = $inventoryItem->stock_alert_state;
 
-        return response()->json($inventoryItem->fresh()->load(['branch:id,name', 'category:id,name']));
+        $inventoryItem->update($this->validatePayload($request, $inventoryItem));
+        $inventoryItem = $inventoryItem->fresh()->load(['branch:id,name', 'category:id,name']);
+
+        $this->inventoryStockAlertService->sync($inventoryItem, $previousAlertState);
+
+        return response()->json($inventoryItem);
     }
 
     /**
      * Delete an existing inventory item
-     * @param InventoryItem $inventoryItem
-     * @return JsonResponse
      */
     public function destroy(InventoryItem $inventoryItem): JsonResponse
     {
@@ -125,8 +127,7 @@ class InventoryController extends Controller
 
     /**
      * Validate the payload for creating or updating an inventory item
-     * @param Request $request
-     * @param InventoryItem|null $inventoryItem
+     *
      * @return array<string, mixed>
      */
     private function validatePayload(Request $request, ?InventoryItem $inventoryItem = null): array

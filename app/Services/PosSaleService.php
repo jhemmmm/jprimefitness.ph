@@ -20,7 +20,11 @@ use Illuminate\Validation\ValidationException;
 
 class PosSaleService
 {
-    public function __construct(private BranchCashLedgerService $branchCashLedgerService) {}
+    public function __construct(
+        private BranchCashLedgerService $branchCashLedgerService,
+        private InventoryStockAlertService $inventoryStockAlertService,
+    ) {
+    }
 
     /**
      * @return array{
@@ -162,6 +166,7 @@ class PosSaleService
 
                 $item->quantity = round($availableQuantity - $quantity, 2);
                 $item->save();
+                $this->inventoryStockAlertService->sync($item);
 
                 $lineItems[] = [
                     'inventory_item_id' => $item->id,

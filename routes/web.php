@@ -10,6 +10,7 @@ use App\Http\Controllers\Panel\EmployeeController;
 use App\Http\Controllers\Panel\FinancialReportsController;
 use App\Http\Controllers\Panel\InventoryController;
 use App\Http\Controllers\Panel\MembersController;
+use App\Http\Controllers\Panel\NotificationsController;
 use App\Http\Controllers\Panel\PayrollReportsController;
 use App\Http\Controllers\Panel\PricingController;
 use App\Http\Controllers\Panel\SalesController;
@@ -28,6 +29,12 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
         Route::get('/data', [DashboardController::class, 'data'])->name('data');
     });
     Route::get('/search', [SearchController::class, 'index'])->middleware('branch.input:branch')->name('search');
+    Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/list', [NotificationsController::class, 'list'])->name('notifications.list');
+    Route::post('/notifications/read-all', [NotificationsController::class, 'markAllAsRead'])->name('notifications.read-all');
+    Route::post('/notifications/{notificationId}/read', [NotificationsController::class, 'markAsRead'])
+        ->whereUuid('notificationId')
+        ->name('notifications.read');
 
     // Members
     Route::get('/members', [MembersController::class, 'index'])->name('members.index');

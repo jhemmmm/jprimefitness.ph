@@ -197,10 +197,7 @@
                     <branch-selector-collapsed
                         :branches-data='@json($branches)'></branch-selector-collapsed>
 
-                    <button class="topbar-icon-btn" title="Notifications">
-                        <i class="bi bi-bell-fill"></i>
-                        <span class="topbar-badge"></span>
-                    </button>
+                    <panel-notifications></panel-notifications>
 
                     <global-search></global-search>
 

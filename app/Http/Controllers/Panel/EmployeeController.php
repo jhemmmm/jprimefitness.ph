@@ -9,7 +9,10 @@ use App\Models\CashAdvance;
 use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\User;
+use App\Notifications\CashAdvanceStatusChangedNotification;
+use App\Notifications\PayrollApprovedNotification;
 use App\Services\BranchCashLedgerService;
+use App\Services\NotificationRecipientResolver;
 use App\Services\PayrollService;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Contracts\View\View;
@@ -28,6 +31,7 @@ class EmployeeController extends Controller
     public function __construct(
         private PayrollService $payrollService,
         private BranchCashLedgerService $branchCashLedgerService,
+        private NotificationRecipientResolver $notificationRecipientResolver,
     ) {
         $this->middleware('can:manage employees');
     }
@@ -56,8 +60,6 @@ class EmployeeController extends Controller
 
     /**
      * List with filters and pagination
-     * @param Request $request
-     * @return JsonResponse
      */
     public function list(Request $request): JsonResponse
     {
@@ -80,8 +82,6 @@ class EmployeeController extends Controller
 
     /**
      * Store newly created employee
-     * @param Request $request
-     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -117,9 +117,6 @@ class EmployeeController extends Controller
 
     /**
      * Update the specified employee
-     * @param Request $request
-     * @param User $employee
-     * @return JsonResponse
      */
     public function update(Request $request, User $employee): JsonResponse
     {
@@ -156,8 +153,6 @@ class EmployeeController extends Controller
 
     /**
      * Delete the specified employee
-     * @param User $employee
-     * @return JsonResponse
      */
     public function destroy(User $employee): JsonResponse
     {
@@ -170,9 +165,6 @@ class EmployeeController extends Controller
 
     /**
      * Get the attendance of the employee
-     * @param Request $request
-     * @param User $employee
-     * @return JsonResponse
      */
     public function attendance(Request $request, User $employee): JsonResponse
     {
@@ -197,8 +189,6 @@ class EmployeeController extends Controller
 
     /**
      * Get payrolls of the employee
-     * @param User $employee
-     * @return JsonResponse
      */
     public function payrolls(User $employee): JsonResponse
     {
@@ -214,8 +204,7 @@ class EmployeeController extends Controller
 
     /**
      * Get the payslip of the employee
-     * @param User $employee
-     * @param Payroll $payroll
+     *
      * @return PdfBuilder
      */
     public function payslip(User $employee, Payroll $payroll): Responsable
@@ -244,9 +233,6 @@ class EmployeeController extends Controller
 
     /**
      * Store a payroll draft and snapshot the calculated totals for the selected period.
-     * @param Request $request
-     * @param User $employee
-     * @return JsonResponse
      */
     public function storePayroll(Request $request, User $employee): JsonResponse
     {
@@ -350,10 +336,6 @@ class EmployeeController extends Controller
 
     /**
      * Recalculate and persist a draft payroll after payroll inputs change.
-     * @param Request $request
-     * @param User $employee
-     * @param Payroll $payroll
-     * @return JsonResponse
      */
     public function updatePayroll(Request $request, User $employee, Payroll $payroll): JsonResponse
     {
@@ -455,9 +437,6 @@ class EmployeeController extends Controller
 
     /**
      * Approved the specified payroll of the employee
-     * @param User $employee
-     * @param Payroll $payroll
-     * @return JsonResponse
      */
     public function approvePayroll(User $employee, Payroll $payroll): JsonResponse
     {
@@ -475,15 +454,18 @@ class EmployeeController extends Controller
         $this->payrollService->normalizePayrollCashAdvanceDeduction($payroll);
         $this->payrollService->applyAdvances($payroll);
         $this->payrollService->syncStatus($payroll);
+        $payroll->loadMissing('branch:id,name');
+
+        $this->notificationRecipientResolver->send(
+            new PayrollApprovedNotification($payroll, $employee),
+            $payroll->branch_id,
+        );
 
         return response()->json($this->serializePayroll($payroll));
     }
 
     /**
      * Cancel the specified payroll of the employee
-     * @param User $employee
-     * @param Payroll $payroll
-     * @return JsonResponse
      */
     public function cancelPayroll(User $employee, Payroll $payroll): JsonResponse
     {
@@ -503,8 +485,6 @@ class EmployeeController extends Controller
 
     /**
      * Get suggested cash advance deduction for the specified employee
-     * @param User $employee
-     * @return JsonResponse
      */
     public function payrollSuggestedCa(User $employee): JsonResponse
     {
@@ -515,9 +495,6 @@ class EmployeeController extends Controller
 
     /**
      * Preview payroll totals without saving so the modal stays in sync with the backend rules.
-     * @param Request $request
-     * @param User $employee
-     * @return JsonResponse
      */
     public function payrollSuggest(Request $request, User $employee): JsonResponse
     {
@@ -629,8 +606,6 @@ class EmployeeController extends Controller
 
     /**
      * Get all payouts for the specified employee
-     * @param User $employee
-     * @return JsonResponse
      */
     public function payouts(User $employee): JsonResponse
     {
@@ -660,9 +635,6 @@ class EmployeeController extends Controller
 
     /**
      * Get all payouts for the specified payroll
-     * @param User $employee
-     * @param Payroll $payroll
-     * @return JsonResponse
      */
     public function payrollPayouts(User $employee, Payroll $payroll): JsonResponse
     {
@@ -693,10 +665,6 @@ class EmployeeController extends Controller
 
     /**
      * Store a new payout for the specified payroll
-     * @param Request $request
-     * @param User $employee
-     * @param Payroll $payroll
-     * @return JsonResponse
      */
     public function storePayout(Request $request, User $employee, Payroll $payroll): JsonResponse
     {
@@ -750,8 +718,6 @@ class EmployeeController extends Controller
 
     /**
      * Get all cash advances for the specified employee
-     * @param User $employee
-     * @return JsonResponse
      */
     public function cashAdvances(User $employee): JsonResponse
     {
@@ -801,9 +767,6 @@ class EmployeeController extends Controller
 
     /**
      * Store a new cash advance request for the specified employee
-     * @param Request $request
-     * @param User $employee
-     * @return JsonResponse
      */
     public function storeCashAdvance(Request $request, User $employee): JsonResponse
     {
@@ -831,6 +794,12 @@ class EmployeeController extends Controller
             'notes' => $cashAdvance->notes,
         ]);
         $cashAdvance->save();
+        $cashAdvance->loadMissing('branch:id,name');
+
+        $this->notificationRecipientResolver->send(
+            new CashAdvanceStatusChangedNotification($cashAdvance, $employee),
+            $cashAdvance->branch_id,
+        );
 
         return response()->json([
             'id' => $cashAdvance->id,
@@ -854,10 +823,6 @@ class EmployeeController extends Controller
 
     /**
      * Update the specified cash advance request of the employee
-     * @param Request $request
-     * @param User $employee
-     * @param CashAdvance $cashAdvance
-     * @return JsonResponse
      */
     public function updateCashAdvance(Request $request, User $employee, CashAdvance $cashAdvance): JsonResponse
     {
@@ -952,6 +917,13 @@ class EmployeeController extends Controller
         $cashAdvance->load(['approvedBy:id,name', 'releasedBy:id,name', 'cancelledBy:id,name']);
         $this->branchCashLedgerService->syncCashAdvance($cashAdvance);
 
+        if ($previousStatus !== $cashAdvance->status) {
+            $this->notificationRecipientResolver->send(
+                new CashAdvanceStatusChangedNotification($cashAdvance, $employee),
+                $cashAdvance->branch_id,
+            );
+        }
+
         return response()->json([
             'id' => $cashAdvance->id,
             'amount' => (float) $cashAdvance->amount,
@@ -974,9 +946,6 @@ class EmployeeController extends Controller
 
     /**
      * Delete the specified cash advance request of the employee
-     * @param User $employee
-     * @param CashAdvance $cashAdvance
-     * @return JsonResponse
      */
     public function destroyCashAdvance(User $employee, CashAdvance $cashAdvance): JsonResponse
     {
@@ -1001,7 +970,7 @@ class EmployeeController extends Controller
 
     /**
      * Get the serialized payroll data
-     * @param Payroll $payroll
+     *
      * @return array{approved_at: string|null, approved_by_name: string|null, bonus: float, branch_country_code: string|null, cash_advance_deduction: float, created_at: string|null, employee_deductions_total: float, gross_amount: float, id: int, income_tax: float, manual_deductions: float, membership_commission_amount: float, membership_commission_items: array, net_amount: float, notes: string|null, pay_frequency: string|null, payouts_count: int, period_end: string, period_start: string, pt_commission_amount: float, pt_commission_items: array, remaining_balance: float|int, status: string, total_earnings: float, total_paid: float}
      */
     private function serializePayroll(Payroll $payroll): array

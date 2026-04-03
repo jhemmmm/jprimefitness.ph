@@ -14,6 +14,9 @@ app.component("branch-selector-collapsed", BranchSelectorCollapsed);
 import GlobalSearch from "./components/panel/_vendor/GlobalSearch.vue";
 app.component("global-search", GlobalSearch);
 
+import PanelNotifications from "./components/panel/_vendor/PanelNotifications.vue";
+app.component("panel-notifications", PanelNotifications);
+
 import AsyncSearchSelect from "./components/panel/_vendor/AsyncSearchSelect.vue";
 app.component("async-search-select", AsyncSearchSelect);
 
@@ -70,6 +73,9 @@ app.component("employees-page", EmployeesPage);
 
 import EmployeeDetailPage from "./components/panel/EmployeeDetailPage.vue";
 app.component("employee-detail-page", EmployeeDetailPage);
+
+import NotificationsPage from "./components/panel/NotificationsPage.vue";
+app.component("notifications-page", NotificationsPage);
 
 const normalizeKey = (value) =>
    String(value ?? "")

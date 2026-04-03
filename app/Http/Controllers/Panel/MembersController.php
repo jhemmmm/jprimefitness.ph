@@ -8,6 +8,7 @@ use App\Models\MemberPtPackage;
 use App\Models\MemberSubscription;
 use App\Models\PTProduct;
 use App\Models\User;
+use App\Services\MemberPtPackageAlertService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,10 @@ use Illuminate\View\View;
 
 class MembersController extends Controller
 {
+    public function __construct(private MemberPtPackageAlertService $memberPtPackageAlertService)
+    {
+    }
+
     /**
      * Member Index
      *
@@ -417,6 +422,8 @@ class MembersController extends Controller
             ], 422);
         }
 
+        $previousRemainingSessions = (int) $package->remaining_sessions;
+
         $package->consumeSessions(
             (int) $data['sessions_used'],
             $data['used_at'],
@@ -424,6 +431,12 @@ class MembersController extends Controller
             isset($data['coach_id']) ? (int) $data['coach_id'] : null,
             $data['confirmed_by'] ?? null,
             $data['notes'] ?? null
+        );
+
+        $this->memberPtPackageAlertService->notifyIfRunningLow(
+            $package->fresh(),
+            $previousRemainingSessions,
+            $data['used_at']
         );
 
         return response()->json($this->loadMemberDetail($member->fresh()), 201);
