@@ -72,6 +72,18 @@ services:
     networks:
       - jprime
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: jprime-cloudflared
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - web
+    restart: unless-stopped
+    profiles:
+      - tunnel
+    networks:
+      - jprime
+
 volumes:
   mysql_data:
   redis_data:
