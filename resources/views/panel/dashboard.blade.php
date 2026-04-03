@@ -3,5 +3,5 @@
 @section('title', 'Dashboard')
 
 @section('content')
-    <dashboard-page></dashboard-page>
+    <dashboard-page :branches-data='@json($branches)'></dashboard-page>
 @endsection

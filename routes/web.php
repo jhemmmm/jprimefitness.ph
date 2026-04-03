@@ -23,6 +23,9 @@ Route::get('/branches/{branch}', [BranchController::class, 'index'])->name('bran
 
 Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::group(['prefix' => 'dashboard', 'as' => 'dashboard.', 'middleware' => 'branch.input:branch'], function () {
+        Route::get('/data', [DashboardController::class, 'data'])->name('data');
+    });
 
     // Members
     Route::get('/members', [MembersController::class, 'index'])->name('members.index');
