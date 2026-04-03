@@ -5,7 +5,7 @@
          <i class="bi async-search-select-icon" :class="open ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
       </button>
 
-      <div v-if="open" class="async-search-select-menu shadow-sm border bg-white rounded-3 mt-1 p-2">
+      <div v-if="open" class="async-search-select-menu shadow-sm rounded-3 mt-1 p-2">
          <div class="input-group input-group-sm mb-2">
             <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted"></i></span>
             <input ref="searchInput" type="text" class="form-control border-start-0" v-model="query" :placeholder="searchPlaceholder" />
@@ -192,6 +192,7 @@ export default {
    right: 0.75rem;
    transform: translateY(-50%);
    pointer-events: none;
+   color: var(--bs-secondary-color);
 }
 
 .async-search-select-menu {
@@ -200,6 +201,8 @@ export default {
    left: 0;
    right: 0;
    z-index: 1080;
+   background: var(--bs-body-bg);
+   border: 1px solid var(--bs-border-color-translucent);
 }
 
 .async-search-select-results {
@@ -214,9 +217,16 @@ export default {
    text-align: left;
    padding: 0.5rem;
    border-radius: 0.5rem;
+   color: var(--bs-body-color);
+   transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
 }
 
-.async-search-select-option:hover {
-   background: rgba(220, 53, 69, 0.08);
+.async-search-select-option:hover,
+.async-search-select-option:focus-visible {
+   background: var(--bs-tertiary-bg);
+   color: var(--bs-body-emphasis-color);
+   outline: none;
 }
 </style>
