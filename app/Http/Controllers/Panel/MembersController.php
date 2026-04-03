@@ -187,6 +187,11 @@ class MembersController extends Controller
         abort_unless($member->hasRole('member'), 404);
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
+        $currentMembership = $member->currentMembership();
+        if ($currentMembership && $currentMembership->isManagerCommissionLocked()) {
+            return $this->membershipCommissionLockedResponse($currentMembership);
+        }
+
         $data = $request->validate([
             'rate_plan_id' => ['required', 'exists:rate_plans,id'],
             'start_date' => ['required', 'date'],
@@ -210,6 +215,11 @@ class MembersController extends Controller
         abort_unless($member->hasRole('member'), 404);
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
+        $currentMembership = $member->currentMembership();
+        if ($currentMembership && $currentMembership->isManagerCommissionLocked()) {
+            return $this->membershipCommissionLockedResponse($currentMembership);
+        }
+
         $data = $request->validate([
             'status' => [
                 'required',
@@ -226,6 +236,64 @@ class MembersController extends Controller
         }
 
         $member->updateCurrentMembershipStatus($data['status']);
+
+        return response()->json(
+            $this->loadMemberDetail($member->fresh())
+        );
+    }
+
+    /**
+     * Assign manager commission for the current membership
+     * @param Request $request
+     * @param User $member
+     * @return JsonResponse
+     */
+    public function assignMembershipManager(Request $request, User $member): JsonResponse
+    {
+        abort_unless($member->hasRole('member'), 404);
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+
+        $currentMembership = $member->currentMembership();
+
+        if (!$currentMembership) {
+            return response()->json(['message' => 'No current membership found.'], 422);
+        }
+
+        if (!$currentMembership->canAssignManagerCommission()) {
+            return $this->membershipCommissionAssignmentUnavailableResponse($currentMembership);
+        }
+
+        $data = $request->validate([
+            'manager_id' => ['required', 'integer', 'exists:users,id'],
+        ]);
+
+        if (auth()->user()->hasRole('manager') && !auth()->user()->hasAnyRole(['super admin', 'admin']) && (int) $data['manager_id'] !== (int) auth()->id()) {
+            return response()->json([
+                'message' => 'Managers may only assign membership commissions to themselves.',
+                'errors' => [
+                    'manager_id' => ['Managers may only assign membership commissions to themselves.'],
+                ],
+            ], 422);
+        }
+
+        if (!$this->managerIsAssignableToMembership($member, $currentMembership, (int) $data['manager_id'])) {
+            return response()->json([
+                'message' => 'The selected manager is not assigned to this membership branch.',
+                'errors' => [
+                    'manager_id' => ['The selected manager is not assigned to this membership branch.'],
+                ],
+            ], 422);
+        }
+
+        $currentMembership->update([
+            'manager_id' => (int) $data['manager_id'],
+            'manager_commission_amount' => MemberSubscription::calculateCommissionAmount(
+                (float) $currentMembership->sold_price,
+                (float) $currentMembership->manager_commission_rate
+            ),
+            'manager_commission_status' => MemberSubscription::COMMISSION_STATUS_EARNED,
+            'manager_commission_earned_at' => now(),
+        ]);
 
         return response()->json(
             $this->loadMemberDetail($member->fresh())
@@ -433,7 +501,14 @@ class MembersController extends Controller
         $member->load([
             'profile',
             'branches.ptProducts',
-            'memberSubscriptions' => fn($query) => $query->with('ratePlan')->orderByDesc('start_date'),
+            'memberSubscriptions' => fn($query) => $query
+                ->with([
+                    'ratePlan:id,name,duration_days',
+                    'branch:id,name',
+                    'manager:id,name',
+                    'commissionPayroll:id,period_start,period_end,status',
+                ])
+                ->orderByDesc('start_date'),
             'memberPtPackages' => fn($query) => $query
                 ->with([
                     'branch',
@@ -446,7 +521,152 @@ class MembersController extends Controller
                 ->orderByDesc('assigned_at'),
         ]);
 
+        $member->setRelation(
+            'memberSubscriptions',
+            $member->memberSubscriptions
+                ->map(fn(MemberSubscription $subscription) => $this->serializeMemberSubscription($subscription))
+                ->values()
+        );
+
+        $member->setRelation('availableManagers', $this->availableManagersForMember($member));
+
         return $member->setRelation('availableCoaches', $this->availableCoachesForMember($member));
+    }
+
+    /**
+     * Serialize a member subscription with commission display state
+     * @param MemberSubscription $subscription
+     * @return array<string, mixed>
+     */
+    private function serializeMemberSubscription(MemberSubscription $subscription): array
+    {
+        $commissionStatus = $subscription->effectiveManagerCommissionStatus();
+        $isCommissionLocked = $subscription->isManagerCommissionLocked();
+        $commissionPayroll = $subscription->commissionPayroll;
+        $commissionPayrollLabel = null;
+
+        if ($commissionPayroll && $commissionPayroll->period_start && $commissionPayroll->period_end) {
+            $commissionPayrollLabel = $commissionPayroll->period_start->format('Y-m-d').' – '.$commissionPayroll->period_end->format('Y-m-d');
+        }
+
+        return [
+            'id' => $subscription->id,
+            'rate_plan_id' => $subscription->rate_plan_id,
+            'rate_plan' => $subscription->ratePlan ? [
+                'id' => $subscription->ratePlan->id,
+                'name' => $subscription->ratePlan->name,
+                'duration_days' => $subscription->ratePlan->duration_days,
+            ] : null,
+            'branch' => $subscription->branch ? [
+                'id' => $subscription->branch->id,
+                'name' => $subscription->branch->name,
+            ] : null,
+            'manager' => $subscription->manager ? [
+                'id' => $subscription->manager->id,
+                'name' => $subscription->manager->name,
+            ] : null,
+            'status' => $subscription->status,
+            'start_date' => $subscription->start_date?->toDateString(),
+            'end_date' => $subscription->end_date?->toDateString(),
+            'created_at' => $subscription->created_at?->toISOString(),
+            'sold_price' => round((float) $subscription->sold_price, 2),
+            'manager_commission_rate' => round((float) $subscription->manager_commission_rate, 2),
+            'manager_commission_amount' => round((float) $subscription->manager_commission_amount, 2),
+            'manager_commission_status' => $commissionStatus,
+            'manager_commission_earned_at' => $subscription->manager_commission_earned_at?->toISOString(),
+            'commission_payroll' => $commissionPayroll ? [
+                'id' => $commissionPayroll->id,
+                'status' => $commissionPayroll->status,
+                'period_start' => $commissionPayroll->period_start?->toDateString(),
+                'period_end' => $commissionPayroll->period_end?->toDateString(),
+                'period_label' => $commissionPayrollLabel,
+            ] : null,
+            'commission_summary' => [
+                'is_tracked' => $subscription->hasTrackedManagerCommission(),
+                'is_locked' => $isCommissionLocked,
+                'lock_reason' => $subscription->managerCommissionLockReason(),
+                'is_assignable' => $subscription->canAssignManagerCommission(),
+                'assignment_reason' => $subscription->managerCommissionAssignmentReason(),
+                'status' => $commissionStatus,
+                'sold_price' => round((float) $subscription->sold_price, 2),
+                'commission_rate' => round((float) $subscription->manager_commission_rate, 2),
+                'commission_amount' => round((float) $subscription->manager_commission_amount, 2),
+                'earned_at' => $subscription->manager_commission_earned_at?->toISOString(),
+                'manager_name' => $subscription->manager?->name,
+                'branch_name' => $subscription->branch?->name,
+                'payroll_label' => $commissionPayrollLabel,
+            ],
+            'action_state' => [
+                'is_locked' => $isCommissionLocked,
+                'can_change_plan' => !$isCommissionLocked,
+                'can_change_status' => !$isCommissionLocked
+                    && in_array($subscription->status, [
+                        MemberSubscription::STATUS_ACTIVE,
+                        MemberSubscription::STATUS_PAUSED,
+                    ], true),
+                'can_assign_manager' => $subscription->canAssignManagerCommission(),
+                'assign_manager_reason' => $subscription->managerCommissionAssignmentReason(),
+                'reason' => $subscription->managerCommissionLockReason(),
+            ],
+        ];
+    }
+
+    /**
+     * Build a consistent validation response for locked commission-backed memberships
+     * @param MemberSubscription $subscription
+     * @return JsonResponse
+     */
+    private function membershipCommissionLockedResponse(MemberSubscription $subscription): JsonResponse
+    {
+        $message = $subscription->managerCommissionLockReason() ?? 'This membership can no longer be edited because commission processing has already started.';
+
+        return response()->json([
+            'message' => $message,
+            'errors' => [
+                'membership' => [$message],
+            ],
+        ], 422);
+    }
+
+    /**
+     * Build a consistent validation response for unassignable membership commissions
+     * @param MemberSubscription $subscription
+     * @return JsonResponse
+     */
+    private function membershipCommissionAssignmentUnavailableResponse(MemberSubscription $subscription): JsonResponse
+    {
+        $message = $subscription->managerCommissionAssignmentReason() ?? 'This membership sale commission cannot be assigned right now.';
+
+        return response()->json([
+            'message' => $message,
+            'errors' => [
+                'membership' => [$message],
+            ],
+        ], 422);
+    }
+
+    /**
+     * Check if a manager is assignable to a membership commission
+     * @param User $member
+     * @param MemberSubscription $subscription
+     * @param int $managerId
+     * @return bool
+     */
+    private function managerIsAssignableToMembership(User $member, MemberSubscription $subscription, int $managerId): bool
+    {
+        $branchIds = $subscription->branch_id
+            ? collect([$subscription->branch_id])
+            : $member->branches()->pluck('branches.id');
+
+        if ($branchIds->isEmpty()) {
+            return false;
+        }
+
+        return User::role('manager')
+            ->whereKey($managerId)
+            ->where('status', User::STATUS_ACTIVE)
+            ->whereHas('branches', fn($query) => $query->whereIn('branches.id', $branchIds))
+            ->exists();
     }
 
     /**
@@ -483,5 +703,34 @@ class MembersController extends Controller
             ->with(['branches:id,name'])
             ->orderBy('name')
             ->get(['users.id', 'users.name', 'users.status']);
+    }
+
+    /**
+     * Get available managers for a member
+     * @param User $member
+     * @return \Illuminate\Support\Collection
+     */
+    private function availableManagersForMember(User $member)
+    {
+        $currentMembership = $member->currentMembership();
+        $branchIds = $currentMembership && $currentMembership->branch_id
+            ? collect([$currentMembership->branch_id])
+            : $member->branches()->pluck('branches.id');
+
+        if ($branchIds->isEmpty()) {
+            return collect();
+        }
+
+        $query = User::role('manager')
+            ->where('status', User::STATUS_ACTIVE)
+            ->whereHas('branches', fn($query) => $query->whereIn('branches.id', $branchIds))
+            ->with(['branches:id,name'])
+            ->orderBy('name');
+
+        if (auth()->user()->hasRole('manager') && !auth()->user()->hasAnyRole(['super admin', 'admin'])) {
+            $query->whereKey(auth()->id());
+        }
+
+        return $query->get(['users.id', 'users.name', 'users.status']);
     }
 }

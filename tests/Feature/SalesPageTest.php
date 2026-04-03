@@ -256,8 +256,9 @@ class SalesPageTest extends TestCase
         $this->assertSame(MemberSubscription::STATUS_ACTIVE, $subscription->status);
         $this->assertSame('2026-04-01', $subscription->start_date?->toDateString());
         $this->assertNull($subscription->manager_id);
-        $this->assertSame('0.00', $subscription->manager_commission_rate);
-        $this->assertSame('0.00', $subscription->manager_commission_amount);
+        $this->assertSame('12.00', $subscription->manager_commission_rate);
+        $this->assertSame('599.94', $subscription->manager_commission_amount);
+        $this->assertSame(MemberSubscription::COMMISSION_STATUS_UNASSIGNED, $subscription->manager_commission_status);
         $this->assertDatabaseHas('sale_transactions', [
             'branch_id' => $branch->id,
             'member_id' => $member->id,

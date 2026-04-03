@@ -225,12 +225,8 @@ class PosSaleService
 
             $saleTotal = round((float) $ratePlan->pivot->price, 2);
             $managerProcessedSale = $processedBy->hasRole('manager');
-            $managerCommissionRate = $managerProcessedSale
-                ? round((float) ($ratePlan->pivot->manager_commission_rate ?? 0), 2)
-                : 0.0;
-            $managerCommissionAmount = $managerProcessedSale
-                ? MemberSubscription::calculateCommissionAmount($saleTotal, $managerCommissionRate)
-                : 0.0;
+            $managerCommissionRate = round((float) ($ratePlan->pivot->manager_commission_rate ?? 0), 2);
+            $managerCommissionAmount = MemberSubscription::calculateCommissionAmount($saleTotal, $managerCommissionRate);
             $subscription = $member->sellMembershipPlan($ratePlan->id, $data['start_date'], [
                 'branch_id' => $branch->id,
                 'sold_price' => $saleTotal,
