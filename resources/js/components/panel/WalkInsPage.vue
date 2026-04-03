@@ -356,7 +356,7 @@ export default {
          walkIns: [],
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { today: 0, this_week: 0, this_month: 0, revenue_today: 0 },
-         search: "",
+         search: new URLSearchParams(window.location.search).get("search") || "",
          selectedBranch: parseInt(localStorage.getItem("selectedBranch")) || "",
          dateFrom: "",
          dateTo: "",

@@ -52,14 +52,16 @@ class BranchesController extends Controller
      */
     public function list(Request $request): JsonResponse
     {
+        $search = trim((string) $request->input('search', ''));
+
         // Create a query
         $branchesQuery = Branch::query()
             ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereKey(auth()->user()->branches()->pluck('branches.id')))
-            ->when($request, function ($q) use ($request) {
-                $q->where(function ($inner) use ($request) {
-                    $inner->where('name', 'like', "%{$request->search}%")
-                        ->orWhere('city', 'like', "%{$request->search}%")
-                        ->orWhere('province', 'like', "%{$request->search}%");
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', "%{$search}%")
+                        ->orWhere('city', 'like', "%{$search}%")
+                        ->orWhere('province', 'like', "%{$search}%");
                 });
             })
             ->when($request->status, fn($q, $s) => $q->where('status', $s));

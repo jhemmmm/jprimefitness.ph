@@ -202,9 +202,7 @@
                         <span class="topbar-badge"></span>
                     </button>
 
-                    <button class="topbar-icon-btn" title="Search">
-                        <i class="bi bi-search"></i>
-                    </button>
+                    <global-search></global-search>
 
                     <div class="dropdown">
                         <a class="topbar-user" href="#" data-bs-toggle="dropdown" aria-expanded="false">

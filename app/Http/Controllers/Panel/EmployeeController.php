@@ -64,7 +64,9 @@ class EmployeeController extends Controller
         $employees = User::role(['employee', 'coach', 'manager', 'admin', 'staff'])
             ->with('branches', 'roles')
             ->when(!empty($request->search), fn($q) => $q->where(function ($qq) use ($request) {
-                $qq->where('name', 'like', "%{$request->search}%")->orWhere('email', 'like', "%{$request->search}%");
+                $qq->where('name', 'like', "%{$request->search}%")
+                    ->orWhere('email', 'like', "%{$request->search}%")
+                    ->orWhere('phone', 'like', "%{$request->search}%");
             }))
             ->when(!empty($request->role), fn($q) => $q->whereHas('roles', fn($qq) => $qq->where('id', $request->role)))
             ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereHas('branches', fn($qq) => $qq->whereIn('branches.id', auth()->user()->branches()->pluck('branches.id'))))

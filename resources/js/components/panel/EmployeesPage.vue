@@ -15,7 +15,7 @@
             <div class="col-md-6">
                <div class="input-group">
                   <span class="input-group-text bg-transparent border-end-0"><i class="bi bi-search text-muted search-icon"></i></span>
-                  <input type="text" class="form-control border-start-0" v-model="search" @input="onSearchInput" placeholder="Search by name, email…" />
+                  <input type="text" class="form-control border-start-0" v-model="search" @input="onSearchInput" placeholder="Search by name, email, or phone…" />
                </div>
             </div>
             <div class="col-md-3">
@@ -221,7 +221,7 @@ export default {
          loading: true,
          employees: [],
          pagination: null,
-         search: "",
+         search: new URLSearchParams(window.location.search).get("search") || "",
          selectedRole: "",
          selectedStatus: "",
          selectedBranch: parseInt(localStorage.getItem("selectedBranch")) || "",

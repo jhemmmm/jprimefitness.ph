@@ -14,6 +14,7 @@ use App\Http\Controllers\Panel\PayrollReportsController;
 use App\Http\Controllers\Panel\PricingController;
 use App\Http\Controllers\Panel\SalesController;
 use App\Http\Controllers\Panel\SalesReportsController;
+use App\Http\Controllers\Panel\SearchController;
 use App\Http\Controllers\Panel\WalkInsController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -26,6 +27,7 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::group(['prefix' => 'dashboard', 'as' => 'dashboard.', 'middleware' => 'branch.input:branch'], function () {
         Route::get('/data', [DashboardController::class, 'data'])->name('data');
     });
+    Route::get('/search', [SearchController::class, 'index'])->middleware('branch.input:branch')->name('search');
 
     // Members
     Route::get('/members', [MembersController::class, 'index'])->name('members.index');

@@ -11,6 +11,9 @@ app.component("branch-selector", BranchSelector);
 import BranchSelectorCollapsed from "./components/panel/_vendor/BranchSelectorCollapsed.vue";
 app.component("branch-selector-collapsed", BranchSelectorCollapsed);
 
+import GlobalSearch from "./components/panel/_vendor/GlobalSearch.vue";
+app.component("global-search", GlobalSearch);
+
 import AsyncSearchSelect from "./components/panel/_vendor/AsyncSearchSelect.vue";
 app.component("async-search-select", AsyncSearchSelect);
 

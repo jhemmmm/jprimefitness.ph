@@ -368,7 +368,7 @@ export default {
          branches: [],
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { total: 0, open: 0, closed: 0, coming_soon: 0 },
-         search: "",
+         search: new URLSearchParams(window.location.search).get("search") || "",
          selectedStatus: "",
          currentPage: 1,
          searchTimer: null,

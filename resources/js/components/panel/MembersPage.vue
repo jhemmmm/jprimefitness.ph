@@ -40,7 +40,7 @@
                   <span class="input-group-text bg-transparent border-end-0">
                      <i class="bi bi-search text-muted search-icon"></i>
                   </span>
-                  <input type="text" class="form-control border-start-0" placeholder="Search name or email…" v-model="search" @input="onSearchInput" />
+                  <input type="text" class="form-control border-start-0" placeholder="Search name, email, or phone…" v-model="search" @input="onSearchInput" />
                </div>
             </div>
             <div class="col-6 col-md-3">
@@ -418,7 +418,7 @@ export default {
          members: [],
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { total: 0, active: 0, inactive: 0, suspended: 0 },
-         search: "",
+         search: new URLSearchParams(window.location.search).get("search") || "",
          selectedBranch: parseInt(localStorage.getItem("selectedBranch")) || "",
          selectedStatus: "",
          selectedPlan: "",

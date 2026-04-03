@@ -431,7 +431,7 @@ export default {
          items: [],
          stats: { total: 0, active: 0, low_stock: 0, out_of_stock: 0 },
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
-         search: "",
+         search: new URLSearchParams(window.location.search).get("search") || "",
          selectedBranch: parseInt(localStorage.getItem("selectedBranch"), 10) || "",
          selectedCategory: "",
          selectedStatus: "",
