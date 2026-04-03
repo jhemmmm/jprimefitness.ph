@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Payout extends Model
 {
-    const METHOD_CASH = 'cash';
-    const METHOD_BANK_TRANSFER = 'bank_transfer';
-    const METHOD_ONLINE_PAYMENT = 'online_payment';
+    public const METHOD_CASH = 'cash';
 
+    public const METHOD_BANK_TRANSFER = 'bank_transfer';
+
+    public const METHOD_ONLINE_PAYMENT = 'online_payment';
 
     protected $fillable = [
         'payroll_id',
@@ -24,8 +25,8 @@ class Payout extends Model
     ];
 
     protected $casts = [
-        'amount'   => 'decimal:2',
-        'paid_at'  => 'datetime',
+        'amount' => 'decimal:2',
+        'paid_at' => 'datetime',
     ];
 
     public function payroll(): BelongsTo

@@ -53,11 +53,12 @@ class PayrollReportsPageTest extends TestCase
             'period_end' => '2026-03-15',
             'gross_amount' => 1000,
             'bonus' => 100,
+            'income_tax' => 100,
             'pt_commission_amount' => 200,
             'pt_commission_items' => [],
             'manual_deductions' => 50,
             'cash_advance_deduction' => 100,
-            'net_amount' => 1150,
+            'net_amount' => 1050,
             'status' => Payroll::STATUS_APPROVED,
             'generated_by' => $manager->id,
             'approved_by' => $manager->id,
@@ -72,6 +73,7 @@ class PayrollReportsPageTest extends TestCase
             'period_end' => '2026-03-31',
             'gross_amount' => 2000,
             'bonus' => 0,
+            'income_tax' => 0,
             'pt_commission_amount' => 0,
             'pt_commission_items' => [],
             'manual_deductions' => 0,
@@ -91,6 +93,7 @@ class PayrollReportsPageTest extends TestCase
             'period_end' => '2026-02-28',
             'gross_amount' => 999,
             'bonus' => 0,
+            'income_tax' => 0,
             'pt_commission_amount' => 0,
             'pt_commission_items' => [],
             'manual_deductions' => 0,
@@ -131,12 +134,13 @@ class PayrollReportsPageTest extends TestCase
         $response->assertJsonPath('summary.gross_payroll', 3000);
         $response->assertJsonPath('summary.total_bonus', 100);
         $response->assertJsonPath('summary.pt_commission', 200);
-        $response->assertJsonPath('summary.total_deductions', 150);
-        $response->assertJsonPath('summary.net_payroll', 3150);
+        $response->assertJsonPath('summary.income_tax', 100);
+        $response->assertJsonPath('summary.total_deductions', 250);
+        $response->assertJsonPath('summary.net_payroll', 3050);
         $response->assertJsonPath('summary.total_paid', 2500);
-        $response->assertJsonPath('summary.outstanding_balance', 650);
+        $response->assertJsonPath('summary.outstanding_balance', 550);
         $response->assertJsonPath('status_breakdown.0.status', Payroll::STATUS_APPROVED);
-        $response->assertJsonPath('status_breakdown.0.net_payroll', 1150);
+        $response->assertJsonPath('status_breakdown.0.net_payroll', 1050);
         $response->assertJsonPath('status_breakdown.1.status', Payroll::STATUS_PAID);
         $response->assertJsonPath('pay_frequency_breakdown.0.pay_frequency', Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY);
         $response->assertJsonPath('pay_frequency_breakdown.1.pay_frequency', Branch::PAYROLL_FREQUENCY_MONTHLY);
@@ -164,11 +168,12 @@ class PayrollReportsPageTest extends TestCase
             'period_end' => '2026-03-15',
             'gross_amount' => 1400,
             'bonus' => 100,
+            'income_tax' => 75,
             'pt_commission_amount' => 0,
             'pt_commission_items' => [],
             'manual_deductions' => 50,
             'cash_advance_deduction' => 0,
-            'net_amount' => 1450,
+            'net_amount' => 1375,
             'status' => Payroll::STATUS_APPROVED,
             'generated_by' => $manager->id,
             'approved_by' => $manager->id,
@@ -186,6 +191,7 @@ class PayrollReportsPageTest extends TestCase
         $this->assertStringContainsString('Period End From', $content);
         $this->assertStringContainsString('Payout Scope', $content);
         $this->assertStringContainsString('Summary', $content);
+        $this->assertStringContainsString('Income Tax', $content);
         $this->assertStringContainsString('Paid Out To Date', $content);
         $this->assertStringContainsString('Recent Payrolls', $content);
         $this->assertStringContainsString('Juan Dela Cruz', $content);

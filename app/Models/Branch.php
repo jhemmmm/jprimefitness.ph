@@ -9,17 +9,17 @@ use Illuminate\Support\Str;
 
 class Branch extends Model
 {
-    const COUNTRY_PHILIPPINES = 'PH';
+    public const COUNTRY_PHILIPPINES = 'PH';
 
-    const STATUS_OPEN = 'open';
+    public const STATUS_OPEN = 'open';
 
-    const STATUS_CLOSED = 'closed';
+    public const STATUS_CLOSED = 'closed';
 
-    const STATUS_COMING_SOON = 'coming_soon';
+    public const STATUS_COMING_SOON = 'coming_soon';
 
-    const PAYROLL_FREQUENCY_MONTHLY = 'monthly';
+    public const PAYROLL_FREQUENCY_MONTHLY = 'monthly';
 
-    const PAYROLL_FREQUENCY_SEMI_MONTHLY = 'semi_monthly';
+    public const PAYROLL_FREQUENCY_SEMI_MONTHLY = 'semi_monthly';
 
     protected $fillable = [
         'name',

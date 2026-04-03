@@ -35,11 +35,12 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, LaravelPermissionToVueJS, Notifiable;
 
-    const STATUS_ACTIVE = 'active';
 
-    const STATUS_INACTIVE = 'inactive';
+    public const STATUS_ACTIVE = 'active';
 
-    const STATUS_SUSPENDED = 'suspended';
+    public const STATUS_INACTIVE = 'inactive';
+
+    public const STATUS_SUSPENDED = 'suspended';
 
     public function branches(): BelongsToMany
     {
@@ -92,7 +93,7 @@ class User extends Authenticatable
 
     public function syncRatePlan(?int $ratePlanId, string $startDate, array $attributes = []): void
     {
-        if (! $ratePlanId) {
+        if (!$ratePlanId) {
             return;
         }
 
@@ -168,7 +169,7 @@ class User extends Authenticatable
     {
         $currentPlan = $this->currentMembership();
 
-        if (! $currentPlan) {
+        if (!$currentPlan) {
             return;
         }
 
@@ -186,7 +187,7 @@ class User extends Authenticatable
         }
 
         $excluded = ['super admin'];
-        if (! $this->hasRole('admin')) {
+        if (!$this->hasRole('admin')) {
             $excluded[] = 'admin';
         }
 

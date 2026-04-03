@@ -12,9 +12,9 @@ class InventoryItem extends Model
     /** @use HasFactory<InventoryItemFactory> */
     use HasFactory;
 
-    const STATUS_ACTIVE = 'active';
+    public const STATUS_ACTIVE = 'active';
 
-    const STATUS_INACTIVE = 'inactive';
+    public const STATUS_INACTIVE = 'inactive';
 
     protected $fillable = [
         'branch_id',

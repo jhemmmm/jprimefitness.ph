@@ -179,9 +179,16 @@
                            &times; ₱{{ $filters.formatMoney(suggestion.daily_rate) }} daily rate = <strong>₱{{ $filters.formatMoney(suggestion.gross_amount) }}</strong> gross.
                         </template>
                         <template v-else> &mdash; <span class="text-warning fw-semibold">No daily rate set.</span> Set it on the employee profile to auto-compute gross. </template>
-                        <span v-if="suggestion.suggested_ca > 0"> &nbsp;· Pending CA: ₱{{ $filters.formatMoney(suggestion.suggested_ca) }}</span>
+                        <span v-if="suggestion.pending_ca_total > 0"> &nbsp;· Pending CA: ₱{{ $filters.formatMoney(suggestion.pending_ca_total) }}</span>
+                        <span v-if="suggestion.max_cash_advance_deduction < suggestion.pending_ca_total"> &nbsp;· Eligible CA this payroll: ₱{{ $filters.formatMoney(suggestion.suggested_ca) }}</span>
                         <span v-if="suggestion.pt_commission_amount > 0"> &nbsp;· PT commissions: ₱{{ $filters.formatMoney(suggestion.pt_commission_amount) }}</span>
                         <span v-if="suggestion.membership_commission_amount > 0"> &nbsp;· Membership commissions: ₱{{ $filters.formatMoney(suggestion.membership_commission_amount) }}</span>
+                        <span v-if="suggestion.branch_country_code === 'PH' && suggestion.bonus_non_taxable_amount > 0" class="d-block text-muted mt-1">
+                           <i class="bi bi-gift me-1"></i>PH exempt bonus applied this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }}
+                        </span>
+                        <span v-if="suggestion.branch_country_code === 'PH' && suggestion.bonus_taxable_amount > 0" class="d-block text-muted mt-1">
+                           <i class="bi bi-calculator me-1"></i>Taxable bonus excess this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}
+                        </span>
                         <span v-if="suggestion.days_worked === 0" class="d-block text-muted mt-1"><i class="bi bi-info-circle me-1"></i>No attendance records found for this period.</span>
                         <span v-if="suggestion.pt_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-stopwatch me-1"></i>{{ suggestion.pt_commission_items.length }} completed PT package{{ suggestion.pt_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
                         <span v-if="suggestion.membership_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-person-check me-1"></i>{{ suggestion.membership_commission_items.length }} membership sale commission{{ suggestion.membership_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
@@ -208,6 +215,12 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Bonus (₱)</label>
                         <input type="number" class="form-control" v-model="form.bonus" min="0" step="0.01" />
+                        <div class="form-text" v-if="suggestion && suggestion.branch_country_code === 'PH'">
+                           PH payrolls apply the annual 13th month and other benefits exemption first.
+                           <span v-if="suggestion.remaining_bonus_exemption > 0"> Available exempt balance before this payroll: ₱{{ $filters.formatMoney(suggestion.remaining_bonus_exemption) }}.</span>
+                           <span v-if="suggestion.bonus_non_taxable_amount > 0"> Exempt this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }}.</span>
+                           <span v-if="suggestion.bonus_taxable_amount > 0"> Taxable excess: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}.</span>
+                        </div>
                      </div>
                       <div class="col-md-6">
                          <label class="form-label form-label-sm">PT Commission (₱)</label>
@@ -226,6 +239,15 @@
                          </div>
                       </div>
                       <div class="col-md-6">
+                         <label class="form-label form-label-sm">Income Tax (₱)</label>
+                         <input type="number" class="form-control" :value="form.income_tax" readonly />
+                         <div class="form-text" v-if="suggestion && suggestion.taxable_earnings > 0">
+                            Calculated from ₱{{ $filters.formatMoney(suggestion.taxable_earnings) }} taxable earnings.
+                            <span v-if="suggestion.bonus_taxable_amount > 0">Taxable bonus portion: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}.</span>
+                         </div>
+                         <div class="form-text" v-else>Calculated automatically from the payroll branch and pay frequency.</div>
+                      </div>
+                      <div class="col-md-6">
                          <label class="form-label form-label-sm">Other Deductions (₱)</label>
                          <input type="number" class="form-control" v-model="form.manual_deductions" min="0" step="0.01" />
                       </div>
@@ -239,7 +261,10 @@
                         </label>
                          <input type="number" class="form-control" v-model="form.cash_advance_deduction" min="0" step="0.01" :class="{ 'is-invalid': formErrors.cash_advance_deduction }" />
                          <div class="invalid-feedback">{{ formErrors.cash_advance_deduction }}</div>
-                         <div class="form-text text-warning" v-if="suggestedCa > 0 && modalMode === 'create'">Pending advances: ₱{{ $filters.formatMoney(suggestedCa) }}</div>
+                         <div class="form-text text-warning" v-if="suggestion?.pending_ca_total > 0 && modalMode === 'create'">
+                            Pending advances: ₱{{ $filters.formatMoney(suggestion.pending_ca_total) }}
+                            <span v-if="suggestion.max_cash_advance_deduction < suggestion.pending_ca_total"> · Eligible this payroll: ₱{{ $filters.formatMoney(suggestion.suggested_ca) }}</span>
+                         </div>
                       </div>
                       <div class="col-12">
                          <label class="form-label form-label-sm">Notes</label>
@@ -367,6 +392,8 @@ export default {
          loadingPayouts: false,
          loadingSuggestion: false,
          suggestion: null,
+         shouldAutofillSuggestedAmounts: false,
+         suggestionFetchHandle: null,
          payrolls: [],
          formError: "",
          formErrors: {},
@@ -377,7 +404,6 @@ export default {
          cancelTarget: null,
          payoutTarget: null,
          existingPayouts: [],
-         suggestedCa: 0,
          form: this.emptyForm(),
          payoutForm: this.emptyPayoutForm(),
          payrollModalInst: null,
@@ -394,23 +420,29 @@ export default {
    },
 
    watch: {
-      "form.period_start"(val) {
-         if (this.modalMode === "create" && val && this.form.period_end) this.fetchSuggestion();
+      "form.period_start"() {
+         this.queueSuggestionFetch();
       },
-      "form.period_end"(val) {
-         if (this.modalMode === "create" && val && this.form.period_start) this.fetchSuggestion();
+      "form.period_end"() {
+         this.queueSuggestionFetch();
+      },
+      "form.gross_amount"() {
+         this.queueSuggestionFetch();
+      },
+      "form.bonus"() {
+         this.queueSuggestionFetch();
+      },
+      "form.manual_deductions"() {
+         this.queueSuggestionFetch();
+      },
+      "form.cash_advance_deduction"() {
+         this.queueSuggestionFetch();
       },
    },
 
    computed: {
       netPreview: function () {
-         const gross = parseFloat(this.form.gross_amount) || 0;
-         const bonus = parseFloat(this.form.bonus) || 0;
-         const ptCommission = parseFloat(this.form.pt_commission_amount) || 0;
-         const membershipCommission = parseFloat(this.form.membership_commission_amount) || 0;
-         const ded = parseFloat(this.form.manual_deductions) || 0;
-         const ca = parseFloat(this.form.cash_advance_deduction) || 0;
-         return Math.max(0, gross + bonus + ptCommission + membershipCommission - ded - ca);
+         return Number(this.suggestion?.net_amount_preview || 0);
       },
       summaryCards: function () {
          const totalGross = this.payrolls.reduce((s, p) => s + p.gross_amount, 0);
@@ -427,6 +459,18 @@ export default {
    },
 
    methods: {
+      queueSuggestionFetch: function () {
+         if (!this.form.period_start || !this.form.period_end) {
+            this.suggestion = null;
+            this.form.income_tax = 0;
+            return;
+         }
+
+         window.clearTimeout(this.suggestionFetchHandle);
+         this.suggestionFetchHandle = window.setTimeout(() => {
+            this.fetchSuggestion();
+         }, 250);
+      },
       fetchPayrolls: function () {
          this.loading = true;
          this.pageError = "";
@@ -446,10 +490,10 @@ export default {
          this.form = { ...this.emptyForm(), period_start: firstDay, period_end: lastDay };
          this.formError = "";
          this.formErrors = {};
-         this.suggestedCa = 0;
          this.suggestion = null;
+         this.shouldAutofillSuggestedAmounts = true;
          this.payrollModalInst.show();
-         this.fetchSuggestion();
+         this.queueSuggestionFetch();
       },
 
       openEdit: function (p) {
@@ -462,6 +506,7 @@ export default {
             period_end: p.period_end,
             gross_amount: p.gross_amount,
             bonus: p.bonus,
+            income_tax: p.income_tax,
             pt_commission_amount: p.pt_commission_amount,
             pt_commission_items: p.pt_commission_items || [],
             membership_commission_amount: p.membership_commission_amount,
@@ -470,41 +515,54 @@ export default {
             cash_advance_deduction: p.cash_advance_deduction,
             notes: p.notes || "",
          };
+         this.suggestion = null;
+         this.shouldAutofillSuggestedAmounts = false;
          this.payrollModalInst.show();
+         this.queueSuggestionFetch();
       },
 
       loadSuggestedCa: function () {
+         if (!this.form.period_start || !this.form.period_end) return;
+
          this.loadingCa = true;
-         axios
-            .get(`/panel/employees/${this.employee.id}/payrolls/suggested-ca`)
-            .then((res) => {
-               this.suggestedCa = res.data.suggested_ca;
-               this.form.cash_advance_deduction = res.data.suggested_ca;
+         this.fetchSuggestion()
+            .then(() => {
+               this.form.cash_advance_deduction = this.suggestion?.suggested_ca || 0;
             })
             .finally(() => (this.loadingCa = false));
       },
 
       fetchSuggestion: function () {
-         if (!this.form.period_start || !this.form.period_end) return;
+         if (!this.form.period_start || !this.form.period_end) return Promise.resolve(null);
+
          this.loadingSuggestion = true;
-         this.suggestion = null;
-         axios
+         return axios
             .get(`/panel/employees/${this.employee.id}/payrolls/suggest`, {
                params: {
                   period_start: this.form.period_start,
                   period_end: this.form.period_end,
                   payroll_id: this.form.id || null,
+                  gross_amount: this.form.gross_amount === "" ? undefined : this.form.gross_amount,
+                  bonus: this.form.bonus,
+                  manual_deductions: this.form.manual_deductions,
+                  cash_advance_deduction: this.form.cash_advance_deduction,
                },
             })
             .then((res) => {
                this.suggestion = res.data;
-               if (this.modalMode === "create") {
-                  if (res.data.gross_amount > 0) this.form.gross_amount = res.data.gross_amount;
-                  if (res.data.suggested_ca > 0) this.form.cash_advance_deduction = res.data.suggested_ca;
-                  this.form.pt_commission_amount = res.data.pt_commission_amount || 0;
-                  this.form.pt_commission_items = res.data.pt_commission_items || [];
-                  this.form.membership_commission_amount = res.data.membership_commission_amount || 0;
-                  this.form.membership_commission_items = res.data.membership_commission_items || [];
+               this.form.income_tax = res.data.income_tax || 0;
+               this.form.pt_commission_amount = res.data.pt_commission_amount || 0;
+               this.form.pt_commission_items = res.data.pt_commission_items || [];
+               this.form.membership_commission_amount = res.data.membership_commission_amount || 0;
+               this.form.membership_commission_items = res.data.membership_commission_items || [];
+
+               if (this.shouldAutofillSuggestedAmounts) {
+                  if (this.form.gross_amount === "" && res.data.gross_amount > 0) this.form.gross_amount = res.data.gross_amount;
+                  if ((this.form.cash_advance_deduction === "" || Number(this.form.cash_advance_deduction) <= 0) && res.data.suggested_ca > 0) {
+                     this.form.cash_advance_deduction = res.data.suggested_ca;
+                  }
+
+                  this.shouldAutofillSuggestedAmounts = false;
                }
             })
             .finally(() => (this.loadingSuggestion = false));
@@ -621,6 +679,7 @@ export default {
             period_end: "",
             gross_amount: "",
             bonus: 0,
+            income_tax: 0,
             pt_commission_amount: 0,
             pt_commission_items: [],
             membership_commission_amount: 0,
@@ -648,6 +707,10 @@ export default {
       hasPayrollActions: function (payroll) {
          return payroll.status === "draft" || this.canAddPayout(payroll) || !!this.getPayslipUrl(payroll);
       },
+   },
+
+   beforeUnmount: function () {
+      window.clearTimeout(this.suggestionFetchHandle);
    },
 };
 </script>

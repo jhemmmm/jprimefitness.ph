@@ -11,7 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class BranchCashLedgerEntry extends Model
 {
     /** @use HasFactory<BranchCashLedgerEntryFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory;
+
+    use SoftDeletes;
 
     public const DIRECTION_IN = 'in';
 

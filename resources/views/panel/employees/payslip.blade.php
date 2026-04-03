@@ -443,6 +443,12 @@
                                 </td>
                             </tr>
                             <tr>
+                                <td class="breakdown-label">Income tax</td>
+                                <td class="breakdown-amount {{ (float) $payroll->income_tax > 0 ? 'amount-negative' : '' }}">
+                                    {{ (float) $payroll->income_tax > 0 ? '- PHP ' . number_format((float) $payroll->income_tax, 2) : '—' }}
+                                </td>
+                            </tr>
+                            <tr>
                                 <td class="breakdown-label">Other deductions</td>
                                 <td class="breakdown-amount {{ (float) $payroll->manual_deductions > 0 ? 'amount-negative' : '' }}">
                                     {{ (float) $payroll->manual_deductions > 0 ? '- PHP ' . number_format((float) $payroll->manual_deductions, 2) : '—' }}

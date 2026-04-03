@@ -524,6 +524,15 @@ export default {
                valueClass: "text-info",
             },
             {
+               label: "Income Tax",
+               value: this.formatCurrencyLabel(this.report.summary.income_tax),
+               sub: "Payroll withholding",
+               icon: "bi-percent",
+               iconBg: "bg-danger-soft",
+               iconColor: "text-danger",
+               valueClass: "text-danger",
+            },
+            {
                label: "Net Payroll",
                value: this.formatCurrencyLabel(this.report.summary.net_payroll),
                sub: "Before payout progress",
@@ -581,6 +590,7 @@ export default {
                total_bonus: 0,
                pt_commission: 0,
                membership_commission: 0,
+               income_tax: 0,
                total_deductions: 0,
                net_payroll: 0,
                total_paid: 0,

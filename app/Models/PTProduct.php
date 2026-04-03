@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PTProduct extends Model
 {
-    const CATEGORY_SINGLE = 'single';
+    public const CATEGORY_SINGLE = 'single';
 
-    const CATEGORY_PACKAGE = 'package';
+    public const CATEGORY_PACKAGE = 'package';
 
     protected $table = 'pt_products';
 

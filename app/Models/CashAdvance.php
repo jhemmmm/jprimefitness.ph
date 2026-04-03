@@ -7,12 +7,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CashAdvance extends Model
 {
-    const STATUS_REQUESTED = 'requested';
-    const STATUS_APPROVED = 'approved';
-    const STATUS_RELEASED = 'released';
-    const STATUS_PARTIALLY_PAID = 'partially_paid';
-    const STATUS_PAID = 'paid';
-    const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_REQUESTED = 'requested';
+
+    public const STATUS_APPROVED = 'approved';
+
+    public const STATUS_RELEASED = 'released';
+
+    public const STATUS_PARTIALLY_PAID = 'partially_paid';
+
+    public const STATUS_PAID = 'paid';
+
+    public const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [
         'employee_id',
@@ -33,14 +38,14 @@ class CashAdvance extends Model
     ];
 
     protected $casts = [
-        'amount'           => 'decimal:2',
+        'amount' => 'decimal:2',
         'remaining_amount' => 'decimal:2',
-        'requested_at'     => 'datetime',
-        'approved_at'      => 'datetime',
-        'released_at'      => 'datetime',
-        'cancelled_at'     => 'datetime',
-        'paid_at'          => 'datetime',
-        'audit_data'       => 'array',
+        'requested_at' => 'datetime',
+        'approved_at' => 'datetime',
+        'released_at' => 'datetime',
+        'cancelled_at' => 'datetime',
+        'paid_at' => 'datetime',
+        'audit_data' => 'array',
     ];
 
     public function employee(): BelongsTo
@@ -71,7 +76,7 @@ class CashAdvance extends Model
     public function appendAuditEvent(array $event): void
     {
         $auditData = $this->audit_data ?? [];
-        $auditData[] = array_filter($event, fn($value) => $value !== null && $value !== '');
+        $auditData[] = array_filter($event, fn ($value) => $value !== null && $value !== '');
 
         $this->audit_data = array_values($auditData);
     }

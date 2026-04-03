@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\Payout;
 use App\Models\Payroll;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -26,7 +27,7 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * Generate payroll report data based on filters
+     * Return the filtered payroll report payload used by the dashboard.
      * @param Request $request
      * @return JsonResponse
      */
@@ -73,6 +74,7 @@ class PayrollReportsController extends Controller
             fputcsv($handle, ['Bonuses', $report['summary']['total_bonus']]);
             fputcsv($handle, ['PT Commission', $report['summary']['pt_commission']]);
             fputcsv($handle, ['Membership Commission', $report['summary']['membership_commission']]);
+            fputcsv($handle, ['Income Tax', $report['summary']['income_tax']]);
             fputcsv($handle, ['Total Deductions', $report['summary']['total_deductions']]);
             fputcsv($handle, ['Net Payroll', $report['summary']['net_payroll']]);
             fputcsv($handle, ['Paid Out To Date', $report['summary']['total_paid']]);
@@ -160,14 +162,14 @@ class PayrollReportsController extends Controller
                     Payroll::STATUS_PARTIALLY_PAID,
                     Payroll::STATUS_PAID,
                     Payroll::STATUS_CANCELED,
-                ])
+                ]),
             ],
             'pay_frequency' => [
                 'nullable',
                 Rule::in([
                     Branch::PAYROLL_FREQUENCY_MONTHLY,
                     Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
-                ])
+                ]),
             ],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
@@ -186,9 +188,10 @@ class PayrollReportsController extends Controller
         $totalBonus = round((float) (clone $payrollQuery)->sum('bonus'), 2);
         $ptCommission = round((float) (clone $payrollQuery)->sum('pt_commission_amount'), 2);
         $membershipCommission = round((float) (clone $payrollQuery)->sum('membership_commission_amount'), 2);
+        $incomeTax = round((float) (clone $payrollQuery)->sum('income_tax'), 2);
         $manualDeductions = round((float) (clone $payrollQuery)->sum('manual_deductions'), 2);
         $cashAdvanceDeductions = round((float) (clone $payrollQuery)->sum('cash_advance_deduction'), 2);
-        $totalDeductions = round($manualDeductions + $cashAdvanceDeductions, 2);
+        $totalDeductions = round($incomeTax + $manualDeductions + $cashAdvanceDeductions, 2);
         $netPayroll = round((float) (clone $payrollQuery)->sum('net_amount'), 2);
         $totalPaid = round((float) (clone $payoutQuery)->sum('payouts.amount'), 2);
         $payrollCount = (int) (clone $payrollQuery)->count();
@@ -216,6 +219,7 @@ class PayrollReportsController extends Controller
                 'total_bonus' => $totalBonus,
                 'pt_commission' => $ptCommission,
                 'membership_commission' => $membershipCommission,
+                'income_tax' => $incomeTax,
                 'total_deductions' => $totalDeductions,
                 'net_payroll' => $netPayroll,
                 'total_paid' => $totalPaid,
@@ -264,8 +268,9 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * Generate status breakdown based on payroll query
-     * @param mixed $query
+     * Group payroll totals by status for the report cards.
+     *
+     * @param  mixed  $query
      * @return array[]
      */
     private function statusBreakdown($query): array
@@ -299,8 +304,9 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * Generate pay frequency breakdown based on payroll query
-     * @param mixed $query
+     * Group payroll totals by snapped pay frequency.
+     *
+     * @param  mixed  $query
      * @return array[]
      */
     private function payFrequencyBreakdown($query): array
@@ -331,9 +337,10 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * Generate branch breakdown based on payroll and payout queries
-     * @param mixed $payrollQuery
-     * @param mixed $payoutQuery
+     * Combine payroll and payout totals per branch for side-by-side reporting.
+     *
+     * @param  mixed  $payrollQuery
+     * @param  mixed  $payoutQuery
      * @return array[]
      */
     private function branchBreakdown($payrollQuery, $payoutQuery): array
@@ -371,8 +378,9 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * Generate payout method breakdown based on payout query
-     * @param mixed $query
+     * Summarize how filtered payroll payouts were released.
+     *
+     * @param  mixed  $query
      * @return array[]
      */
     private function payoutMethodBreakdown($query): array
@@ -397,8 +405,9 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * Generate payroll trend based on payroll query
-     * @param mixed $query
+     * Roll payroll totals up by period end date for the trend chart.
+     *
+     * @param  mixed  $query
      * @return array[]
      */
     private function payrollTrend($query): array
@@ -428,8 +437,9 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * Generate recent payrolls based on payroll query
-     * @param mixed $query
+     * Return the most recent payroll rows that match the current filters.
+     *
+     * @param  mixed  $query
      * @return array[]
      */
     private function recentPayrolls($query): array
