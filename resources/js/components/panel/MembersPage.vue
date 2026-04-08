@@ -6,7 +6,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Members</h4>
-            <p class="text-muted small mb-0">All registered gym members across all branches</p>
+            <p class="text-muted small mb-0">All registered gym members for the current location</p>
          </div>
          <button class="btn btn-danger px-3" @click="openAddModal">
             <i class="bi bi-person-plus-fill me-1"></i>
@@ -80,7 +80,7 @@
                         <th class="col-num">#</th>
                         <th>Member</th>
                         <th>Phone</th>
-                        <th>Branch</th>
+                        <th>Location</th>
                         <th>Plan</th>
                         <th>Status</th>
                         <th>Joined</th>
@@ -161,7 +161,7 @@
                         <th class="col-num">#</th>
                         <th>Member</th>
                         <th>Phone</th>
-                        <th>Branch</th>
+                        <th>Location</th>
                         <th>Plan</th>
                         <th>Status</th>
                         <th>Joined</th>
@@ -182,7 +182,7 @@
                            </a>
                         </td>
                         <td class="text-muted small">{{ member.phone || "-" }}</td>
-                        <td class="small">{{ member.branches && member.branches.length ? member.branches.map((b) => b.name).join(", ") : "-" }}</td>
+                        <td class="small">{{ member.branches && member.branches.length ? member.branches.map((b) => b.name).join(", ") : "Main location" }}</td>
                         <td>
                            <template v-if="getCurrentMembership(member)">
                               <div class="plan-name mb-1">{{ getCurrentMembership(member).rate_plan.name }}</div>
@@ -308,10 +308,6 @@
                         <div class="invalid-feedback" v-if="formErrors.password">{{ formErrors.password }}</div>
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Branches</label>
-                        <MultiSelect v-model="form.branch_ids" :options="branchesData" placeholder="Select branches..." searchable />
-                     </div>
-                     <div :class="modalMode === 'add' ? 'col-md-12' : 'col-md-6'">
                         <label class="form-label form-label-sm">Status</label>
                         <select class="form-select flex-grow-1" v-model="form.status">
                            <option value="active">Active</option>
@@ -389,12 +385,8 @@
 
 <script>
 import { Modal } from "bootstrap";
-import MultiSelect from "./_vendor/MultiSelect.vue";
 
 export default {
-   components: {
-      MultiSelect,
-   },
    props: {
       branchesData: {
          type: Array,
@@ -419,7 +411,6 @@ export default {
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { total: 0, active: 0, inactive: 0, suspended: 0 },
          search: new URLSearchParams(window.location.search).get("search") || "",
-         selectedBranch: parseInt(localStorage.getItem("selectedBranch")) || "",
          selectedStatus: "",
          selectedPlan: "",
          currentPage: 1,
@@ -445,7 +436,6 @@ export default {
             phone: "",
             password: "",
             status: "active",
-            branch_ids: this.selectedBranch ? [this.selectedBranch] : [],
             date_of_birth: "",
             gender: "",
             emergency_contact_name: "",
@@ -463,7 +453,6 @@ export default {
             .get("/panel/members/list", {
                params: {
                   search: this.search || undefined,
-                  branch: this.selectedBranch || undefined,
                   status: this.selectedStatus || undefined,
                   plan: this.selectedPlan || undefined,
                   page: page || this.currentPage,
@@ -519,7 +508,6 @@ export default {
             phone: member.phone || "",
             password: "",
             status: member.status || "active",
-            branch_ids: member.branches ? member.branches.map((b) => b.id) : [],
             date_of_birth: (member.profile && member.profile.date_of_birth) || "",
             gender: (member.profile && member.profile.gender) || "",
             emergency_contact_name: (member.profile && member.profile.emergency_contact_name) || "",

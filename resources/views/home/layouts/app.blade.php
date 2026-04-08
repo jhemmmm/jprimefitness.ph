@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', 'JPRIME FITNESS - Multi-branch Gym')</title>
+    <title>@yield('title', 'JPRIME FITNESS')</title>
 
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
@@ -77,7 +77,7 @@
                         <img src="{{ asset('logo.png') }}" alt="JPRIME FITNESS Logo" />JPRIME <span
                             class="text-danger">FITNESS</span>
                     </span>
-                    <div class="text-muted small mt-1">Multi-branch Gym</div>
+                    <div class="text-muted small mt-1">Single-location training hub</div>
                 </div>
                 <div class="d-flex gap-4">
                     <a href="#" class="text-white-50 text-decoration-none small">

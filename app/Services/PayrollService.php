@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Attendance;
-use App\Models\Branch;
+use App\Models\BusinessProfile;
 use App\Models\CashAdvance;
 use App\Models\MemberPtPackage;
 use App\Models\MemberSubscription;
@@ -154,10 +154,8 @@ class PayrollService
      */
     public function syncCalculatedAmounts(Payroll $payroll): array
     {
-        $payroll->loadMissing('branch');
-
         $totals = $this->calculatePayrollTotals(
-            $payroll->branch?->country_code,
+            app(BusinessProfileContext::class)->profile()->country_code,
             $payroll->pay_frequency,
             (float) $payroll->gross_amount,
             (float) $payroll->bonus,
@@ -214,11 +212,9 @@ class PayrollService
      */
     public function normalizePayrollCashAdvanceDeduction(Payroll $payroll): float
     {
-        $payroll->loadMissing('branch');
-
         $maxDeduction = $this->maxCashAdvanceDeduction(
             $payroll->employee_id,
-            $payroll->branch?->country_code,
+            app(BusinessProfileContext::class)->profile()->country_code,
             $payroll->pay_frequency,
             (float) $payroll->gross_amount,
             (float) $payroll->bonus,
@@ -366,11 +362,10 @@ class PayrollService
         User $employee,
         string $periodStart,
         string $periodEnd,
-        ?Payroll $payroll = null,
-        ?int $branchId = null
+        ?Payroll $payroll = null
     ): array {
-        $packages = $this->ptCommissionPackageQuery($employee, $periodStart, $periodEnd, $payroll, $branchId)
-            ->with(['member:id,name', 'ptProduct:id,name', 'branch:id,name'])
+        $packages = $this->ptCommissionPackageQuery($employee, $periodStart, $periodEnd, $payroll)
+            ->with(['member:id,name', 'ptProduct:id,name'])
             ->orderBy('coach_commission_earned_at')
             ->get();
 
@@ -394,8 +389,7 @@ class PayrollService
             $payroll->employee,
             $payroll->period_start->format('Y-m-d'),
             $payroll->period_end->format('Y-m-d'),
-            $payroll,
-            $payroll->branch_id
+            $payroll
         );
 
         $packageIds = collect($summary['items'])
@@ -430,8 +424,7 @@ class PayrollService
             $payroll->employee,
             $payroll->period_start->format('Y-m-d'),
             $payroll->period_end->format('Y-m-d'),
-            $payroll,
-            $payroll->branch_id
+            $payroll
         );
 
         $subscriptionIds = collect($summary['items'])
@@ -482,11 +475,10 @@ class PayrollService
         User $employee,
         string $periodStart,
         string $periodEnd,
-        ?Payroll $payroll = null,
-        ?int $branchId = null
+        ?Payroll $payroll = null
     ): array {
-        $subscriptions = $this->membershipCommissionSubscriptionQuery($employee, $periodStart, $periodEnd, $payroll, $branchId)
-            ->with(['member:id,name', 'ratePlan:id,name', 'branch:id,name'])
+        $subscriptions = $this->membershipCommissionSubscriptionQuery($employee, $periodStart, $periodEnd, $payroll)
+            ->with(['member:id,name', 'ratePlan:id,name'])
             ->orderBy('manager_commission_earned_at')
             ->get();
 
@@ -522,15 +514,13 @@ class PayrollService
         User $employee,
         string $periodStart,
         string $periodEnd,
-        ?Payroll $payroll = null,
-        ?int $branchId = null
+        ?Payroll $payroll = null
     ) {
         $start = Carbon::parse($periodStart)->startOfDay();
         $end = Carbon::parse($periodEnd)->endOfDay();
 
         return MemberPtPackage::query()
             ->where('coach_id', $employee->id)
-            ->when($branchId !== null, fn ($query) => $query->where('branch_id', $branchId))
             ->where('coach_commission_status', MemberPtPackage::COMMISSION_STATUS_EARNED)
             ->whereBetween('coach_commission_earned_at', [$start, $end])
             ->where(function ($query) use ($payroll) {
@@ -546,15 +536,13 @@ class PayrollService
         User $employee,
         string $periodStart,
         string $periodEnd,
-        ?Payroll $payroll = null,
-        ?int $branchId = null
+        ?Payroll $payroll = null
     ) {
         $start = Carbon::parse($periodStart)->startOfDay();
         $end = Carbon::parse($periodEnd)->endOfDay();
 
         return MemberSubscription::query()
             ->where('manager_id', $employee->id)
-            ->when($branchId !== null, fn ($query) => $query->where('branch_id', $branchId))
             ->where('manager_commission_status', MemberSubscription::COMMISSION_STATUS_EARNED)
             ->whereBetween('manager_commission_earned_at', [$start, $end])
             ->where(function ($query) use ($payroll) {
@@ -575,7 +563,6 @@ class PayrollService
             'package_id' => $package->id,
             'member_id' => $package->user_id,
             'member_name' => $package->member?->name,
-            'branch_name' => $package->branch?->name,
             'product_name' => $package->ptProduct?->name,
             'earned_at' => $package->coach_commission_earned_at?->toISOString(),
             'sold_price' => round((float) $package->sold_price, 2),
@@ -593,7 +580,6 @@ class PayrollService
             'subscription_id' => $subscription->id,
             'member_id' => $subscription->user_id,
             'member_name' => $subscription->member?->name,
-            'branch_name' => $subscription->branch?->name,
             'product_name' => $subscription->ratePlan?->name,
             'earned_at' => $subscription->manager_commission_earned_at?->toISOString(),
             'sold_price' => round((float) $subscription->sold_price, 2),
@@ -611,7 +597,7 @@ class PayrollService
     private function bonusTaxBreakdown(?string $countryCode, float $bonus, array $context = []): array
     {
         $normalizedBonus = round(max(0, $bonus), 2);
-        $isPhilippines = strtoupper((string) $countryCode) === Branch::COUNTRY_PHILIPPINES;
+        $isPhilippines = strtoupper((string) $countryCode) === BusinessProfile::COUNTRY_PHILIPPINES;
 
         if (! $isPhilippines) {
             return [

@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\Branch;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -12,11 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('branches', function (Blueprint $table) {
+        Schema::create('business_profiles', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
-            $table->enum('status', [Branch::STATUS_OPEN, Branch::STATUS_CLOSED, Branch::STATUS_COMING_SOON])->default(Branch::STATUS_COMING_SOON);
+            $table->string('country_code', 2)->default('PH');
+            $table->enum('status', ['open', 'closed', 'coming_soon'])->default('open');
             $table->string('city');
             $table->string('province')->nullable();
             $table->string('address')->nullable();
@@ -26,11 +25,19 @@ return new class extends Migration
             $table->string('facebook_url')->nullable();
             $table->string('whatsapp_url')->nullable();
             $table->string('map_url', 255)->nullable();
+            $table->json('photos')->nullable();
             $table->time('opening_time')->nullable();
             $table->time('closing_time')->nullable();
             $table->json('amenities')->nullable();
             $table->json('operating_hours')->nullable();
             $table->string('timezone')->default('Asia/Manila');
+            $table->string('hero_badge')->nullable();
+            $table->string('hero_title')->nullable();
+            $table->string('hero_highlight')->nullable();
+            $table->text('hero_description')->nullable();
+            $table->string('about_heading')->nullable();
+            $table->text('about_description')->nullable();
+            $table->text('membership_note')->nullable();
             $table->timestamps();
         });
     }
@@ -40,6 +47,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('branches');
+        Schema::dropIfExists('business_profiles');
     }
 };

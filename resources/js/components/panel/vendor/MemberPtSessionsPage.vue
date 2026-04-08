@@ -31,7 +31,7 @@
                <thead class="table-light">
                   <tr>
                      <th>Product</th>
-                     <th>Branch</th>
+                     <th>Location</th>
                      <th>Coach</th>
                      <th>Balance</th>
                      <th>Commission</th>
@@ -46,7 +46,7 @@
                         <div class="fw-semibold">{{ pkg.pt_product?.name || "-" }}</div>
                         <div class="small text-muted" v-if="pkg.notes">{{ pkg.notes }}</div>
                      </td>
-                     <td class="small">{{ pkg.branch?.name || "-" }}</td>
+                     <td class="small">{{ pkg.branch?.name || currentLocationName }}</td>
                      <td class="small">{{ pkg.coach?.name || "-" }}</td>
                      <td class="small">
                         <span class="fw-semibold">{{ pkg.remaining_sessions }}</span>
@@ -74,7 +74,7 @@
                <div class="member-card-top">
                   <div>
                      <div class="fw-semibold">{{ pkg.pt_product?.name || "-" }}</div>
-                     <div class="text-muted small">{{ pkg.branch?.name || "-" }}</div>
+                     <div class="text-muted small">{{ pkg.branch?.name || currentLocationName }}</div>
                      <div class="text-muted small" v-if="pkg.coach?.name">Coach: {{ pkg.coach.name }}</div>
                      <div class="text-muted small">Commission: ₱{{ $filters.formatMoney(pkg.coach_commission_amount || 0) }} · {{ commissionLabel(pkg) }}</div>
                   </div>
@@ -98,7 +98,7 @@
                      <tr>
                         <th>Used At</th>
                         <th>Product</th>
-                        <th>Branch</th>
+                        <th>Location</th>
                         <th>Sessions</th>
                         <th>Coach</th>
                         <th>Confirmed By</th>
@@ -112,7 +112,7 @@
                            <div class="fw-semibold">{{ usage.package.pt_product?.name || "-" }}</div>
                            <div class="small text-muted" v-if="usage.notes">{{ usage.notes }}</div>
                         </td>
-                        <td class="small">{{ usage.package.branch?.name || "-" }}</td>
+                        <td class="small">{{ usage.package.branch?.name || currentLocationName }}</td>
                         <td class="small">{{ usage.sessions_used }}</td>
                         <td class="small">{{ usage.coach?.name || usage.package.coach?.name || "-" }}</td>
                         <td class="small">{{ usage.confirmed_by || "-" }}</td>
@@ -132,7 +132,7 @@
                      <span class="m-badge m-badge--plan-active">{{ usage.sessions_used }} used</span>
                   </div>
                   <div class="member-card-footer">
-                     <span>{{ usage.package.branch?.name || "-" }}</span>
+                     <span>{{ usage.package.branch?.name || currentLocationName }}</span>
                      <span class="text-muted small">{{ usage.coach?.name || usage.package.coach?.name || usage.confirmed_by || usage.recorded_by?.name || "-" }}</span>
                   </div>
                </div>
@@ -150,12 +150,8 @@
                <div class="modal-body">
                   <div class="row g-3">
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm fw-semibold">Branch</label>
-                        <select class="form-select" v-model="packageForm.branch_id" :class="{ 'is-invalid': packageErrors.branch_id }">
-                           <option disabled value="">Select a branch...</option>
-                           <option v-for="branch in availableBranches" :key="branch.id" :value="branch.id">{{ branch.name }}</option>
-                        </select>
-                        <div class="invalid-feedback" v-if="packageErrors.branch_id">{{ packageErrors.branch_id }}</div>
+                        <label class="form-label form-label-sm fw-semibold">Location</label>
+                        <input type="text" class="form-control" :value="currentLocationName" disabled />
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm fw-semibold">PT Product</label>
@@ -196,7 +192,7 @@
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-danger btn-sm" @click="submitPackage" :disabled="savingPackage || !packageForm.branch_id || !packageForm.pt_product_id">
+                  <button type="button" class="btn btn-danger btn-sm" @click="submitPackage" :disabled="savingPackage || !packageForm.pt_product_id">
                      <span class="spinner-border spinner-border-sm me-1" v-if="savingPackage"></span>
                      Add Package
                   </button>
@@ -284,7 +280,7 @@ export default {
          packageErrors: {},
          usageErrors: {},
          packageForm: {
-            branch_id: "",
+            branch_id: window.JPrime?.profile?.id || "",
             pt_product_id: "",
             coach_id: "",
             assigned_at: new Date().toISOString().slice(0, 10),
@@ -317,11 +313,7 @@ export default {
             this.resetUsageForm();
          },
       },
-      "packageForm.branch_id"(value) {
-         if (!this.availableProducts.some((product) => product.id === this.packageForm.pt_product_id)) {
-            this.packageForm.pt_product_id = value && this.availableProducts.length ? this.availableProducts[0].id : "";
-         }
-
+      "packageForm.pt_product_id"() {
          if (!this.availablePackageCoaches.some((coach) => coach.id === this.packageForm.coach_id)) {
             this.packageForm.coach_id = "";
          }
@@ -339,13 +331,20 @@ export default {
    },
 
    computed: {
-      availableBranches: function () {
-         return this.member.branches || [];
+      currentLocation: function () {
+         return this.member.branches?.[0] || window.JPrime?.profile || null;
+      },
+
+      currentLocationId: function () {
+         return this.currentLocation?.id || null;
+      },
+
+      currentLocationName: function () {
+         return this.currentLocation?.name || "Current location";
       },
 
       availableProducts: function () {
-         const branch = this.availableBranches.find((item) => item.id === this.packageForm.branch_id);
-         return branch?.pt_products || [];
+         return this.currentLocation?.pt_products || [];
       },
 
       availableCoaches: function () {
@@ -353,7 +352,7 @@ export default {
       },
 
       availablePackageCoaches: function () {
-         return this.coachesForBranch(this.packageForm.branch_id);
+         return this.coachesForBranch(this.currentLocationId);
       },
 
       selectedPackageProduct: function () {
@@ -384,7 +383,7 @@ export default {
       },
 
       availableUsageCoaches: function () {
-         return this.coachesForBranch(this.selectedUsagePackage?.branch_id || null);
+         return this.coachesForBranch(this.selectedUsagePackage?.branch_id || this.currentLocationId);
       },
 
       usageEntries: function () {
@@ -422,9 +421,8 @@ export default {
 
    methods: {
       resetPackageForm: function () {
-         const defaultBranchId = this.availableBranches[0]?.id || "";
          this.packageForm = {
-            branch_id: defaultBranchId,
+            branch_id: this.currentLocationId || "",
             pt_product_id: "",
             coach_id: "",
             assigned_at: new Date().toISOString().slice(0, 10),

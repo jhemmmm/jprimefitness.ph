@@ -78,7 +78,7 @@
                      <tr>
                         <th>Name</th>
                         <th>Type</th>
-                        <th>Branch</th>
+                        <th>Location</th>
                         <th>Checked In</th>
                         <th>Checked Out</th>
                         <th class="col-actions"></th>
@@ -147,7 +147,7 @@
                      <tr>
                         <th>Name</th>
                         <th>Type</th>
-                        <th>Branch</th>
+                        <th>Location</th>
                         <th>Checked In</th>
                         <th>Checked Out</th>
                         <th class="col-actions"></th>
@@ -315,16 +315,6 @@
                         </div>
                      </template>
 
-                     <!-- Branch -->
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Branch <span class="text-danger">*</span></label>
-                        <select class="form-select" v-model="form.branch_id" :class="{ 'is-invalid': formErrors.branch_id }">
-                           <option disabled value="">Select a branch...</option>
-                           <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
-                        </select>
-                        <div class="invalid-feedback" v-if="formErrors.branch_id">{{ formErrors.branch_id }}</div>
-                     </div>
-
                      <!-- Checked In -->
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Checked In <span class="text-danger">*</span></label>
@@ -396,7 +386,7 @@ export default {
       AsyncSearchSelect,
    },
    props: {
-      branchesData: { type: Array, required: true },
+      branchesData: { type: Array, default: () => [] },
    },
    data: function () {
       return {
@@ -408,7 +398,6 @@ export default {
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { today: 0, this_week: 0, this_month: 0, currently_in: 0 },
          search: "",
-         selectedBranch: parseInt(localStorage.getItem("selectedBranch")) || "",
          selectedType: "",
          dateFrom: "",
          dateTo: "",
@@ -436,7 +425,6 @@ export default {
             attendee_type: "member",
             user_id: "",
             name: "",
-            branch_id: this.selectedBranch || "",
             checked_in_at: new Date().toISOString().slice(0, 16),
             checked_out_at: "",
             notes: "",
@@ -451,7 +439,6 @@ export default {
                params: {
                   page,
                   search: this.search || undefined,
-                  branch: this.selectedBranch || undefined,
                   type: this.selectedType || undefined,
                   date_from: this.dateFrom || undefined,
                   date_to: this.dateTo || undefined,
@@ -518,10 +505,7 @@ export default {
       },
 
       fetchPeopleOptions: function (search) {
-         const params = {
-            search,
-            branch: this.form.branch_id || undefined,
-         };
+         const params = { search };
 
          if (this.form.attendee_type === "employee") {
             return axios.get("/panel/employees/list", { params }).then((res) => this.mapPeopleOptions(res.data || []));
@@ -534,7 +518,7 @@ export default {
          return people.map((person) => ({
             id: person.id,
             name: person.name,
-            meta: person.email || (person.branches || []).map((branch) => branch.name).join(", "),
+            meta: person.email || "",
          }));
       },
 
@@ -553,7 +537,6 @@ export default {
             attendee_type: r.attendee_type,
             user_id: r.user_id || "",
             name: r.name || "",
-            branch_id: r.branch_id || "",
             checked_in_at: r.checked_in_at ? r.checked_in_at.slice(0, 16) : new Date().toISOString().slice(0, 16),
             checked_out_at: r.checked_out_at ? r.checked_out_at.slice(0, 16) : "",
             notes: r.notes || "",

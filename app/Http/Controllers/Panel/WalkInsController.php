@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\WalkIn;
-use App\Services\BranchCashLedgerService;
+use App\Services\BusinessProfileContext;
+use App\Services\CashLedgerService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,41 +16,47 @@ use Illuminate\View\View;
 
 class WalkInsController extends Controller
 {
-    public function __construct(private BranchCashLedgerService $branchCashLedgerService)
-    {
+    public function __construct(
+        private CashLedgerService $cashLedgerService,
+        private BusinessProfileContext $businessProfileContext,
+    ) {
     }
 
-    /**
-     * Walk In Index
-     *
-     * @return \Illuminate\Contracts\View\View
-     */
     public function index(): View
     {
         return view('panel.walk-ins');
     }
 
-    /**
-     * List
-     */
     public function list(Request $request): JsonResponse
     {
-        $walkIns = WalkIn::with(['branch', 'ratePlan'])
-            ->when(!empty($request->search), fn($q) => $q->where(function ($qq) use ($request) {
-                $qq->where('name', 'like', "%{$request->search}%")
+        $legacyLocation = $this->businessProfileContext->legacyLocation();
+
+        $walkIns = WalkIn::with('ratePlan')
+            ->when(! empty($request->search), fn ($query) => $query->where(function ($inner) use ($request) {
+                $inner->where('name', 'like', "%{$request->search}%")
                     ->orWhere('phone', 'like', "%{$request->search}%");
             }))
-            ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
-            ->when($request->branch, fn($q) => $q->where('branch_id', $request->branch))
-            ->when($request->date_from, fn($q) => $q->whereDate('visited_at', '>=', $request->date_from))
-            ->when($request->date_to, fn($q) => $q->whereDate('visited_at', '<=', $request->date_to))
-            ->orderBy('visited_at', 'desc')
+            ->when($request->date_from, fn ($query) => $query->whereDate('visited_at', '>=', $request->date_from))
+            ->when($request->date_to, fn ($query) => $query->whereDate('visited_at', '<=', $request->date_to))
+            ->orderByDesc('visited_at')
             ->paginate(20)
+            ->through(fn (WalkIn $walkIn) => [
+                'id' => $walkIn->id,
+                'branch_id' => $legacyLocation['id'],
+                'branch' => $legacyLocation,
+                'rate_plan_id' => $walkIn->rate_plan_id,
+                'rate_plan' => $walkIn->ratePlan,
+                'served_by' => $walkIn->served_by,
+                'name' => $walkIn->name,
+                'phone' => $walkIn->phone,
+                'amount_paid' => round((float) $walkIn->amount_paid, 2),
+                'payment_method' => $walkIn->payment_method,
+                'visited_at' => $walkIn->visited_at?->toISOString(),
+                'notes' => $walkIn->notes,
+            ])
             ->withQueryString();
 
-        $baseStats = WalkIn::query()
-            ->when(!auth()->user()->hasRole('super admin'), fn($q) => $q->whereIn('branch_id', auth()->user()->branches()->pluck('branches.id')))
-            ->when($request->branch, fn($q) => $q->where('branch_id', $request->branch));
+        $baseStats = WalkIn::query();
 
         $stats = [
             'today' => (clone $baseStats)->whereDate('visited_at', Carbon::today())->count(),
@@ -60,13 +68,9 @@ class WalkInsController extends Controller
         return response()->json(compact('walkIns', 'stats'));
     }
 
-    /**
-     * Store
-     */
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'branch_id' => ['required', 'exists:branches,id'],
             'rate_plan_id' => ['nullable', 'exists:rate_plans,id'],
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
@@ -76,23 +80,28 @@ class WalkInsController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
+        if (! empty($data['rate_plan_id'])) {
+            RatePlan::query()->whereKey($data['rate_plan_id'])->firstOrFail();
+        }
+
         $data['served_by'] = auth()->id();
-        $data['payment_method'] = $data['payment_method'] ?? 'cash';
+        $data['payment_method'] = $data['payment_method'] ?? SaleTransaction::PAYMENT_METHOD_CASH;
         $data['visited_at'] = $data['visited_at'] ?? now();
 
         $walkIn = WalkIn::create($data);
-        $this->branchCashLedgerService->syncWalkIn($walkIn);
+        $this->cashLedgerService->syncWalkIn($walkIn);
 
-        return response()->json($walkIn->load(['branch', 'ratePlan']), 201);
+        return response()->json($this->serializeWalkIn($walkIn->fresh(['ratePlan'])), 201);
     }
 
-    /**
-     * Summary of update
-     */
+    public function show(WalkIn $walkIn): JsonResponse
+    {
+        return response()->json($this->serializeWalkIn($walkIn->load('ratePlan')));
+    }
+
     public function update(Request $request, WalkIn $walkIn): JsonResponse
     {
         $data = $request->validate([
-            'branch_id' => ['required', 'exists:branches,id'],
             'rate_plan_id' => ['nullable', 'exists:rate_plans,id'],
             'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
@@ -102,21 +111,39 @@ class WalkInsController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $data['payment_method'] = $data['payment_method'] ?? $walkIn->payment_method ?? 'cash';
+        $data['payment_method'] = $data['payment_method'] ?? $walkIn->payment_method ?? SaleTransaction::PAYMENT_METHOD_CASH;
         $walkIn->update($data);
-        $this->branchCashLedgerService->syncWalkIn($walkIn->fresh(['ratePlan']));
+        $this->cashLedgerService->syncWalkIn($walkIn->fresh(['ratePlan']));
 
-        return response()->json($walkIn->fresh()->load(['branch', 'ratePlan']));
+        return response()->json($this->serializeWalkIn($walkIn->fresh(['ratePlan'])));
     }
 
-    /**
-     * Summary of destroy
-     */
     public function destroy(WalkIn $walkIn): JsonResponse
     {
-        $this->branchCashLedgerService->deleteWalkIn($walkIn);
+        $this->cashLedgerService->deleteWalkIn($walkIn);
         $walkIn->delete();
 
         return response()->json(null, 204);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeWalkIn(WalkIn $walkIn): array
+    {
+        return [
+            'id' => $walkIn->id,
+            'branch_id' => $this->businessProfileContext->profile()->id,
+            'branch' => $this->businessProfileContext->legacyLocation(),
+            'rate_plan_id' => $walkIn->rate_plan_id,
+            'rate_plan' => $walkIn->ratePlan,
+            'served_by' => $walkIn->served_by,
+            'name' => $walkIn->name,
+            'phone' => $walkIn->phone,
+            'amount_paid' => round((float) $walkIn->amount_paid, 2),
+            'payment_method' => $walkIn->payment_method,
+            'visited_at' => $walkIn->visited_at?->toISOString(),
+            'notes' => $walkIn->notes,
+        ];
     }
 }

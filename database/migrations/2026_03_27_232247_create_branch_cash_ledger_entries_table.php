@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('branch_cash_ledger_entries', function (Blueprint $table) {
+        Schema::create('cash_ledger_entries', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->string('entry_type', 50);
             $table->string('direction', 10);
             $table->unsignedBigInteger('source_id')->nullable();
@@ -25,10 +24,10 @@ return new class extends Migration
             $table->boolean('is_system')->default(false);
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
+            $table->softDeletes();
 
-            $table->index(['branch_id', 'occurred_at'], 'branch_cash_ledger_branch_occurred_idx');
-            $table->index(['entry_type', 'source_id'], 'branch_cash_ledger_entry_source_idx');
-            $table->index(['branch_id', 'is_system'], 'branch_cash_ledger_branch_system_idx');
+            $table->index(['occurred_at', 'is_system'], 'cash_ledger_occurred_system_idx');
+            $table->index(['entry_type', 'source_id'], 'cash_ledger_entry_source_idx');
         });
     }
 
@@ -37,6 +36,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('branch_cash_ledger_entries');
+        Schema::dropIfExists('cash_ledger_entries');
     }
 };

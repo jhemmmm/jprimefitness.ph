@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
-use Database\Factories\BranchCashLedgerEntryFactory;
+use Database\Factories\CashLedgerEntryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class BranchCashLedgerEntry extends Model
+class CashLedgerEntry extends Model
 {
-    /** @use HasFactory<BranchCashLedgerEntryFactory> */
+    /** @use HasFactory<CashLedgerEntryFactory> */
     use HasFactory;
 
     use SoftDeletes;
@@ -34,7 +34,6 @@ class BranchCashLedgerEntry extends Model
     public const TYPE_CASH_ADVANCE_RELEASE = 'cash_advance_release';
 
     protected $fillable = [
-        'branch_id',
         'entry_type',
         'direction',
         'source_id',
@@ -54,11 +53,6 @@ class BranchCashLedgerEntry extends Model
         'is_system' => 'boolean',
         'deleted_at' => 'datetime',
     ];
-
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
-    }
 
     public function createdBy(): BelongsTo
     {

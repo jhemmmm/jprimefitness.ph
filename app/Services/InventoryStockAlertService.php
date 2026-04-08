@@ -36,11 +36,8 @@ class InventoryStockAlertService
             'stock_alert_state' => $currentAlertState,
         ])->saveQuietly();
 
-        $inventoryItem->loadMissing('branch:id,name');
-
         $this->notificationRecipientResolver->send(
             new InventoryStockAlertNotification($inventoryItem, $currentAlertState),
-            $inventoryItem->branch_id,
         );
     }
 

@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Branch;
 use App\Models\InventoryItem;
 use App\Models\MemberPtPackage;
 use App\Models\MemberSubscription;
@@ -21,7 +20,7 @@ use Illuminate\Validation\ValidationException;
 class PosSaleService
 {
     public function __construct(
-        private BranchCashLedgerService $branchCashLedgerService,
+        private CashLedgerService $cashLedgerService,
         private InventoryStockAlertService $inventoryStockAlertService,
     ) {
     }
@@ -33,63 +32,57 @@ class PosSaleService
      *     pt_rates: array<int, array<string, mixed>>
      * }
      */
-    public function branchContext(Branch $branch): array
+    public function context(): array
     {
         $inventoryItems = InventoryItem::query()
             ->with('category:id,name')
-            ->where('branch_id', $branch->id)
             ->where('status', InventoryItem::STATUS_ACTIVE)
             ->where('quantity', '>', 0)
             ->whereNotNull('selling_price')
             ->orderBy('name')
             ->get()
-            ->map(function (InventoryItem $item) {
-                return [
-                    'id' => $item->id,
-                    'name' => $item->name,
-                    'category_name' => $item->category?->name,
-                    'quantity' => (float) $item->quantity,
-                    'unit' => $item->unit,
-                    'selling_price' => round((float) $item->selling_price, 2),
-                ];
-            })
+            ->map(fn (InventoryItem $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'category_name' => $item->category?->name,
+                'quantity' => (float) $item->quantity,
+                'unit' => $item->unit,
+                'selling_price' => round((float) $item->selling_price, 2),
+            ])
             ->values()
             ->all();
 
-        $membershipRates = $branch->ratePlans()
-            ->where('rate_plans.is_active', true)
-            ->wherePivot('is_active', true)
+        $membershipRates = RatePlan::query()
+            ->where('is_active', true)
+            ->whereNotNull('price')
             ->orderBy('duration_days')
             ->orderBy('name')
             ->get()
-            ->map(function (RatePlan $ratePlan) {
-                return [
-                    'id' => $ratePlan->id,
-                    'name' => $ratePlan->name,
-                    'duration_days' => $ratePlan->duration_days,
-                    'description' => $ratePlan->description,
-                    'price' => round((float) $ratePlan->pivot->price, 2),
-                    'manager_commission_rate' => round((float) ($ratePlan->pivot->manager_commission_rate ?? 0), 2),
-                ];
-            })
+            ->map(fn (RatePlan $ratePlan) => [
+                'id' => $ratePlan->id,
+                'name' => $ratePlan->name,
+                'duration_days' => $ratePlan->duration_days,
+                'description' => $ratePlan->description,
+                'price' => round((float) $ratePlan->price, 2),
+                'manager_commission_rate' => round((float) ($ratePlan->manager_commission_rate ?? 0), 2),
+            ])
             ->values()
             ->all();
 
-        $ptRates = $branch->ptProducts()
-            ->where('pt_products.is_active', true)
-            ->wherePivot('is_active', true)
+        $ptRates = PTProduct::query()
+            ->where('is_active', true)
+            ->whereNotNull('price')
             ->orderBy('session_count')
             ->orderBy('name')
             ->get()
-            ->map(function (PTProduct $ptProduct) {
-                return [
-                    'id' => $ptProduct->id,
-                    'name' => $ptProduct->name,
-                    'session_count' => $ptProduct->session_count,
-                    'description' => $ptProduct->description,
-                    'price' => round((float) $ptProduct->pivot->price, 2),
-                ];
-            })
+            ->map(fn (PTProduct $ptProduct) => [
+                'id' => $ptProduct->id,
+                'name' => $ptProduct->name,
+                'session_count' => $ptProduct->session_count,
+                'description' => $ptProduct->description,
+                'price' => round((float) $ptProduct->price, 2),
+                'coach_commission_rate' => round((float) ($ptProduct->coach_commission_rate ?? 0), 2),
+            ])
             ->values()
             ->all();
 
@@ -103,13 +96,13 @@ class PosSaleService
     /**
      * @param  array<string, mixed>  $data
      */
-    public function processSale(Branch $branch, array $data, User $processedBy): SaleTransaction
+    public function processSale(array $data, User $processedBy): SaleTransaction
     {
         return match ($data['type']) {
-            SaleTransaction::TYPE_INVENTORY => $this->sellInventory($branch, $data, $processedBy),
-            SaleTransaction::TYPE_MEMBERSHIP => $this->sellMembership($branch, $data, $processedBy),
-            SaleTransaction::TYPE_PT_PACKAGE => $this->sellPtPackage($branch, $data, $processedBy),
-            SaleTransaction::TYPE_WALK_IN => $this->sellWalkIn($branch, $data, $processedBy),
+            SaleTransaction::TYPE_INVENTORY => $this->sellInventory($data, $processedBy),
+            SaleTransaction::TYPE_MEMBERSHIP => $this->sellMembership($data, $processedBy),
+            SaleTransaction::TYPE_PT_PACKAGE => $this->sellPtPackage($data, $processedBy),
+            SaleTransaction::TYPE_WALK_IN => $this->sellWalkIn($data, $processedBy),
             default => throw ValidationException::withMessages([
                 'type' => ['The selected sale type is invalid.'],
             ]),
@@ -119,16 +112,15 @@ class PosSaleService
     /**
      * @param  array<string, mixed>  $data
      */
-    private function sellInventory(Branch $branch, array $data, User $processedBy): SaleTransaction
+    private function sellInventory(array $data, User $processedBy): SaleTransaction
     {
-        return DB::transaction(function () use ($branch, $data, $processedBy) {
+        return DB::transaction(function () use ($data, $processedBy) {
             $lines = $this->normalizeInventoryLines($data);
             $inventoryItemIds = $lines->pluck('inventory_item_id')->map(fn ($id) => (int) $id)->values();
 
             $items = InventoryItem::query()
                 ->with('category:id,name')
                 ->whereIn('id', $inventoryItemIds)
-                ->where('branch_id', $branch->id)
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');
@@ -184,7 +176,6 @@ class PosSaleService
             $payment = $this->resolvePayment($saleTotal, $data);
 
             $saleTransaction = SaleTransaction::create([
-                'branch_id' => $branch->id,
                 'member_id' => null,
                 'type' => SaleTransaction::TYPE_INVENTORY,
                 'total' => $saleTotal,
@@ -201,7 +192,7 @@ class PosSaleService
                 ],
             ]);
 
-            $this->branchCashLedgerService->syncSaleTransaction($saleTransaction);
+            $this->cashLedgerService->syncSaleTransaction($saleTransaction);
 
             return $saleTransaction;
         });
@@ -210,30 +201,28 @@ class PosSaleService
     /**
      * @param  array<string, mixed>  $data
      */
-    private function sellMembership(Branch $branch, array $data, User $processedBy): SaleTransaction
+    private function sellMembership(array $data, User $processedBy): SaleTransaction
     {
-        return DB::transaction(function () use ($branch, $data, $processedBy) {
-            $ratePlan = $branch->ratePlans()
-                ->where('rate_plans.id', (int) $data['rate_plan_id'])
-                ->where('rate_plans.is_active', true)
-                ->wherePivot('is_active', true)
+        return DB::transaction(function () use ($data, $processedBy) {
+            $ratePlan = RatePlan::query()
+                ->whereKey((int) $data['rate_plan_id'])
+                ->where('is_active', true)
+                ->whereNotNull('price')
                 ->first();
 
             if (! $ratePlan) {
                 throw ValidationException::withMessages([
-                    'rate_plan_id' => ['The selected membership plan is not available for this branch.'],
+                    'rate_plan_id' => ['The selected membership plan is not available.'],
                 ]);
             }
 
-            $member = $this->resolveMember($branch, $data);
-            $member->branches()->syncWithoutDetaching([$branch->id]);
-
-            $saleTotal = round((float) $ratePlan->pivot->price, 2);
+            $member = $this->resolveMember($data);
+            $saleTotal = round((float) $ratePlan->price, 2);
             $managerProcessedSale = $processedBy->hasRole('manager');
-            $managerCommissionRate = round((float) ($ratePlan->pivot->manager_commission_rate ?? 0), 2);
+            $managerCommissionRate = round((float) ($ratePlan->manager_commission_rate ?? 0), 2);
             $managerCommissionAmount = MemberSubscription::calculateCommissionAmount($saleTotal, $managerCommissionRate);
+
             $subscription = $member->sellMembershipPlan($ratePlan->id, $data['start_date'], [
-                'branch_id' => $branch->id,
                 'sold_price' => $saleTotal,
                 'manager_id' => $managerProcessedSale ? $processedBy->id : null,
                 'manager_commission_rate' => $managerCommissionRate,
@@ -243,10 +232,10 @@ class PosSaleService
                     : MemberSubscription::COMMISSION_STATUS_UNASSIGNED,
                 'manager_commission_earned_at' => $managerProcessedSale ? $data['sold_at'] : null,
             ]);
+
             $payment = $this->resolvePayment($saleTotal, $data);
 
             $saleTransaction = SaleTransaction::create([
-                'branch_id' => $branch->id,
                 'member_id' => $member->id,
                 'type' => SaleTransaction::TYPE_MEMBERSHIP,
                 'total' => $saleTotal,
@@ -281,7 +270,7 @@ class PosSaleService
                 ],
             ]);
 
-            $this->branchCashLedgerService->syncSaleTransaction($saleTransaction);
+            $this->cashLedgerService->syncSaleTransaction($saleTransaction);
 
             return $saleTransaction;
         });
@@ -290,30 +279,27 @@ class PosSaleService
     /**
      * @param  array<string, mixed>  $data
      */
-    private function sellPtPackage(Branch $branch, array $data, User $processedBy): SaleTransaction
+    private function sellPtPackage(array $data, User $processedBy): SaleTransaction
     {
-        return DB::transaction(function () use ($branch, $data, $processedBy) {
-            $ptProduct = $branch->ptProducts()
-                ->where('pt_products.id', (int) $data['pt_product_id'])
-                ->where('pt_products.is_active', true)
-                ->wherePivot('is_active', true)
+        return DB::transaction(function () use ($data, $processedBy) {
+            $ptProduct = PTProduct::query()
+                ->whereKey((int) $data['pt_product_id'])
+                ->where('is_active', true)
+                ->whereNotNull('price')
                 ->first();
 
             if (! $ptProduct) {
                 throw ValidationException::withMessages([
-                    'pt_product_id' => ['The selected PT package is not available for this branch.'],
+                    'pt_product_id' => ['The selected PT package is not available.'],
                 ]);
             }
 
-            $member = $this->resolveMember($branch, $data);
-            $member->branches()->syncWithoutDetaching([$branch->id]);
-
-            $soldPrice = round((float) $ptProduct->pivot->price, 2);
-            $coachCommissionRate = round((float) ($ptProduct->pivot->coach_commission_rate ?? 40), 2);
+            $member = $this->resolveMember($data);
+            $soldPrice = round((float) $ptProduct->price, 2);
+            $coachCommissionRate = round((float) ($ptProduct->coach_commission_rate ?? 40), 2);
             $payment = $this->resolvePayment($soldPrice, $data);
 
             $package = $member->memberPtPackages()->create([
-                'branch_id' => $branch->id,
                 'pt_product_id' => $ptProduct->id,
                 'sold_price' => $soldPrice,
                 'coach_commission_rate' => $coachCommissionRate,
@@ -329,7 +315,6 @@ class PosSaleService
             ]);
 
             $saleTransaction = SaleTransaction::create([
-                'branch_id' => $branch->id,
                 'member_id' => $member->id,
                 'type' => SaleTransaction::TYPE_PT_PACKAGE,
                 'total' => $soldPrice,
@@ -358,7 +343,7 @@ class PosSaleService
                 ],
             ]);
 
-            $this->branchCashLedgerService->syncSaleTransaction($saleTransaction);
+            $this->cashLedgerService->syncSaleTransaction($saleTransaction);
 
             return $saleTransaction;
         });
@@ -367,27 +352,25 @@ class PosSaleService
     /**
      * @param  array<string, mixed>  $data
      */
-    private function sellWalkIn(Branch $branch, array $data, User $processedBy): SaleTransaction
+    private function sellWalkIn(array $data, User $processedBy): SaleTransaction
     {
-        return DB::transaction(function () use ($branch, $data, $processedBy) {
+        return DB::transaction(function () use ($data, $processedBy) {
             $ratePlan = null;
 
             if (! empty($data['rate_plan_id'])) {
-                $ratePlan = $branch->ratePlans()
-                    ->where('rate_plans.id', (int) $data['rate_plan_id'])
-                    ->where('rate_plans.is_active', true)
-                    ->wherePivot('is_active', true)
+                $ratePlan = RatePlan::query()
+                    ->whereKey((int) $data['rate_plan_id'])
+                    ->where('is_active', true)
                     ->first();
 
                 if (! $ratePlan) {
                     throw ValidationException::withMessages([
-                        'rate_plan_id' => ['The selected walk-in plan is not available for this branch.'],
+                        'rate_plan_id' => ['The selected walk-in plan is not available.'],
                     ]);
                 }
             }
 
             $walkIn = WalkIn::create([
-                'branch_id' => $branch->id,
                 'rate_plan_id' => $ratePlan?->id,
                 'served_by' => $processedBy->id,
                 'name' => $data['customer_name'],
@@ -398,11 +381,10 @@ class PosSaleService
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            $this->branchCashLedgerService->syncWalkIn($walkIn);
+            $this->cashLedgerService->syncWalkIn($walkIn);
             $payment = $this->resolvePayment((float) $walkIn->amount_paid, $data);
 
             return SaleTransaction::create([
-                'branch_id' => $branch->id,
                 'member_id' => null,
                 'type' => SaleTransaction::TYPE_WALK_IN,
                 'total' => round((float) $walkIn->amount_paid, 2),
@@ -434,17 +416,16 @@ class PosSaleService
     /**
      * @param  array<string, mixed>  $data
      */
-    private function resolveMember(Branch $branch, array $data): User
+    private function resolveMember(array $data): User
     {
         if (($data['member_mode'] ?? null) === 'existing') {
             $member = User::role('member')
                 ->whereKey((int) $data['member_id'])
-                ->whereHas('branches', fn ($query) => $query->where('branches.id', $branch->id))
                 ->first();
 
             if (! $member) {
                 throw ValidationException::withMessages([
-                    'member_id' => ['The selected member could not be found for this branch.'],
+                    'member_id' => ['The selected member could not be found.'],
                 ]);
             }
 
@@ -460,7 +441,6 @@ class PosSaleService
         ]);
 
         $member->assignRole('member');
-        $member->branches()->sync([$branch->id]);
         $member->profile()->create([]);
 
         return $member;
@@ -474,12 +454,10 @@ class PosSaleService
     {
         $lines = collect(Arr::wrap($data['items'] ?? []))
             ->filter(fn ($line) => filled($line['inventory_item_id'] ?? null) || filled($line['quantity'] ?? null))
-            ->map(function ($line): array {
-                return [
-                    'inventory_item_id' => (int) ($line['inventory_item_id'] ?? 0),
-                    'quantity' => (int) ($line['quantity'] ?? 0),
-                ];
-            });
+            ->map(fn ($line): array => [
+                'inventory_item_id' => (int) ($line['inventory_item_id'] ?? 0),
+                'quantity' => (int) ($line['quantity'] ?? 0),
+            ]);
 
         if ($lines->isEmpty() && ! empty($data['inventory_item_id'])) {
             $lines = collect([[
@@ -490,12 +468,10 @@ class PosSaleService
 
         return $lines
             ->groupBy('inventory_item_id')
-            ->map(function (Collection $group, int $inventoryItemId): array {
-                return [
-                    'inventory_item_id' => (int) $inventoryItemId,
-                    'quantity' => (int) $group->sum('quantity'),
-                ];
-            })
+            ->map(fn (Collection $group, int $inventoryItemId): array => [
+                'inventory_item_id' => (int) $inventoryItemId,
+                'quantity' => (int) $group->sum('quantity'),
+            ])
             ->values();
     }
 

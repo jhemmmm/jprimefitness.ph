@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('member_pt_package_id')->constrained()->cascadeOnDelete();
             $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('coach_id')->nullable()->constrained('users')->nullOnDelete();
             $table->unsignedInteger('sessions_used')->default(1);
             $table->dateTime('used_at');
             $table->string('confirmed_by')->nullable();
@@ -22,6 +23,7 @@ return new class extends Migration
             $table->timestamps();
 
             $table->index(['member_pt_package_id', 'used_at']);
+            $table->index(['coach_id', 'used_at']);
         });
     }
 

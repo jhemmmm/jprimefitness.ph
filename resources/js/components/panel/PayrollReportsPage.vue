@@ -3,21 +3,14 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Payroll Reports</h4>
-            <p class="text-muted small mb-0">Review payroll runs and current payout progress for payrolls ending within the selected period for {{ currentBranchLabel }}</p>
+            <p class="text-muted small mb-0">Review payroll runs and current payout progress for payrolls ending within the selected period for {{ currentLocationLabel }}</p>
          </div>
       </div>
-
-      <div v-if="!branchesData.length" class="panel-card p-5 text-center text-muted">
-         <i class="bi bi-receipt fs-1 d-block mb-2 opacity-25"></i>
-         <div>No accessible branches found.</div>
-      </div>
-
-      <template v-else>
-         <div class="panel-card mb-4">
+      <div class="panel-card mb-4">
             <div class="panel-card-header">
                <div>
                   <div class="panel-card-title">Filters</div>
-                  <div class="panel-card-sub">Use the sidebar branch selector, payroll period end date range, payroll status, and pay frequency to review this report.</div>
+                  <div class="panel-card-sub">Use the payroll period end date range, payroll status, and pay frequency to review this report.</div>
                </div>
             </div>
             <div class="p-3 p-md-4">
@@ -195,21 +188,21 @@
             <div class="col-12 col-xl-6">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
-                     <div class="panel-card-title">{{ report.scope.is_all_branches ? "Branch Breakdown" : "Selected Branch" }}</div>
+                     <div class="panel-card-title">Location Summary</div>
                   </div>
                   <div class="p-3 p-md-4">
                      <div v-if="loading">
                         <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 3" :key="'branch-sk-' + index"></div>
                      </div>
-                     <div v-else-if="report.branch_breakdown.length === 0" class="text-center py-4 text-muted">
+                     <div v-else-if="report.location_breakdown.length === 0" class="text-center py-4 text-muted">
                         <i class="bi bi-diagram-3 fs-1 d-block mb-2 opacity-25"></i>
-                        <div>No branch payroll records for this filter.</div>
+                        <div>No location payroll records for this filter.</div>
                      </div>
                      <div v-else>
-                        <div class="border rounded-3 px-3 py-2 mb-2" v-for="row in report.branch_breakdown" :key="row.branch_id">
+                        <div class="border rounded-3 px-3 py-2 mb-2" v-for="row in report.location_breakdown" :key="row.location_id">
                            <div class="d-flex justify-content-between align-items-start gap-3">
                               <div>
-                                 <div class="fw-semibold">{{ row.branch_name }}</div>
+                                 <div class="fw-semibold">{{ row.location_name }}</div>
                                  <div class="text-muted small">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
                                  <div class="small text-muted">Paid Out To Date: ₱{{ $filters.formatMoney(row.total_paid) }}</div>
                               </div>
@@ -341,7 +334,7 @@
                         <thead>
                            <tr>
                               <th>Employee</th>
-                              <th>Branch</th>
+                              <th>Location</th>
                               <th>Period</th>
                               <th>Frequency</th>
                               <th>Status</th>
@@ -357,7 +350,7 @@
                                  <div class="fw-semibold">{{ payroll.employee_name || "-" }}</div>
                                  <div class="small text-muted" v-if="payroll.approved_by_name">Approved by {{ payroll.approved_by_name }}</div>
                               </td>
-                              <td>{{ payroll.branch_name || "-" }}</td>
+                              <td>{{ payroll.location_name || "-" }}</td>
                               <td>{{ payroll.period_label }}</td>
                               <td>{{ payroll.pay_frequency_label }}</td>
                               <td>
@@ -378,7 +371,7 @@
                         <div class="member-card-top">
                            <div>
                               <div class="member-card-name">{{ payroll.employee_name || "-" }}</div>
-                              <div class="member-card-sub">{{ payroll.branch_name || "-" }} · {{ payroll.period_label }}</div>
+                              <div class="member-card-sub">{{ payroll.location_name || "-" }} · {{ payroll.period_label }}</div>
                            </div>
                            <span :class="['m-badge', $filters.statusBadge(payroll.status)]">{{ payroll.status_label }}</span>
                         </div>
@@ -399,7 +392,6 @@
                </div>
             </div>
          </div>
-      </template>
    </div>
 </template>
 
@@ -413,10 +405,10 @@ export default {
       PayrollTrendChart,
    },
    props: {
-      branchesData: {
-         type: Array,
+      businessProfile: {
+         type: Object,
          default: function () {
-            return [];
+            return null;
          },
       },
    },
@@ -424,7 +416,6 @@ export default {
       return {
          loading: false,
          pageError: "",
-         selectedBranch: null,
          filters: {
             date_from: this.defaultDateFrom(),
             date_to: this.defaultDateTo(),
@@ -450,18 +441,12 @@ export default {
             { value: "monthly", label: "Monthly" },
          ];
       },
-      currentBranchLabel: function () {
-         if (!this.selectedBranch) {
-            return "all accessible branches";
-         }
-
-         const branch = this.branchesData.find((item) => item.id === this.selectedBranch);
-         return branch ? branch.name : "the selected branch";
+      currentLocationLabel: function () {
+         return this.report.scope.location?.name || this.businessProfile?.name || window.JPrime?.profile?.name || "this location";
       },
       exportUrl: function () {
          const params = new URLSearchParams();
          const payload = {
-            branch: this.report.scope.branch?.id || undefined,
             date_from: this.report.filters.date_from || undefined,
             date_to: this.report.filters.date_to || undefined,
             status: this.report.filters.status || undefined,
@@ -566,15 +551,13 @@ export default {
       },
    },
    mounted: function () {
-      this.selectedBranch = this.resolveSelectedBranch();
       this.fetchReport();
    },
    methods: {
       emptyReport: function () {
          return {
             scope: {
-               branch: null,
-               is_all_branches: true,
+               location: null,
             },
             filters: {
                date_from: null,
@@ -598,7 +581,7 @@ export default {
             },
             status_breakdown: [],
             pay_frequency_breakdown: [],
-            branch_breakdown: [],
+            location_breakdown: [],
             payout_method_breakdown: [],
             payroll_trend: [],
             recent_payrolls: [],
@@ -633,23 +616,8 @@ export default {
 
          return `${progress}% released so far`;
       },
-      resolveSelectedBranch: function () {
-         const storedBranchId = localStorage.getItem("selectedBranch");
-
-         if (!storedBranchId || storedBranchId === "null") {
-            return null;
-         }
-
-         const branchId = parseInt(storedBranchId, 10);
-         if (Number.isNaN(branchId)) {
-            return null;
-         }
-
-         return this.branchesData.some((branch) => branch.id === branchId) ? branchId : null;
-      },
       buildParams: function () {
          return {
-            branch: this.selectedBranch || undefined,
             date_from: this.filters.date_from || undefined,
             date_to: this.filters.date_to || undefined,
             status: this.filters.status || undefined,

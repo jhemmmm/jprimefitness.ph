@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('inventory_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->foreignId('inventory_category_id')->constrained()->restrictOnDelete();
             $table->string('name', 120);
             $table->string('sku', 80)->nullable();
@@ -24,9 +23,8 @@ return new class extends Migration
             $table->timestamp('last_restocked_at')->nullable();
             $table->timestamps();
 
-            $table->index(['branch_id', 'status']);
-            $table->index(['branch_id', 'inventory_category_id']);
-            $table->index(['branch_id', 'name']);
+            $table->index(['status', 'name']);
+            $table->index(['inventory_category_id', 'name']);
         });
     }
 

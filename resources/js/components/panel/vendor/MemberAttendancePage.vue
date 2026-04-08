@@ -54,7 +54,7 @@
                <tr>
                   <th>Checked In</th>
                   <th>Checked Out</th>
-                  <th>Branch</th>
+                  <th>Location</th>
                   <th>Status</th>
                   <th class="col-actions"></th>
                </tr>
@@ -66,7 +66,7 @@
                      <span v-if="record.checked_out_at" class="text-muted small">{{ $filters.formatDateTime(record.checked_out_at) }}</span>
                      <button v-else class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(record)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                   </td>
-                  <td class="small">{{ record.branch?.name ?? "-" }}</td>
+                  <td class="small">{{ record.branch?.name || currentLocationName }}</td>
                   <td>
                      <span :class="['m-badge', $filters.statusBadge(record.checked_out_at ? 'inactive' : 'active')]">
                         {{ record.checked_out_at ? "Out" : "In" }}
@@ -87,7 +87,7 @@
             <div class="member-card-top">
                <div>
                   <div class="fw-semibold small">{{ $filters.formatDateTime(record.checked_in_at) }}</div>
-                  <div class="text-muted small">{{ record.branch?.name ?? "-" }}</div>
+                  <div class="text-muted small">{{ record.branch?.name || currentLocationName }}</div>
                </div>
                <span :class="['m-badge', $filters.statusBadge(record.checked_out_at ? 'inactive' : 'active')]">
                   {{ record.checked_out_at ? "Out" : "In" }}
@@ -124,12 +124,8 @@
                   </div>
                   <div class="row g-3">
                      <div class="col-12">
-                        <label class="form-label form-label-sm">Branch <span class="text-danger">*</span></label>
-                        <select class="form-select" v-model="logForm.branch_id" :class="{ 'is-invalid': formErrors.branch_id }">
-                           <option disabled value="">Select a branch...</option>
-                           <option v-for="branch in availableBranches" :key="branch.id" :value="branch.id">{{ branch.name }}</option>
-                        </select>
-                        <div class="invalid-feedback" v-if="formErrors.branch_id">{{ formErrors.branch_id }}</div>
+                        <label class="form-label form-label-sm">Location</label>
+                        <input type="text" class="form-control" :value="currentLocationName" disabled />
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Checked In <span class="text-danger">*</span></label>
@@ -209,8 +205,12 @@ export default {
    },
 
    computed: {
-      availableBranches: function () {
-         return this.member.branches && this.member.branches.length ? this.member.branches : this.branchesData;
+      currentLocationId: function () {
+         return window.JPrime?.profile?.id || this.member.branches?.[0]?.id || null;
+      },
+
+      currentLocationName: function () {
+         return window.JPrime?.profile?.name || this.member.branches?.[0]?.name || "Current location";
       },
 
       statCards: function () {
@@ -258,7 +258,7 @@ export default {
 
       openLogModal: function () {
          this.logForm = {
-            branch_id: this.availableBranches[0]?.id || "",
+            branch_id: this.currentLocationId || "",
             checked_in_at: new Date().toISOString().slice(0, 16),
             checked_out_at: "",
             notes: "",

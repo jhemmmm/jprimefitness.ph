@@ -20,7 +20,6 @@ class Payroll extends Model
 
     protected $fillable = [
         'employee_id',
-        'branch_id',
         'pay_frequency',
         'period_start',
         'period_end',
@@ -63,11 +62,6 @@ class Payroll extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'employee_id');
-    }
-
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
     }
 
     public function payouts(): HasMany

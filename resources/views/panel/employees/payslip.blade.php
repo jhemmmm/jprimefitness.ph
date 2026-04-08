@@ -292,7 +292,7 @@
     $totalPaid = $payroll->totalPaid();
     $remainingBalance = $payroll->remainingBalance();
     $totalEarnings = $payroll->totalEarnings();
-    $branchName = $payroll->branch?->name ?? $employee->branches->pluck('name')->join(', ');
+    $locationName = $businessProfile->name ?? null;
     $roleNames = $employee->roles->pluck('name')->map(fn($role) => ucfirst($role))->join(', ');
     $statusClass = 'status-pill--' . $payroll->status;
     $methodLabels = [
@@ -368,8 +368,8 @@
                         <span class="field-value">{{ $employee->name }}</span>
                     </td>
                     <td>
-                        <span class="field-label">Branch</span>
-                        <span class="field-value">{{ $branchName ?: '-' }}</span>
+                        <span class="field-label">Location</span>
+                        <span class="field-value">{{ $locationName ?: '-' }}</span>
                     </td>
                 </tr>
                 <tr>

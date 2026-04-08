@@ -3,21 +3,14 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Financial Reports</h4>
-            <p class="text-muted small mb-0">Review profitability, commission load, payroll costs, and operating expenses for {{ currentBranchLabel }}</p>
+            <p class="text-muted small mb-0">Review profitability, commission load, payroll costs, and operating expenses for {{ currentLocationLabel }}</p>
          </div>
       </div>
-
-      <div v-if="!branchesData.length" class="panel-card p-5 text-center text-muted">
-         <i class="bi bi-graph-up fs-1 d-block mb-2 opacity-25"></i>
-         <div>No accessible branches found.</div>
-      </div>
-
-      <template v-else>
-         <div class="panel-card mb-4">
+      <div class="panel-card mb-4">
             <div class="panel-card-header">
                <div>
                   <div class="panel-card-title">Filters</div>
-                  <div class="panel-card-sub">Use the sidebar branch selector and date range to review this financial breakdown.</div>
+                  <div class="panel-card-sub">Use the date range to review this financial breakdown.</div>
                </div>
             </div>
             <div class="p-3 p-md-4">
@@ -102,7 +95,7 @@
                   <span>Net Profit</span>
                   <span>{{ report.summary.net_profit < 0 ? "-₱" : "₱" }}{{ $filters.formatMoney(Math.abs(report.summary.net_profit)) }}</span>
                </div>
-               <div class="text-muted small mt-2">Cash balance still lives in the Branch Cash Ledger. This page focuses on period profitability.</div>
+               <div class="text-muted small mt-2">Cash balance still lives in the cash ledger. This page focuses on period profitability.</div>
             </div>
          </div>
 
@@ -201,7 +194,7 @@
                            <div class="d-flex justify-content-between align-items-start gap-3">
                               <div>
                                  <div class="fw-semibold">{{ entry.title }}</div>
-                                 <div class="text-muted small">{{ entry.branch_name || "-" }} · {{ $filters.formatDateTime(entry.occurred_at) }}</div>
+                                 <div class="text-muted small">{{ entry.location_name || "-" }} · {{ $filters.formatDateTime(entry.occurred_at) }}</div>
                                  <div class="text-muted small" v-if="entry.description">{{ entry.description }}</div>
                                  <div class="text-muted small" v-if="entry.created_by_name">Logged by {{ entry.created_by_name }}</div>
                               </div>
@@ -213,17 +206,16 @@
                </div>
             </div>
          </div>
-      </template>
    </div>
 </template>
 
 <script>
 export default {
    props: {
-      branchesData: {
-         type: Array,
+      businessProfile: {
+         type: Object,
          default: function () {
-            return [];
+            return null;
          },
       },
    },
@@ -231,7 +223,6 @@ export default {
       return {
          loading: false,
          pageError: "",
-         selectedBranch: null,
          filters: {
             date_from: this.defaultDateFrom(),
             date_to: this.defaultDateTo(),
@@ -240,18 +231,12 @@ export default {
       };
    },
    computed: {
-      currentBranchLabel: function () {
-         if (!this.selectedBranch) {
-            return "all accessible branches";
-         }
-
-         const branch = this.branchesData.find((item) => item.id === this.selectedBranch);
-         return branch ? branch.name : "the selected branch";
+      currentLocationLabel: function () {
+         return this.report.scope.location?.name || this.businessProfile?.name || window.JPrime?.profile?.name || "this location";
       },
       exportUrl: function () {
          const params = new URLSearchParams();
          const payload = {
-            branch: this.report.scope.branch?.id || undefined,
             date_from: this.report.filters.date_from || undefined,
             date_to: this.report.filters.date_to || undefined,
          };
@@ -318,15 +303,13 @@ export default {
       },
    },
    mounted: function () {
-      this.selectedBranch = this.resolveSelectedBranch();
       this.fetchReport();
    },
    methods: {
       emptyReport: function () {
          return {
             scope: {
-               branch: null,
-               is_all_branches: true,
+               location: null,
             },
             filters: {
                date_from: null,
@@ -358,19 +341,8 @@ export default {
          const day = String(now.getDate()).padStart(2, "0");
          return `${now.getFullYear()}-${month}-${day}`;
       },
-      resolveSelectedBranch: function () {
-         const storedBranchId = localStorage.getItem("selectedBranch");
-
-         if (!storedBranchId || storedBranchId === "null") {
-            return null;
-         }
-
-         const branchId = parseInt(storedBranchId, 10);
-         return Number.isNaN(branchId) ? null : branchId;
-      },
       buildParams: function () {
          return {
-            branch: this.selectedBranch || undefined,
             date_from: this.filters.date_from || undefined,
             date_to: this.filters.date_to || undefined,
          };

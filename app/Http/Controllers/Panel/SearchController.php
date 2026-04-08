@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
 use App\Models\InventoryItem;
 use App\Models\User;
 use App\Models\WalkIn;
@@ -27,7 +26,6 @@ class SearchController extends Controller
     {
         $validated = $request->validate([
             'search' => ['nullable', 'string', 'max:100'],
-            'branch' => ['nullable', 'integer', 'exists:branches,id'],
         ]);
 
         $search = trim((string) ($validated['search'] ?? ''));
@@ -39,33 +37,25 @@ class SearchController extends Controller
             ]);
         }
 
-        $accessibleBranchIds = $this->accessibleBranchIds(
-            isset($validated['branch']) ? (int) $validated['branch'] : null
-        );
-
         return response()->json([
             'query' => $search,
             'groups' => array_filter([
-                'members' => $this->memberGroup($search, $accessibleBranchIds),
-                'branches' => $this->branchGroup($search, $accessibleBranchIds),
+                'members' => $this->memberGroup($search),
                 'employees' => $request->user()->can('manage employees')
-                    ? $this->employeeGroup($search, $accessibleBranchIds)
+                    ? $this->employeeGroup($search)
                     : null,
-                'inventory' => $this->inventoryGroup($search, $accessibleBranchIds),
-                'walkins' => $this->walkInGroup($search, $accessibleBranchIds),
+                'inventory' => $this->inventoryGroup($search),
+                'walkins' => $this->walkInGroup($search),
             ]),
         ]);
     }
 
     /**
-     * @param  array<int>|null  $accessibleBranchIds
      * @return array{items: array<int, array{id: int, meta: string|null, status: string|null, subtitle: string|null, title: string, url: string}>, label: string, total: int, view_all_url: string}
      */
-    private function memberGroup(string $search, ?array $accessibleBranchIds): array
+    private function memberGroup(string $search): array
     {
         $query = User::role('member')
-            ->with('branches:id,name')
-            ->when($accessibleBranchIds !== null, fn ($builder) => $builder->whereHas('branches', fn ($branchQuery) => $branchQuery->whereIn('branches.id', $accessibleBranchIds)))
             ->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
@@ -82,7 +72,7 @@ class SearchController extends Controller
                 'id' => $member->id,
                 'title' => $member->name,
                 'subtitle' => $this->implodeMeta([$member->email, $member->phone]),
-                'meta' => $this->implodeMeta($member->branches->pluck('name')->all()),
+                'meta' => null,
                 'status' => $member->status,
                 'url' => route('panel.members.show', $member),
             ])
@@ -98,53 +88,12 @@ class SearchController extends Controller
     }
 
     /**
-     * @param  array<int>|null  $accessibleBranchIds
      * @return array{items: array<int, array{id: int, meta: string|null, status: string|null, subtitle: string|null, title: string, url: string}>, label: string, total: int, view_all_url: string}
      */
-    private function branchGroup(string $search, ?array $accessibleBranchIds): array
-    {
-        $query = Branch::query()
-            ->when($accessibleBranchIds !== null, fn ($builder) => $builder->whereKey($accessibleBranchIds))
-            ->where(function ($builder) use ($search) {
-                $builder->where('name', 'like', "%{$search}%")
-                    ->orWhere('city', 'like', "%{$search}%")
-                    ->orWhere('province', 'like', "%{$search}%");
-            });
-
-        $total = (clone $query)->count();
-
-        $items = $query
-            ->orderBy('name')
-            ->limit(self::RESULTS_LIMIT)
-            ->get(['id', 'name', 'city', 'province', 'address', 'status'])
-            ->map(fn (Branch $branch) => [
-                'id' => $branch->id,
-                'title' => $branch->name,
-                'subtitle' => $this->implodeMeta([$branch->city, $branch->province]),
-                'meta' => $branch->address ?: null,
-                'status' => $branch->status,
-                'url' => route('panel.branches.show', $branch),
-            ])
-            ->values()
-            ->all();
-
-        return $this->groupPayload(
-            'Branches',
-            route('panel.branches.index', ['search' => $search]),
-            $total,
-            $items,
-        );
-    }
-
-    /**
-     * @param  array<int>|null  $accessibleBranchIds
-     * @return array{items: array<int, array{id: int, meta: string|null, status: string|null, subtitle: string|null, title: string, url: string}>, label: string, total: int, view_all_url: string}
-     */
-    private function employeeGroup(string $search, ?array $accessibleBranchIds): array
+    private function employeeGroup(string $search): array
     {
         $query = User::role(self::EMPLOYEE_ROLE_NAMES)
-            ->with(['branches:id,name', 'roles:id,name'])
-            ->when($accessibleBranchIds !== null, fn ($builder) => $builder->whereHas('branches', fn ($branchQuery) => $branchQuery->whereIn('branches.id', $accessibleBranchIds)))
+            ->with(['roles:id,name'])
             ->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%")
@@ -161,10 +110,9 @@ class SearchController extends Controller
                 'id' => $employee->id,
                 'title' => $employee->name,
                 'subtitle' => $this->implodeMeta([$employee->email, $employee->phone]),
-                'meta' => $this->implodeMeta([
-                    $employee->roles->pluck('name')->map(fn (string $role) => Str::headline($role))->implode(' • '),
-                    $employee->branches->pluck('name')->implode(', '),
-                ]),
+                'meta' => $employee->roles->pluck('name')
+                    ->map(fn (string $role) => Str::headline($role))
+                    ->implode(' • ') ?: null,
                 'status' => $employee->status,
                 'url' => route('panel.employees.show', $employee),
             ])
@@ -180,14 +128,12 @@ class SearchController extends Controller
     }
 
     /**
-     * @param  array<int>|null  $accessibleBranchIds
      * @return array{items: array<int, array{id: int, meta: string|null, status: string|null, subtitle: string|null, title: string, url: string}>, label: string, total: int, view_all_url: string}
      */
-    private function inventoryGroup(string $search, ?array $accessibleBranchIds): array
+    private function inventoryGroup(string $search): array
     {
         $query = InventoryItem::query()
-            ->with(['branch:id,name', 'category:id,name'])
-            ->when($accessibleBranchIds !== null, fn ($builder) => $builder->whereIn('branch_id', $accessibleBranchIds))
+            ->with(['category:id,name'])
             ->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%")
@@ -202,7 +148,6 @@ class SearchController extends Controller
             ->limit(self::RESULTS_LIMIT)
             ->get([
                 'id',
-                'branch_id',
                 'inventory_category_id',
                 'name',
                 'sku',
@@ -213,7 +158,7 @@ class SearchController extends Controller
             ->map(fn (InventoryItem $item) => [
                 'id' => $item->id,
                 'title' => $item->name,
-                'subtitle' => $this->implodeMeta([$item->branch?->name, $item->category?->name]),
+                'subtitle' => $item->category?->name,
                 'meta' => $this->implodeMeta([
                     $item->sku ? 'SKU '.$item->sku : null,
                     $this->formatQuantity($item->quantity).' '.$item->unit,
@@ -233,14 +178,12 @@ class SearchController extends Controller
     }
 
     /**
-     * @param  array<int>|null  $accessibleBranchIds
      * @return array{items: array<int, array{id: int, meta: string|null, status: string|null, subtitle: string|null, title: string, url: string}>, label: string, total: int, view_all_url: string}
      */
-    private function walkInGroup(string $search, ?array $accessibleBranchIds): array
+    private function walkInGroup(string $search): array
     {
         $query = WalkIn::query()
-            ->with(['branch:id,name', 'ratePlan:id,name'])
-            ->when($accessibleBranchIds !== null, fn ($builder) => $builder->whereIn('branch_id', $accessibleBranchIds))
+            ->with(['ratePlan:id,name'])
             ->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', "%{$search}%")
                     ->orWhere('phone', 'like', "%{$search}%");
@@ -251,14 +194,11 @@ class SearchController extends Controller
         $items = $query
             ->orderByDesc('visited_at')
             ->limit(self::RESULTS_LIMIT)
-            ->get(['id', 'branch_id', 'rate_plan_id', 'name', 'phone', 'payment_method', 'visited_at'])
+            ->get(['id', 'rate_plan_id', 'name', 'phone', 'payment_method', 'visited_at'])
             ->map(fn (WalkIn $walkIn) => [
                 'id' => $walkIn->id,
                 'title' => $walkIn->name,
-                'subtitle' => $this->implodeMeta([
-                    $walkIn->branch?->name,
-                    $walkIn->ratePlan?->name,
-                ]),
+                'subtitle' => $walkIn->ratePlan?->name,
                 'meta' => $this->implodeMeta([
                     $walkIn->phone,
                     $walkIn->visited_at?->format('M j, Y g:i A'),
@@ -279,7 +219,6 @@ class SearchController extends Controller
     }
 
     /**
-     * @param  array<int>|null  $accessibleBranchIds
      * @param  array<int, array{id: int, meta: string|null, status: string|null, subtitle: string|null, title: string, url: string}>  $items
      * @return array{items: array<int, array{id: int, meta: string|null, status: string|null, subtitle: string|null, title: string, url: string}>, label: string, total: int, view_all_url: string}
      */
@@ -291,26 +230,6 @@ class SearchController extends Controller
             'view_all_url' => $viewAllUrl,
             'items' => $items,
         ];
-    }
-
-    /**
-     * @return array<int>|null
-     */
-    private function accessibleBranchIds(?int $selectedBranchId): ?array
-    {
-        if ($selectedBranchId !== null) {
-            return [$selectedBranchId];
-        }
-
-        if (auth()->user()->hasRole('super admin')) {
-            return null;
-        }
-
-        return auth()->user()
-            ->branches()
-            ->pluck('branches.id')
-            ->map(fn ($branchId) => (int) $branchId)
-            ->all();
     }
 
     /**

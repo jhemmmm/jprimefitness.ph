@@ -2,44 +2,58 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
-use App\Models\User;
+use App\Models\BusinessProfile;
+use App\Models\PTProduct;
+use App\Models\RatePlan;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 class BranchDetailPageTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    protected function setUp(): void
+    public function test_home_page_renders_single_location_profile_and_global_pricing(): void
     {
-        parent::setUp();
+        BusinessProfile::factory()->create([
+            'name' => 'JPrime Fitness Naga',
+            'hero_title' => 'Train with purpose',
+            'hero_highlight' => 'One standard.',
+            'phone' => '09171234567',
+            'email' => 'hello@example.test',
+            'city' => 'Naga City',
+            'province' => 'Camarines Sur',
+        ]);
 
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-        Role::findOrCreate('manager');
+        RatePlan::create([
+            'name' => 'Monthly',
+            'duration_days' => 30,
+            'price' => 1500,
+            'manager_commission_rate' => 10,
+            'is_active' => true,
+        ]);
+
+        PTProduct::create([
+            'name' => '12 Sessions',
+            'session_count' => 12,
+            'category' => PTProduct::CATEGORY_PACKAGE,
+            'price' => 2400,
+            'coach_commission_rate' => 40,
+            'is_active' => true,
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('JPrime Fitness Naga')
+            ->assertSee('Memberships and PT packages')
+            ->assertSee('Monthly')
+            ->assertSee('12 Sessions')
+            ->assertSee('All current prices are managed centrally for this location.');
     }
 
-    public function test_manager_can_open_branch_detail_page_for_accessible_branch(): void
+    public function test_legacy_branch_urls_return_not_found(): void
     {
-        $branch = Branch::create([
-            'name' => 'Naga',
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => Branch::COUNTRY_PHILIPPINES,
-            'city' => 'Naga City',
-        ]);
-        $manager = User::factory()->create([
-            'status' => User::STATUS_ACTIVE,
-        ]);
+        BusinessProfile::factory()->create(['name' => 'JPrime Fitness']);
 
-        $manager->assignRole('manager');
-        $manager->branches()->sync([$branch->id]);
-
-        $this->actingAs($manager)
-            ->get(route('panel.branches.show', $branch))
-            ->assertOk()
-            ->assertSee('branch-detail-page', false)
-            ->assertSee('Naga');
+        $this->get('/branches/naga')->assertNotFound();
     }
 }

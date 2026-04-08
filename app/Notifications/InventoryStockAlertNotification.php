@@ -23,19 +23,12 @@ class InventoryStockAlertNotification extends PanelDatabaseNotification
      */
     protected function data(): array
     {
-        $this->inventoryItem->loadMissing('branch:id,name');
-
         return [
             'title' => $this->title(),
             'message' => $this->message(),
-            'action_url' => route('panel.inventory.index', [
-                'branch' => $this->inventoryItem->branch_id,
-                'search' => $this->inventoryItem->name,
-            ]),
+            'action_url' => route('panel.inventory.index', ['search' => $this->inventoryItem->name]),
             'type' => $this->typeSlug(),
             'severity' => $this->alertState === InventoryStockAlertService::STATE_OUT_OF_STOCK ? 'danger' : 'warning',
-            'branch_id' => $this->inventoryItem->branch_id,
-            'branch_name' => $this->inventoryItem->branch?->name,
             'subject_id' => $this->inventoryItem->id,
             'subject_type' => 'inventory_item',
             'occurred_at' => $this->inventoryItem->updated_at?->toISOString(),
@@ -53,12 +46,11 @@ class InventoryStockAlertNotification extends PanelDatabaseNotification
     {
         $quantity = number_format((float) $this->inventoryItem->quantity, 2);
         $unit = $this->inventoryItem->unit ? ' ' . $this->inventoryItem->unit : '';
-        $branchName = $this->inventoryItem->branch?->name ?? 'the selected branch';
 
         if ($this->alertState === InventoryStockAlertService::STATE_OUT_OF_STOCK) {
-            return $this->inventoryItem->name . ' is out of stock at ' . $branchName . '. Remaining quantity: ' . $quantity . $unit . '.';
+            return $this->inventoryItem->name . ' is out of stock. Remaining quantity: ' . $quantity . $unit . '.';
         }
 
-        return $this->inventoryItem->name . ' is low in stock at ' . $branchName . '. Remaining quantity: ' . $quantity . $unit . '.';
+        return $this->inventoryItem->name . ' is low in stock. Remaining quantity: ' . $quantity . $unit . '.';
     }
 }

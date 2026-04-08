@@ -7,12 +7,7 @@ use Illuminate\View\View;
 
 class HomeController extends Controller
 {
-    /**
-     * Home page - shows the home view with branch highlights and other info.
-     *
-     * @return View
-     */
-    public function index()
+    public function index(): View
     {
         return view('home.index');
     }

@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use App\Models\Attendance;
-use App\Models\Branch;
 use App\Models\User;
+use App\Models\WalkIn;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
@@ -12,63 +12,56 @@ class AttendanceSeeder extends Seeder
 {
     public function run(): void
     {
-        $branches = Branch::all();
+        Attendance::query()->delete();
+
+        $walkIns = WalkIn::query()
+            ->orderByDesc('visited_at')
+            ->take(8)
+            ->get();
         $members = User::role('member')->get();
-        $employees = User::role('employee')->get();
+        $employees = User::role(['employee', 'coach', 'manager', 'admin', 'staff'])->get();
+        $recordedBy = User::role(['super admin', 'admin', 'manager', 'staff'])->first()?->id;
 
-        if ($branches->isEmpty()) {
-            return;
-        }
+        foreach ($walkIns as $index => $walkIn) {
+            $checkedIn = ($walkIn->visited_at ?? Carbon::now())->copy();
 
-        // Walk-in attendances
-        $walkInNames = [
-            'Carlo Bernabe',
-            'Ana Villareal',
-            'Miguel Cruz',
-            'Liza Fontanilla',
-            'Ramon Aquino',
-            'Trisha Gomez',
-        ];
-
-        foreach ($walkInNames as $i => $name) {
-            $branch = $branches[$i % $branches->count()];
-            $checkedIn = Carbon::now()->subDays(rand(0, 14))->setHour(rand(6, 18))->setMinute(rand(0, 59))->setSecond(0);
-            Attendance::create([
-                'branch_id' => $branch->id,
-                'attendee_type' => 'walk_in',
-                'name' => $name,
+            Attendance::query()->create([
+                'attendee_type' => Attendance::TYPE_WALK_IN,
+                'walk_in_id' => $walkIn->id,
+                'name' => $walkIn->name,
                 'checked_in_at' => $checkedIn,
-                'checked_out_at' => rand(0, 1) ? $checkedIn->copy()->addMinutes(rand(30, 180)) : null,
+                'checked_out_at' => $index % 3 === 0 ? null : $checkedIn->copy()->addMinutes(45 + ($index * 5)),
+                'recorded_by' => $recordedBy ?? $walkIn->served_by,
             ]);
         }
 
-        // Member attendances (up to 8)
-        foreach ($members->take(8) as $i => $member) {
-            $defaultBranch = $branches[$i % $branches->count()];
-            $memberBranchId = $member->branches->first()?->id ?? $defaultBranch->id;
-            $checkedIn = Carbon::now()->subDays(rand(0, 14))->setHour(rand(6, 18))->setMinute(rand(0, 59))->setSecond(0);
-            Attendance::create([
-                'branch_id' => $memberBranchId,
-                'attendee_type' => 'member',
+        foreach ($members->take(8) as $index => $member) {
+            $checkedIn = Carbon::now()
+                ->subDays($index)
+                ->setTime(6 + ($index % 7), ($index * 9) % 60);
+
+            Attendance::query()->create([
+                'attendee_type' => Attendance::TYPE_MEMBER,
                 'user_id' => $member->id,
                 'name' => $member->name,
                 'checked_in_at' => $checkedIn,
-                'checked_out_at' => rand(0, 1) ? $checkedIn->copy()->addMinutes(rand(45, 120)) : null,
+                'checked_out_at' => $index % 4 === 0 ? null : $checkedIn->copy()->addMinutes(60 + ($index * 10)),
+                'recorded_by' => $recordedBy,
             ]);
         }
 
-        // Employee attendances (up to 4)
-        foreach ($employees->take(4) as $i => $emp) {
-            $branch = $branches[$i % $branches->count()];
-            $employeeBranchId = $emp->branches->first()?->id ?? $branch->id;
-            $checkedIn = Carbon::today()->setHour(rand(6, 9))->setMinute(rand(0, 30))->setSecond(0);
-            Attendance::create([
-                'branch_id' => $employeeBranchId,
-                'attendee_type' => 'employee',
-                'user_id' => $emp->id,
-                'name' => $emp->name,
+        foreach ($employees->take(6) as $index => $employee) {
+            $checkedIn = Carbon::today()
+                ->subDays($index % 5)
+                ->setTime(6 + ($index % 3), ($index * 11) % 30);
+
+            Attendance::query()->create([
+                'attendee_type' => Attendance::TYPE_EMPLOYEE,
+                'user_id' => $employee->id,
+                'name' => $employee->name,
                 'checked_in_at' => $checkedIn,
-                'checked_out_at' => rand(0, 1) ? $checkedIn->copy()->addHours(rand(6, 10)) : null,
+                'checked_out_at' => $index === 0 ? null : $checkedIn->copy()->addHours(8),
+                'recorded_by' => $recordedBy,
             ]);
         }
     }

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
+use App\Models\BusinessProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -30,8 +30,8 @@ class EmployeePayFrequencyTest extends TestCase
 
     public function test_employee_creation_requires_an_explicit_pay_frequency(): void
     {
-        $branch = $this->createBranch('Naga');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Mia');
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $staffRole = Role::findByName('staff');
 
         $this->actingAs($manager)
@@ -39,7 +39,6 @@ class EmployeePayFrequencyTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben@example.com',
                 'status' => User::STATUS_ACTIVE,
-                'branch_ids' => [$branch->id],
                 'role_ids' => [$staffRole->id],
                 'daily_rate' => 450,
                 'password' => 'password123',
@@ -50,8 +49,8 @@ class EmployeePayFrequencyTest extends TestCase
 
     public function test_employee_creation_and_update_store_explicit_pay_frequency(): void
     {
-        $branch = $this->createBranch('Legazpi');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Mia');
+        $this->setBusinessProfile('Legazpi');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $staffRole = Role::findByName('staff');
 
         $createResponse = $this->actingAs($manager)
@@ -59,20 +58,19 @@ class EmployeePayFrequencyTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben@example.com',
                 'status' => User::STATUS_ACTIVE,
-                'branch_ids' => [$branch->id],
                 'role_ids' => [$staffRole->id],
                 'daily_rate' => 450,
-                'pay_frequency' => Branch::PAYROLL_FREQUENCY_MONTHLY,
+                'pay_frequency' => 'monthly',
                 'password' => 'password123',
             ])
             ->assertCreated()
-            ->assertJsonPath('pay_frequency', Branch::PAYROLL_FREQUENCY_MONTHLY);
+            ->assertJsonPath('pay_frequency', 'monthly');
 
         $employeeId = $createResponse->json('id');
 
         $this->assertDatabaseHas('users', [
             'id' => $employeeId,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_MONTHLY,
+            'pay_frequency' => 'monthly',
         ]);
 
         $this->actingAs($manager)
@@ -80,45 +78,40 @@ class EmployeePayFrequencyTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben@example.com',
                 'status' => User::STATUS_ACTIVE,
-                'branch_ids' => [$branch->id],
                 'role_ids' => [$staffRole->id],
                 'daily_rate' => 450,
-                'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+                'pay_frequency' => 'semi_monthly',
                 'password' => '',
             ])
             ->assertOk()
-            ->assertJsonPath('pay_frequency', Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY);
+            ->assertJsonPath('pay_frequency', 'semi_monthly');
 
         $this->assertDatabaseHas('users', [
             'id' => $employeeId,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
         ]);
     }
 
-    private function createBranch(string $name): Branch
+    private function setBusinessProfile(string $name): BusinessProfile
     {
-        return Branch::create([
+        return BusinessProfile::factory()->create([
             'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => 'PH',
+            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
+            'province' => 'Camarines Sur',
         ]);
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds, string $name): User
+    private function createUserWithRole(string $role, string $name): User
     {
         $user = User::factory()->create([
             'name' => $name,
             'status' => User::STATUS_ACTIVE,
             'daily_rate' => 500,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

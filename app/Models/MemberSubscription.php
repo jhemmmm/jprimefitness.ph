@@ -23,7 +23,6 @@ class MemberSubscription extends Model
 
     protected $fillable = [
         'user_id',
-        'branch_id',
         'rate_plan_id',
         'sold_price',
         'manager_id',
@@ -69,11 +68,6 @@ class MemberSubscription extends Model
     public function member(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
     }
 
     public function ratePlan(): BelongsTo

@@ -12,11 +12,18 @@ return new class extends Migration
         Schema::create('payrolls', function (Blueprint $table) {
             $table->id();
             $table->foreignId('employee_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
+            $table->string('pay_frequency', 20)->nullable();
             $table->date('period_start');
             $table->date('period_end');
             $table->decimal('gross_amount', 10, 2)->default(0);
             $table->decimal('bonus', 10, 2)->default(0);
+            $table->decimal('income_tax', 10, 2)->default(0);
+            $table->json('employee_contributions')->nullable();
+            $table->json('employer_contributions')->nullable();
+            $table->decimal('pt_commission_amount', 10, 2)->default(0);
+            $table->json('pt_commission_items')->nullable();
+            $table->decimal('membership_commission_amount', 10, 2)->default(0);
+            $table->json('membership_commission_items')->nullable();
             $table->decimal('manual_deductions', 10, 2)->default(0);
             $table->decimal('cash_advance_deduction', 10, 2)->default(0);
             $table->decimal('net_amount', 10, 2)->default(0);

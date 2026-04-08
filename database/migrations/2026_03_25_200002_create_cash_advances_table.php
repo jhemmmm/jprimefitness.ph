@@ -12,11 +12,8 @@ return new class extends Migration
         Schema::create('cash_advances', function (Blueprint $table) {
             $table->id();
             $table->foreignId('employee_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
-
             $table->decimal('amount', 10, 2);
             $table->decimal('remaining_amount', 10, 2);
-
             $table->enum('status', [
                 CashAdvance::STATUS_REQUESTED,
                 CashAdvance::STATUS_APPROVED,
@@ -25,23 +22,17 @@ return new class extends Migration
                 CashAdvance::STATUS_PAID,
                 CashAdvance::STATUS_CANCELLED,
             ])->default(CashAdvance::STATUS_REQUESTED);
-
             $table->text('notes')->nullable();
-
             $table->timestamp('requested_at')->useCurrent();
-
             $table->timestamp('approved_at')->nullable();
             $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
-
             $table->timestamp('released_at')->nullable();
             $table->foreignId('released_by')->nullable()->constrained('users')->nullOnDelete();
-
             $table->timestamp('cancelled_at')->nullable();
             $table->foreignId('cancelled_by')->nullable()->constrained('users')->nullOnDelete();
             $table->string('cancel_reason')->nullable();
-
             $table->timestamp('paid_at')->nullable();
-
+            $table->json('audit_data')->nullable();
             $table->timestamps();
         });
     }

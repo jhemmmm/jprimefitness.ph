@@ -11,12 +11,18 @@
         rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     @vite(['resources/sass/panel.scss', 'resources/js/app.js'])
+    @php
+        $panelBusinessProfile = $businessProfile->only(['id', 'name', 'city', 'province', 'status', 'country_code']);
+    @endphp
     <script>
         const storedTheme = localStorage.getItem('panel-theme');
         const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         if (theme === 'dark') {
             document.documentElement.setAttribute('data-bs-theme', 'dark');
         }
+        window.JPrime = {
+            profile: @json($panelBusinessProfile)
+        };
     </script>
 </head>
 
@@ -38,10 +44,6 @@
                     </div>
                 </a>
             </div>
-
-            {{-- Branch Selector --}}
-            <branch-selector :branches-data='@json($branches)'></branch-selector>
-
             {{-- Navigation --}}
             <nav class="sidebar-nav">
                 {{-- Overview --}}
@@ -104,12 +106,6 @@
                 {{-- Operations --}}
                 <div class="sidebar-menu-heading">Operations</div>
                 <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.branches.index') }}" @class(['active' => request()->routeIs('panel.branches.*')])>
-                        <i class="bi bi-geo-alt-fill"></i>
-                        <span class="sidebar-nav-label">Branches</span>
-                    </a>
-                </div>
-                <div class="sidebar-nav-item">
                     <a href="{{ route('panel.inventory.index') }}" @class(['active' => request()->routeIs('panel.inventory.*')])>
                         <i class="bi bi-box-seam-fill"></i>
                         <span class="sidebar-nav-label">Inventory</span>
@@ -156,7 +152,7 @@
                 {{-- System --}}
                 <div class="sidebar-menu-heading">System</div>
                 <div class="sidebar-nav-item">
-                    <a href="#" @class(['active' => request()->routeIs('panel.settings')])>
+                    <a href="{{ route('panel.settings') }}" @class(['active' => request()->routeIs('panel.settings*')])>
                         <i class="bi bi-gear-fill"></i>
                         <span class="sidebar-nav-label">Settings</span>
                     </a>
@@ -192,11 +188,6 @@
                 <div class="topbar-title" title="@yield('title', 'Dashboard')">@yield('title', 'Dashboard')</div>
 
                 <div class="topbar-actions">
-
-                    {{-- Branch Selector: hidden by default, shown on desktop when sidebar is collapsed --}}
-                    <branch-selector-collapsed
-                        :branches-data='@json($branches)'></branch-selector-collapsed>
-
                     <panel-notifications></panel-notifications>
 
                     <global-search></global-search>

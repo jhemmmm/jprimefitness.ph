@@ -36,12 +36,8 @@
                   <div class="invalid-feedback" v-if="errors.status">{{ errors.status[0] }}</div>
                </div>
                <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Branches</label>
-                  <div :class="{ 'is-invalid': errors.branch_ids }">
-                     <MultiSelect v-model="form.branch_ids" :options="branchesData" placeholder="Select branches..." searchable />
-                  </div>
-                  <div class="form-text small">Super admin/admin can assign multiple branches. Staff/coach should select one.</div>
-                  <div class="invalid-feedback" v-if="errors.branch_ids">{{ errors.branch_ids[0] }}</div>
+                  <label class="form-label form-label-sm fw-semibold">Location</label>
+                  <input type="text" class="form-control" :value="currentLocationName" disabled />
                </div>
                <div class="col-md-6">
                   <label class="form-label form-label-sm fw-semibold">Daily Rate (₱)</label>
@@ -132,6 +128,9 @@ export default {
       statusOptions: function () {
          return ["active", "inactive", "suspended"];
       },
+      currentLocationName: function () {
+         return window.JPrime?.profile?.name || this.employee.branches?.[0]?.name || "Current location";
+      },
    },
 
    methods: {
@@ -142,7 +141,7 @@ export default {
             phone: employee.phone || "",
             status: employee.status,
             role_ids: employee.roles ? employee.roles.map((r) => r.id) : [],
-            branch_ids: employee.branches ? employee.branches.map((b) => b.id) : [],
+            branch_ids: [],
             daily_rate: employee.daily_rate || "",
             pay_frequency: employee.pay_frequency,
             password: "",

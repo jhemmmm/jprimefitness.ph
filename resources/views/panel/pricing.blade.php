@@ -3,5 +3,5 @@
 @section('title', 'Pricing & Rates')
 
 @section('content')
-    <pricing-page :branches-data='@json($branches)' :can-manage-pricing='@json($canManagePricing)'></pricing-page>
+    <pricing-page :can-manage-pricing='@json($canManagePricing)'></pricing-page>
 @endsection

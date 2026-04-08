@@ -3,7 +3,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Dashboard</h4>
-            <p class="text-muted small mb-0">Live operations, branch load, and recent activity for {{ currentBranchLabel }}</p>
+            <p class="text-muted small mb-0">Live operations, occupancy, and recent activity for {{ currentLocationLabel }}</p>
          </div>
          <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchDashboard" :disabled="loading">
             <i class="bi bi-arrow-repeat me-1"></i>
@@ -11,13 +11,7 @@
          </button>
       </div>
 
-      <div v-if="!branchesData.length" class="panel-card p-5 text-center text-muted">
-         <i class="bi bi-speedometer2 fs-1 d-block mb-2 opacity-25"></i>
-         <div>No accessible branches found.</div>
-      </div>
-
-      <template v-else>
-         <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
+      <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
 
          <div class="row g-3 mb-4">
             <div class="col-6 col-xl-3" v-for="stat in visibleStatsRow1" :key="stat.key">
@@ -81,22 +75,22 @@
                <div class="panel-card h-100">
                   <div class="panel-card-header">
                      <div>
-                        <div class="panel-card-title">Branch Load</div>
-                        <div class="panel-card-sub">Live occupancy and today’s traffic by branch</div>
+                        <div class="panel-card-title">Location Load</div>
+                        <div class="panel-card-sub">Live occupancy and today’s traffic for your location</div>
                      </div>
                   </div>
                   <div class="panel-card-body">
                      <div v-if="loading">
                         <div class="skeleton-box mb-2" style="width: 100%; height: 20px; border-radius: 4px" v-for="index in 5" :key="'branch-load-sk-' + index"></div>
                      </div>
-                     <div v-else-if="dashboard.branch_load.length === 0" class="text-center py-5 text-muted">
+                     <div v-else-if="dashboard.location_load.length === 0" class="text-center py-5 text-muted">
                         <i class="bi bi-diagram-3 empty-icon"></i>
-                        <p class="mt-2 mb-1">No branch load data available.</p>
+                        <p class="mt-2 mb-1">No occupancy data available.</p>
                      </div>
                      <div v-else class="d-flex flex-column gap-2">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2" v-for="row in dashboard.branch_load" :key="'branch-load-' + row.branch_id">
+                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2" v-for="row in dashboard.location_load" :key="'location-load-' + row.location_id">
                            <div>
-                              <div class="fw-semibold">{{ row.branch_name }}</div>
+                              <div class="fw-semibold">{{ row.location_name }}</div>
                               <div class="text-muted small">{{ row.today_check_ins }} check-in{{ row.today_check_ins !== 1 ? "s" : "" }} today</div>
                            </div>
                            <div class="text-end">
@@ -129,7 +123,7 @@
                            <tr>
                               <th>Name</th>
                               <th>Type</th>
-                              <th>Branch</th>
+                              <th>Location</th>
                               <th>Plan / Rate</th>
                               <th>Time In</th>
                            </tr>
@@ -146,7 +140,7 @@
                               <td>
                                  <span :class="['m-badge', $filters.roleBadge(row.attendee_type)]">{{ row.attendee_type_label }}</span>
                               </td>
-                              <td>{{ row.branch_name }}</td>
+                              <td>{{ row.location_name }}</td>
                               <td>{{ row.plan_or_rate }}</td>
                               <td>{{ formatTime(row.checked_in_at) }}</td>
                            </tr>
@@ -159,21 +153,21 @@
             <div class="col-12 col-xl-4 d-flex flex-column gap-3">
                <div class="panel-card">
                   <div class="panel-card-header">
-                     <div class="panel-card-title">Branches</div>
-                     <a href="/panel/branches" class="panel-card-action">Manage <i class="bi bi-arrow-right ms-1"></i></a>
+                     <div class="panel-card-title">Location Overview</div>
+                     <a href="/panel/settings" class="panel-card-action">Manage <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
                   <div class="panel-card-body">
                      <div v-if="loading">
                         <div class="skeleton-box mb-2" style="width: 100%; height: 20px; border-radius: 4px" v-for="index in 4" :key="'branch-status-sk-' + index"></div>
                      </div>
-                     <div v-else-if="dashboard.branch_status.length === 0" class="text-muted small text-center py-2">No branch summary available.</div>
+                     <div v-else-if="dashboard.location_status.length === 0" class="text-muted small text-center py-2">No location summary available.</div>
                      <div v-else class="d-flex flex-column gap-2">
-                        <div class="border rounded-3 px-3 py-2" v-for="branch in dashboard.branch_status" :key="'branch-status-' + branch.branch_id">
+                        <div class="border rounded-3 px-3 py-2" v-for="location in dashboard.location_status" :key="'location-status-' + location.location_id">
                            <div class="d-flex align-items-center justify-content-between">
-                              <div class="fw-semibold">{{ branch.branch_name }}</div>
-                              <span :class="['m-badge', $filters.statusBadge(branch.status)]">{{ $filters.capitalize(branch.status) }}</span>
+                              <div class="fw-semibold">{{ location.location_name }}</div>
+                              <span :class="['m-badge', $filters.statusBadge(location.status)]">{{ $filters.capitalize(location.status) }}</span>
                            </div>
-                           <div class="text-muted small mt-1">{{ branch.current_occupancy }} currently in · {{ branch.today_check_ins }} check-in{{ branch.today_check_ins !== 1 ? "s" : "" }} today</div>
+                           <div class="text-muted small mt-1">{{ location.current_occupancy }} currently in · {{ location.today_check_ins }} check-in{{ location.today_check_ins !== 1 ? "s" : "" }} today</div>
                         </div>
                      </div>
                   </div>
@@ -195,7 +189,7 @@
                               <div class="fw-semibold">{{ trainer.name }}</div>
                               <span :class="['m-badge', $filters.statusBadge(trainer.status)]">{{ $filters.capitalize(trainer.status) }}</span>
                            </div>
-                           <div class="text-muted small mt-1">{{ trainer.branch_names.join(", ") || "No branch assigned" }}</div>
+                           <div class="text-muted small mt-1">{{ currentLocationLabel }}</div>
                         </div>
                      </div>
                   </div>
@@ -222,7 +216,7 @@
                            <tr>
                               <th>Name</th>
                               <th>Plan</th>
-                              <th>Branch</th>
+                              <th>Location</th>
                               <th>Status</th>
                            </tr>
                         </thead>
@@ -236,7 +230,7 @@
                            <tr v-for="member in dashboard.recent_members" :key="member.id" v-else>
                               <td>{{ member.name }}</td>
                               <td>{{ member.plan_name }}</td>
-                              <td>{{ member.branch_name }}</td>
+                              <td>{{ member.location_name }}</td>
                               <td>
                                  <span :class="['m-badge', $filters.statusBadge(member.status)]">{{ $filters.capitalize(member.status) }}</span>
                               </td>
@@ -308,7 +302,7 @@
                            <tr>
                               <th>Member</th>
                               <th>Plan</th>
-                              <th>Branch</th>
+                              <th>Location</th>
                               <th>Expires</th>
                            </tr>
                         </thead>
@@ -322,7 +316,7 @@
                            <tr v-for="membership in dashboard.expiring_memberships" :key="membership.id" v-else>
                               <td>{{ membership.member_name }}</td>
                               <td>{{ membership.plan_name }}</td>
-                              <td>{{ membership.branch_name }}</td>
+                              <td>{{ membership.location_name }}</td>
                               <td>{{ $filters.formatDate(membership.end_date) }}</td>
                            </tr>
                         </tbody>
@@ -374,7 +368,6 @@
                </div>
             </div>
          </div>
-      </template>
    </div>
 </template>
 
@@ -386,10 +379,10 @@ export default {
       PeakHoursChart,
    },
    props: {
-      branchesData: {
-         type: Array,
+      businessProfile: {
+         type: Object,
          default: function () {
-            return [];
+            return null;
          },
       },
    },
@@ -397,7 +390,6 @@ export default {
       return {
          loading: false,
          pageError: "",
-         selectedBranch: null,
          dashboard: this.emptyDashboard(),
       };
    },
@@ -405,13 +397,8 @@ export default {
       canViewFinancialData: function () {
          return Boolean(this.dashboard.permissions.can_view_financial_data);
       },
-      currentBranchLabel: function () {
-         if (!this.selectedBranch) {
-            return "all accessible branches";
-         }
-
-         const branch = this.branchesData.find((item) => item.id === this.selectedBranch);
-         return branch ? branch.name : "the selected branch";
+      currentLocationLabel: function () {
+         return this.dashboard.scope.location?.name || this.businessProfile?.name || window.JPrime?.profile?.name || "this location";
       },
       visibleStatsRow1: function () {
          const stats = [
@@ -507,15 +494,13 @@ export default {
       },
    },
    mounted: function () {
-      this.selectedBranch = this.resolveSelectedBranch();
       this.fetchDashboard();
    },
    methods: {
       emptyDashboard: function () {
          return {
             scope: {
-               branch: null,
-               is_all_branches: true,
+               location: null,
             },
             permissions: {
                can_view_financial_data: false,
@@ -533,8 +518,8 @@ export default {
                pending_payroll_balance: null,
             },
             peak_hours: [],
-            branch_load: [],
-            branch_status: [],
+            location_load: [],
+            location_status: [],
             check_ins_today: [],
             trainers: [],
             recent_members: [],
@@ -566,8 +551,8 @@ export default {
                ...(payload.stats_row_2 || {}),
             },
             peak_hours: payload.peak_hours || [],
-            branch_load: payload.branch_load || [],
-            branch_status: payload.branch_status || [],
+            location_load: payload.location_load || [],
+            location_status: payload.location_status || [],
             check_ins_today: payload.check_ins_today || [],
             trainers: payload.trainers || [],
             recent_members: payload.recent_members || [],
@@ -576,24 +561,8 @@ export default {
             pending_payrolls: payload.pending_payrolls || [],
          };
       },
-      resolveSelectedBranch: function () {
-         const storedBranchId = localStorage.getItem("selectedBranch");
-
-         if (!storedBranchId || storedBranchId === "null") {
-            return null;
-         }
-
-         const branchId = parseInt(storedBranchId, 10);
-         if (Number.isNaN(branchId)) {
-            return null;
-         }
-
-         return this.branchesData.some((branch) => branch.id === branchId) ? branchId : null;
-      },
       buildParams: function () {
-         return {
-            branch: this.selectedBranch || undefined,
-         };
+         return {};
       },
       fetchDashboard: function () {
          this.loading = true;

@@ -2,7 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Branch;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -20,12 +19,6 @@ class InventoryItemFactory extends Factory
     public function definition(): array
     {
         return [
-            'branch_id' => Branch::query()->value('id') ?? Branch::create([
-                'name' => fake()->company().' Branch',
-                'status' => Branch::STATUS_OPEN,
-                'country_code' => Branch::COUNTRY_PHILIPPINES,
-                'city' => fake()->city(),
-            ])->id,
             'inventory_category_id' => InventoryCategory::query()->value('id') ?? InventoryCategory::factory()->create()->id,
             'name' => ucfirst(fake()->words(2, true)),
             'sku' => fake()->boolean(70) ? strtoupper(fake()->bothify('INV-###??')) : null,

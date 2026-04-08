@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
+use App\Models\BusinessProfile;
 use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\User;
@@ -29,26 +29,26 @@ class PayrollReportsPageTest extends TestCase
 
     public function test_payroll_reports_page_loads_for_manager_roles(): void
     {
-        $branch = $this->createBranch('Naga');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Payroll Manager');
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Payroll Manager');
 
         $this->actingAs($manager)
             ->get('/panel/reports/payroll')
             ->assertOk()
-            ->assertSee('payroll-reports-page', false);
+            ->assertSee('payroll-reports-page', false)
+            ->assertSee('business-profile=', false);
     }
 
     public function test_payroll_reports_data_returns_summary_and_breakdowns(): void
     {
-        $branch = $this->createBranch('Naga');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Payroll Manager');
-        $employeeA = $this->createUserWithRole('staff', [$branch->id], 'Juan Dela Cruz', Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY);
-        $employeeB = $this->createUserWithRole('staff', [$branch->id], 'Maria Santos', Branch::PAYROLL_FREQUENCY_MONTHLY);
+        $profile = $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Payroll Manager');
+        $employeeA = $this->createUserWithRole('staff', 'Juan Dela Cruz', 'semi_monthly');
+        $employeeB = $this->createUserWithRole('staff', 'Maria Santos', 'monthly');
 
         $payrollA = Payroll::create([
             'employee_id' => $employeeA->id,
-            'branch_id' => $branch->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
             'period_start' => '2026-03-01',
             'period_end' => '2026-03-15',
             'gross_amount' => 1000,
@@ -67,8 +67,7 @@ class PayrollReportsPageTest extends TestCase
 
         $payrollB = Payroll::create([
             'employee_id' => $employeeB->id,
-            'branch_id' => $branch->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_MONTHLY,
+            'pay_frequency' => 'monthly',
             'period_start' => '2026-03-01',
             'period_end' => '2026-03-31',
             'gross_amount' => 2000,
@@ -87,8 +86,7 @@ class PayrollReportsPageTest extends TestCase
 
         Payroll::create([
             'employee_id' => $employeeB->id,
-            'branch_id' => $branch->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_MONTHLY,
+            'pay_frequency' => 'monthly',
             'period_start' => '2026-02-01',
             'period_end' => '2026-02-28',
             'gross_amount' => 999,
@@ -124,10 +122,11 @@ class PayrollReportsPageTest extends TestCase
         ]);
 
         $response = $this->actingAs($manager)
-            ->getJson('/panel/reports/payroll/data?branch='.$branch->id.'&date_from=2026-03-01&date_to=2026-03-31')
+            ->getJson('/panel/reports/payroll/data?date_from=2026-03-01&date_to=2026-03-31')
             ->assertOk();
 
-        $response->assertJsonPath('scope.branch.id', $branch->id);
+        $response->assertJsonPath('scope.location.id', $profile->id);
+        $response->assertJsonPath('scope.location.name', 'Naga');
         $response->assertJsonPath('filters.date_from', '2026-03-01');
         $response->assertJsonPath('filters.date_to', '2026-03-31');
         $response->assertJsonPath('summary.payroll_count', 2);
@@ -142,10 +141,10 @@ class PayrollReportsPageTest extends TestCase
         $response->assertJsonPath('status_breakdown.0.status', Payroll::STATUS_APPROVED);
         $response->assertJsonPath('status_breakdown.0.net_payroll', 1050);
         $response->assertJsonPath('status_breakdown.1.status', Payroll::STATUS_PAID);
-        $response->assertJsonPath('pay_frequency_breakdown.0.pay_frequency', Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY);
-        $response->assertJsonPath('pay_frequency_breakdown.1.pay_frequency', Branch::PAYROLL_FREQUENCY_MONTHLY);
-        $response->assertJsonPath('branch_breakdown.0.branch_name', 'Naga');
-        $response->assertJsonPath('branch_breakdown.0.total_paid', 2500);
+        $response->assertJsonPath('pay_frequency_breakdown.0.pay_frequency', 'semi_monthly');
+        $response->assertJsonPath('pay_frequency_breakdown.1.pay_frequency', 'monthly');
+        $response->assertJsonPath('location_breakdown.0.location_name', 'Naga');
+        $response->assertJsonPath('location_breakdown.0.total_paid', 2500);
         $response->assertJsonPath('payout_method_breakdown.0.method', Payout::METHOD_BANK_TRANSFER);
         $response->assertJsonPath('payout_method_breakdown.0.total_paid', 2000);
         $response->assertJsonPath('payroll_trend.0.period_end', '2026-03-15');
@@ -156,14 +155,13 @@ class PayrollReportsPageTest extends TestCase
 
     public function test_payroll_reports_can_be_exported_to_csv(): void
     {
-        $branch = $this->createBranch('Naga');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Payroll Manager');
-        $employee = $this->createUserWithRole('staff', [$branch->id], 'Juan Dela Cruz');
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Payroll Manager');
+        $employee = $this->createUserWithRole('staff', 'Juan Dela Cruz');
 
         Payroll::create([
             'employee_id' => $employee->id,
-            'branch_id' => $branch->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
             'period_start' => '2026-03-01',
             'period_end' => '2026-03-15',
             'gross_amount' => 1400,
@@ -181,7 +179,7 @@ class PayrollReportsPageTest extends TestCase
         ]);
 
         $response = $this->actingAs($manager)
-            ->get('/panel/reports/payroll/export?branch='.$branch->id.'&date_from=2026-03-01&date_to=2026-03-31');
+            ->get('/panel/reports/payroll/export?date_from=2026-03-01&date_to=2026-03-31');
 
         $response->assertOk();
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
@@ -197,129 +195,41 @@ class PayrollReportsPageTest extends TestCase
         $this->assertStringContainsString('Juan Dela Cruz', $content);
     }
 
-    public function test_payroll_reports_can_aggregate_all_accessible_branches(): void
-    {
-        $naga = $this->createBranch('Naga');
-        $legazpi = $this->createBranch('Legazpi');
-        $outside = $this->createBranch('Outside');
-        $manager = $this->createUserWithRole('manager', [$naga->id, $legazpi->id], 'Payroll Manager');
-        $outsideManager = $this->createUserWithRole('manager', [$outside->id], 'Outside Manager');
-        $employeeA = $this->createUserWithRole('staff', [$naga->id], 'Juan Dela Cruz');
-        $employeeB = $this->createUserWithRole('staff', [$legazpi->id], 'Maria Santos');
-        $employeeC = $this->createUserWithRole('staff', [$outside->id], 'Hidden Employee');
-
-        Payroll::create([
-            'employee_id' => $employeeA->id,
-            'branch_id' => $naga->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
-            'period_start' => '2026-03-01',
-            'period_end' => '2026-03-15',
-            'gross_amount' => 1000,
-            'bonus' => 0,
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
-            'manual_deductions' => 0,
-            'cash_advance_deduction' => 0,
-            'net_amount' => 1000,
-            'status' => Payroll::STATUS_APPROVED,
-            'generated_by' => $manager->id,
-        ]);
-
-        Payroll::create([
-            'employee_id' => $employeeB->id,
-            'branch_id' => $legazpi->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_MONTHLY,
-            'period_start' => '2026-03-01',
-            'period_end' => '2026-03-31',
-            'gross_amount' => 2000,
-            'bonus' => 0,
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
-            'manual_deductions' => 0,
-            'cash_advance_deduction' => 0,
-            'net_amount' => 2000,
-            'status' => Payroll::STATUS_PARTIALLY_PAID,
-            'generated_by' => $manager->id,
-        ]);
-
-        Payroll::create([
-            'employee_id' => $employeeC->id,
-            'branch_id' => $outside->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_MONTHLY,
-            'period_start' => '2026-03-01',
-            'period_end' => '2026-03-31',
-            'gross_amount' => 9000,
-            'bonus' => 0,
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
-            'manual_deductions' => 0,
-            'cash_advance_deduction' => 0,
-            'net_amount' => 9000,
-            'status' => Payroll::STATUS_APPROVED,
-            'generated_by' => $outsideManager->id,
-        ]);
-
-        $response = $this->actingAs($manager)
-            ->getJson('/panel/reports/payroll/data?date_from=2026-03-01&date_to=2026-03-31')
-            ->assertOk();
-
-        $response->assertJsonPath('scope.is_all_branches', true);
-        $response->assertJsonPath('summary.payroll_count', 2);
-        $response->assertJsonPath('summary.net_payroll', 3000);
-        $response->assertJsonCount(2, 'branch_breakdown');
-        $response->assertJsonMissing(['branch_name' => 'Outside']);
-    }
-
-    public function test_payroll_reports_branch_filter_rejects_inaccessible_branches(): void
-    {
-        $naga = $this->createBranch('Naga');
-        $legazpi = $this->createBranch('Legazpi');
-        $manager = $this->createUserWithRole('manager', [$naga->id], 'Payroll Manager');
-
-        $this->actingAs($manager)
-            ->getJson('/panel/reports/payroll/data?branch='.$legazpi->id)
-            ->assertForbidden();
-    }
-
     public function test_payroll_reports_forbid_staff_access(): void
     {
-        $branch = $this->createBranch('Naga');
-        $staff = $this->createUserWithRole('staff', [$branch->id], 'Staff Ana');
+        $this->setBusinessProfile('Naga');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
 
         $this->actingAs($staff)
             ->get('/panel/reports/payroll')
             ->assertForbidden();
 
         $this->actingAs($staff)
-            ->getJson('/panel/reports/payroll/data?branch='.$branch->id)
+            ->getJson('/panel/reports/payroll/data?date_from=2026-03-01&date_to=2026-03-31')
             ->assertForbidden();
     }
 
-    private function createBranch(string $name): Branch
+    private function setBusinessProfile(string $name): BusinessProfile
     {
-        return Branch::create([
+        return BusinessProfile::factory()->create([
             'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => Branch::COUNTRY_PHILIPPINES,
+            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
+            'province' => 'Camarines Sur',
         ]);
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds, string $name, ?string $payFrequency = null): User
+    private function createUserWithRole(string $role, string $name, ?string $payFrequency = null): User
     {
         $user = User::factory()->create([
             'name' => $name,
             'email' => str($name)->slug('-').'@example.com',
             'status' => User::STATUS_ACTIVE,
             'daily_rate' => 500,
-            'pay_frequency' => $payFrequency ?? Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => $payFrequency ?? 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

@@ -3,19 +3,19 @@
       <div class="row g-3">
          <div class="col-lg-6">
             <div class="border rounded-3 p-3 h-100">
-               <div class="small text-uppercase text-muted fw-semibold mb-3">Branch Profile</div>
+               <div class="small text-uppercase text-muted fw-semibold mb-3">Business Profile</div>
                <div class="row g-3">
                   <div class="col-sm-6">
-                     <div class="text-muted small">Branch Name</div>
-                     <div class="fw-semibold">{{ branch.name || "-" }}</div>
+                     <div class="text-muted small">Business Name</div>
+                     <div class="fw-semibold">{{ profile.name || "-" }}</div>
                   </div>
                   <div class="col-sm-3">
                      <div class="text-muted small">Status</div>
-                     <div class="fw-semibold">{{ branchStatus }}</div>
+                     <div class="fw-semibold">{{ profileStatus }}</div>
                   </div>
                   <div class="col-sm-3">
                      <div class="text-muted small">Country</div>
-                     <div class="fw-semibold">{{ (branch.country_code || "PH").toUpperCase() }}</div>
+                     <div class="fw-semibold">{{ (profile.country_code || "PH").toUpperCase() }}</div>
                   </div>
                   <div class="col-12">
                      <div class="text-muted small">Address</div>
@@ -23,11 +23,11 @@
                   </div>
                   <div class="col-sm-6">
                      <div class="text-muted small">City</div>
-                     <div class="fw-semibold">{{ branch.city || "-" }}</div>
+                     <div class="fw-semibold">{{ profile.city || "-" }}</div>
                   </div>
                   <div class="col-sm-6">
                      <div class="text-muted small">Province</div>
-                     <div class="fw-semibold">{{ branch.province || "-" }}</div>
+                     <div class="fw-semibold">{{ profile.province || "-" }}</div>
                   </div>
                </div>
             </div>
@@ -39,23 +39,23 @@
                <div class="row g-3">
                   <div class="col-sm-6">
                      <div class="text-muted small">Phone</div>
-                     <div class="fw-semibold">{{ branch.phone || "-" }}</div>
+                     <div class="fw-semibold">{{ profile.phone || "-" }}</div>
                   </div>
                   <div class="col-sm-6">
                      <div class="text-muted small">Email</div>
-                     <div class="fw-semibold">{{ branch.email || "-" }}</div>
+                     <div class="fw-semibold">{{ profile.email || "-" }}</div>
                   </div>
                   <div class="col-sm-6">
                      <div class="text-muted small">Opening Time</div>
-                     <div class="fw-semibold">{{ formatTime(branch.opening_time) || "-" }}</div>
+                     <div class="fw-semibold">{{ formatTime(profile.opening_time) || "-" }}</div>
                   </div>
                   <div class="col-sm-6">
                      <div class="text-muted small">Closing Time</div>
-                     <div class="fw-semibold">{{ formatTime(branch.closing_time) || "-" }}</div>
+                     <div class="fw-semibold">{{ formatTime(profile.closing_time) || "-" }}</div>
                   </div>
                   <div class="col-12">
                      <div class="text-muted small">Timezone</div>
-                     <div class="fw-semibold">{{ branch.timezone || "-" }}</div>
+                     <div class="fw-semibold">{{ profile.timezone || "-" }}</div>
                   </div>
                </div>
             </div>
@@ -68,7 +68,7 @@
                   <div class="col-12">
                      <div class="text-muted small">Google Maps</div>
                      <div class="fw-semibold">
-                        <a v-if="branch.map_url" :href="branch.map_url" class="text-decoration-none" target="_blank" rel="noopener noreferrer">Open map link</a>
+                        <a v-if="profile.map_url" :href="profile.map_url" class="text-decoration-none" target="_blank" rel="noopener noreferrer">Open map link</a>
                         <span v-else>-</span>
                      </div>
                   </div>
@@ -99,24 +99,24 @@
 <script>
 export default {
    props: {
-      branch: { type: Object, required: true },
+      profile: { type: Object, required: true },
    },
 
    computed: {
       amenities: function () {
-         return Array.isArray(this.branch.amenities) ? this.branch.amenities.filter(Boolean) : [];
+         return Array.isArray(this.profile.amenities) ? this.profile.amenities.filter(Boolean) : [];
       },
-      branchStatus: function () {
-         return this.$filters.capitalize(this.branch.status || "open");
+      profileStatus: function () {
+         return this.$filters.capitalize(this.profile.status || "open");
       },
       fullAddress: function () {
-         return [this.branch.address, this.branch.city, this.branch.province].filter(Boolean).join(", ") || "-";
+         return [this.profile.address, this.profile.city, this.profile.province].filter(Boolean).join(", ") || "-";
       },
       socialLinks: function () {
          return [
-            { label: "Facebook", url: this.branch.facebook_url, icon: "bi-facebook" },
-            { label: "Messenger", url: this.branch.messenger_url, icon: "bi-messenger" },
-            { label: "WhatsApp", url: this.branch.whatsapp_url, icon: "bi-whatsapp" },
+            { label: "Facebook", url: this.profile.facebook_url, icon: "bi-facebook" },
+            { label: "Messenger", url: this.profile.messenger_url, icon: "bi-messenger" },
+            { label: "WhatsApp", url: this.profile.whatsapp_url, icon: "bi-whatsapp" },
          ].filter((link) => !!link.url);
       },
    },

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
-use App\Models\Branch;
 use App\Models\SaleTransaction;
+use App\Services\BusinessProfileContext;
 use App\Services\PosSaleService;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Contracts\View\View;
@@ -17,150 +17,99 @@ use Spatie\LaravelPdf\Facades\Pdf;
 
 class SalesController extends Controller
 {
-    public function __construct(private PosSaleService $posSaleService)
-    {
+    public function __construct(
+        private PosSaleService $posSaleService,
+        private BusinessProfileContext $businessProfileContext,
+    ) {
     }
 
-    /**
-     * Sales index page
-     * @return View
-     */
     public function index(): View
     {
-        return view('panel.sales');
+        return view('panel.sales', [
+            'businessProfile' => $this->businessProfileContext->profile(),
+        ]);
     }
 
-    /**
-     * Get branch context for sales creation
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function context(Request $request): JsonResponse
+    public function context(): JsonResponse
     {
-        $data = $request->validate([
-            'branch' => ['required', 'integer', 'exists:branches,id'],
-        ]);
-
-        // Get branch context options for the specified branch
-        $branch = Branch::query()->findOrFail((int) $data['branch']);
-
         return response()->json([
-            'branch' => [
-                'id' => $branch->id,
-                'name' => $branch->name,
-                'city' => $branch->city,
-                'province' => $branch->province,
-            ],
-            'options' => $this->posSaleService->branchContext($branch),
+            'location' => $this->businessProfileContext->legacyLocation(),
+            'options' => $this->posSaleService->context(),
         ]);
     }
 
-    /**
-     * Sales history with filters and pagination
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function history(Request $request): JsonResponse
     {
-        $data = $request->validate([
-            'branch' => ['required', 'integer', 'exists:branches,id'],
-            'type' => [
-                'nullable',
-                Rule::in([
-                    SaleTransaction::TYPE_INVENTORY,
-                    SaleTransaction::TYPE_MEMBERSHIP,
-                    SaleTransaction::TYPE_PT_PACKAGE,
-                    SaleTransaction::TYPE_WALK_IN,
-                ])
-            ],
+        $request->validate([
+            'type' => ['nullable', Rule::in([
+                SaleTransaction::TYPE_INVENTORY,
+                SaleTransaction::TYPE_MEMBERSHIP,
+                SaleTransaction::TYPE_PT_PACKAGE,
+                SaleTransaction::TYPE_WALK_IN,
+            ])],
             'search' => ['nullable', 'string', 'max:255'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $branch = Branch::query()->findOrFail((int) $data['branch']);
-
         $history = SaleTransaction::query()
             ->with(['member:id,name', 'processedBy:id,name'])
-            ->where('branch_id', $branch->id)
-            ->when($request->type, fn($query) => $query->where('type', $request->type))
+            ->when($request->type, fn ($query) => $query->where('type', $request->type))
             ->when($request->search, function ($query) use ($request) {
                 $search = trim((string) $request->search);
 
                 $query->where(function ($inner) use ($search) {
                     $inner->where('customer_name', 'like', "%{$search}%")
                         ->orWhere('item_name', 'like', "%{$search}%")
-                        ->orWhere('payment_method', 'like', "%{$search}%")
-                        ->orWhere('payment_reference', 'like', "%{$search}%");
+                        ->orWhere('payment_method', 'like', "%{$search}%");
                 });
             })
-            ->when($request->date_from, fn($query) => $query->whereDate('sold_at', '>=', $request->date_from))
-            ->when($request->date_to, fn($query) => $query->whereDate('sold_at', '<=', $request->date_to))
+            ->when($request->date_from, fn ($query) => $query->whereDate('sold_at', '>=', $request->date_from))
+            ->when($request->date_to, fn ($query) => $query->whereDate('sold_at', '<=', $request->date_to))
             ->orderByDesc('sold_at')
             ->paginate(15)
-            ->through(fn(SaleTransaction $transaction) => $this->transformTransaction($transaction))
+            ->through(fn (SaleTransaction $transaction) => $this->transformTransaction($transaction))
             ->withQueryString();
 
         return response()->json([
-            'branch' => [
-                'id' => $branch->id,
-                'name' => $branch->name,
-            ],
+            'location' => $this->businessProfileContext->legacyLocation(),
             'transactions' => $history,
         ]);
     }
 
-    /**
-     * Store new sales
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function store(Request $request): JsonResponse
     {
         $data = $this->validateStorePayload($request);
-        $branch = Branch::query()->findOrFail((int) $data['branch_id']);
-        $transaction = $this->posSaleService->processSale($branch, $data, auth()->user())
-            ->load(['branch:id,name', 'member:id,name', 'processedBy:id,name']);
+        $transaction = $this->posSaleService->processSale($data, auth()->user())
+            ->load(['member:id,name', 'processedBy:id,name']);
 
         return response()->json($this->transformTransaction($transaction), 201);
     }
 
-    /**
-     * Download receipt for a sale transaction
-     * @param SaleTransaction $saleTransaction
-     * @return Responsable
-     */
     public function receipt(SaleTransaction $saleTransaction): Responsable
     {
         $fileName = 'sale-receipt-' . $saleTransaction->id . '.pdf';
 
-        return Pdf::view('panel.sales.receipt', $this->receiptPayload($saleTransaction))->driver('dompdf')->format('a4')->margins(8, 8, 8, 8)->download($fileName);
+        return Pdf::view('panel.sales.receipt', $this->receiptPayload($saleTransaction))
+            ->driver('dompdf')
+            ->format('a4')
+            ->margins(8, 8, 8, 8)
+            ->download($fileName);
     }
 
     /**
-     * Validate and prepare the payload for storing a sale transaction
-     * @param Request $request
      * @return array<string, mixed>
      */
     private function validateStorePayload(Request $request): array
     {
         $validated = $request->validate([
-            'branch_id' => ['required', 'integer', 'exists:branches,id'],
-            'type' => [
-                'required',
-                Rule::in([
-                    SaleTransaction::TYPE_INVENTORY,
-                    SaleTransaction::TYPE_MEMBERSHIP,
-                    SaleTransaction::TYPE_PT_PACKAGE,
-                    SaleTransaction::TYPE_WALK_IN,
-                ])
-            ],
-            'payment_method' => [
-                'required',
-                Rule::in([
-                    ...SaleTransaction::supportedPaymentMethods(),
-                ])
-            ],
+            'type' => ['required', Rule::in([
+                SaleTransaction::TYPE_INVENTORY,
+                SaleTransaction::TYPE_MEMBERSHIP,
+                SaleTransaction::TYPE_PT_PACKAGE,
+                SaleTransaction::TYPE_WALK_IN,
+            ])],
+            'payment_method' => ['required', Rule::in(SaleTransaction::supportedPaymentMethods())],
             'sold_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'amount_received' => ['nullable', 'numeric', 'min:0'],
@@ -187,16 +136,14 @@ class SalesController extends Controller
 
         if ($validated['type'] === SaleTransaction::TYPE_INVENTORY) {
             $items = collect($validated['items'] ?? [])
-                ->filter(fn($item) => filled($item['inventory_item_id'] ?? null) || filled($item['quantity'] ?? null))
+                ->filter(fn ($item) => filled($item['inventory_item_id'] ?? null) || filled($item['quantity'] ?? null))
                 ->values();
 
-            if ($items->isEmpty() && !empty($validated['inventory_item_id'])) {
-                $items = collect([
-                    [
-                        'inventory_item_id' => $validated['inventory_item_id'],
-                        'quantity' => $validated['quantity'] ?? null,
-                    ]
-                ]);
+            if ($items->isEmpty() && ! empty($validated['inventory_item_id'])) {
+                $items = collect([[
+                    'inventory_item_id' => $validated['inventory_item_id'],
+                    'quantity' => $validated['quantity'] ?? null,
+                ]]);
             }
 
             if ($items->isEmpty()) {
@@ -253,7 +200,7 @@ class SalesController extends Controller
                 $errors['customer_name'][] = 'Enter the walk-in customer name.';
             }
 
-            if (!array_key_exists('amount_paid', $validated) || $validated['amount_paid'] === null || $validated['amount_paid'] === '') {
+            if (! array_key_exists('amount_paid', $validated) || $validated['amount_paid'] === null || $validated['amount_paid'] === '') {
                 $errors['amount_paid'][] = 'Enter the walk-in payment amount.';
             }
         }
@@ -268,18 +215,16 @@ class SalesController extends Controller
     }
 
     /**
-     * Transform transaction
-     * @param SaleTransaction $transaction
-     * @return array{amount_received: float, branch_id: mixed, change_amount: float, customer_name: string|null, details: array, id: int, item_name: string|null, member_id: mixed, payment_method: string, payment_method_label: string, payment_reference: string|null, processed_by: string|null, receipt_number: string, receipt_url: string, sold_at: string|null, source_url: string|null, total: float, type: string}
+     * @return array<string, mixed>
      */
     private function transformTransaction(SaleTransaction $transaction): array
     {
         $details = $transaction->details ?? [];
+        $location = $this->businessProfileContext->legacyLocation();
 
         return [
             'id' => $transaction->id,
             'receipt_number' => $transaction->receiptNumber(),
-            'branch_id' => $transaction->branch_id,
             'member_id' => $transaction->member_id,
             'type' => $transaction->type,
             'total' => round((float) $transaction->total, 2),
@@ -293,20 +238,19 @@ class SalesController extends Controller
             'customer_name' => $transaction->customer_name ?: $transaction->member?->name,
             'item_name' => $transaction->item_name,
             'details' => $details,
+            'location_name' => $location['name'],
             'receipt_url' => route('panel.sales.receipt', $transaction),
             'source_url' => match ($transaction->type) {
                 SaleTransaction::TYPE_MEMBERSHIP, SaleTransaction::TYPE_PT_PACKAGE => $transaction->member_id
-                ? route('panel.members.show', $transaction->member_id)
-                : null,
+                    ? route('panel.members.show', $transaction->member_id)
+                    : null,
                 default => null,
             },
         ];
     }
 
     /**
-     * Generate receipt line items based on sale transaction details or fallback to a single line item
-     * @param SaleTransaction $saleTransaction
-     * @return array<array|array{description: null, line_total: float, name: string|null, quantity: int, unit: null, unit_price: float>}
+     * @return array<array<string, mixed>>
      */
     private function receiptLineItems(SaleTransaction $saleTransaction): array
     {
@@ -326,33 +270,29 @@ class SalesController extends Controller
             }, $lineItems);
         }
 
-        return [
-            [
-                'name' => $saleTransaction->item_name ?: 'Sale',
-                'description' => null,
-                'quantity' => 1,
-                'unit' => null,
-                'unit_price' => round((float) $saleTransaction->total, 2),
-                'line_total' => round((float) $saleTransaction->total, 2),
-            ]
-        ];
+        return [[
+            'name' => $saleTransaction->item_name ?: 'Sale',
+            'description' => null,
+            'quantity' => 1,
+            'unit' => null,
+            'unit_price' => round((float) $saleTransaction->total, 2),
+            'line_total' => round((float) $saleTransaction->total, 2),
+        ]];
     }
 
     /**
-     * Prepare receipt payload
-     * @param SaleTransaction $saleTransaction
      * @return array<string, mixed>
      */
     private function receiptPayload(SaleTransaction $saleTransaction): array
     {
         $saleTransaction->loadMissing([
-            'branch:id,name,city,province,address',
             'member:id,name,email,phone',
             'processedBy:id,name',
         ]);
 
         return [
             'saleTransaction' => $saleTransaction,
+            'businessProfile' => $this->businessProfileContext->profile(),
             'receiptNumber' => $saleTransaction->receiptNumber(),
             'lineItems' => $this->receiptLineItems($saleTransaction),
             'payment' => [

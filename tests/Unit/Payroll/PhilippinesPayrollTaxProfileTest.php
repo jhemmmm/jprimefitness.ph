@@ -2,7 +2,6 @@
 
 namespace Tests\Unit\Payroll;
 
-use App\Models\Branch;
 use App\Services\Payroll\Profiles\PhilippinesPayrollTaxProfile;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -33,12 +32,12 @@ class PhilippinesPayrollTaxProfileTest extends TestCase
     public static function incomeTaxProvider(): array
     {
         return [
-            'semi-monthly exempt ceiling' => [Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY, 10417.0, 0.0],
-            'semi-monthly next bracket floor' => [Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY, 16667.0, 937.50],
-            'semi-monthly centavo rounding' => [Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY, 10417.5, 0.08],
-            'monthly exempt ceiling' => [Branch::PAYROLL_FREQUENCY_MONTHLY, 20833.0, 0.0],
-            'monthly next bracket floor' => [Branch::PAYROLL_FREQUENCY_MONTHLY, 33333.0, 1875.00],
-            'monthly top bracket floor' => [Branch::PAYROLL_FREQUENCY_MONTHLY, 666667.0, 183541.80],
+            'semi-monthly exempt ceiling' => ['semi_monthly', 10417.0, 0.0],
+            'semi-monthly next bracket floor' => ['semi_monthly', 16667.0, 937.50],
+            'semi-monthly centavo rounding' => ['semi_monthly', 10417.5, 0.08],
+            'monthly exempt ceiling' => ['monthly', 20833.0, 0.0],
+            'monthly next bracket floor' => ['monthly', 33333.0, 1875.00],
+            'monthly top bracket floor' => ['monthly', 666667.0, 183541.80],
         ];
     }
 }

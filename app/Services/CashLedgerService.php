@@ -2,41 +2,40 @@
 
 namespace App\Services;
 
-use App\Models\Branch;
-use App\Models\BranchCashLedgerEntry;
 use App\Models\CashAdvance;
+use App\Models\CashLedgerEntry;
 use App\Models\Payout;
 use App\Models\SaleTransaction;
 use App\Models\WalkIn;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 
-class BranchCashLedgerService
+class CashLedgerService
 {
     /**
      * @return array<string, float|int|string|null>
      */
-    public function summarize(Branch $branch): array
+    public function summarize(): array
     {
-        $baseQuery = $branch->cashLedgerEntries();
+        $baseQuery = CashLedgerEntry::query();
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfMonth();
 
         $cashInTotal = round((clone $baseQuery)
-            ->where('direction', BranchCashLedgerEntry::DIRECTION_IN)
+            ->where('direction', CashLedgerEntry::DIRECTION_IN)
             ->sum('amount'), 2);
 
         $cashOutTotal = round((clone $baseQuery)
-            ->where('direction', BranchCashLedgerEntry::DIRECTION_OUT)
+            ->where('direction', CashLedgerEntry::DIRECTION_OUT)
             ->sum('amount'), 2);
 
         $monthCashIn = round((clone $baseQuery)
-            ->where('direction', BranchCashLedgerEntry::DIRECTION_IN)
+            ->where('direction', CashLedgerEntry::DIRECTION_IN)
             ->whereBetween('occurred_at', [$monthStart, $monthEnd])
             ->sum('amount'), 2);
 
         $monthCashOut = round((clone $baseQuery)
-            ->where('direction', BranchCashLedgerEntry::DIRECTION_OUT)
+            ->where('direction', CashLedgerEntry::DIRECTION_OUT)
             ->whereBetween('occurred_at', [$monthStart, $monthEnd])
             ->sum('amount'), 2);
 
@@ -60,22 +59,23 @@ class BranchCashLedgerService
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function listEntries(Branch $branch, int $limit = 60): array
+    public function listEntries(int $limit = 60): array
     {
-        return $branch->cashLedgerEntries()
+        return CashLedgerEntry::query()
             ->withTrashed()
             ->with('createdBy:id,name')
+            ->orderByDesc('occurred_at')
+            ->orderByDesc('id')
             ->limit($limit)
             ->get()
-            ->map(fn (BranchCashLedgerEntry $entry) => $this->serializeEntry($entry))
+            ->map(fn (CashLedgerEntry $entry) => $this->serializeEntry($entry))
             ->all();
     }
 
-    public function createManualEntry(Branch $branch, array $data, int $createdBy): BranchCashLedgerEntry
+    public function createManualEntry(array $data, int $createdBy): CashLedgerEntry
     {
-        $entry = new BranchCashLedgerEntry([
-            'branch_id' => $branch->id,
-            'entry_type' => BranchCashLedgerEntry::TYPE_MANUAL_ADJUSTMENT,
+        $entry = new CashLedgerEntry([
+            'entry_type' => CashLedgerEntry::TYPE_MANUAL_ADJUSTMENT,
             'direction' => $data['direction'],
             'amount' => round((float) $data['amount'], 2),
             'occurred_at' => $data['occurred_at'],
@@ -91,7 +91,7 @@ class BranchCashLedgerService
         return $entry->fresh(['createdBy:id,name']);
     }
 
-    public function updateManualEntry(BranchCashLedgerEntry $entry, array $data): BranchCashLedgerEntry
+    public function updateManualEntry(CashLedgerEntry $entry, array $data): CashLedgerEntry
     {
         $entry->fill([
             'direction' => $data['direction'],
@@ -106,26 +106,25 @@ class BranchCashLedgerService
         return $entry->fresh(['createdBy:id,name']);
     }
 
-    public function deleteManualEntry(BranchCashLedgerEntry $entry): void
+    public function deleteManualEntry(CashLedgerEntry $entry): void
     {
         $entry->delete();
     }
 
-    public function syncWalkIn(WalkIn $walkIn): ?BranchCashLedgerEntry
+    public function syncWalkIn(WalkIn $walkIn): ?CashLedgerEntry
     {
         $walkIn->loadMissing('ratePlan:id,name');
 
         if (($walkIn->payment_method ?? 'cash') !== SaleTransaction::PAYMENT_METHOD_CASH) {
-            $this->deleteSystemEntry(BranchCashLedgerEntry::TYPE_WALK_IN_SALE, $walkIn->id);
+            $this->deleteSystemEntry(CashLedgerEntry::TYPE_WALK_IN_SALE, $walkIn->id);
 
             return null;
         }
 
         return $this->syncSystemEntry(
-            entryType: BranchCashLedgerEntry::TYPE_WALK_IN_SALE,
+            entryType: CashLedgerEntry::TYPE_WALK_IN_SALE,
             sourceId: $walkIn->id,
-            branchId: $walkIn->branch_id,
-            direction: BranchCashLedgerEntry::DIRECTION_IN,
+            direction: CashLedgerEntry::DIRECTION_IN,
             amount: (float) $walkIn->amount_paid,
             occurredAt: $walkIn->visited_at,
             title: 'Walk-in payment',
@@ -140,10 +139,10 @@ class BranchCashLedgerService
 
     public function deleteWalkIn(WalkIn $walkIn): void
     {
-        $this->deleteSystemEntry(BranchCashLedgerEntry::TYPE_WALK_IN_SALE, $walkIn->id);
+        $this->deleteSystemEntry(CashLedgerEntry::TYPE_WALK_IN_SALE, $walkIn->id);
     }
 
-    public function syncSaleTransaction(SaleTransaction $saleTransaction): ?BranchCashLedgerEntry
+    public function syncSaleTransaction(SaleTransaction $saleTransaction): ?CashLedgerEntry
     {
         $entryType = $this->saleEntryType($saleTransaction->type);
 
@@ -160,8 +159,7 @@ class BranchCashLedgerService
         return $this->syncSystemEntry(
             entryType: $entryType,
             sourceId: $saleTransaction->id,
-            branchId: $saleTransaction->branch_id,
-            direction: BranchCashLedgerEntry::DIRECTION_IN,
+            direction: CashLedgerEntry::DIRECTION_IN,
             amount: (float) $saleTransaction->total,
             occurredAt: $saleTransaction->sold_at,
             title: $this->saleEntryTitle($saleTransaction->type),
@@ -187,15 +185,15 @@ class BranchCashLedgerService
         $this->deleteSystemEntry($entryType, $saleTransaction->id);
     }
 
-    public function syncPayout(Payout $payout): ?BranchCashLedgerEntry
+    public function syncPayout(Payout $payout): ?CashLedgerEntry
     {
         $payout->loadMissing([
             'employee:id,name',
-            'payroll:id,branch_id,period_start,period_end',
+            'payroll:id,period_start,period_end',
         ]);
 
         if (! $payout->payroll || $payout->method !== Payout::METHOD_CASH) {
-            $this->deleteSystemEntry(BranchCashLedgerEntry::TYPE_PAYROLL_PAYOUT, $payout->id);
+            $this->deleteSystemEntry(CashLedgerEntry::TYPE_PAYROLL_PAYOUT, $payout->id);
 
             return null;
         }
@@ -205,10 +203,9 @@ class BranchCashLedgerService
             : null;
 
         return $this->syncSystemEntry(
-            entryType: BranchCashLedgerEntry::TYPE_PAYROLL_PAYOUT,
+            entryType: CashLedgerEntry::TYPE_PAYROLL_PAYOUT,
             sourceId: $payout->id,
-            branchId: $payout->payroll->branch_id,
-            direction: BranchCashLedgerEntry::DIRECTION_OUT,
+            direction: CashLedgerEntry::DIRECTION_OUT,
             amount: (float) $payout->amount,
             occurredAt: $payout->paid_at,
             title: 'Payroll cash payout',
@@ -222,7 +219,7 @@ class BranchCashLedgerService
         );
     }
 
-    public function syncCashAdvance(CashAdvance $cashAdvance): ?BranchCashLedgerEntry
+    public function syncCashAdvance(CashAdvance $cashAdvance): ?CashLedgerEntry
     {
         $cashAdvance->loadMissing('employee:id,name');
 
@@ -231,16 +228,15 @@ class BranchCashLedgerService
             CashAdvance::STATUS_PARTIALLY_PAID,
             CashAdvance::STATUS_PAID,
         ], true) || ! $cashAdvance->released_at) {
-            $this->deleteSystemEntry(BranchCashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE, $cashAdvance->id);
+            $this->deleteSystemEntry(CashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE, $cashAdvance->id);
 
             return null;
         }
 
         return $this->syncSystemEntry(
-            entryType: BranchCashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE,
+            entryType: CashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE,
             sourceId: $cashAdvance->id,
-            branchId: $cashAdvance->branch_id,
-            direction: BranchCashLedgerEntry::DIRECTION_OUT,
+            direction: CashLedgerEntry::DIRECTION_OUT,
             amount: (float) $cashAdvance->amount,
             occurredAt: $cashAdvance->released_at,
             title: 'Cash advance release',
@@ -256,7 +252,7 @@ class BranchCashLedgerService
     /**
      * @return array<string, mixed>
      */
-    public function serializeEntry(BranchCashLedgerEntry $entry): array
+    public function serializeEntry(CashLedgerEntry $entry): array
     {
         $entry->loadMissing('createdBy:id,name');
 
@@ -282,27 +278,25 @@ class BranchCashLedgerService
     private function syncSystemEntry(
         string $entryType,
         int $sourceId,
-        ?int $branchId,
         string $direction,
         float $amount,
         CarbonInterface|string|null $occurredAt,
         string $title,
         ?string $description = null,
         array $metadata = []
-    ): ?BranchCashLedgerEntry {
-        if (! $branchId || $amount <= 0) {
+    ): ?CashLedgerEntry {
+        if ($amount <= 0) {
             $this->deleteSystemEntry($entryType, $sourceId);
 
             return null;
         }
 
-        $entry = BranchCashLedgerEntry::withTrashed()->firstOrNew([
+        $entry = CashLedgerEntry::withTrashed()->firstOrNew([
             'entry_type' => $entryType,
             'source_id' => $sourceId,
         ]);
 
         $entry->fill([
-            'branch_id' => $branchId,
             'direction' => $direction,
             'amount' => round($amount, 2),
             'occurred_at' => $occurredAt ?? now(),
@@ -324,7 +318,7 @@ class BranchCashLedgerService
 
     private function deleteSystemEntry(string $entryType, int $sourceId): void
     {
-        BranchCashLedgerEntry::query()
+        CashLedgerEntry::query()
             ->where('entry_type', $entryType)
             ->where('source_id', $sourceId)
             ->delete();
@@ -333,12 +327,12 @@ class BranchCashLedgerService
     private function entryTypeLabel(string $entryType): string
     {
         return match ($entryType) {
-            BranchCashLedgerEntry::TYPE_INVENTORY_SALE => 'Inventory Sale',
-            BranchCashLedgerEntry::TYPE_MEMBERSHIP_SALE => 'Membership Sale',
-            BranchCashLedgerEntry::TYPE_PT_PACKAGE_SALE => 'PT Package Sale',
-            BranchCashLedgerEntry::TYPE_WALK_IN_SALE => 'Walk-in Sale',
-            BranchCashLedgerEntry::TYPE_PAYROLL_PAYOUT => 'Payroll Payout',
-            BranchCashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE => 'Cash Advance',
+            CashLedgerEntry::TYPE_INVENTORY_SALE => 'Inventory Sale',
+            CashLedgerEntry::TYPE_MEMBERSHIP_SALE => 'Membership Sale',
+            CashLedgerEntry::TYPE_PT_PACKAGE_SALE => 'PT Package Sale',
+            CashLedgerEntry::TYPE_WALK_IN_SALE => 'Walk-in Sale',
+            CashLedgerEntry::TYPE_PAYROLL_PAYOUT => 'Payroll Payout',
+            CashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE => 'Cash Advance',
             default => 'Manual Adjustment',
         };
     }
@@ -346,9 +340,9 @@ class BranchCashLedgerService
     private function saleEntryType(string $saleType): ?string
     {
         return match ($saleType) {
-            SaleTransaction::TYPE_INVENTORY => BranchCashLedgerEntry::TYPE_INVENTORY_SALE,
-            SaleTransaction::TYPE_MEMBERSHIP => BranchCashLedgerEntry::TYPE_MEMBERSHIP_SALE,
-            SaleTransaction::TYPE_PT_PACKAGE => BranchCashLedgerEntry::TYPE_PT_PACKAGE_SALE,
+            SaleTransaction::TYPE_INVENTORY => CashLedgerEntry::TYPE_INVENTORY_SALE,
+            SaleTransaction::TYPE_MEMBERSHIP => CashLedgerEntry::TYPE_MEMBERSHIP_SALE,
+            SaleTransaction::TYPE_PT_PACKAGE => CashLedgerEntry::TYPE_PT_PACKAGE_SALE,
             default => null,
         };
     }

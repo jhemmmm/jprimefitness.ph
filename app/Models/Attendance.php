@@ -14,7 +14,6 @@ class Attendance extends Model
     public const TYPE_EMPLOYEE = 'employee';
 
     protected $fillable = [
-        'branch_id',
         'attendee_type',
         'user_id',
         'walk_in_id',
@@ -33,11 +32,6 @@ class Attendance extends Model
     public function getIsCheckedOutAttribute(): bool
     {
         return $this->checked_out_at !== null;
-    }
-
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
     }
 
     public function user(): BelongsTo

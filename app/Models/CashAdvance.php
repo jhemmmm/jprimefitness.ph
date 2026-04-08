@@ -21,7 +21,6 @@ class CashAdvance extends Model
 
     protected $fillable = [
         'employee_id',
-        'branch_id',
         'amount',
         'remaining_amount',
         'status',
@@ -51,11 +50,6 @@ class CashAdvance extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(User::class, 'employee_id');
-    }
-
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
     }
 
     public function approvedBy(): BelongsTo

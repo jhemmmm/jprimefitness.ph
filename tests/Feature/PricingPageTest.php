@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
+use App\Models\BusinessProfile;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
 use App\Models\User;
@@ -25,12 +25,13 @@ class PricingPageTest extends TestCase
         Role::findOrCreate('admin');
         Role::findOrCreate('manager');
         Role::findOrCreate('staff');
+
+        BusinessProfile::factory()->create();
     }
 
     public function test_pricing_page_loads_for_panel_users(): void
     {
-        $branch = $this->createBranch('Naga');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Mia');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
 
         $this->actingAs($manager)
             ->get('/panel/pricing')
@@ -38,84 +39,68 @@ class PricingPageTest extends TestCase
             ->assertSee('pricing-page', false);
     }
 
-    public function test_branch_pricing_data_is_scoped_to_accessible_branches(): void
+    public function test_pricing_data_returns_global_configured_and_available_options(): void
     {
-        $accessibleBranch = $this->createBranch('Naga');
-        $otherBranch = $this->createBranch('Legazpi');
-        $staff = $this->createUserWithRole('staff', [$accessibleBranch->id], 'Staff Ana');
-        $ratePlan = $this->createRatePlan('Monthly', 30);
-        $unusedRatePlan = $this->createRatePlan('3 Months', 90);
-        $ptProduct = $this->createPtProduct('12 Sessions', 12);
-        $unusedPtProduct = $this->createPtProduct('24 Sessions', 24);
-
-        $accessibleBranch->ratePlans()->attach($ratePlan->id, [
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $configuredRatePlan = $this->createRatePlan('Monthly', 30, [
             'price' => 1499,
             'manager_commission_rate' => 12.5,
-            'is_active' => true,
             'effective_from' => '2026-04-01',
             'effective_until' => '2026-04-30',
         ]);
-        $accessibleBranch->ptProducts()->attach($ptProduct->id, [
+        $availableRatePlan = $this->createRatePlan('3 Months', 90);
+        $configuredPtProduct = $this->createPtProduct('12 Sessions', 12, [
             'price' => 3600,
             'coach_commission_rate' => 40,
-            'is_active' => true,
             'effective_from' => '2026-04-01',
             'effective_until' => '2026-04-30',
         ]);
-        $otherBranch->ratePlans()->attach($ratePlan->id, [
-            'price' => 1999,
-            'manager_commission_rate' => 8,
-            'is_active' => true,
-        ]);
+        $availablePtProduct = $this->createPtProduct('24 Sessions', 24);
 
         $this->actingAs($staff)
-            ->getJson('/panel/pricing/branches/'.$accessibleBranch->id)
+            ->getJson('/panel/pricing/data')
             ->assertOk()
-            ->assertJsonPath('branch.id', $accessibleBranch->id)
             ->assertJsonCount(1, 'membership_rates')
             ->assertJsonCount(1, 'available_membership_rate_plans')
             ->assertJsonCount(1, 'pt_rates')
             ->assertJsonCount(1, 'available_pt_products')
-            ->assertJsonPath('membership_rates.0.id', $ratePlan->id)
-            ->assertJsonPath('membership_rates.0.branch_price', 1499)
+            ->assertJsonPath('membership_rates.0.id', $configuredRatePlan->id)
+            ->assertJsonPath('membership_rates.0.price', 1499)
             ->assertJsonPath('membership_rates.0.manager_commission_rate', 12.5)
-            ->assertJsonPath('membership_rates.0.effective_from', '2026-04-01')
-            ->assertJsonPath('membership_rates.0.effective_until', '2026-04-30')
-            ->assertJsonPath('available_membership_rate_plans.0.id', $unusedRatePlan->id)
-            ->assertJsonPath('pt_rates.0.id', $ptProduct->id)
-            ->assertJsonPath('pt_rates.0.branch_price', 3600)
+            ->assertJsonPath('membership_rates.0.effective_from', '2026-04-01T00:00:00.000000Z')
+            ->assertJsonPath('membership_rates.0.effective_until', '2026-04-30T00:00:00.000000Z')
+            ->assertJsonPath('available_membership_rate_plans.0.id', $availableRatePlan->id)
+            ->assertJsonPath('pt_rates.0.id', $configuredPtProduct->id)
+            ->assertJsonPath('pt_rates.0.price', 3600)
             ->assertJsonPath('pt_rates.0.coach_commission_rate', 40)
-            ->assertJsonPath('pt_rates.0.effective_from', '2026-04-01')
-            ->assertJsonPath('pt_rates.0.effective_until', '2026-04-30')
-            ->assertJsonPath('available_pt_products.0.id', $unusedPtProduct->id);
-
-        $this->actingAs($staff)
-            ->getJson('/panel/pricing/branches/'.$otherBranch->id)
-            ->assertNotFound();
+            ->assertJsonPath('pt_rates.0.effective_from', '2026-04-01T00:00:00.000000Z')
+            ->assertJsonPath('pt_rates.0.effective_until', '2026-04-30T00:00:00.000000Z')
+            ->assertJsonPath('available_pt_products.0.id', $availablePtProduct->id)
+            ->assertJsonPath('stats.membership_configured', 1)
+            ->assertJsonPath('stats.pt_configured', 1);
     }
 
     public function test_inactive_master_pricing_options_are_not_returned_or_attachable(): void
     {
-        $branch = $this->createBranch('Iriga');
-        $admin = $this->createUserWithRole('admin', [$branch->id], 'Admin Mia');
-        $inactiveRatePlan = $this->createRatePlan('Legacy Plan', 45, false);
-        $inactivePtProduct = $this->createPtProduct('Legacy PT', 18, false);
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
+        $inactiveRatePlan = $this->createRatePlan('Legacy Plan', 45, ['is_active' => false]);
+        $inactivePtProduct = $this->createPtProduct('Legacy PT', 18, ['is_active' => false]);
 
         $this->actingAs($admin)
-            ->getJson('/panel/pricing/branches/'.$branch->id)
+            ->getJson('/panel/pricing/data')
             ->assertOk()
             ->assertJsonCount(0, 'available_membership_rate_plans')
             ->assertJsonCount(0, 'available_pt_products');
 
         $this->actingAs($admin)
-            ->postJson('/panel/pricing/branches/'.$branch->id.'/rate-plans/'.$inactiveRatePlan->id, [
+            ->postJson('/panel/pricing/rate-plans/'.$inactiveRatePlan->id, [
                 'price' => 1999,
                 'is_active' => true,
             ])
             ->assertNotFound();
 
         $this->actingAs($admin)
-            ->postJson('/panel/pricing/branches/'.$branch->id.'/pt-products/'.$inactivePtProduct->id, [
+            ->postJson('/panel/pricing/pt-products/'.$inactivePtProduct->id, [
                 'price' => 3999,
                 'coach_commission_rate' => 40,
                 'is_active' => true,
@@ -123,14 +108,13 @@ class PricingPageTest extends TestCase
             ->assertNotFound();
     }
 
-    public function test_admin_can_create_update_and_delete_branch_rate_plan_pricing(): void
+    public function test_admin_can_create_update_and_delete_rate_plan_pricing(): void
     {
-        $branch = $this->createBranch('Iriga');
-        $admin = $this->createUserWithRole('admin', [$branch->id], 'Admin Mia');
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
         $ratePlan = $this->createRatePlan('6 Months', 180);
 
         $this->actingAs($admin)
-            ->postJson('/panel/pricing/branches/'.$branch->id.'/rate-plans/'.$ratePlan->id, [
+            ->postJson('/panel/pricing/rate-plans/'.$ratePlan->id, [
                 'price' => 4999.50,
                 'manager_commission_rate' => 15,
                 'is_active' => true,
@@ -140,7 +124,7 @@ class PricingPageTest extends TestCase
             ->assertCreated();
 
         $this->actingAs($admin)
-            ->putJson('/panel/pricing/branches/'.$branch->id.'/rate-plans/'.$ratePlan->id, [
+            ->putJson('/panel/pricing/rate-plans/'.$ratePlan->id, [
                 'price' => 5499.50,
                 'manager_commission_rate' => 17.5,
                 'is_active' => false,
@@ -149,34 +133,35 @@ class PricingPageTest extends TestCase
             ])
             ->assertOk();
 
-        $this->assertDatabaseHas('branch_rate_prices', [
-            'branch_id' => $branch->id,
-            'rate_plan_id' => $ratePlan->id,
+        $this->assertDatabaseHas('rate_plans', [
+            'id' => $ratePlan->id,
             'price' => 5499.50,
             'manager_commission_rate' => 17.5,
             'is_active' => false,
-            'effective_from' => '2026-04-01',
-            'effective_until' => '2026-06-30',
+            'effective_from' => '2026-04-01 00:00:00',
+            'effective_until' => '2026-06-30 00:00:00',
         ]);
 
         $this->actingAs($admin)
-            ->deleteJson('/panel/pricing/branches/'.$branch->id.'/rate-plans/'.$ratePlan->id)
+            ->deleteJson('/panel/pricing/rate-plans/'.$ratePlan->id)
             ->assertNoContent();
 
-        $this->assertDatabaseMissing('branch_rate_prices', [
-            'branch_id' => $branch->id,
-            'rate_plan_id' => $ratePlan->id,
+        $this->assertDatabaseHas('rate_plans', [
+            'id' => $ratePlan->id,
+            'price' => null,
+            'manager_commission_rate' => null,
+            'effective_from' => null,
+            'effective_until' => null,
         ]);
     }
 
-    public function test_admin_can_create_update_and_delete_branch_pt_product_pricing(): void
+    public function test_admin_can_create_update_and_delete_pt_product_pricing(): void
     {
-        $branch = $this->createBranch('Daet');
-        $admin = $this->createUserWithRole('admin', [$branch->id], 'Admin Zoe');
+        $admin = $this->createUserWithRole('admin', 'Admin Zoe');
         $ptProduct = $this->createPtProduct('24 Sessions', 24);
 
         $this->actingAs($admin)
-            ->postJson('/panel/pricing/branches/'.$branch->id.'/pt-products/'.$ptProduct->id, [
+            ->postJson('/panel/pricing/pt-products/'.$ptProduct->id, [
                 'price' => 6800,
                 'coach_commission_rate' => 40,
                 'is_active' => true,
@@ -186,7 +171,7 @@ class PricingPageTest extends TestCase
             ->assertCreated();
 
         $this->actingAs($admin)
-            ->putJson('/panel/pricing/branches/'.$branch->id.'/pt-products/'.$ptProduct->id, [
+            ->putJson('/panel/pricing/pt-products/'.$ptProduct->id, [
                 'price' => 7200,
                 'coach_commission_rate' => 45,
                 'is_active' => false,
@@ -195,48 +180,50 @@ class PricingPageTest extends TestCase
             ])
             ->assertOk();
 
-        $this->assertDatabaseHas('branch_pt_prices', [
-            'branch_id' => $branch->id,
-            'pt_product_id' => $ptProduct->id,
-            'price' => 7200,
-            'coach_commission_rate' => 45,
+        $this->assertDatabaseHas('pt_products', [
+            'id' => $ptProduct->id,
+            'price' => 7200.00,
+            'coach_commission_rate' => 45.0,
             'is_active' => false,
-            'effective_from' => '2026-04-01',
+            'effective_from' => '2026-04-01 00:00:00',
+            'effective_until' => null,
         ]);
 
         $this->actingAs($admin)
-            ->deleteJson('/panel/pricing/branches/'.$branch->id.'/pt-products/'.$ptProduct->id)
+            ->deleteJson('/panel/pricing/pt-products/'.$ptProduct->id)
             ->assertNoContent();
 
-        $this->assertDatabaseMissing('branch_pt_prices', [
-            'branch_id' => $branch->id,
-            'pt_product_id' => $ptProduct->id,
+        $this->assertDatabaseHas('pt_products', [
+            'id' => $ptProduct->id,
+            'price' => null,
+            'coach_commission_rate' => null,
+            'effective_from' => null,
+            'effective_until' => null,
         ]);
     }
 
-    public function test_manager_cannot_create_update_or_delete_branch_pricing(): void
+    public function test_manager_cannot_create_update_or_delete_pricing(): void
     {
-        $branch = $this->createBranch('Sorsogon');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Lou');
+        $manager = $this->createUserWithRole('manager', 'Manager Lou');
         $ratePlan = $this->createRatePlan('Annual', 365);
         $ptProduct = $this->createPtProduct('32 Sessions', 32);
 
         $this->actingAs($manager)
-            ->putJson('/panel/pricing/branches/'.$branch->id.'/rate-plans/'.$ratePlan->id, [
+            ->putJson('/panel/pricing/rate-plans/'.$ratePlan->id, [
                 'price' => 10999,
                 'is_active' => true,
             ])
             ->assertForbidden();
 
         $this->actingAs($manager)
-            ->postJson('/panel/pricing/branches/'.$branch->id.'/rate-plans/'.$ratePlan->id, [
+            ->postJson('/panel/pricing/rate-plans/'.$ratePlan->id, [
                 'price' => 10999,
                 'is_active' => true,
             ])
             ->assertForbidden();
 
         $this->actingAs($manager)
-            ->putJson('/panel/pricing/branches/'.$branch->id.'/pt-products/'.$ptProduct->id, [
+            ->putJson('/panel/pricing/pt-products/'.$ptProduct->id, [
                 'price' => 9200,
                 'coach_commission_rate' => 40,
                 'is_active' => true,
@@ -244,77 +231,70 @@ class PricingPageTest extends TestCase
             ->assertForbidden();
 
         $this->actingAs($manager)
-            ->postJson('/panel/pricing/branches/'.$branch->id.'/pt-products/'.$ptProduct->id, [
+            ->postJson('/panel/pricing/pt-products/'.$ptProduct->id, [
                 'price' => 9200,
                 'coach_commission_rate' => 40,
                 'is_active' => true,
             ])
             ->assertForbidden();
 
-        $branch->ratePlans()->attach($ratePlan->id, [
+        $ratePlan->update([
             'price' => 9999,
-            'is_active' => true,
+            'manager_commission_rate' => 12,
+            'effective_from' => '2026-04-01',
         ]);
-        $branch->ptProducts()->attach($ptProduct->id, [
+        $ptProduct->update([
             'price' => 9200,
             'coach_commission_rate' => 40,
-            'is_active' => true,
+            'effective_from' => '2026-04-01',
         ]);
 
         $this->actingAs($manager)
-            ->deleteJson('/panel/pricing/branches/'.$branch->id.'/rate-plans/'.$ratePlan->id)
+            ->deleteJson('/panel/pricing/rate-plans/'.$ratePlan->id)
             ->assertForbidden();
 
         $this->actingAs($manager)
-            ->deleteJson('/panel/pricing/branches/'.$branch->id.'/pt-products/'.$ptProduct->id)
+            ->deleteJson('/panel/pricing/pt-products/'.$ptProduct->id)
             ->assertForbidden();
     }
 
-    private function createBranch(string $name): Branch
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createRatePlan(string $name, int $durationDays, array $attributes = []): RatePlan
     {
-        return Branch::create([
-            'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => Branch::COUNTRY_PHILIPPINES,
-            'city' => 'Naga City',
-        ]);
-    }
-
-    private function createRatePlan(string $name, int $durationDays, bool $isActive = true): RatePlan
-    {
-        return RatePlan::create([
+        return RatePlan::create(array_merge([
             'name' => $name,
             'duration_days' => $durationDays,
             'description' => $name.' membership',
-            'is_active' => $isActive,
-        ]);
+            'is_active' => true,
+        ], $attributes));
     }
 
-    private function createPtProduct(string $name, int $sessionCount, bool $isActive = true): PTProduct
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createPtProduct(string $name, int $sessionCount, array $attributes = []): PTProduct
     {
-        return PTProduct::create([
+        return PTProduct::create(array_merge([
             'name' => $name,
             'session_count' => $sessionCount,
             'category' => PTProduct::CATEGORY_PACKAGE,
             'description' => $name.' PT package',
-            'is_active' => $isActive,
-        ]);
+            'is_active' => true,
+        ], $attributes));
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds, string $name): User
+    private function createUserWithRole(string $role, string $name): User
     {
         $user = User::factory()->create([
             'name' => $name,
             'status' => User::STATUS_ACTIVE,
             'daily_rate' => 500,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

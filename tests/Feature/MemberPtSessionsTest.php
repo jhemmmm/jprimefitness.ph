@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
 use App\Models\MemberPtPackage;
 use App\Models\PTProduct;
 use App\Models\User;
@@ -28,15 +27,13 @@ class MemberPtSessionsTest extends TestCase
 
     public function test_manager_can_add_pt_package_for_member(): void
     {
-        $branch = $this->createBranch('Calabanga');
-        $product = $this->attachPtProduct($branch, '12 Sessions', 12);
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $coach = $this->createUserWithRole('coach', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $product = $this->createPtProduct('12 Sessions', 12);
+        $manager = $this->createUserWithRole('manager');
+        $coach = $this->createUserWithRole('coach');
+        $member = $this->createMember();
 
         $this->actingAs($manager)
             ->postJson("/panel/members/{$member->id}/pt-packages", [
-                'branch_id' => $branch->id,
                 'pt_product_id' => $product->id,
                 'coach_id' => $coach->id,
                 'assigned_at' => '2026-04-01',
@@ -46,14 +43,13 @@ class MemberPtSessionsTest extends TestCase
             ->assertJsonPath('member_pt_packages.0.total_sessions', 12)
             ->assertJsonPath('member_pt_packages.0.remaining_sessions', 12)
             ->assertJsonPath('member_pt_packages.0.coach.name', $coach->name)
-            ->assertJsonPath('member_pt_packages.0.sold_price', '500.00')
-            ->assertJsonPath('member_pt_packages.0.coach_commission_rate', '40.00')
-            ->assertJsonPath('member_pt_packages.0.coach_commission_amount', '200.00')
+            ->assertJsonPath('member_pt_packages.0.sold_price', 500)
+            ->assertJsonPath('member_pt_packages.0.coach_commission_rate', 40)
+            ->assertJsonPath('member_pt_packages.0.coach_commission_amount', 200)
             ->assertJsonPath('member_pt_packages.0.coach_commission_status', MemberPtPackage::COMMISSION_STATUS_PENDING);
 
         $this->assertDatabaseHas('member_pt_packages', [
             'user_id' => $member->id,
-            'branch_id' => $branch->id,
             'pt_product_id' => $product->id,
             'coach_id' => $coach->id,
             'sold_price' => 500,
@@ -68,15 +64,13 @@ class MemberPtSessionsTest extends TestCase
 
     public function test_staff_can_log_pt_session_usage_and_reduce_balance(): void
     {
-        $branch = $this->createBranch('Naga');
-        $product = $this->attachPtProduct($branch, '12 Sessions', 12);
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $coach = $this->createUserWithRole('coach', [$branch->id]);
-        $staff = $this->createUserWithRole('staff', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $product = $this->createPtProduct('12 Sessions', 12);
+        $manager = $this->createUserWithRole('manager');
+        $coach = $this->createUserWithRole('coach');
+        $staff = $this->createUserWithRole('staff');
+        $member = $this->createMember();
 
         $package = $member->memberPtPackages()->create([
-            'branch_id' => $branch->id,
             'pt_product_id' => $product->id,
             'coach_id' => $coach->id,
             'total_sessions' => 12,
@@ -114,15 +108,13 @@ class MemberPtSessionsTest extends TestCase
 
     public function test_consuming_last_session_marks_pt_commission_as_earned(): void
     {
-        $branch = $this->createBranch('Tabaco');
-        $product = $this->attachPtProduct($branch, 'Per Session', 1);
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $coach = $this->createUserWithRole('coach', [$branch->id]);
-        $staff = $this->createUserWithRole('staff', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $product = $this->createPtProduct('Per Session', 1);
+        $manager = $this->createUserWithRole('manager');
+        $coach = $this->createUserWithRole('coach');
+        $staff = $this->createUserWithRole('staff');
+        $member = $this->createMember();
 
         $package = $member->memberPtPackages()->create([
-            'branch_id' => $branch->id,
             'pt_product_id' => $product->id,
             'coach_id' => $coach->id,
             'sold_price' => 500,
@@ -155,15 +147,13 @@ class MemberPtSessionsTest extends TestCase
 
     public function test_logging_usage_with_a_late_coach_assignment_updates_the_package_commission_state(): void
     {
-        $branch = $this->createBranch('Goa');
-        $product = $this->attachPtProduct($branch, 'Per Session', 1);
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $coach = $this->createUserWithRole('coach', [$branch->id]);
-        $staff = $this->createUserWithRole('staff', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $product = $this->createPtProduct('Per Session', 1);
+        $manager = $this->createUserWithRole('manager');
+        $coach = $this->createUserWithRole('coach');
+        $staff = $this->createUserWithRole('staff');
+        $member = $this->createMember();
 
         $package = $member->memberPtPackages()->create([
-            'branch_id' => $branch->id,
             'pt_product_id' => $product->id,
             'sold_price' => 500,
             'coach_commission_rate' => 40,
@@ -198,20 +188,17 @@ class MemberPtSessionsTest extends TestCase
         ]);
     }
 
-    public function test_package_cannot_be_assigned_to_a_coach_from_another_branch(): void
+    public function test_package_cannot_be_assigned_to_a_non_coach_user(): void
     {
-        $branch = $this->createBranch('Sorsogon');
-        $otherBranch = $this->createBranch('Iriga');
-        $product = $this->attachPtProduct($branch, '8 Sessions', 8);
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $coach = $this->createUserWithRole('coach', [$otherBranch->id]);
-        $member = $this->createMember([$branch->id]);
+        $product = $this->createPtProduct('8 Sessions', 8);
+        $manager = $this->createUserWithRole('manager');
+        $staff = $this->createUserWithRole('staff');
+        $member = $this->createMember();
 
         $this->actingAs($manager)
             ->postJson("/panel/members/{$member->id}/pt-packages", [
-                'branch_id' => $branch->id,
                 'pt_product_id' => $product->id,
-                'coach_id' => $coach->id,
+                'coach_id' => $staff->id,
                 'assigned_at' => '2026-04-01',
             ])
             ->assertStatus(422)
@@ -220,13 +207,11 @@ class MemberPtSessionsTest extends TestCase
 
     public function test_sessions_used_cannot_exceed_remaining_balance(): void
     {
-        $branch = $this->createBranch('Legazpi');
-        $product = $this->attachPtProduct($branch, 'Per Session', 1);
-        $staff = $this->createUserWithRole('staff', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $product = $this->createPtProduct('Per Session', 1);
+        $staff = $this->createUserWithRole('staff');
+        $member = $this->createMember();
 
         $package = $member->memberPtPackages()->create([
-            'branch_id' => $branch->id,
             'pt_product_id' => $product->id,
             'total_sessions' => 1,
             'remaining_sessions' => 1,
@@ -251,17 +236,15 @@ class MemberPtSessionsTest extends TestCase
 
     public function test_members_list_includes_pt_packages_and_profile_notes(): void
     {
-        $branch = $this->createBranch('Daet');
-        $product = $this->attachPtProduct($branch, '8 Sessions', 8);
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $product = $this->createPtProduct('8 Sessions', 8);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
 
         $member->profile()->create([
             'notes' => 'Prefers morning PT sessions.',
         ]);
 
         $member->memberPtPackages()->create([
-            'branch_id' => $branch->id,
             'pt_product_id' => $product->id,
             'total_sessions' => 8,
             'remaining_sessions' => 6,
@@ -278,53 +261,31 @@ class MemberPtSessionsTest extends TestCase
             ->assertJsonPath('members.data.0.member_pt_packages.0.pt_product.name', '8 Sessions');
     }
 
-    private function createBranch(string $name): Branch
+    private function createPtProduct(string $name, int $sessionCount): PTProduct
     {
-        return Branch::create([
-            'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'city' => 'Naga City',
-        ]);
-    }
-
-    private function attachPtProduct(Branch $branch, string $name, int $sessionCount): PTProduct
-    {
-        $product = PTProduct::create([
+        return PTProduct::create([
             'name' => $name,
             'session_count' => $sessionCount,
             'category' => $sessionCount === 1 ? PTProduct::CATEGORY_SINGLE : PTProduct::CATEGORY_PACKAGE,
-            'is_active' => true,
-        ]);
-
-        $branch->ptProducts()->attach($product->id, [
             'price' => 500,
             'coach_commission_rate' => 40,
             'is_active' => true,
         ]);
-
-        return $product;
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds = []): User
+    private function createUserWithRole(string $role): User
     {
         $user = User::factory()->create([
             'status' => User::STATUS_ACTIVE,
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createMember(array $branchIds): User
+    private function createMember(): User
     {
-        return $this->createUserWithRole('member', $branchIds);
+        return $this->createUserWithRole('member');
     }
 }

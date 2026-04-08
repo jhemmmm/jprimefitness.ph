@@ -38,7 +38,6 @@ class ExpiringMembershipNotificationService
             ->with([
                 'member:id,name',
                 'ratePlan:id,name',
-                'branch:id,name',
             ])
             ->orderBy('end_date')
             ->chunkById(100, function ($subscriptions) use ($referenceTime, &$notifiedSubscriptions): void {
@@ -61,7 +60,6 @@ class ExpiringMembershipNotificationService
                             $daysRemaining,
                             $referenceTime->toISOString(),
                         ),
-                        $subscription->branch_id,
                     );
 
                     $subscription->forceFill([

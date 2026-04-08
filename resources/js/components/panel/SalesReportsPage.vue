@@ -3,21 +3,14 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Sales Reports</h4>
-            <p class="text-muted small mb-0">Review sales performance, breakdowns, and recent transactions for {{ currentBranchLabel }}</p>
+            <p class="text-muted small mb-0">Review sales performance, breakdowns, and recent transactions for {{ currentLocationLabel }}</p>
          </div>
       </div>
-
-      <div v-if="!branchesData.length" class="panel-card p-5 text-center text-muted">
-         <i class="bi bi-bar-chart-fill fs-1 d-block mb-2 opacity-25"></i>
-         <div>No accessible branches found.</div>
-      </div>
-
-      <template v-else>
-         <div class="panel-card mb-4">
+      <div class="panel-card mb-4">
             <div class="panel-card-header">
                <div>
                   <div class="panel-card-title">Filters</div>
-                  <div class="panel-card-sub">Use the sidebar branch selector, date range, sale type, and payment method to refine this report.</div>
+                  <div class="panel-card-sub">Use the date range, sale type, and payment method filters to refine this report.</div>
                </div>
             </div>
             <div class="p-3 p-md-4">
@@ -284,7 +277,7 @@
             <div class="col-12 col-xl-4">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
-                     <div class="panel-card-title">{{ report.scope.is_all_branches ? "Branch Breakdown" : "Selected Branch" }}</div>
+                  <div class="panel-card-title">Location Summary</div>
                   </div>
                   <div class="panel-card-body p-0">
                      <div v-if="loading">
@@ -315,20 +308,20 @@
                            <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
                               <thead>
                                  <tr>
-                                    <th>Branch</th>
+                                    <th>Location</th>
                                     <th>Transactions</th>
                                     <th>Total</th>
                                  </tr>
                               </thead>
                               <tbody>
-                                 <tr v-if="report.branch_breakdown.length === 0" class="empty-row">
+                                 <tr v-if="report.location_breakdown.length === 0" class="empty-row">
                                     <td colspan="3">
                                        <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
-                                       <div class="mt-1 text-muted small">No branch activity for this filter.</div>
+                                       <div class="mt-1 text-muted small">No location activity for this filter.</div>
                                     </td>
                                  </tr>
-                                 <tr v-for="row in report.branch_breakdown" :key="row.branch_id">
-                                    <td>{{ row.branch_name }}</td>
+                                 <tr v-for="row in report.location_breakdown" :key="row.location_id">
+                                    <td>{{ row.location_name }}</td>
                                     <td>{{ row.transaction_count }}</td>
                                     <td class="fw-semibold">₱{{ $filters.formatMoney(row.total_sales) }}</td>
                                  </tr>
@@ -336,15 +329,15 @@
                            </table>
                         </div>
                         <div class="d-md-none p-3">
-                           <div v-if="report.branch_breakdown.length === 0" class="text-center py-4 text-muted small">No branch activity for this filter.</div>
-                           <div v-else class="member-card" v-for="row in report.branch_breakdown" :key="'branch-mobile-' + row.branch_id">
+                           <div v-if="report.location_breakdown.length === 0" class="text-center py-4 text-muted small">No location activity for this filter.</div>
+                           <div v-else class="member-card" v-for="row in report.location_breakdown" :key="'location-mobile-' + row.location_id">
                               <div class="member-card-top">
                                  <div class="member-card-identity">
                                     <div class="inventory-avatar">
                                        <i class="bi bi-diagram-3-fill"></i>
                                     </div>
                                     <div>
-                                       <div class="member-card-name">{{ row.branch_name }}</div>
+                                       <div class="member-card-name">{{ row.location_name }}</div>
                                        <div class="member-card-sub">{{ row.transaction_count }} transaction{{ row.transaction_count !== 1 ? "s" : "" }}</div>
                                     </div>
                                  </div>
@@ -540,7 +533,7 @@
                      <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
                         <thead>
                            <tr>
-                              <th>Branch</th>
+                              <th>Location</th>
                               <th>Customer</th>
                               <th>Type</th>
                               <th>Payment</th>
@@ -593,7 +586,7 @@
                      <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
                         <thead>
                            <tr>
-                              <th>Branch</th>
+                              <th>Location</th>
                               <th>Customer</th>
                               <th>Type</th>
                               <th>Payment</th>
@@ -609,7 +602,7 @@
                               </td>
                            </tr>
                            <tr v-for="transaction in report.recent_transactions" :key="transaction.id">
-                              <td>{{ transaction.branch_name || "-" }}</td>
+                              <td>{{ transaction.location_name || "-" }}</td>
                               <td>
                                  <div class="fw-semibold">{{ transaction.customer_name || "Walk-in / Counter Sale" }}</div>
                                  <div class="small text-muted">{{ transaction.item_name || "-" }}</div>
@@ -646,7 +639,7 @@
                            <span class="m-badge m-badge--plan">{{ transaction.payment_method_label }}</span>
                         </div>
                         <div class="small text-muted mb-2">
-                           <div>Branch: {{ transaction.branch_name || "-" }}</div>
+                           <div>Location: {{ transaction.location_name || "-" }}</div>
                            <div>Sold At: {{ $filters.formatDateTime(transaction.sold_at) }}</div>
                            <div>Processed By: {{ transaction.processed_by || "-" }}</div>
                         </div>
@@ -659,7 +652,6 @@
                </div>
             </div>
          </div>
-      </template>
    </div>
 </template>
 
@@ -673,10 +665,10 @@ export default {
       SalesTypeBreakdownChart,
    },
    props: {
-      branchesData: {
-         type: Array,
+      businessProfile: {
+         type: Object,
          default: function () {
-            return [];
+            return null;
          },
       },
    },
@@ -684,7 +676,6 @@ export default {
       return {
          loading: false,
          pageError: "",
-         selectedBranch: null,
          filters: {
             date_from: this.defaultDateFrom(),
             date_to: this.defaultDateTo(),
@@ -702,13 +693,8 @@ export default {
       };
    },
    computed: {
-      currentBranchLabel: function () {
-         if (!this.selectedBranch) {
-            return "all accessible branches";
-         }
-
-         const branch = this.branchesData.find((item) => item.id === this.selectedBranch);
-         return branch ? branch.name : "the selected branch";
+      currentLocationLabel: function () {
+         return this.report.scope.location?.name || this.businessProfile?.name || window.JPrime?.profile?.name || "this location";
       },
       exportUrl: function () {
          const params = new URLSearchParams();
@@ -724,15 +710,13 @@ export default {
       },
    },
    mounted: function () {
-      this.selectedBranch = this.resolveSelectedBranch();
       this.fetchReport();
    },
    methods: {
       emptyReport: function () {
          return {
             scope: {
-               branch: null,
-               is_all_branches: true,
+               location: null,
             },
             summary: {
                total_sales: 0,
@@ -744,7 +728,7 @@ export default {
             payment_breakdown: [],
             daily_trend: [],
             top_items: [],
-            branch_breakdown: [],
+            location_breakdown: [],
             recent_transactions: [],
          };
       },
@@ -759,19 +743,8 @@ export default {
          const day = String(now.getDate()).padStart(2, "0");
          return `${now.getFullYear()}-${month}-${day}`;
       },
-      resolveSelectedBranch: function () {
-         const storedBranchId = localStorage.getItem("selectedBranch");
-
-         if (!storedBranchId || storedBranchId === "null") {
-            return null;
-         }
-
-         const branchId = parseInt(storedBranchId, 10);
-         return Number.isNaN(branchId) ? null : branchId;
-      },
       buildParams: function () {
          return {
-            branch: this.selectedBranch || undefined,
             date_from: this.filters.date_from || undefined,
             date_to: this.filters.date_to || undefined,
             type: this.filters.type || undefined,

@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
+use App\Models\BusinessProfile;
 use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\User;
@@ -35,13 +35,17 @@ class EmployeePayslipTest extends TestCase
     {
         Pdf::fake();
 
-        $branch = $this->createBranch('Naga');
-        $manager = $this->createEmployeeWithRole('manager', [$branch->id], 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole('staff', [$branch->id], 'Juan Dela Cruz');
+        $businessProfile = BusinessProfile::factory()->create([
+            'name' => 'JPrime Fitness Naga',
+            'status' => BusinessProfile::STATUS_OPEN,
+        ]);
+
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Juan Dela Cruz');
 
         $payroll = Payroll::create([
             'employee_id' => $employee->id,
-            'branch_id' => $branch->id,
+            'pay_frequency' => 'semi_monthly',
             'period_start' => '2026-03-01',
             'period_end' => '2026-03-15',
             'gross_amount' => 20000,
@@ -80,8 +84,6 @@ class EmployeePayslipTest extends TestCase
             ->assertOk();
 
         $payroll->load([
-            'branch',
-            'employee.branches',
             'employee.roles',
             'generatedBy:id,name',
             'approvedBy:id,name',
@@ -89,12 +91,14 @@ class EmployeePayslipTest extends TestCase
         ]);
 
         $html = view('panel.employees.payslip', [
-            'employee' => $employee->fresh()->load('branches', 'roles'),
+            'businessProfile' => $businessProfile,
+            'employee' => $employee->fresh()->load('roles'),
             'payroll' => $payroll,
         ])->render();
 
         $this->assertStringContainsString('Income tax', $html);
         $this->assertStringContainsString('1,604.10', $html);
+        $this->assertStringContainsString('JPrime Fitness Naga', $html);
 
         Pdf::assertRespondedWithPdf(function ($pdf) use ($employee, $payroll) {
             $this->assertSame('panel.employees.payslip', $pdf->viewName);
@@ -110,29 +114,16 @@ class EmployeePayslipTest extends TestCase
         });
     }
 
-    private function createBranch(string $name): Branch
-    {
-        return Branch::create([
-            'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => 'PH',
-            'city' => 'Naga City',
-        ]);
-    }
-
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createEmployeeWithRole(string $role, array $branchIds, string $name): User
+    private function createEmployeeWithRole(string $role, string $name): User
     {
         $user = User::factory()->create([
             'name' => $name,
             'status' => User::STATUS_ACTIVE,
             'daily_rate' => 500,
+            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

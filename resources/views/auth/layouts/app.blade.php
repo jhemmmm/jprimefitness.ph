@@ -34,15 +34,15 @@
                 </div>
 
                 <h2 class="auth-brand-headline">
-                    Manage every branch.<br />Track every member.
+                    Run one location.<br />Track every member.
                 </h2>
                 <p class="auth-brand-desc">
                     One unified dashboard for memberships, walk-ins, PT sessions,
-                    revenue, and everything in between.
+                    payroll, revenue, and everything in between.
                 </p>
 
                 <div class="auth-brand-pills">
-                    <div class="auth-brand-pill"><i class="bi bi-geo-alt-fill"></i> Multi-branch</div>
+                    <div class="auth-brand-pill"><i class="bi bi-geo-alt-fill"></i> Single location</div>
                     <div class="auth-brand-pill"><i class="bi bi-people-fill"></i> Member tracking</div>
                     <div class="auth-brand-pill"><i class="bi bi-bar-chart-fill"></i> Live analytics</div>
                 </div>

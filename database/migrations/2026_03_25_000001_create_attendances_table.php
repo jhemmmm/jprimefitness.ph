@@ -10,7 +10,6 @@ return new class extends Migration
     {
         Schema::create('attendances', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->enum('attendee_type', ['member', 'walk_in', 'employee']);
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('walk_in_id')->nullable()->constrained('walk_ins')->nullOnDelete();
@@ -23,7 +22,6 @@ return new class extends Migration
 
             $table->index('attendee_type');
             $table->index('checked_in_at');
-            $table->index('branch_id');
             $table->index(['user_id', 'checked_in_at']);
         });
     }

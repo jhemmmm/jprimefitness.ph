@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
+use App\Models\BusinessProfile;
 use App\Models\MemberSubscription;
 use App\Models\RatePlan;
 use App\Models\User;
@@ -31,14 +31,13 @@ class EmployeePayrollMembershipCommissionTest extends TestCase
 
     public function test_earned_membership_commissions_are_added_to_draft_payroll_and_linked(): void
     {
-        $branch = $this->createBranch('Naga');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Mia');
-        $member = $this->createUserWithRole('member', [$branch->id], 'Member Ana');
-        $ratePlan = $this->createRatePlan('Monthly', 30);
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $member = $this->createUserWithRole('member', 'Member Ana');
+        $ratePlan = $this->createRatePlan('Monthly', 30, 2000, 8);
 
         $subscription = MemberSubscription::create([
             'user_id' => $member->id,
-            'branch_id' => $branch->id,
             'rate_plan_id' => $ratePlan->id,
             'sold_price' => 2000,
             'manager_id' => $manager->id,
@@ -85,14 +84,13 @@ class EmployeePayrollMembershipCommissionTest extends TestCase
 
     public function test_canceling_draft_payroll_releases_linked_membership_commissions(): void
     {
-        $branch = $this->createBranch('Legazpi');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Ben');
-        $member = $this->createUserWithRole('member', [$branch->id], 'Member Lea');
-        $ratePlan = $this->createRatePlan('Quarterly', 90);
+        $this->setBusinessProfile('Legazpi');
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
+        $member = $this->createUserWithRole('member', 'Member Lea');
+        $ratePlan = $this->createRatePlan('Quarterly', 90, 3000, 6);
 
         $subscription = MemberSubscription::create([
             'user_id' => $member->id,
-            'branch_id' => $branch->id,
             'rate_plan_id' => $ratePlan->id,
             'sold_price' => 3000,
             'manager_id' => $manager->id,
@@ -132,14 +130,13 @@ class EmployeePayrollMembershipCommissionTest extends TestCase
 
     public function test_full_payroll_payout_marks_linked_membership_commissions_as_paid(): void
     {
-        $branch = $this->createBranch('Daet');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Pia');
-        $member = $this->createUserWithRole('member', [$branch->id], 'Member Josh');
-        $ratePlan = $this->createRatePlan('Annual', 365);
+        $this->setBusinessProfile('Daet');
+        $manager = $this->createUserWithRole('manager', 'Manager Pia');
+        $member = $this->createUserWithRole('member', 'Member Josh');
+        $ratePlan = $this->createRatePlan('Annual', 365, 12000, 5);
 
         $subscription = MemberSubscription::create([
             'user_id' => $member->id,
-            'branch_id' => $branch->id,
             'rate_plan_id' => $ratePlan->id,
             'sold_price' => 12000,
             'manager_id' => $manager->id,
@@ -185,20 +182,16 @@ class EmployeePayrollMembershipCommissionTest extends TestCase
         ]);
     }
 
-    public function test_multi_branch_payroll_only_links_membership_commissions_from_the_payroll_branch(): void
+    public function test_only_earned_membership_commissions_within_the_selected_period_are_attached(): void
     {
-        $branchA = $this->createBranch('Naga');
-        $branchB = $this->createBranch('Legazpi');
-        $manager = $this->createUserWithRole('manager', [$branchA->id, $branchB->id], 'Manager Kai');
-        $memberA = $this->createUserWithRole('member', [$branchA->id], 'Member A');
-        $memberB = $this->createUserWithRole('member', [$branchB->id], 'Member B');
-        $ratePlanA = $this->createRatePlan('Plan A', 30);
-        $ratePlanB = $this->createRatePlan('Plan B', 60);
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Kai');
+        $member = $this->createUserWithRole('member', 'Member A');
+        $ratePlan = $this->createRatePlan('Plan A', 30, 2500, 8);
 
-        $branchASubscription = MemberSubscription::create([
-            'user_id' => $memberA->id,
-            'branch_id' => $branchA->id,
-            'rate_plan_id' => $ratePlanA->id,
+        $inPeriodSubscription = MemberSubscription::create([
+            'user_id' => $member->id,
+            'rate_plan_id' => $ratePlan->id,
             'sold_price' => 2500,
             'manager_id' => $manager->id,
             'manager_commission_rate' => 8,
@@ -210,10 +203,9 @@ class EmployeePayrollMembershipCommissionTest extends TestCase
             'manager_commission_earned_at' => '2026-04-05 08:30:00',
         ]);
 
-        $branchBSubscription = MemberSubscription::create([
-            'user_id' => $memberB->id,
-            'branch_id' => $branchB->id,
-            'rate_plan_id' => $ratePlanB->id,
+        MemberSubscription::create([
+            'user_id' => $member->id,
+            'rate_plan_id' => $ratePlan->id,
             'sold_price' => 4000,
             'manager_id' => $manager->id,
             'manager_commission_rate' => 5,
@@ -222,10 +214,10 @@ class EmployeePayrollMembershipCommissionTest extends TestCase
             'end_date' => '2026-05-30',
             'status' => MemberSubscription::STATUS_ACTIVE,
             'manager_commission_status' => MemberSubscription::COMMISSION_STATUS_EARNED,
-            'manager_commission_earned_at' => '2026-04-06 09:45:00',
+            'manager_commission_earned_at' => '2026-04-20 09:45:00',
         ]);
 
-        $response = $this->actingAs($manager)
+        $this->actingAs($manager)
             ->postJson("/panel/employees/{$manager->id}/payrolls", [
                 'period_start' => '2026-04-01',
                 'period_end' => '2026-04-15',
@@ -237,55 +229,41 @@ class EmployeePayrollMembershipCommissionTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('membership_commission_amount', 200)
             ->assertJsonCount(1, 'membership_commission_items')
-            ->assertJsonPath('membership_commission_items.0.subscription_id', $branchASubscription->id);
-
-        $payrollId = $response->json('id');
-
-        $this->assertDatabaseHas('member_subscriptions', [
-            'id' => $branchASubscription->id,
-            'commission_payroll_id' => $payrollId,
-        ]);
-
-        $this->assertDatabaseHas('member_subscriptions', [
-            'id' => $branchBSubscription->id,
-            'commission_payroll_id' => null,
-        ]);
+            ->assertJsonPath('membership_commission_items.0.subscription_id', $inPeriodSubscription->id);
     }
 
-    private function createBranch(string $name): Branch
+    private function setBusinessProfile(string $name): BusinessProfile
     {
-        return Branch::create([
+        return BusinessProfile::factory()->create([
             'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => Branch::COUNTRY_PHILIPPINES,
+            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
+            'province' => 'Camarines Sur',
         ]);
     }
 
-    private function createRatePlan(string $name, int $durationDays): RatePlan
+    private function createRatePlan(string $name, int $durationDays, float $price, float $commissionRate): RatePlan
     {
         return RatePlan::create([
             'name' => $name,
             'duration_days' => $durationDays,
             'description' => $name.' membership',
+            'price' => $price,
+            'manager_commission_rate' => $commissionRate,
             'is_active' => true,
         ]);
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds, string $name): User
+    private function createUserWithRole(string $role, string $name): User
     {
         $user = User::factory()->create([
             'name' => $name,
             'status' => User::STATUS_ACTIVE,
             'daily_rate' => 500,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

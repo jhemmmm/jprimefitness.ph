@@ -31,7 +31,6 @@ class SaleTransaction extends Model
     public const PAYMENT_METHOD_BANK_TRANSFER = 'bank_transfer';
 
     protected $fillable = [
-        'branch_id',
         'member_id',
         'type',
         'total',
@@ -50,11 +49,6 @@ class SaleTransaction extends Model
             'sold_at' => 'datetime',
             'details' => 'array',
         ];
-    }
-
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
     }
 
     public function member(): BelongsTo

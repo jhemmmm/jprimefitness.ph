@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
+use App\Models\BusinessProfile;
 use App\Models\CashAdvance;
 use App\Models\Payroll;
 use App\Models\User;
@@ -32,13 +32,12 @@ class EmployeePayrollTaxTest extends TestCase
 
     public function test_philippines_semi_monthly_payroll_uses_income_tax_in_preview_and_saved_totals(): void
     {
-        $branch = $this->createBranch('Naga');
-        $manager = $this->createEmployeeWithRole('manager', [$branch->id], 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole('staff', [$branch->id], 'Juan Dela Cruz');
+        $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Juan Dela Cruz');
 
         CashAdvance::create([
             'employee_id' => $employee->id,
-            'branch_id' => $branch->id,
             'amount' => 1000,
             'remaining_amount' => 1000,
             'status' => CashAdvance::STATUS_RELEASED,
@@ -76,7 +75,6 @@ class EmployeePayrollTaxTest extends TestCase
         $this->assertDatabaseHas('payrolls', [
             'id' => $response->json('id'),
             'employee_id' => $employee->id,
-            'branch_id' => $branch->id,
             'income_tax' => '1604.10',
             'manual_deductions' => '200.00',
             'cash_advance_deduction' => '1000.00',
@@ -86,14 +84,13 @@ class EmployeePayrollTaxTest extends TestCase
 
     public function test_philippines_bonus_only_taxes_the_amount_above_the_annual_exemption_cap(): void
     {
-        $branch = $this->createBranch('Daet');
-        $manager = $this->createEmployeeWithRole('manager', [$branch->id], 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole('staff', [$branch->id], 'Paula Reyes');
+        $this->setBusinessProfile('Daet', BusinessProfile::COUNTRY_PHILIPPINES);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Paula Reyes');
 
         Payroll::create([
             'employee_id' => $employee->id,
-            'branch_id' => $branch->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
             'period_start' => '2026-02-01',
             'period_end' => '2026-02-15',
             'gross_amount' => 0,
@@ -125,9 +122,9 @@ class EmployeePayrollTaxTest extends TestCase
 
     public function test_philippines_monthly_payroll_uses_monthly_income_tax_table(): void
     {
-        $branch = $this->createBranch('Legazpi');
-        $manager = $this->createEmployeeWithRole('manager', [$branch->id], 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole('staff', [$branch->id], 'Maria Santos', Branch::PAYROLL_FREQUENCY_MONTHLY);
+        $this->setBusinessProfile('Legazpi', BusinessProfile::COUNTRY_PHILIPPINES);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Maria Santos', 'monthly');
 
         $this->actingAs($manager)
             ->postJson("/panel/employees/{$employee->id}/payrolls", [
@@ -139,24 +136,24 @@ class EmployeePayrollTaxTest extends TestCase
                 'cash_advance_deduction' => 0,
             ])
             ->assertCreated()
-            ->assertJsonPath('pay_frequency', Branch::PAYROLL_FREQUENCY_MONTHLY)
+            ->assertJsonPath('pay_frequency', 'monthly')
             ->assertJsonPath('income_tax', 5208.4)
             ->assertJsonPath('employee_deductions_total', 5208.4)
             ->assertJsonPath('net_amount', 44791.6);
 
         $this->assertDatabaseHas('payrolls', [
             'employee_id' => $employee->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_MONTHLY,
+            'pay_frequency' => 'monthly',
             'income_tax' => '5208.40',
             'net_amount' => '44791.60',
         ]);
     }
 
-    public function test_non_ph_branches_default_to_zero_income_tax(): void
+    public function test_non_ph_business_profiles_default_to_zero_income_tax(): void
     {
-        $branch = $this->createBranch('Singapore', 'SG');
-        $manager = $this->createEmployeeWithRole('manager', [$branch->id], 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole('staff', [$branch->id], 'Taylor Cruz');
+        $this->setBusinessProfile('Singapore', 'SG');
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Taylor Cruz');
 
         $this->actingAs($manager)
             ->postJson("/panel/employees/{$employee->id}/payrolls", [
@@ -175,9 +172,9 @@ class EmployeePayrollTaxTest extends TestCase
 
     public function test_payroll_snapshots_the_employee_pay_frequency(): void
     {
-        $branch = $this->createBranch('Legazpi');
-        $manager = $this->createEmployeeWithRole('manager', [$branch->id], 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole('staff', [$branch->id], 'Maria Santos', Branch::PAYROLL_FREQUENCY_MONTHLY);
+        $this->setBusinessProfile('Legazpi', BusinessProfile::COUNTRY_PHILIPPINES);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Maria Santos', 'monthly');
 
         $this->actingAs($manager)
             ->postJson("/panel/employees/{$employee->id}/payrolls", [
@@ -189,38 +186,35 @@ class EmployeePayrollTaxTest extends TestCase
                 'cash_advance_deduction' => 0,
             ])
             ->assertCreated()
-            ->assertJsonPath('pay_frequency', Branch::PAYROLL_FREQUENCY_MONTHLY);
+            ->assertJsonPath('pay_frequency', 'monthly');
 
         $this->assertDatabaseHas('payrolls', [
             'employee_id' => $employee->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_MONTHLY,
+            'pay_frequency' => 'monthly',
         ]);
     }
 
-    private function createBranch(string $name, string $countryCode = Branch::COUNTRY_PHILIPPINES): Branch
+    private function setBusinessProfile(string $name, string $countryCode): BusinessProfile
     {
-        return Branch::create([
+        return BusinessProfile::factory()->create([
             'name' => $name,
-            'status' => Branch::STATUS_OPEN,
             'country_code' => $countryCode,
+            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
+            'province' => 'Camarines Sur',
         ]);
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createEmployeeWithRole(string $role, array $branchIds, string $name, ?string $payFrequency = null): User
+    private function createEmployeeWithRole(string $role, string $name, ?string $payFrequency = null): User
     {
         $user = User::factory()->create([
             'name' => $name,
             'status' => User::STATUS_ACTIVE,
             'daily_rate' => 500,
-            'pay_frequency' => $payFrequency ?? Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => $payFrequency ?? 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

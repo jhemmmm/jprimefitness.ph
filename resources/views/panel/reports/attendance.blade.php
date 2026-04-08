@@ -3,5 +3,5 @@
 @section('title', 'Attendance Reports')
 
 @section('content')
-    <attendance-reports-page :branches-data='@json($branches)'></attendance-reports-page>
+    <attendance-reports-page :business-profile='@json($businessProfile)'></attendance-reports-page>
 @endsection

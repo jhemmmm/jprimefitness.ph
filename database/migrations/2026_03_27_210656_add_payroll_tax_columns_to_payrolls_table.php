@@ -11,11 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('payrolls', function (Blueprint $table) {
-            $table->decimal('income_tax', 10, 2)->default(0)->after('bonus');
-            $table->json('employee_contributions')->nullable()->after('income_tax');
-            $table->json('employer_contributions')->nullable()->after('employee_contributions');
-        });
+        // Fresh-install schema now defines these columns in the canonical payroll migration.
     }
 
     /**
@@ -23,12 +19,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('payrolls', function (Blueprint $table) {
-            $table->dropColumn([
-                'income_tax',
-                'employee_contributions',
-                'employer_contributions',
-            ]);
-        });
+        //
     }
 };

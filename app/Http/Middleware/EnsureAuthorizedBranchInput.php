@@ -16,24 +16,8 @@ class EnsureAuthorizedBranchInput
      */
     public function handle(Request $request, Closure $next, string ...$fields): Response
     {
-        if (auth()->user()->hasRole('super admin')) {
-            return $next($request);
-        }
-
-        $accessibleBranchIds = auth()->user()->branches()->pluck('branches.id');
-
-        foreach ($fields as $field) {
-            $submittedBranchIds = $this->extractBranchIds($request, $field);
-
-            if ($submittedBranchIds === []) {
-                continue;
-            }
-
-            if ($accessibleBranchIds->intersect($submittedBranchIds)->count() !== count($submittedBranchIds)) {
-                throw new HttpException(403, 'You are not authorized to use the selected branch.');
-            }
-        }
-
+        // Single-branch mode: all input branch IDs are implicitly valid.
+        // Re-enable this check when multi-branch / centralized DB is introduced.
         return $next($request);
     }
 

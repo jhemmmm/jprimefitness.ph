@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
-use App\Models\Branch;
+use App\Models\BusinessProfile;
 use App\Models\User;
 use App\Models\WalkIn;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -36,114 +36,97 @@ class PanelBranchFilterAccessTest extends TestCase
         $staffRole->givePermissionTo($permission);
     }
 
-    public function test_attendance_list_does_not_leak_other_branch_records_when_filtered_by_branch(): void
+    public function test_attendance_list_ignores_legacy_branch_query_params(): void
     {
-        $accessibleBranch = $this->createBranch('Naga');
-        $otherBranch = $this->createBranch('Legazpi');
-        $staff = $this->createUserWithRole('staff', [$accessibleBranch->id], 'Staff Ana');
+        $profile = $this->setBusinessProfile('Naga');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
 
         Attendance::create([
-            'branch_id' => $otherBranch->id,
             'attendee_type' => Attendance::TYPE_WALK_IN,
-            'name' => 'Other Branch Guest',
+            'name' => 'Guest One',
             'checked_in_at' => now()->subHour(),
             'recorded_by' => $staff->id,
         ]);
 
         $this->actingAs($staff)
-            ->getJson('/panel/attendance/list?branch='.$otherBranch->id)
+            ->getJson('/panel/attendance/list?branch=999')
             ->assertOk()
-            ->assertJsonPath('records.data', [])
-            ->assertJsonPath('stats.today', 0)
-            ->assertJsonPath('stats.this_week', 0)
-            ->assertJsonPath('stats.this_month', 0)
-            ->assertJsonPath('stats.currently_in', 0);
+            ->assertJsonPath('records.data.0.name', 'Guest One')
+            ->assertJsonPath('records.data.0.branch_id', $profile->id)
+            ->assertJsonPath('stats.today', 1);
     }
 
-    public function test_walk_in_list_does_not_leak_other_branch_records_when_filtered_by_branch(): void
+    public function test_walk_in_list_ignores_legacy_branch_query_params(): void
     {
-        $accessibleBranch = $this->createBranch('Naga');
-        $otherBranch = $this->createBranch('Legazpi');
-        $staff = $this->createUserWithRole('staff', [$accessibleBranch->id], 'Staff Ana');
+        $profile = $this->setBusinessProfile('Naga');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
 
         WalkIn::create([
-            'branch_id' => $otherBranch->id,
             'served_by' => $staff->id,
-            'name' => 'Other Branch Guest',
+            'name' => 'Guest One',
             'amount_paid' => 350,
+            'payment_method' => 'cash',
             'visited_at' => now()->subHour(),
         ]);
 
         $this->actingAs($staff)
-            ->getJson('/panel/walk-ins/list?branch='.$otherBranch->id)
+            ->getJson('/panel/walk-ins/list?branch=999')
             ->assertOk()
-            ->assertJsonPath('walkIns.data', [])
-            ->assertJsonPath('stats.today', 0)
-            ->assertJsonPath('stats.this_week', 0)
-            ->assertJsonPath('stats.this_month', 0)
-            ->assertJsonPath('stats.revenue_today', 0);
+            ->assertJsonPath('walkIns.data.0.name', 'Guest One')
+            ->assertJsonPath('walkIns.data.0.branch_id', $profile->id)
+            ->assertJsonPath('stats.today', 1)
+            ->assertJsonPath('stats.revenue_today', 350);
     }
 
-    public function test_employee_list_does_not_leak_other_branch_records_when_filtered_by_branch(): void
+    public function test_employee_list_ignores_legacy_branch_query_params(): void
     {
-        $accessibleBranch = $this->createBranch('Naga');
-        $otherBranch = $this->createBranch('Legazpi');
-        $manager = $this->createUserWithRole('manager', [$accessibleBranch->id], 'Manager Mia');
-        $otherEmployee = $this->createUserWithRole('employee', [$otherBranch->id], 'Other Branch Employee');
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $employee = $this->createUserWithRole('employee', 'Team Member');
 
         $response = $this->actingAs($manager)
-            ->getJson('/panel/employees/list?branch='.$otherBranch->id)
+            ->getJson('/panel/employees/list?branch=999')
             ->assertOk();
 
         $employeeIds = collect($response->json())->pluck('id')->all();
 
-        $this->assertNotContains($otherEmployee->id, $employeeIds);
-        $this->assertSame([], $employeeIds);
+        $this->assertContains($employee->id, $employeeIds);
     }
 
-    public function test_member_list_does_not_leak_other_branch_records_when_filtered_by_branch(): void
+    public function test_member_list_ignores_legacy_branch_query_params(): void
     {
-        $accessibleBranch = $this->createBranch('Naga');
-        $otherBranch = $this->createBranch('Legazpi');
-        $staff = $this->createUserWithRole('staff', [$accessibleBranch->id], 'Staff Ana');
-
-        $this->createUserWithRole('member', [$accessibleBranch->id], 'Accessible Member');
-        $this->createUserWithRole('member', [$otherBranch->id], 'Other Branch Member');
+        $this->setBusinessProfile('Naga');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $member = $this->createUserWithRole('member', 'Accessible Member');
 
         $this->actingAs($staff)
-            ->getJson('/panel/members/list?branch='.$otherBranch->id)
+            ->getJson('/panel/members/list?branch=999')
             ->assertOk()
-            ->assertJsonPath('members.data', [])
-            ->assertJsonPath('stats.total', 0)
-            ->assertJsonPath('stats.active', 0)
-            ->assertJsonPath('stats.inactive', 0)
-            ->assertJsonPath('stats.suspended', 0);
+            ->assertJsonPath('members.data.0.id', $member->id)
+            ->assertJsonPath('stats.total', 1)
+            ->assertJsonPath('stats.active', 1);
     }
 
-    private function createBranch(string $name): Branch
+    private function setBusinessProfile(string $name): BusinessProfile
     {
-        return Branch::create([
+        return BusinessProfile::factory()->create([
             'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => Branch::COUNTRY_PHILIPPINES,
+            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
+            'province' => 'Camarines Sur',
         ]);
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds, string $name): User
+    private function createUserWithRole(string $role, string $name): User
     {
         $user = User::factory()->create([
             'name' => $name,
             'status' => User::STATUS_ACTIVE,
             'daily_rate' => 500,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

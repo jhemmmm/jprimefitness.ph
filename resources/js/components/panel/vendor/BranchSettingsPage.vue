@@ -2,12 +2,12 @@
    <div class="p-4">
       <div class="row justify-content-center">
          <div class="col-lg-9">
-            <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>Branch settings saved successfully.</div>
+            <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>Business settings saved successfully.</div>
             <div class="alert alert-danger py-2 small" v-if="generalError">{{ generalError }}</div>
 
             <div class="row g-3">
                <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Branch Name <span class="text-danger">*</span></label>
+                  <label class="form-label form-label-sm fw-semibold">Business Name <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" :class="{ 'is-invalid': errors.name }" v-model="form.name" :disabled="!is('super admin')" />
                   <div class="invalid-feedback" v-if="errors.name">{{ errors.name[0] }}</div>
                </div>
@@ -91,7 +91,7 @@
                </div>
                <div class="col-md-6">
                   <label class="form-label form-label-sm fw-semibold">Current Gallery Size</label>
-                  <input type="text" class="form-control" :value="`${Array.isArray(branch.photos) ? branch.photos.length : 0} photo(s)`" disabled />
+                  <input type="text" class="form-control" :value="`${Array.isArray(profile.photos) ? profile.photos.length : 0} photo(s)`" disabled />
                </div>
                <div class="col-12">
                   <label class="form-label form-label-sm fw-semibold">Amenities</label>
@@ -104,6 +104,42 @@
                   <div class="d-flex flex-wrap gap-2">
                      <span class="m-badge m-badge--plan" v-for="amenity in parsedAmenities" :key="amenity">{{ amenity }}</span>
                   </div>
+               </div>
+               <div class="col-12"><hr class="my-2" /></div>
+               <div class="col-md-4">
+                  <label class="form-label form-label-sm fw-semibold">Hero Badge</label>
+                  <input type="text" class="form-control" :class="{ 'is-invalid': errors.hero_badge }" v-model="form.hero_badge" />
+                  <div class="invalid-feedback" v-if="errors.hero_badge">{{ errors.hero_badge[0] }}</div>
+               </div>
+               <div class="col-md-4">
+                  <label class="form-label form-label-sm fw-semibold">Hero Title</label>
+                  <input type="text" class="form-control" :class="{ 'is-invalid': errors.hero_title }" v-model="form.hero_title" />
+                  <div class="invalid-feedback" v-if="errors.hero_title">{{ errors.hero_title[0] }}</div>
+               </div>
+               <div class="col-md-4">
+                  <label class="form-label form-label-sm fw-semibold">Hero Highlight</label>
+                  <input type="text" class="form-control" :class="{ 'is-invalid': errors.hero_highlight }" v-model="form.hero_highlight" />
+                  <div class="invalid-feedback" v-if="errors.hero_highlight">{{ errors.hero_highlight[0] }}</div>
+               </div>
+               <div class="col-12">
+                  <label class="form-label form-label-sm fw-semibold">Hero Description</label>
+                  <textarea class="form-control" rows="3" :class="{ 'is-invalid': errors.hero_description }" v-model="form.hero_description"></textarea>
+                  <div class="invalid-feedback" v-if="errors.hero_description">{{ errors.hero_description[0] }}</div>
+               </div>
+               <div class="col-md-6">
+                  <label class="form-label form-label-sm fw-semibold">About Heading</label>
+                  <input type="text" class="form-control" :class="{ 'is-invalid': errors.about_heading }" v-model="form.about_heading" />
+                  <div class="invalid-feedback" v-if="errors.about_heading">{{ errors.about_heading[0] }}</div>
+               </div>
+               <div class="col-md-6">
+                  <label class="form-label form-label-sm fw-semibold">Membership Note</label>
+                  <input type="text" class="form-control" :class="{ 'is-invalid': errors.membership_note }" v-model="form.membership_note" />
+                  <div class="invalid-feedback" v-if="errors.membership_note">{{ errors.membership_note[0] }}</div>
+               </div>
+               <div class="col-12">
+                  <label class="form-label form-label-sm fw-semibold">About Description</label>
+                  <textarea class="form-control" rows="4" :class="{ 'is-invalid': errors.about_description }" v-model="form.about_description"></textarea>
+                  <div class="invalid-feedback" v-if="errors.about_description">{{ errors.about_description[0] }}</div>
                </div>
             </div>
 
@@ -123,7 +159,7 @@ import { COUNTRY_OPTIONS, TIMEZONE_OPTIONS, ensureSelectOption } from "../_vendo
 
 export default {
    props: {
-      branch: { type: Object, required: true },
+      profile: { type: Object, required: true },
    },
 
    emits: ["updated"],
@@ -134,12 +170,12 @@ export default {
          saved: false,
          generalError: "",
          errors: {},
-         form: this.getForm(this.branch),
+         form: this.getForm(this.profile),
       };
    },
 
    watch: {
-      branch: function (value) {
+      profile: function (value) {
          this.form = this.getForm(value);
       },
    },
@@ -160,24 +196,31 @@ export default {
    },
 
    methods: {
-      getForm: function (branch) {
+      getForm: function (profile) {
          return {
-            name: branch.name || "",
-            status: branch.status || "open",
-            country_code: branch.country_code || "PH",
-            city: branch.city || "",
-            province: branch.province || "",
-            address: branch.address || "",
-            phone: branch.phone || "",
-            email: branch.email || "",
-            map_url: branch.map_url || "",
-            opening_time: branch.opening_time ? String(branch.opening_time).slice(0, 5) : "",
-            closing_time: branch.closing_time ? String(branch.closing_time).slice(0, 5) : "",
-            facebook_url: branch.facebook_url || "",
-            messenger_url: branch.messenger_url || "",
-            whatsapp_url: branch.whatsapp_url || "",
-            timezone: branch.timezone || "Asia/Manila",
-            amenities_text: Array.isArray(branch.amenities) ? branch.amenities.join(", ") : "",
+            name: profile.name || "",
+            status: profile.status || "open",
+            country_code: profile.country_code || "PH",
+            city: profile.city || "",
+            province: profile.province || "",
+            address: profile.address || "",
+            phone: profile.phone || "",
+            email: profile.email || "",
+            map_url: profile.map_url || "",
+            opening_time: profile.opening_time ? String(profile.opening_time).slice(0, 5) : "",
+            closing_time: profile.closing_time ? String(profile.closing_time).slice(0, 5) : "",
+            facebook_url: profile.facebook_url || "",
+            messenger_url: profile.messenger_url || "",
+            whatsapp_url: profile.whatsapp_url || "",
+            timezone: profile.timezone || "Asia/Manila",
+            amenities_text: Array.isArray(profile.amenities) ? profile.amenities.join(", ") : "",
+            hero_badge: profile.hero_badge || "",
+            hero_title: profile.hero_title || "",
+            hero_highlight: profile.hero_highlight || "",
+            hero_description: profile.hero_description || "",
+            about_heading: profile.about_heading || "",
+            about_description: profile.about_description || "",
+            membership_note: profile.membership_note || "",
          };
       },
 
@@ -199,6 +242,13 @@ export default {
             messenger_url: this.form.messenger_url,
             whatsapp_url: this.form.whatsapp_url,
             map_url: this.form.map_url,
+            hero_badge: this.form.hero_badge || null,
+            hero_title: this.form.hero_title || null,
+            hero_highlight: this.form.hero_highlight || null,
+            hero_description: this.form.hero_description || null,
+            about_heading: this.form.about_heading || null,
+            about_description: this.form.about_description || null,
+            membership_note: this.form.membership_note || null,
             ...overrides,
          };
       },
@@ -210,7 +260,7 @@ export default {
          this.errors = {};
 
          axios
-            .put(`/panel/branches/${this.branch.id}`, this.buildPayload())
+            .put("/panel/settings", this.buildPayload())
             .then((response) => {
                this.saved = true;
                this.$emit("updated", response.data);

@@ -36,7 +36,6 @@ class MemberPtPackageAlertService
         $memberPtPackage->loadMissing([
             'member:id,name',
             'ptProduct:id,name',
-            'branch:id,name',
         ]);
 
         if (! $memberPtPackage->member) {
@@ -49,7 +48,6 @@ class MemberPtPackageAlertService
                 $memberPtPackage->member,
                 Carbon::parse($occurredAt ?? now())->toISOString(),
             ),
-            $memberPtPackage->branch_id,
         );
 
         return true;

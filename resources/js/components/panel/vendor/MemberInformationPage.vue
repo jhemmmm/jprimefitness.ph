@@ -14,8 +14,8 @@
                      <div class="fw-semibold small">{{ member.phone || "-" }}</div>
                   </div>
                   <div class="col-md-6">
-                     <div class="small text-muted">Branches</div>
-                     <div class="fw-semibold small">{{ member.branches && member.branches.length ? member.branches.map((branch) => branch.name).join(", ") : "-" }}</div>
+                  <div class="small text-muted">Location</div>
+                  <div class="fw-semibold small">{{ currentLocationName }}</div>
                   </div>
                   <div class="col-md-6">
                      <div class="small text-muted">Status</div>
@@ -80,6 +80,9 @@ export default {
    },
 
    computed: {
+      currentLocationName: function () {
+         return window.JPrime?.profile?.name || this.member.branches?.[0]?.name || "-";
+      },
       activeMembership: function () {
          if (!this.member.member_subscriptions || !this.member.member_subscriptions.length) {
             return null;

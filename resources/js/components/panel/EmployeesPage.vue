@@ -83,10 +83,6 @@
                   <span v-for="role in emp.roles" :key="role.id" :class="['m-badge', $filters.roleBadge(role.name)]">{{ $filters.capitalize(role.name) }}</span>
                   <span :class="['m-badge', $filters.statusBadge(emp.status)]">{{ $filters.capitalize(emp.status) }}</span>
                </div>
-               <div class="small text-muted mt-2" v-if="emp.branches && emp.branches.length">
-                  <i class="bi bi-geo-alt me-1"></i>
-                  {{ emp.branches.map((b) => b.name).join(", ") }}
-               </div>
             </div>
          </div>
       </div>
@@ -131,14 +127,6 @@
                            <option value="suspended">Suspended</option>
                         </select>
                         <div class="invalid-feedback" v-if="formErrors.status">{{ formErrors.status[0] }}</div>
-                     </div>
-                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Branches</label>
-                        <div :class="{ 'is-invalid': formErrors.branch_ids }">
-                           <MultiSelect v-model="form.branch_ids" :options="branchesData" placeholder="Select branches..." searchable />
-                        </div>
-                        <div class="form-text small">Super admin/admin can assign multiple branches. Staff/coach typically one.</div>
-                        <div class="invalid-feedback" v-if="formErrors.branch_ids">{{ formErrors.branch_ids[0] }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label fw-semibold">Daily Rate (₱)</label>
@@ -224,7 +212,6 @@ export default {
          search: new URLSearchParams(window.location.search).get("search") || "",
          selectedRole: "",
          selectedStatus: "",
-         selectedBranch: parseInt(localStorage.getItem("selectedBranch")) || "",
          searchTimer: null,
          // Modal
          employeeModal: null,
@@ -246,7 +233,7 @@ export default {
    },
    methods: {
       emptyForm: function () {
-         return { name: "", email: "", phone: "", status: "active", role_ids: [], branch_ids: [], daily_rate: "", pay_frequency: "semi_monthly", password: "" };
+         return { name: "", email: "", phone: "", status: "active", role_ids: [], daily_rate: "", pay_frequency: "semi_monthly", password: "" };
       },
       fetchEmployees: function () {
          this.loading = true;
@@ -256,7 +243,6 @@ export default {
                   search: this.search || undefined,
                   role: this.selectedRole || undefined,
                   status: this.selectedStatus || undefined,
-                  branch: this.selectedBranch || undefined,
                },
             })
             .then((res) => (this.employees = res.data))
@@ -281,7 +267,6 @@ export default {
             phone: emp.phone || "",
             role_ids: emp.roles ? emp.roles.map((r) => r.id) : [],
             status: emp.status,
-            branch_ids: emp.branches ? emp.branches.map((b) => b.id) : [],
             daily_rate: emp.daily_rate || "",
             pay_frequency: emp.pay_frequency,
             password: "",
@@ -294,8 +279,7 @@ export default {
       submitForm: function () {
          this.saving = true;
          this.formErrors = {};
-         const payload = { ...this.form, branch_ids: this.form.branch_ids };
-         const request = this.modalMode === "create" ? axios.post("/panel/employees", payload) : axios.put(`/panel/employees/${this.editTarget.id}`, payload);
+         const request = this.modalMode === "create" ? axios.post("/panel/employees", this.form) : axios.put(`/panel/employees/${this.editTarget.id}`, this.form);
          request
             .then((res) => {
                if (this.modalMode === "create") {

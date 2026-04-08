@@ -23,16 +23,12 @@ class CashAdvanceStatusChangedNotification extends PanelDatabaseNotification
      */
     protected function data(): array
     {
-        $this->cashAdvance->loadMissing('branch:id,name');
-
         return [
             'title' => $this->title(),
             'message' => $this->message(),
             'action_url' => route('panel.employees.show', $this->employee),
             'type' => $this->typeSlug(),
             'severity' => $this->severity(),
-            'branch_id' => $this->cashAdvance->branch_id,
-            'branch_name' => $this->cashAdvance->branch?->name,
             'subject_id' => $this->cashAdvance->id,
             'subject_type' => 'cash_advance',
             'occurred_at' => $this->occurredAt(),

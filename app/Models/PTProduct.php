@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PTProduct extends Model
@@ -19,20 +18,21 @@ class PTProduct extends Model
         'slug',
         'session_count',
         'category',
+        'price',
+        'coach_commission_rate',
         'is_active',
         'description',
+        'effective_from',
+        'effective_until',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'price' => 'decimal:2',
+        'coach_commission_rate' => 'decimal:2',
+        'effective_from' => 'date',
+        'effective_until' => 'date',
     ];
-
-    public function branches(): BelongsToMany
-    {
-        return $this->belongsToMany(Branch::class, 'branch_pt_prices', 'pt_product_id', 'branch_id')
-            ->withPivot(['price', 'coach_commission_rate', 'is_active', 'effective_from', 'effective_until'])
-            ->withTimestamps();
-    }
 
     public function memberPtPackages(): HasMany
     {

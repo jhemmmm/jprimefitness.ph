@@ -71,7 +71,7 @@
                      <tr>
                         <th>Name</th>
                         <th>Phone</th>
-                        <th>Branch</th>
+                        <th>Location</th>
                         <th>Rate Plan</th>
                         <th>Amount</th>
                         <th>Payment</th>
@@ -145,7 +145,7 @@
                      <tr>
                         <th>Name</th>
                         <th>Phone</th>
-                        <th>Branch</th>
+                        <th>Location</th>
                         <th>Rate Plan</th>
                         <th>Amount</th>
                         <th>Method</th>
@@ -261,14 +261,6 @@
                         <input type="text" class="form-control" v-model="form.phone" placeholder="09XX XXX XXXX" />
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Branch <span class="text-danger">*</span></label>
-                        <select class="form-select" v-model="form.branch_id" :class="{ 'is-invalid': formErrors.branch_id }">
-                           <option disabled value="">Select a branch...</option>
-                           <option v-for="b in branchesData" :key="b.id" :value="b.id">{{ b.name }}</option>
-                        </select>
-                        <div class="invalid-feedback" v-if="formErrors.branch_id">{{ formErrors.branch_id }}</div>
-                     </div>
-                     <div class="col-md-6">
                         <label class="form-label form-label-sm">Rate Plan</label>
                         <select class="form-select" v-model="form.rate_plan_id">
                            <option disabled value="">Select a rate plan...</option>
@@ -357,7 +349,6 @@ export default {
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { today: 0, this_week: 0, this_month: 0, revenue_today: 0 },
          search: new URLSearchParams(window.location.search).get("search") || "",
-         selectedBranch: parseInt(localStorage.getItem("selectedBranch")) || "",
          dateFrom: "",
          dateTo: "",
          currentPage: 1,
@@ -383,7 +374,6 @@ export default {
          return {
             name: "",
             phone: "",
-            branch_id: this.selectedBranch || "",
             rate_plan_id: "",
             amount_paid: "",
             payment_method: "cash",
@@ -399,7 +389,6 @@ export default {
             .get("/panel/walk-ins/list", {
                params: {
                   search: this.search || undefined,
-                  branch: this.selectedBranch || undefined,
                   date_from: this.dateFrom || undefined,
                   date_to: this.dateTo || undefined,
                   page: page,
@@ -451,7 +440,6 @@ export default {
             id: w.id,
             name: w.name || "",
             phone: w.phone || "",
-            branch_id: w.branch_id || "",
             rate_plan_id: w.rate_plan_id || "",
             amount_paid: w.amount_paid || "",
             payment_method: w.payment_method || "cash",

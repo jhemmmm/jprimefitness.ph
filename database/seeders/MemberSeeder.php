@@ -2,32 +2,27 @@
 
 namespace Database\Seeders;
 
-use App\Models\Branch;
 use App\Models\MemberProfile;
+use App\Models\MemberSubscription;
 use App\Models\RatePlan;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
 
 class MemberSeeder extends Seeder
 {
     public function run(): void
     {
-        $branches = Branch::all()->keyBy('slug');
-        $daily = RatePlan::where('slug', 'daily-pass')->first();
-        $monthly = RatePlan::where('slug', 'monthly')->first();
-
-        $role = Role::firstOrCreate(['name' => 'member']);
+        $plans = RatePlan::query()->get()->keyBy('name');
+        $manager = User::role('manager')->first();
 
         $members = [
-            // Calabanga branch
             [
                 'user' => [
                     'name' => 'Maria Santos',
                     'email' => 'maria.santos@example.com',
                     'phone' => '+63 912 000 0001',
-                    'branch_id' => $branches['calabanga']?->id,
                 ],
                 'profile' => [
                     'date_of_birth' => '1995-06-15',
@@ -35,15 +30,14 @@ class MemberSeeder extends Seeder
                     'emergency_contact_name' => 'Pedro Santos',
                     'emergency_contact_phone' => '+63 912 100 0001',
                 ],
-                'rate_plan' => $monthly,
-                'start_date' => now()->startOfMonth(),
+                'rate_plan' => 'Monthly',
+                'start_date' => now()->startOfMonth()->toDateString(),
             ],
             [
                 'user' => [
                     'name' => 'Jose Reyes',
                     'email' => 'jose.reyes@example.com',
                     'phone' => '+63 912 000 0002',
-                    'branch_id' => $branches['calabanga']?->id,
                 ],
                 'profile' => [
                     'date_of_birth' => '1990-03-22',
@@ -51,161 +45,124 @@ class MemberSeeder extends Seeder
                     'emergency_contact_name' => 'Ana Reyes',
                     'emergency_contact_phone' => '+63 912 100 0002',
                 ],
-                'rate_plan' => $monthly,
-                'start_date' => now()->subDays(10),
+                'rate_plan' => '3 Months',
+                'start_date' => now()->subDays(10)->toDateString(),
             ],
             [
                 'user' => [
                     'name' => 'Liza Cruz',
                     'email' => 'liza.cruz@example.com',
                     'phone' => '+63 912 000 0003',
-                    'branch_id' => $branches['calabanga']?->id,
                 ],
                 'profile' => [
                     'date_of_birth' => '2000-11-08',
                     'gender' => 'female',
                 ],
-                'rate_plan' => $daily,
-                'start_date' => now(),
-            ],
-
-            // Naga branch
-            [
-                'user' => [
-                    'name' => 'Carlo Bautista',
-                    'email' => 'carlo.bautista@example.com',
-                    'phone' => '+63 912 000 0004',
-                    'branch_id' => $branches['naga']?->id,
-                ],
-                'profile' => [
-                    'date_of_birth' => '1988-07-30',
-                    'gender' => 'male',
-                    'emergency_contact_name' => 'Rosa Bautista',
-                    'emergency_contact_phone' => '+63 912 100 0004',
-                ],
-                'rate_plan' => $monthly,
-                'start_date' => now()->subDays(5),
+                'rate_plan' => 'Daily Pass',
+                'start_date' => now()->toDateString(),
             ],
             [
                 'user' => [
                     'name' => 'Anna Garcia',
                     'email' => 'anna.garcia@example.com',
-                    'phone' => '+63 912 000 0005',
-                    'branch_id' => $branches['naga']?->id,
+                    'phone' => '+63 912 000 0004',
                 ],
                 'profile' => [
                     'date_of_birth' => '1997-02-14',
                     'gender' => 'female',
                 ],
-                'rate_plan' => $monthly,
-                'start_date' => now()->startOfMonth(),
+                'rate_plan' => 'Monthly',
+                'start_date' => now()->startOfMonth()->toDateString(),
             ],
             [
                 'user' => [
                     'name' => 'Mark Dela Torre',
                     'email' => 'mark.delatorre@example.com',
-                    'phone' => '+63 912 000 0006',
-                    'branch_id' => $branches['naga']?->id,
+                    'phone' => '+63 912 000 0005',
                 ],
                 'profile' => [
                     'date_of_birth' => '1993-09-17',
                     'gender' => 'male',
                     'emergency_contact_name' => 'Luz Dela Torre',
-                    'emergency_contact_phone' => '+63 912 100 0006',
+                    'emergency_contact_phone' => '+63 912 100 0005',
                 ],
-                'rate_plan' => $daily,
-                'start_date' => now(),
-            ],
-
-            // Legazpi branch
-            [
-                'user' => [
-                    'name' => 'Rachel Villanueva',
-                    'email' => 'rachel.villanueva@example.com',
-                    'phone' => '+63 912 000 0007',
-                    'branch_id' => $branches['legazpi']?->id,
-                ],
-                'profile' => [
-                    'date_of_birth' => '1999-04-03',
-                    'gender' => 'female',
-                    'emergency_contact_name' => 'Ben Villanueva',
-                    'emergency_contact_phone' => '+63 912 100 0007',
-                ],
-                'rate_plan' => $monthly,
-                'start_date' => now()->subDays(15),
+                'rate_plan' => '6 Months',
+                'start_date' => now()->subDays(12)->toDateString(),
             ],
             [
                 'user' => [
                     'name' => 'Bryan Mendoza',
                     'email' => 'bryan.mendoza@example.com',
-                    'phone' => '+63 912 000 0008',
-                    'branch_id' => $branches['legazpi']?->id,
+                    'phone' => '+63 912 000 0006',
                 ],
                 'profile' => [
                     'date_of_birth' => '1985-12-25',
                     'gender' => 'male',
                     'notes' => 'Has knee injury - avoid heavy leg press.',
                 ],
-                'rate_plan' => $monthly,
-                'start_date' => now()->startOfMonth(),
+                'rate_plan' => 'Annual',
+                'start_date' => now()->startOfMonth()->toDateString(),
             ],
             [
                 'user' => [
                     'name' => 'Sophia Aquino',
                     'email' => 'sophia.aquino@example.com',
-                    'phone' => '+63 912 000 0009',
-                    'branch_id' => $branches['legazpi']?->id,
+                    'phone' => '+63 912 000 0007',
                 ],
                 'profile' => [
                     'date_of_birth' => '2001-08-19',
                     'gender' => 'female',
                     'emergency_contact_name' => 'Mario Aquino',
-                    'emergency_contact_phone' => '+63 912 100 0009',
+                    'emergency_contact_phone' => '+63 912 100 0007',
                 ],
-                'rate_plan' => $daily,
-                'start_date' => now(),
+                'rate_plan' => 'Daily Pass',
+                'start_date' => now()->toDateString(),
             ],
         ];
 
         foreach ($members as $entry) {
-            $userData = array_diff_key($entry['user'], ['branch_id' => null]);
-            $user = User::firstOrCreate(
+            $ratePlan = $plans->get($entry['rate_plan']);
+
+            if (! $ratePlan) {
+                continue;
+            }
+
+            $user = User::query()->updateOrCreate(
                 ['email' => $entry['user']['email']],
-                array_merge($userData, [
+                array_merge($entry['user'], [
                     'status' => User::STATUS_ACTIVE,
                     'password' => Hash::make('password'),
                 ])
             );
 
-            $user->assignRole($role);
+            $user->syncRoles(['member']);
 
-            $branchIds = [];
-            if (!empty($entry['user']['branch_id'])) {
-                $branchIds[] = $entry['user']['branch_id'];
-            }
-            if (!empty($branchIds)) {
-                $user->syncBranches($branchIds);
-            }
-
-            MemberProfile::firstOrCreate(
+            MemberProfile::query()->updateOrCreate(
                 ['user_id' => $user->id],
                 $entry['profile']
             );
 
-            if ($entry['rate_plan']) {
-                $startDate = $entry['start_date'];
-                $endDate = $entry['rate_plan']->duration_days > 1
-                    ? $startDate->copy()->addDays($entry['rate_plan']->duration_days - 1)
-                    : null;
+            $startDate = Carbon::parse($entry['start_date']);
+            $endDate = $ratePlan->duration_days > 1
+                ? $startDate->copy()->addDays($ratePlan->duration_days - 1)
+                : null;
+            $commissionRate = (float) ($ratePlan->manager_commission_rate ?? 0);
+            $soldPrice = (float) ($ratePlan->price ?? 0);
+            $managerId = $commissionRate > 0 ? $manager?->id : null;
 
-                $user->ratePlans()->syncWithoutDetaching([
-                    $entry['rate_plan']->id => [
-                        'start_date' => $startDate->toDateString(),
-                        'end_date' => $endDate?->toDateString(),
-                        'status' => 'active',
-                    ],
-                ]);
-            }
+            $user->memberSubscriptions()->delete();
+            $user->memberSubscriptions()->create([
+                'rate_plan_id' => $ratePlan->id,
+                'sold_price' => $soldPrice,
+                'manager_id' => $managerId,
+                'manager_commission_rate' => $commissionRate,
+                'manager_commission_amount' => MemberSubscription::calculateCommissionAmount($soldPrice, $commissionRate),
+                'start_date' => $startDate->toDateString(),
+                'end_date' => $endDate?->toDateString(),
+                'status' => MemberSubscription::STATUS_ACTIVE,
+                'manager_commission_status' => MemberSubscription::defaultCommissionStatus($managerId),
+                'manager_commission_earned_at' => $managerId ? $startDate->copy()->startOfDay() : null,
+            ]);
         }
     }
 }

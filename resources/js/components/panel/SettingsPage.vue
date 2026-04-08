@@ -2,31 +2,30 @@
    <div>
       <div class="d-flex align-items-center justify-content-between mb-4">
          <div>
-            <h4 class="fw-bold mb-0">Branch Details</h4>
-            <div class="text-muted small">Business information, cash ledger, gallery, and settings</div>
+            <h4 class="fw-bold mb-0">Settings</h4>
+            <div class="text-muted small">Business profile, cash ledger, gallery, and public-site copy</div>
          </div>
-         <a href="/panel/branches" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back</a>
       </div>
 
       <div class="panel-card p-4 mb-4">
          <div class="d-flex align-items-start gap-3 flex-wrap">
             <div class="member-avatar employee-avatar-xl flex-shrink-0">
-               <i class="bi bi-geo-alt-fill"></i>
+               <i class="bi bi-shop"></i>
             </div>
             <div class="flex-grow-1 min-w-0">
                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-                  <h4 class="fw-bold mb-0">{{ localBranch.name }}</h4>
-                  <span :class="['m-badge', $filters.statusBadge(localBranch.status)]">{{ $filters.capitalize(localBranch.status) }}</span>
-                  <span class="m-badge m-badge--plan">{{ (localBranch.country_code || "PH").toUpperCase() }}</span>
+                  <h4 class="fw-bold mb-0">{{ localProfile.name }}</h4>
+                  <span :class="['m-badge', $filters.statusBadge(localProfile.status)]">{{ $filters.capitalize(localProfile.status) }}</span>
+                  <span class="m-badge m-badge--plan">{{ (localProfile.country_code || "PH").toUpperCase() }}</span>
                </div>
                <div class="text-muted small mb-2">
-                  <i class="bi bi-pin-map me-1"></i>{{ branchLocation }}
+                  <i class="bi bi-pin-map me-1"></i>{{ locationLabel }}
                </div>
                <div class="d-flex gap-3 flex-wrap small text-muted">
-                  <span v-if="localBranch.email"><i class="bi bi-envelope me-1"></i>{{ localBranch.email }}</span>
-                  <span v-if="localBranch.phone"><i class="bi bi-telephone me-1"></i>{{ localBranch.phone }}</span>
-                  <span v-if="localBranch.opening_time && localBranch.closing_time">
-                     <i class="bi bi-clock me-1"></i>{{ formatTime(localBranch.opening_time) }} – {{ formatTime(localBranch.closing_time) }}
+                  <span v-if="localProfile.email"><i class="bi bi-envelope me-1"></i>{{ localProfile.email }}</span>
+                  <span v-if="localProfile.phone"><i class="bi bi-telephone me-1"></i>{{ localProfile.phone }}</span>
+                  <span v-if="localProfile.opening_time && localProfile.closing_time">
+                     <i class="bi bi-clock me-1"></i>{{ formatTime(localProfile.opening_time) }} – {{ formatTime(localProfile.closing_time) }}
                   </span>
                </div>
             </div>
@@ -53,7 +52,7 @@
          </li>
       </ul>
       <div class="panel-card" style="border-top-left-radius: 0">
-         <component :is="activeComponent" :branch="localBranch" @updated="onBranchUpdated" />
+         <component :is="activeComponent" :profile="localProfile" @updated="onProfileUpdated" />
       </div>
    </div>
 </template>
@@ -66,19 +65,19 @@ import BranchSettingsPage from "./vendor/BranchSettingsPage.vue";
 
 export default {
    components: {
-      BranchCashLedgerPage,
-      BranchGalleryPage,
-      BranchInformationPage,
-      BranchSettingsPage,
+      BusinessProfileCashLedgerPage: BranchCashLedgerPage,
+      BusinessProfileGalleryPage: BranchGalleryPage,
+      BusinessProfileInformationPage: BranchInformationPage,
+      BusinessProfileSettingsPage: BranchSettingsPage,
    },
 
    props: {
-      branch: { type: Object, required: true },
+      profile: { type: Object, required: true },
    },
 
    data: function () {
       return {
-         localBranch: { ...this.branch },
+         localProfile: { ...this.profile },
          activeTab: "information",
          tabs: [
             { key: "information", label: "Information", icon: "bi-building" },
@@ -92,36 +91,34 @@ export default {
    computed: {
       activeComponent: function () {
          return {
-            information: "BranchInformationPage",
-            cashLedger: "BranchCashLedgerPage",
-            gallery: "BranchGalleryPage",
-            settings: "BranchSettingsPage",
+            information: "BusinessProfileInformationPage",
+            cashLedger: "BusinessProfileCashLedgerPage",
+            gallery: "BusinessProfileGalleryPage",
+            settings: "BusinessProfileSettingsPage",
          }[this.activeTab];
       },
-
-      branchLocation: function () {
-         const location = [this.localBranch.city, this.localBranch.province].filter(Boolean).join(", ");
-
-         return location || "Location not set";
+      locationLabel: function () {
+         return [this.localProfile.city, this.localProfile.province].filter(Boolean).join(", ") || "Location not set";
       },
-
       summaryCards: function () {
-         const cashBalance = Number(this.localBranch.cash_ledger_summary?.balance || 0);
+         const cashBalance = Number(this.localProfile.cash_ledger_summary?.balance || 0);
+         const photoCount = Array.isArray(this.localProfile.photos) ? this.localProfile.photos.length : 0;
+         const systemEntries = Number(this.localProfile.cash_ledger_summary?.system_entries_count || 0);
+         const manualEntries = Number(this.localProfile.cash_ledger_summary?.manual_entries_count || 0);
 
          return [
             { label: "Cash Balance", value: `₱${this.$filters.formatMoney(cashBalance)}`, icon: "bi-wallet2", iconBg: "bg-info-soft", iconColor: "text-info" },
-            { label: "Assigned People", value: this.localBranch.users_count || 0, icon: "bi-people", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-            { label: "Rate Plans", value: this.localBranch.rate_plans_count || 0, icon: "bi-postcard", iconBg: "bg-success-soft", iconColor: "text-success" },
-            { label: "PT Products", value: this.localBranch.pt_products_count || 0, icon: "bi-stopwatch", iconBg: "bg-warning-soft", iconColor: "text-warning" },
+            { label: "Gallery Photos", value: photoCount, icon: "bi-images", iconBg: "bg-primary-soft", iconColor: "text-primary" },
+            { label: "System Entries", value: systemEntries, icon: "bi-postcard", iconBg: "bg-success-soft", iconColor: "text-success" },
+            { label: "Manual Entries", value: manualEntries, icon: "bi-stopwatch", iconBg: "bg-warning-soft", iconColor: "text-warning" },
          ];
       },
    },
 
    methods: {
-      onBranchUpdated: function (updatedBranch) {
-         this.localBranch = { ...this.localBranch, ...updatedBranch };
+      onProfileUpdated: function (updatedProfile) {
+         this.localProfile = { ...this.localProfile, ...updatedProfile };
       },
-
       formatTime: function (timeStr) {
          if (!timeStr) {
             return "";

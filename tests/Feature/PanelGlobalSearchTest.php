@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
+use App\Models\BusinessProfile;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\User;
@@ -32,14 +32,13 @@ class PanelGlobalSearchTest extends TestCase
         Role::findOrCreate('employee');
         Role::findOrCreate('coach');
 
-        $permission = Permission::findOrCreate('manage employees');
-        $managerRole->givePermissionTo($permission);
+        $managerRole->givePermissionTo(Permission::findOrCreate('manage employees'));
     }
 
     public function test_panel_layout_mounts_global_search_component(): void
     {
-        $branch = $this->createBranch('Search Hub');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Mia');
+        $this->setBusinessProfile('Search Hub');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
 
         $this->actingAs($manager)
             ->get('/panel/dashboard')
@@ -49,13 +48,12 @@ class PanelGlobalSearchTest extends TestCase
 
     public function test_global_search_returns_results_for_each_supported_resource(): void
     {
-        $searchBranch = $this->createBranch('Search Hub');
-        $manager = $this->createUserWithRole('manager', [$searchBranch->id], 'Manager Mia');
-        $member = $this->createUserWithRole('member', [$searchBranch->id], 'Search Member', 'member.search@example.test', '09170000001');
-        $employee = $this->createUserWithRole('coach', [$searchBranch->id], 'Search Coach', 'coach.search@example.test', '09170000002');
+        $this->setBusinessProfile('Search Hub');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $member = $this->createUserWithRole('member', 'Search Member', 'member.search@example.test', '09170000001');
+        $employee = $this->createUserWithRole('coach', 'Search Coach', 'coach.search@example.test', '09170000002');
         $category = InventoryCategory::factory()->create(['name' => 'Search Drinks']);
         $item = InventoryItem::factory()->create([
-            'branch_id' => $searchBranch->id,
             'inventory_category_id' => $category->id,
             'name' => 'Search Protein',
             'sku' => 'SEARCH-001',
@@ -63,7 +61,6 @@ class PanelGlobalSearchTest extends TestCase
             'quantity' => 12,
         ]);
         $walkIn = WalkIn::create([
-            'branch_id' => $searchBranch->id,
             'served_by' => $manager->id,
             'name' => 'Search Guest',
             'phone' => '09170000003',
@@ -77,12 +74,10 @@ class PanelGlobalSearchTest extends TestCase
             ->assertOk()
             ->assertJsonPath('query', 'Search')
             ->assertJsonPath('groups.members.total', 1)
-            ->assertJsonPath('groups.branches.total', 1)
             ->assertJsonPath('groups.employees.total', 1)
             ->assertJsonPath('groups.inventory.total', 1)
             ->assertJsonPath('groups.walkins.total', 1)
             ->assertJsonPath('groups.members.items.0.url', route('panel.members.show', $member))
-            ->assertJsonPath('groups.branches.items.0.url', route('panel.branches.show', $searchBranch))
             ->assertJsonPath('groups.employees.items.0.url', route('panel.employees.show', $employee))
             ->assertJsonPath('groups.inventory.items.0.url', route('panel.inventory.index', ['search' => 'SEARCH-001']))
             ->assertJsonPath('groups.walkins.items.0.url', route('panel.walkins.index', ['search' => $walkIn->phone]));
@@ -93,48 +88,29 @@ class PanelGlobalSearchTest extends TestCase
         ]);
     }
 
-    public function test_global_search_respects_branch_scope_and_hides_employee_results_without_permission(): void
+    public function test_global_search_hides_employee_results_without_permission(): void
     {
-        $accessibleBranch = $this->createBranch('Scoped Naga');
-        $otherBranch = $this->createBranch('Scoped Legazpi');
-        $staff = $this->createUserWithRole('staff', [$accessibleBranch->id], 'Staff Ana');
+        $this->setBusinessProfile('Scoped Search');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
 
-        $this->createUserWithRole('member', [$accessibleBranch->id], 'Scoped Member');
-        $this->createUserWithRole('member', [$otherBranch->id], 'Scoped Hidden Member');
-        $this->createUserWithRole('coach', [$accessibleBranch->id], 'Scoped Coach');
-        $this->createUserWithRole('coach', [$otherBranch->id], 'Scoped Hidden Coach');
+        $this->createUserWithRole('member', 'Scoped Member');
+        $this->createUserWithRole('coach', 'Scoped Coach');
 
         $category = InventoryCategory::factory()->create(['name' => 'Supplements']);
+
         InventoryItem::factory()->create([
-            'branch_id' => $accessibleBranch->id,
             'inventory_category_id' => $category->id,
             'name' => 'Scoped Bottle',
             'sku' => 'SCOPED-1',
         ]);
-        InventoryItem::factory()->create([
-            'branch_id' => $otherBranch->id,
-            'inventory_category_id' => $category->id,
-            'name' => 'Scoped Hidden Bottle',
-            'sku' => 'SCOPED-2',
-        ]);
 
         WalkIn::create([
-            'branch_id' => $accessibleBranch->id,
             'served_by' => $staff->id,
             'name' => 'Scoped Guest',
             'phone' => '09980000001',
             'amount_paid' => 250,
             'payment_method' => 'cash',
             'visited_at' => now()->subMinutes(30),
-        ]);
-        WalkIn::create([
-            'branch_id' => $otherBranch->id,
-            'served_by' => $staff->id,
-            'name' => 'Scoped Hidden Guest',
-            'phone' => '09980000002',
-            'amount_paid' => 250,
-            'payment_method' => 'cash',
-            'visited_at' => now()->subMinutes(45),
         ]);
 
         $response = $this->actingAs($staff)
@@ -144,30 +120,25 @@ class PanelGlobalSearchTest extends TestCase
         $groups = $response->json('groups');
 
         $this->assertSame(1, data_get($groups, 'members.total'));
-        $this->assertSame(1, data_get($groups, 'branches.total'));
         $this->assertSame(1, data_get($groups, 'inventory.total'));
         $this->assertSame(1, data_get($groups, 'walkins.total'));
         $this->assertArrayNotHasKey('employees', $groups);
         $this->assertSame(['Scoped Member'], collect(data_get($groups, 'members.items', []))->pluck('title')->all());
-        $this->assertSame(['Scoped Naga'], collect(data_get($groups, 'branches.items', []))->pluck('title')->all());
         $this->assertSame(['Scoped Bottle'], collect(data_get($groups, 'inventory.items', []))->pluck('title')->all());
         $this->assertSame(['Scoped Guest'], collect(data_get($groups, 'walkins.items', []))->pluck('title')->all());
     }
 
-    private function createBranch(string $name): Branch
+    private function setBusinessProfile(string $name): BusinessProfile
     {
-        return Branch::create([
+        return BusinessProfile::factory()->create([
             'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => Branch::COUNTRY_PHILIPPINES,
+            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
+            'province' => 'Camarines Sur',
         ]);
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds, string $name, ?string $email = null, ?string $phone = null): User
+    private function createUserWithRole(string $role, string $name, ?string $email = null, ?string $phone = null): User
     {
         $user = User::factory()->create([
             'name' => $name,
@@ -175,11 +146,10 @@ class PanelGlobalSearchTest extends TestCase
             'phone' => $phone ?? fake()->unique()->numerify('09#########'),
             'status' => User::STATUS_ACTIVE,
             'daily_rate' => 500,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

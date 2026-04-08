@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
-use App\Models\Branch;
 use App\Models\MemberSubscription;
 use App\Models\RatePlan;
 use App\Models\User;
@@ -27,13 +26,12 @@ class MembersAccessTest extends TestCase
         Role::findOrCreate('super admin');
     }
 
-    public function test_manager_cannot_view_attendance_for_member_from_another_branch(): void
+    public function test_manager_can_view_attendance_for_a_member_in_the_single_location(): void
     {
-        $manager = $this->createUserWithRole('manager', [$this->createBranch('Manager Branch')->id]);
-        $member = $this->createMember([$this->createBranch('Other Branch')->id]);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
 
         Attendance::create([
-            'branch_id' => $member->branches()->firstOrFail()->id,
             'attendee_type' => Attendance::TYPE_MEMBER,
             'user_id' => $member->id,
             'name' => $member->name,
@@ -42,13 +40,15 @@ class MembersAccessTest extends TestCase
 
         $this->actingAs($manager)
             ->getJson("/panel/members/{$member->id}/attendance")
-            ->assertNotFound();
+            ->assertOk()
+            ->assertJsonPath('stats.total', 1)
+            ->assertJsonPath('records.data.0.name', $member->name);
     }
 
-    public function test_manager_cannot_change_membership_for_member_from_another_branch(): void
+    public function test_manager_can_change_membership_for_a_member(): void
     {
-        $manager = $this->createUserWithRole('manager', [$this->createBranch('Manager Branch')->id]);
-        $member = $this->createMember([$this->createBranch('Other Branch')->id]);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
         $currentPlan = $this->createRatePlan('Current Plan', 30);
         $replacementPlan = $this->createRatePlan('Replacement Plan', 90);
 
@@ -64,19 +64,26 @@ class MembersAccessTest extends TestCase
                 'rate_plan_id' => $replacementPlan->id,
                 'start_date' => '2026-04-01',
             ])
-            ->assertNotFound();
+            ->assertOk()
+            ->assertJsonPath('member_subscriptions.0.rate_plan.id', $replacementPlan->id)
+            ->assertJsonPath('member_subscriptions.0.status', MemberSubscription::STATUS_ACTIVE);
 
         $this->assertDatabaseHas('member_subscriptions', [
             'id' => $subscription->id,
-            'rate_plan_id' => $currentPlan->id,
+            'status' => MemberSubscription::STATUS_CANCELLED,
+        ]);
+
+        $this->assertDatabaseHas('member_subscriptions', [
+            'user_id' => $member->id,
+            'rate_plan_id' => $replacementPlan->id,
             'status' => MemberSubscription::STATUS_ACTIVE,
         ]);
     }
 
-    public function test_manager_cannot_update_membership_status_for_member_from_another_branch(): void
+    public function test_manager_can_update_membership_status_for_a_member(): void
     {
-        $manager = $this->createUserWithRole('manager', [$this->createBranch('Manager Branch')->id]);
-        $member = $this->createMember([$this->createBranch('Other Branch')->id]);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
         $plan = $this->createRatePlan('Monthly', 30);
 
         $subscription = $member->memberSubscriptions()->create([
@@ -90,19 +97,19 @@ class MembersAccessTest extends TestCase
             ->putJson("/panel/members/{$member->id}/membership/status", [
                 'status' => MemberSubscription::STATUS_PAUSED,
             ])
-            ->assertNotFound();
+            ->assertOk()
+            ->assertJsonPath('member_subscriptions.0.status', MemberSubscription::STATUS_PAUSED);
 
         $this->assertDatabaseHas('member_subscriptions', [
             'id' => $subscription->id,
-            'status' => MemberSubscription::STATUS_ACTIVE,
+            'status' => MemberSubscription::STATUS_PAUSED,
         ]);
     }
 
     public function test_changing_a_paused_membership_plan_keeps_it_paused(): void
     {
-        $branch = $this->createBranch('Shared Branch');
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
         $plan = $this->createRatePlan('Monthly', 30);
 
         $subscription = $member->memberSubscriptions()->create([
@@ -129,14 +136,12 @@ class MembersAccessTest extends TestCase
 
     public function test_manager_cannot_change_membership_when_current_membership_commission_is_locked(): void
     {
-        $branch = $this->createBranch('Commission Branch');
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
         $currentPlan = $this->createRatePlan('Current Plan', 30);
         $replacementPlan = $this->createRatePlan('Replacement Plan', 90);
 
         $subscription = $member->memberSubscriptions()->create([
-            'branch_id' => $branch->id,
             'rate_plan_id' => $currentPlan->id,
             'sold_price' => 2000,
             'manager_id' => $manager->id,
@@ -166,13 +171,11 @@ class MembersAccessTest extends TestCase
 
     public function test_manager_cannot_update_membership_status_when_current_membership_commission_is_locked(): void
     {
-        $branch = $this->createBranch('Commission Branch');
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
         $plan = $this->createRatePlan('Monthly', 30);
 
         $subscription = $member->memberSubscriptions()->create([
-            'branch_id' => $branch->id,
             'rate_plan_id' => $plan->id,
             'sold_price' => 2500,
             'manager_id' => $manager->id,
@@ -200,13 +203,11 @@ class MembersAccessTest extends TestCase
 
     public function test_manager_can_assign_themselves_to_an_unassigned_membership_commission(): void
     {
-        $branch = $this->createBranch('Commission Branch');
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
         $plan = $this->createRatePlan('Monthly', 30);
 
         $subscription = $member->memberSubscriptions()->create([
-            'branch_id' => $branch->id,
             'rate_plan_id' => $plan->id,
             'sold_price' => 2000,
             'manager_commission_rate' => 8,
@@ -234,14 +235,12 @@ class MembersAccessTest extends TestCase
 
     public function test_manager_cannot_assign_membership_commission_to_another_manager(): void
     {
-        $branch = $this->createBranch('Commission Branch');
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $otherManager = $this->createUserWithRole('manager', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $manager = $this->createUserWithRole('manager');
+        $otherManager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
         $plan = $this->createRatePlan('Monthly', 30);
 
         $member->memberSubscriptions()->create([
-            'branch_id' => $branch->id,
             'rate_plan_id' => $plan->id,
             'sold_price' => 2000,
             'manager_commission_rate' => 8,
@@ -262,13 +261,11 @@ class MembersAccessTest extends TestCase
 
     public function test_manager_cannot_assign_membership_commission_without_an_assignable_snapshot(): void
     {
-        $branch = $this->createBranch('Commission Branch');
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
         $plan = $this->createRatePlan('Monthly', 30);
 
         $member->memberSubscriptions()->create([
-            'branch_id' => $branch->id,
             'rate_plan_id' => $plan->id,
             'sold_price' => 2000,
             'manager_commission_rate' => 0,
@@ -289,13 +286,11 @@ class MembersAccessTest extends TestCase
 
     public function test_member_detail_page_includes_membership_commission_summary_and_action_state(): void
     {
-        $branch = $this->createBranch('Commission Branch');
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
         $plan = $this->createRatePlan('Monthly', 30);
 
         $member->memberSubscriptions()->create([
-            'branch_id' => $branch->id,
             'rate_plan_id' => $plan->id,
             'sold_price' => 2200,
             'manager_id' => $manager->id,
@@ -318,13 +313,11 @@ class MembersAccessTest extends TestCase
 
     public function test_member_detail_page_includes_assign_manager_state_for_unassigned_commission(): void
     {
-        $branch = $this->createBranch('Commission Branch');
-        $manager = $this->createUserWithRole('manager', [$branch->id]);
-        $member = $this->createMember([$branch->id]);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
         $plan = $this->createRatePlan('Monthly', 30);
 
         $member->memberSubscriptions()->create([
-            'branch_id' => $branch->id,
             'rate_plan_id' => $plan->id,
             'sold_price' => 2200,
             'manager_commission_rate' => 7.5,
@@ -343,36 +336,28 @@ class MembersAccessTest extends TestCase
             ->assertSee('"action_state":{"is_locked":false,"can_change_plan":true,"can_change_status":true,"can_assign_manager":true', false);
     }
 
-    public function test_manager_cannot_create_member_in_another_branch(): void
+    public function test_manager_can_create_member_without_branch_assignment(): void
     {
-        $manager = $this->createUserWithRole('manager', [$this->createBranch('Manager Branch')->id]);
-        $otherBranch = $this->createBranch('Other Branch');
+        $manager = $this->createUserWithRole('manager');
         $plan = $this->createRatePlan('Monthly', 30);
 
         $this->actingAs($manager)
             ->postJson('/panel/members', [
-                'name' => 'Unauthorized Member',
-                'email' => 'unauthorized-member@example.com',
+                'name' => 'New Member',
+                'email' => 'new-member@example.com',
                 'password' => 'password123',
-                'branch_ids' => [$otherBranch->id],
                 'status' => User::STATUS_ACTIVE,
                 'rate_plan_id' => $plan->id,
                 'start_date' => '2026-04-01',
             ])
-            ->assertForbidden();
+            ->assertCreated()
+            ->assertJsonPath('name', 'New Member')
+            ->assertJsonPath('member_subscriptions.0.rate_plan.id', $plan->id);
 
-        $this->assertDatabaseMissing('users', [
-            'email' => 'unauthorized-member@example.com',
-        ]);
-    }
+        $member = User::query()->where('email', 'new-member@example.com')->firstOrFail();
 
-    private function createBranch(string $name): Branch
-    {
-        return Branch::create([
-            'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'city' => 'Naga City',
-        ]);
+        $this->assertTrue($member->hasRole('member'));
+        $this->assertNotNull($member->currentMembership());
     }
 
     private function createRatePlan(string $name, int $durationDays): RatePlan
@@ -380,30 +365,25 @@ class MembersAccessTest extends TestCase
         return RatePlan::create([
             'name' => $name,
             'duration_days' => $durationDays,
+            'price' => 1500,
+            'manager_commission_rate' => 8,
             'is_active' => true,
         ]);
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds = []): User
+    private function createUserWithRole(string $role): User
     {
         $user = User::factory()->create([
             'status' => User::STATUS_ACTIVE,
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createMember(array $branchIds): User
+    private function createMember(): User
     {
-        return $this->createUserWithRole('member', $branchIds);
+        return $this->createUserWithRole('member');
     }
 }

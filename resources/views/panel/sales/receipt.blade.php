@@ -265,10 +265,10 @@
             <table class="info-table">
                 <tr>
                     <td>
-                        <span class="field-label">Branch</span>
-                        <div class="field-value">{{ $saleTransaction->branch?->name }}</div>
+                        <span class="field-label">Location</span>
+                        <div class="field-value">{{ $businessProfile->name }}</div>
                         <div class="field-copy">
-                            {{ collect([$saleTransaction->branch?->city, $saleTransaction->branch?->province])->filter()->join(', ') }}
+                            {{ collect([$businessProfile->city, $businessProfile->province])->filter()->join(', ') }}
                         </div>
                     </td>
                     <td>

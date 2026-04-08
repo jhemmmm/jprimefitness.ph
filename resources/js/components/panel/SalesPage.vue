@@ -3,7 +3,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Sales</h4>
-            <p class="text-muted small mb-0">Sell products, memberships, PT packages, and walk-in access from one branch-aware POS flow.</p>
+            <p class="text-muted small mb-0">Sell products, memberships, PT packages, and walk-in access from one streamlined POS flow.</p>
          </div>
       </div>
 
@@ -21,15 +21,9 @@
          </div>
       </div>
 
-      <div v-if="!branchesData.length" class="panel-card p-5 text-center text-muted">
+      <div v-if="!hasProfile" class="panel-card p-5 text-center text-muted">
          <i class="bi bi-shop fs-1 d-block mb-2 opacity-25"></i>
-         <div>No accessible branches found.</div>
-      </div>
-
-      <div v-else-if="!selectedBranch" class="panel-card p-5 text-center text-muted">
-         <i class="bi bi-diagram-3 fs-1 d-block mb-2 opacity-25"></i>
-         <div class="fw-semibold mb-1">Select a branch</div>
-         <div class="small">Choose a specific branch from the sidebar before processing a sale.</div>
+         <div>Location data is unavailable.</div>
       </div>
 
       <template v-else>
@@ -40,7 +34,7 @@
                      <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 w-100">
                         <div>
                            <span class="panel-card-title">New Sale</span>
-                           <div class="small text-muted mt-1">Processing sale for {{ currentBranchName }}</div>
+                           <div class="small text-muted mt-1">Processing sale for {{ currentLocationName }}</div>
                         </div>
                         <div class="btn-group btn-group-sm ms-md-auto sales-type-group" role="group">
                            <button type="button" :class="['btn', saleType === 'inventory' ? 'btn-danger' : 'btn-outline-secondary']" @click="setSaleType('inventory')">Inventory</button>
@@ -397,7 +391,7 @@
             <div class="panel-card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                <div>
                   <span class="panel-card-title">Transaction History</span>
-                  <div class="small text-muted mt-1">Recent transactions recorded for {{ currentBranchName }}</div>
+                  <div class="small text-muted mt-1">Recent transactions recorded for {{ currentLocationName }}</div>
                </div>
                <div class="small text-muted" v-if="!loadingHistory && historyPagination.total > 0">Showing {{ historyPagination.from }}–{{ historyPagination.to }} of {{ historyPagination.total }}</div>
             </div>
@@ -571,21 +565,19 @@
 <script>
 export default {
    props: {
-      branchesData: {
-         type: Array,
+      profile: {
+         type: Object,
          default: function () {
-            return [];
+            return {};
          },
       },
    },
    data: function () {
-      var storedBranchId = localStorage.getItem("selectedBranch");
       var now = new Date();
       var localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
 
       return {
          saleType: "inventory",
-         selectedBranch: storedBranchId && storedBranchId !== "null" ? parseInt(storedBranchId, 10) || "" : "",
          loadingContext: false,
          loadingHistory: false,
          processingSale: false,
@@ -645,15 +637,8 @@ export default {
    },
    mounted: function () {
       this.form = this.defaultForm();
-
-      if (this.selectedBranch && !this.branchesData.some((branch) => branch.id === this.selectedBranch)) {
-         this.selectedBranch = "";
-      }
-
-      if (this.selectedBranch) {
-         this.fetchContext();
-         this.fetchHistory();
-      }
+      this.fetchContext();
+      this.fetchHistory();
    },
    watch: {
       summaryTotal: function (value, oldValue) {
@@ -685,8 +670,11 @@ export default {
       },
    },
    computed: {
-      currentBranchName: function () {
-         return this.branchesData.find((branch) => branch.id === this.selectedBranch)?.name || "the selected branch";
+      hasProfile: function () {
+         return Boolean(this.profile?.id || window.JPrime?.profile?.id);
+      },
+      currentLocationName: function () {
+         return this.profile?.name || window.JPrime?.profile?.name || "this location";
       },
       isCashPayment: function () {
          return this.form.payment_method === "cash";
@@ -877,19 +865,11 @@ export default {
          });
       },
       fetchContext: function () {
-         if (!this.selectedBranch) {
-            return;
-         }
-
          this.loadingContext = true;
          this.pageError = "";
 
          axios
-            .get("/panel/sales/context", {
-               params: {
-                  branch: this.selectedBranch,
-               },
-            })
+            .get("/panel/sales/context")
             .then((response) => {
                this.context = response.data.options;
             })
@@ -901,16 +881,11 @@ export default {
             });
       },
       fetchHistory: function (page = 1) {
-         if (!this.selectedBranch) {
-            return;
-         }
-
          this.loadingHistory = true;
 
          axios
             .get("/panel/sales/history", {
                params: {
-                  branch: this.selectedBranch,
                   search: this.historyFilters.search || undefined,
                   type: this.historyFilters.type || undefined,
                   date_from: this.historyFilters.date_from || undefined,
@@ -937,14 +912,9 @@ export default {
             });
       },
       fetchMemberOptions: function (search) {
-         if (!this.selectedBranch) {
-            return Promise.resolve([]);
-         }
-
          return axios
             .get("/panel/members/list", {
                params: {
-                  branch: this.selectedBranch,
                   search: search,
                },
             })
@@ -1029,7 +999,6 @@ export default {
       },
       buildPayload: function () {
          var payload = {
-            branch_id: this.selectedBranch,
             type: this.saleType,
             payment_method: this.form.payment_method,
             amount_received: this.form.amount_received || null,
@@ -1082,10 +1051,6 @@ export default {
          return payload;
       },
       submitSale: function () {
-         if (!this.selectedBranch) {
-            return;
-         }
-
          this.processingSale = true;
          this.pageError = "";
          this.successMessage = "";

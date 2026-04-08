@@ -3,5 +3,5 @@
 @section('title', 'Dashboard')
 
 @section('content')
-    <dashboard-page :branches-data='@json($branches)'></dashboard-page>
+    <dashboard-page :business-profile='@json($businessProfile)'></dashboard-page>
 @endsection

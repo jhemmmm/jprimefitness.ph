@@ -26,7 +26,6 @@ class MemberPtPackage extends Model
 
     protected $fillable = [
         'user_id',
-        'branch_id',
         'pt_product_id',
         'sold_price',
         'coach_commission_rate',
@@ -73,11 +72,6 @@ class MemberPtPackage extends Model
     public function member(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
     }
 
     public function ptProduct(): BelongsTo

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\SaleTransaction;
+use App\Services\BusinessProfileContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
@@ -16,33 +17,20 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SalesReportsController extends Controller
 {
-    /**
-     * Sales report index
-     * @return View
-     */
+    public function __construct(private BusinessProfileContext $businessProfileContext)
+    {
+    }
+
     public function index(): View
     {
         return view('panel.reports.sales');
     }
 
-    /**
-     * Get sales report data
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function data(Request $request): JsonResponse
     {
-        // Get report data based on filters and return as JSON
-        $report = $this->reportPayload($request);
-        // Return as JSON response
-        return response()->json($report);
+        return response()->json($this->reportPayload($request));
     }
 
-    /**
-     * Export sales report data
-     * @param Request $request
-     * @return StreamedResponse
-     */
     public function export(Request $request): StreamedResponse
     {
         $report = $this->reportPayload($request);
@@ -57,7 +45,7 @@ class SalesReportsController extends Controller
             }
 
             fputcsv($handle, ['Sales Reports']);
-            fputcsv($handle, ['Branch', $report['scope']['branch']['name'] ?? 'All Accessible Branches']);
+            fputcsv($handle, ['Location', $report['scope']['location']['name'] ?? '-']);
             fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '-']);
             fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '-']);
             fputcsv($handle, ['Sale Type', $report['filters']['type'] ?: 'All Types']);
@@ -86,10 +74,10 @@ class SalesReportsController extends Controller
             }
             fputcsv($handle, []);
 
-            fputcsv($handle, ['Branch Breakdown']);
-            fputcsv($handle, ['Branch', 'Transactions', 'Total Sales']);
-            foreach ($report['branch_breakdown'] as $row) {
-                fputcsv($handle, [$row['branch_name'], $row['transaction_count'], $row['total_sales']]);
+            fputcsv($handle, ['Location Totals']);
+            fputcsv($handle, ['Location', 'Transactions', 'Total Sales']);
+            foreach ($report['location_breakdown'] as $row) {
+                fputcsv($handle, [$row['location_name'], $row['transaction_count'], $row['total_sales']]);
             }
             fputcsv($handle, []);
 
@@ -108,10 +96,10 @@ class SalesReportsController extends Controller
             fputcsv($handle, []);
 
             fputcsv($handle, ['Recent Transactions']);
-            fputcsv($handle, ['Branch', 'Customer', 'Item', 'Type', 'Payment Method', 'Total', 'Processed By', 'Sold At']);
+            fputcsv($handle, ['Location', 'Customer', 'Item', 'Type', 'Payment Method', 'Total', 'Processed By', 'Sold At']);
             foreach ($report['recent_transactions'] as $row) {
                 fputcsv($handle, [
-                    $row['branch_name'],
+                    $row['location_name'],
                     $row['customer_name'],
                     $row['item_name'],
                     $row['type'],
@@ -129,14 +117,11 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * Get sales report payload based on filters
-     * @param Request $request
-     * @return array{branch_breakdown: array, daily_trend: array, filters: array{date_from: mixed, date_to: mixed, payment_method: mixed, payment_method_label: string|null, type: mixed, payment_breakdown: array, recent_transactions: array, scope: array, summary: array<float|int>, top_items: array, type_breakdown: array}}
+     * @return array<string, mixed>
      */
     private function reportPayload(Request $request): array
     {
         $data = $request->validate([
-            'branch' => ['nullable', 'integer', 'exists:branches,id'],
             'type' => [
                 'nullable',
                 Rule::in([
@@ -144,39 +129,30 @@ class SalesReportsController extends Controller
                     SaleTransaction::TYPE_MEMBERSHIP,
                     SaleTransaction::TYPE_PT_PACKAGE,
                     SaleTransaction::TYPE_WALK_IN,
-                ])
+                ]),
             ],
             'payment_method' => [
                 'nullable',
-                Rule::in([
-                    ...SaleTransaction::supportedPaymentMethods(),
-                ])
+                Rule::in(SaleTransaction::supportedPaymentMethods()),
             ],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $branches = auth()->user()->getBranches();
-        $selectedBranch = ($data['branch'] ?? null) ? $branches->find((int) $data['branch']) : null;
-        $accessibleBranchIds = $selectedBranch
-            ? [$selectedBranch->id]
-            : $branches->pluck('id')->all();
+        $location = $this->businessProfileContext->legacyLocation();
 
         $salesQuery = SaleTransaction::query()
-            ->whereIn('branch_id', $accessibleBranchIds)
-            ->when($selectedBranch, fn($query) => $query->where('branch_id', $selectedBranch->id))
-            ->when($request->type, fn($query) => $query->where('type', $request->type))
-            ->when($request->payment_method, fn($query) => $query->where('payment_method', $request->payment_method))
-            ->when($request->date_from, fn($query) => $query->whereDate('sold_at', '>=', $request->date_from))
-            ->when($request->date_to, fn($query) => $query->whereDate('sold_at', '<=', $request->date_to));
+            ->when($data['type'] ?? null, fn ($query) => $query->where('type', $data['type']))
+            ->when($data['payment_method'] ?? null, fn ($query) => $query->where('payment_method', $data['payment_method']))
+            ->when($data['date_from'] ?? null, fn ($query) => $query->whereDate('sold_at', '>=', $data['date_from']))
+            ->when($data['date_to'] ?? null, fn ($query) => $query->whereDate('sold_at', '<=', $data['date_to']));
 
         return [
             'scope' => [
-                'branch' => $selectedBranch ? [
-                    'id' => $selectedBranch->id,
-                    'name' => $selectedBranch->name,
-                ] : null,
-                'is_all_branches' => !$selectedBranch,
+                'location' => [
+                    'id' => $location['id'],
+                    'name' => $location['name'],
+                ],
             ],
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
@@ -192,17 +168,24 @@ class SalesReportsController extends Controller
             'payment_breakdown' => $this->paymentBreakdown((clone $salesQuery)->toBase()),
             'daily_trend' => $this->dailyTrend((clone $salesQuery)->toBase()),
             'top_items' => $this->topItems((clone $salesQuery)->get()),
-            'branch_breakdown' => $this->branchBreakdown((clone $salesQuery)->toBase()),
-            'recent_transactions' => $this->recentTransactions((clone $salesQuery)->with(['branch:id,name', 'processedBy:id,name'])->orderByDesc('sold_at')->limit(10)->get()),
+            'location_breakdown' => [[
+                'location_id' => $location['id'],
+                'location_name' => $location['name'],
+                'transaction_count' => (clone $salesQuery)->count(),
+                'total_sales' => round((float) (clone $salesQuery)->sum('total'), 2),
+            ]],
+            'recent_transactions' => $this->recentTransactions(
+                (clone $salesQuery)->with(['processedBy:id,name'])->orderByDesc('sold_at')->limit(10)->get(),
+                $location['name']
+            ),
         ];
     }
 
     /**
-     * Get the summary
-     * @param mixed $query
+     * @param  Builder  $query
      * @return array{average_sale: float, cash_sales: float, total_sales: float, transaction_count: int}
      */
-    private function summary($query): array
+    private function summary(Builder $query): array
     {
         $summary = $query
             ->selectRaw('COALESCE(SUM(total), 0) as total_sales')
@@ -220,11 +203,10 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * Get the type breakdown
-     * @param mixed $query
-     * @return array[]
+     * @param  Builder  $query
+     * @return array<int, array<string, mixed>>
      */
-    private function typeBreakdown($query): array
+    private function typeBreakdown(Builder $query): array
     {
         $rows = collect($query
             ->select('type')
@@ -252,11 +234,10 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * Get the payment method breakdown
-     * @param mixed $query
-     * @return array[]
+     * @param  Builder  $query
+     * @return array<int, array<string, mixed>>
      */
-    private function paymentBreakdown($query): array
+    private function paymentBreakdown(Builder $query): array
     {
         $rows = collect($query
             ->select('payment_method')
@@ -277,17 +258,16 @@ class SalesReportsController extends Controller
                     'total_sales' => round((float) ($row->total_sales ?? 0), 2),
                 ];
             })
-            ->filter(fn(array $row) => $row['transaction_count'] > 0)
+            ->filter(fn (array $row) => $row['transaction_count'] > 0)
             ->values()
             ->all();
     }
 
     /**
-     * Get the daily sales trend
-     * @param mixed $query
-     * @return array[]
+     * @param  Builder  $query
+     * @return array<int, array<string, mixed>>
      */
-    private function dailyTrend($query): array
+    private function dailyTrend(Builder $query): array
     {
         return collect($query
             ->selectRaw('DATE(sold_at) as sale_date')
@@ -296,48 +276,18 @@ class SalesReportsController extends Controller
             ->groupBy(DB::raw('DATE(sold_at)'))
             ->orderBy('sale_date')
             ->get())
-            ->map(function ($row): array {
-                return [
-                    'sale_date' => $row->sale_date,
-                    'transaction_count' => (int) $row->transaction_count,
-                    'total_sales' => round((float) $row->total_sales, 2),
-                ];
-            })
+            ->map(fn ($row) => [
+                'sale_date' => $row->sale_date,
+                'transaction_count' => (int) $row->transaction_count,
+                'total_sales' => round((float) $row->total_sales, 2),
+            ])
             ->values()
             ->all();
     }
 
     /**
-     * Get the branch breakdown
-     * @param mixed $query
-     * @return array[]
-     */
-    private function branchBreakdown($query): array
-    {
-        return collect($query
-            ->join('branches', 'branches.id', '=', 'sale_transactions.branch_id')
-            ->select('sale_transactions.branch_id', 'branches.name')
-            ->selectRaw('COUNT(*) as transaction_count')
-            ->selectRaw('COALESCE(SUM(sale_transactions.total), 0) as total_sales')
-            ->groupBy('sale_transactions.branch_id', 'branches.name')
-            ->orderByDesc('total_sales')
-            ->get())
-            ->map(function ($row): array {
-                return [
-                    'branch_id' => (int) $row->branch_id,
-                    'branch_name' => $row->name,
-                    'transaction_count' => (int) $row->transaction_count,
-                    'total_sales' => round((float) $row->total_sales, 2),
-                ];
-            })
-            ->values()
-            ->all();
-    }
-
-    /**
-     * Get the top items
-     * @param Collection $transactions
-     * @return array[]
+     * @param  Collection<int, SaleTransaction>  $transactions
+     * @return array<int, array<string, mixed>>
      */
     private function topItems(Collection $transactions): array
     {
@@ -381,42 +331,37 @@ class SalesReportsController extends Controller
             }, collect())
             ->sortByDesc('total_sales')
             ->take(8)
-            ->map(function (array $row): array {
-                return [
-                    'name' => $row['name'],
-                    'type' => $row['type'],
-                    'quantity' => round((float) $row['quantity'], 2),
-                    'total_sales' => round((float) $row['total_sales'], 2),
-                ];
-            })
+            ->map(fn (array $row) => [
+                'name' => $row['name'],
+                'type' => $row['type'],
+                'quantity' => round((float) $row['quantity'], 2),
+                'total_sales' => round((float) $row['total_sales'], 2),
+            ])
             ->values()
             ->all();
     }
 
     /**
-     * Get the recent transactions
-     * @param Collection $transactions
-     * @return array[]
+     * @param  Collection<int, SaleTransaction>  $transactions
+     * @return array<int, array<string, mixed>>
      */
-    private function recentTransactions(Collection $transactions): array
+    private function recentTransactions(Collection $transactions, string $locationName): array
     {
         return $transactions
             ->sortByDesc('sold_at')
             ->take(10)
-            ->map(function (SaleTransaction $transaction): array {
-                return [
-                    'id' => $transaction->id,
-                    'branch_name' => $transaction->branch?->name,
-                    'customer_name' => $transaction->customer_name,
-                    'item_name' => $transaction->item_name,
-                    'type' => $transaction->type,
-                    'payment_method' => $transaction->payment_method,
-                    'payment_method_label' => SaleTransaction::paymentMethodLabel($transaction->payment_method),
-                    'total' => round((float) $transaction->total, 2),
-                    'processed_by' => $transaction->processedBy?->name,
-                    'sold_at' => $transaction->sold_at?->toISOString(),
-                ];
-            })
+            ->map(fn (SaleTransaction $transaction) => [
+                'id' => $transaction->id,
+                'location_name' => $locationName,
+                'customer_name' => $transaction->customer_name,
+                'item_name' => $transaction->item_name,
+                'type' => $transaction->type,
+                'payment_method' => $transaction->payment_method,
+                'payment_method_label' => SaleTransaction::paymentMethodLabel($transaction->payment_method),
+                'total' => round((float) $transaction->total, 2),
+                'processed_by' => $transaction->processedBy?->name,
+                'sold_at' => $transaction->sold_at?->toISOString(),
+            ])
             ->values()
             ->all();
     }

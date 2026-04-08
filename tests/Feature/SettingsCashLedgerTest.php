@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
-use App\Models\BranchCashLedgerEntry;
+use App\Models\BusinessProfile;
+use App\Models\CashLedgerEntry;
 use App\Models\PTProduct;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -12,7 +12,7 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
-class BranchCashLedgerTest extends TestCase
+class SettingsCashLedgerTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
@@ -22,25 +22,27 @@ class BranchCashLedgerTest extends TestCase
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
+        Role::findOrCreate('super admin');
+        Role::findOrCreate('admin');
         $managerRole = Role::findOrCreate('manager');
         Role::findOrCreate('staff');
         Role::findOrCreate('member');
         Role::findOrCreate('coach');
 
         $managerRole->givePermissionTo(Permission::findOrCreate('manage employees'));
+
+        BusinessProfile::factory()->create();
     }
 
-    public function test_pt_package_creation_does_not_inflate_branch_cash_balance(): void
+    public function test_pt_package_creation_does_not_inflate_cash_balance(): void
     {
-        $branch = $this->createBranch('Naga');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Branch Manager');
-        $member = $this->createUserWithRole('member', [$branch->id], 'Member Ana');
-        $product = $this->attachPtProduct($branch, '12 Sessions', 12, 1200);
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
+        $member = $this->createUserWithRole('member', 'Member Ben');
+        $product = $this->createPtProduct('12 Sessions', 12, 1200);
 
         $this->actingAs($manager)
             ->postJson('/panel/walk-ins', [
-                'branch_id' => $branch->id,
-                'name' => 'Walk-in Ben',
+                'name' => 'Walk-in Pax',
                 'amount_paid' => 350,
                 'visited_at' => '2026-03-20 09:00:00',
             ])
@@ -48,14 +50,13 @@ class BranchCashLedgerTest extends TestCase
 
         $this->actingAs($manager)
             ->postJson("/panel/members/{$member->id}/pt-packages", [
-                'branch_id' => $branch->id,
                 'pt_product_id' => $product->id,
                 'assigned_at' => '2026-03-20',
             ])
             ->assertCreated();
 
         $response = $this->actingAs($manager)
-            ->getJson("/panel/branches/{$branch->id}/cash-ledger")
+            ->getJson('/panel/settings/cash-ledger')
             ->assertOk()
             ->assertJsonPath('summary.balance', 350)
             ->assertJsonPath('summary.cash_in_total', 350)
@@ -63,39 +64,35 @@ class BranchCashLedgerTest extends TestCase
 
         $entryTypes = collect($response->json('entries'))->pluck('entry_type')->all();
 
-        $this->assertContains('walk_in_sale', $entryTypes);
-        $this->assertNotContains('pt_package_sale', $entryTypes);
+        $this->assertContains(CashLedgerEntry::TYPE_WALK_IN_SALE, $entryTypes);
+        $this->assertNotContains(CashLedgerEntry::TYPE_PT_PACKAGE_SALE, $entryTypes);
 
-        $this->assertDatabaseHas('branch_cash_ledger_entries', [
-            'branch_id' => $branch->id,
-            'entry_type' => 'walk_in_sale',
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'entry_type' => CashLedgerEntry::TYPE_WALK_IN_SALE,
             'amount' => 350,
             'is_system' => true,
         ]);
 
-        $this->assertDatabaseMissing('branch_cash_ledger_entries', [
-            'branch_id' => $branch->id,
-            'entry_type' => 'pt_package_sale',
+        $this->assertDatabaseMissing('cash_ledger_entries', [
+            'entry_type' => CashLedgerEntry::TYPE_PT_PACKAGE_SALE,
         ]);
     }
 
-    public function test_staff_cannot_view_branch_cash_ledger(): void
+    public function test_staff_cannot_view_cash_ledger(): void
     {
-        $branch = $this->createBranch('Iriga');
-        $staff = $this->createUserWithRole('staff', [$branch->id], 'Front Desk Staff');
+        $staff = $this->createUserWithRole('staff', 'Front Desk Staff');
 
         $this->actingAs($staff)
-            ->getJson("/panel/branches/{$branch->id}/cash-ledger")
+            ->getJson('/panel/settings/cash-ledger')
             ->assertForbidden();
     }
 
-    public function test_cash_payouts_and_released_cash_advances_reduce_branch_balance(): void
+    public function test_cash_payouts_and_released_cash_advances_reduce_cash_balance(): void
     {
-        $branch = $this->createBranch('Legazpi');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Branch Manager');
-        $coach = $this->createUserWithRole('coach', [$branch->id], 'Coach Mia');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $coach = $this->createUserWithRole('coach', 'Coach Lou');
 
-        $payrollResponse = $this->actingAs($manager)
+        $payrollId = $this->actingAs($manager)
             ->postJson("/panel/employees/{$coach->id}/payrolls", [
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-15',
@@ -104,9 +101,8 @@ class BranchCashLedgerTest extends TestCase
                 'manual_deductions' => 0,
                 'cash_advance_deduction' => 0,
             ])
-            ->assertCreated();
-
-        $payrollId = $payrollResponse->json('id');
+            ->assertCreated()
+            ->json('id');
 
         $this->actingAs($manager)
             ->postJson("/panel/employees/{$coach->id}/payrolls/{$payrollId}/approve")
@@ -120,14 +116,13 @@ class BranchCashLedgerTest extends TestCase
             ])
             ->assertCreated();
 
-        $cashAdvanceResponse = $this->actingAs($manager)
+        $cashAdvanceId = $this->actingAs($manager)
             ->postJson("/panel/employees/{$coach->id}/cash-advances", [
                 'amount' => 300,
                 'requested_at' => '2026-03-17 08:00:00',
             ])
-            ->assertCreated();
-
-        $cashAdvanceId = $cashAdvanceResponse->json('id');
+            ->assertCreated()
+            ->json('id');
 
         $this->actingAs($manager)
             ->putJson("/panel/employees/{$coach->id}/cash-advances/{$cashAdvanceId}", [
@@ -142,7 +137,7 @@ class BranchCashLedgerTest extends TestCase
             ->assertOk();
 
         $response = $this->actingAs($manager)
-            ->getJson("/panel/branches/{$branch->id}/cash-ledger")
+            ->getJson('/panel/settings/cash-ledger')
             ->assertOk()
             ->assertJsonPath('summary.balance', -1300)
             ->assertJsonPath('summary.cash_in_total', 0)
@@ -150,30 +145,28 @@ class BranchCashLedgerTest extends TestCase
 
         $entryTypes = collect($response->json('entries'))->pluck('entry_type')->all();
 
-        $this->assertContains('payroll_payout', $entryTypes);
-        $this->assertContains('cash_advance_release', $entryTypes);
+        $this->assertContains(CashLedgerEntry::TYPE_PAYROLL_PAYOUT, $entryTypes);
+        $this->assertContains(CashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE, $entryTypes);
     }
 
     public function test_manager_can_create_update_and_delete_manual_cash_ledger_entries(): void
     {
-        $branch = $this->createBranch('Daet');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Branch Manager');
+        $manager = $this->createUserWithRole('manager', 'Manager Zoe');
 
-        $createResponse = $this->actingAs($manager)
-            ->postJson("/panel/branches/{$branch->id}/cash-ledger", [
+        $entryId = $this->actingAs($manager)
+            ->postJson('/panel/settings/cash-ledger', [
                 'direction' => 'in',
                 'amount' => 2500,
                 'occurred_at' => '2026-03-18 10:15:00',
                 'title' => 'Opening Balance',
-                'description' => 'Initial branch cash on hand',
+                'description' => 'Initial cash on hand',
             ])
             ->assertCreated()
-            ->assertJsonPath('summary.balance', 2500);
-
-        $entryId = $createResponse->json('entry.id');
+            ->assertJsonPath('summary.balance', 2500)
+            ->json('entry.id');
 
         $this->actingAs($manager)
-            ->putJson("/panel/branches/{$branch->id}/cash-ledger/{$entryId}", [
+            ->putJson("/panel/settings/cash-ledger/{$entryId}", [
                 'direction' => 'out',
                 'amount' => 400,
                 'occurred_at' => '2026-03-18 11:00:00',
@@ -184,9 +177,8 @@ class BranchCashLedgerTest extends TestCase
             ->assertJsonPath('summary.balance', -400)
             ->assertJsonPath('entry.title', 'Utility Payment');
 
-        $this->assertDatabaseHas('branch_cash_ledger_entries', [
+        $this->assertDatabaseHas('cash_ledger_entries', [
             'id' => $entryId,
-            'branch_id' => $branch->id,
             'direction' => 'out',
             'amount' => 400,
             'title' => 'Utility Payment',
@@ -194,45 +186,42 @@ class BranchCashLedgerTest extends TestCase
         ]);
 
         $this->actingAs($manager)
-            ->deleteJson("/panel/branches/{$branch->id}/cash-ledger/{$entryId}")
-            ->assertOk()
-            ->assertJsonPath('summary.balance', 0);
+            ->deleteJson("/panel/settings/cash-ledger/{$entryId}")
+            ->assertNoContent();
 
-        $this->assertSoftDeleted('branch_cash_ledger_entries', [
+        $this->assertSoftDeleted('cash_ledger_entries', [
             'id' => $entryId,
         ]);
 
         $this->actingAs($manager)
-            ->getJson("/panel/branches/{$branch->id}/cash-ledger")
+            ->getJson('/panel/settings/cash-ledger')
             ->assertOk()
+            ->assertJsonPath('summary.balance', 0)
             ->assertJsonPath('entries.0.id', $entryId)
             ->assertJsonPath('entries.0.is_deleted', true);
     }
 
     public function test_resyncing_a_soft_deleted_walk_in_restores_the_original_system_entry(): void
     {
-        $branch = $this->createBranch('Sorsogon');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Branch Manager');
+        $manager = $this->createUserWithRole('manager', 'Manager Pax');
 
-        $walkInResponse = $this->actingAs($manager)
+        $walkInId = $this->actingAs($manager)
             ->postJson('/panel/walk-ins', [
-                'branch_id' => $branch->id,
                 'name' => 'Walk-in Leo',
                 'amount_paid' => 350,
                 'payment_method' => 'cash',
                 'visited_at' => '2026-03-21 09:00:00',
             ])
-            ->assertCreated();
+            ->assertCreated()
+            ->json('id');
 
-        $walkInId = $walkInResponse->json('id');
-        $entry = BranchCashLedgerEntry::query()
-            ->where('entry_type', BranchCashLedgerEntry::TYPE_WALK_IN_SALE)
+        $entry = CashLedgerEntry::query()
+            ->where('entry_type', CashLedgerEntry::TYPE_WALK_IN_SALE)
             ->where('source_id', $walkInId)
             ->firstOrFail();
 
         $this->actingAs($manager)
             ->putJson("/panel/walk-ins/{$walkInId}", [
-                'branch_id' => $branch->id,
                 'name' => 'Walk-in Leo',
                 'amount_paid' => 350,
                 'payment_method' => 'online_payment',
@@ -240,13 +229,12 @@ class BranchCashLedgerTest extends TestCase
             ])
             ->assertOk();
 
-        $this->assertSoftDeleted('branch_cash_ledger_entries', [
+        $this->assertSoftDeleted('cash_ledger_entries', [
             'id' => $entry->id,
         ]);
 
         $this->actingAs($manager)
             ->putJson("/panel/walk-ins/{$walkInId}", [
-                'branch_id' => $branch->id,
                 'name' => 'Walk-in Leo',
                 'amount_paid' => 350,
                 'payment_method' => 'cash',
@@ -254,8 +242,8 @@ class BranchCashLedgerTest extends TestCase
             ])
             ->assertOk();
 
-        $restoredEntry = BranchCashLedgerEntry::withTrashed()
-            ->where('entry_type', BranchCashLedgerEntry::TYPE_WALK_IN_SALE)
+        $restoredEntry = CashLedgerEntry::withTrashed()
+            ->where('entry_type', CashLedgerEntry::TYPE_WALK_IN_SALE)
             ->where('source_id', $walkInId)
             ->get();
 
@@ -264,7 +252,7 @@ class BranchCashLedgerTest extends TestCase
         $this->assertNull($restoredEntry->first()->deleted_at);
 
         $this->actingAs($manager)
-            ->getJson("/panel/branches/{$branch->id}/cash-ledger")
+            ->getJson('/panel/settings/cash-ledger')
             ->assertOk()
             ->assertJsonPath('summary.balance', 350)
             ->assertJsonPath('summary.cash_in_total', 350)
@@ -273,12 +261,10 @@ class BranchCashLedgerTest extends TestCase
 
     public function test_walk_in_update_accepts_gcash_and_removes_the_cash_ledger_entry(): void
     {
-        $branch = $this->createBranch('Masbate');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Branch Manager');
+        $manager = $this->createUserWithRole('manager', 'Manager Quin');
 
         $walkInId = $this->actingAs($manager)
             ->postJson('/panel/walk-ins', [
-                'branch_id' => $branch->id,
                 'name' => 'Walk-in Pax',
                 'amount_paid' => 450,
                 'payment_method' => 'cash',
@@ -289,7 +275,6 @@ class BranchCashLedgerTest extends TestCase
 
         $this->actingAs($manager)
             ->putJson("/panel/walk-ins/{$walkInId}", [
-                'branch_id' => $branch->id,
                 'name' => 'Walk-in Pax',
                 'amount_paid' => 450,
                 'payment_method' => 'gcash',
@@ -298,53 +283,38 @@ class BranchCashLedgerTest extends TestCase
             ->assertOk();
 
         $this->actingAs($manager)
-            ->getJson("/panel/branches/{$branch->id}/cash-ledger")
+            ->getJson('/panel/settings/cash-ledger')
             ->assertOk()
             ->assertJsonPath('summary.balance', 0)
-            ->assertJsonPath('summary.cash_in_total', 0);
+            ->assertJsonPath('summary.cash_in_total', 0)
+            ->assertJsonPath('entries.0.entry_type', CashLedgerEntry::TYPE_WALK_IN_SALE)
+            ->assertJsonPath('entries.0.is_deleted', true);
     }
 
-    private function createBranch(string $name): Branch
+    private function createPtProduct(string $name, int $sessionCount, float $price): PTProduct
     {
-        return Branch::create([
-            'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => Branch::COUNTRY_PHILIPPINES,
-            'city' => 'Naga City',
-        ]);
-    }
-
-    private function attachPtProduct(Branch $branch, string $name, int $sessionCount, float $price): PTProduct
-    {
-        $product = PTProduct::create([
+        return PTProduct::create([
             'name' => $name,
             'session_count' => $sessionCount,
             'category' => $sessionCount === 1 ? PTProduct::CATEGORY_SINGLE : PTProduct::CATEGORY_PACKAGE,
-            'is_active' => true,
-        ]);
-
-        $branch->ptProducts()->attach($product->id, [
             'price' => $price,
             'coach_commission_rate' => 40,
             'is_active' => true,
+            'description' => $name.' PT package',
+            'effective_from' => '2026-03-01',
         ]);
-
-        return $product;
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds, string $name): User
+    private function createUserWithRole(string $role, string $name): User
     {
         $user = User::factory()->create([
             'name' => $name,
             'status' => User::STATUS_ACTIVE,
             'daily_rate' => 450,
+            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

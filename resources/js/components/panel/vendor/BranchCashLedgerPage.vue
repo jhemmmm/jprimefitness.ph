@@ -2,8 +2,8 @@
    <div class="p-4">
       <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap mb-4">
          <div>
-            <h6 class="fw-bold mb-1">Branch Cash Ledger</h6>
-            <div class="text-muted small">Track branch cash-in and cash-out entries, including walk-ins, payroll payouts, cash advances, and manual adjustments.</div>
+            <h6 class="fw-bold mb-1">Cash Ledger</h6>
+            <div class="text-muted small">Track cash-in and cash-out entries for your single location, including walk-ins, payroll payouts, cash advances, and manual adjustments.</div>
          </div>
          <button v-if="is('super admin') || is('admin') || is('manager')" class="btn btn-danger" @click="openCreateModal"><i class="bi bi-plus-circle me-1"></i>Add Manual Entry</button>
       </div>
@@ -27,7 +27,7 @@
 
       <div v-if="loading" class="text-center py-5 text-muted">
          <div class="spinner-border text-danger mb-2"></div>
-         <div>Loading branch cash ledger...</div>
+         <div>Loading cash ledger...</div>
       </div>
 
       <template v-else>
@@ -169,7 +169,7 @@
                   <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                </div>
                <div class="modal-body" v-if="deleteTarget">
-                  <p class="mb-1">Are you sure you want to delete this branch cash ledger entry?</p>
+                  <p class="mb-1">Are you sure you want to delete this cash ledger entry?</p>
                   <p class="fw-semibold mb-0">{{ deleteTarget.title }}</p>
                   <p class="text-muted small mb-0">{{ deleteTarget.entry_type_label }} · {{ deleteTarget.direction === "in" ? "+" : "-" }}₱{{ $filters.formatMoney(deleteTarget.amount) }}</p>
                </div>
@@ -191,7 +191,7 @@ import { Modal } from "bootstrap";
 
 export default {
    props: {
-      branch: { type: Object, required: true },
+      profile: { type: Object, required: true },
    },
 
    emits: ["updated"],
@@ -232,7 +232,7 @@ export default {
    },
 
    watch: {
-      "branch.id": {
+      "profile.id": {
          immediate: true,
          handler: function () {
             this.fetchLedger();
@@ -283,7 +283,7 @@ export default {
          this.pageError = "";
 
          axios
-            .get(`/panel/branches/${this.branch.id}/cash-ledger`)
+            .get("/panel/settings/cash-ledger")
             .then((response) => {
                this.entries = response.data.entries || [];
                this.summary = response.data.summary || this.summary;
@@ -292,7 +292,7 @@ export default {
                });
             })
             .catch((error) => {
-               this.pageError = error.response?.data?.message || "Failed to load branch cash ledger.";
+               this.pageError = error.response?.data?.message || "Failed to load the cash ledger.";
             })
             .finally(() => {
                this.loading = false;
@@ -340,14 +340,14 @@ export default {
             occurred_at: this.form.occurred_at,
          };
 
-         const request = this.modalMode === "create" ? axios.post(`/panel/branches/${this.branch.id}/cash-ledger`, payload) : axios.put(`/panel/branches/${this.branch.id}/cash-ledger/${this.form.id}`, payload);
+         const request = this.modalMode === "create" ? axios.post("/panel/settings/cash-ledger", payload) : axios.put(`/panel/settings/cash-ledger/${this.form.id}`, payload);
 
          request
             .then(() => {
                this.savedMessage = this.modalMode === "create" ? "Manual cash entry added successfully." : "Manual cash entry updated successfully.";
                this.entryModalInst.hide();
 
-               return axios.get(`/panel/branches/${this.branch.id}/cash-ledger`);
+               return axios.get("/panel/settings/cash-ledger");
             })
             .then((response) => {
                this.entries = response.data.entries || [];
@@ -380,13 +380,13 @@ export default {
          this.pageError = "";
 
          axios
-            .delete(`/panel/branches/${this.branch.id}/cash-ledger/${this.deleteTarget.id}`)
+            .delete(`/panel/settings/cash-ledger/${this.deleteTarget.id}`)
             .then(() => {
                this.savedMessage = "Manual cash entry marked as deleted.";
                this.deleteModalInst.hide();
                this.deleteTarget = null;
 
-               return axios.get(`/panel/branches/${this.branch.id}/cash-ledger`);
+               return axios.get("/panel/settings/cash-ledger");
             })
             .then((response) => {
                this.entries = response.data.entries || [];

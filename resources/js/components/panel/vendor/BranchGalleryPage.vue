@@ -4,8 +4,8 @@
          <div class="col-xl-10">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
                <div>
-                  <div class="fw-semibold">Branch Gallery</div>
-                  <div class="text-muted small">Upload storefront, interior, facility, and team photos for this branch.</div>
+                  <div class="fw-semibold">Business Gallery</div>
+                  <div class="text-muted small">Upload storefront, interior, facility, and team photos for your single location.</div>
                </div>
                <label class="btn btn-danger btn-sm mb-0" :class="{ disabled: uploading }" v-if="canManageGallery">
                   <span v-if="uploading" class="spinner-border spinner-border-sm me-1"></span>
@@ -20,7 +20,7 @@
             <div v-if="photos.length" class="row g-3">
                <div class="col-sm-6 col-lg-4" v-for="(photo, index) in photos" :key="photo + '-' + index">
                   <div class="panel-card h-100 p-2">
-                     <img :src="'/storage/' + photo" class="img-fluid rounded mb-2" :alt="branch.name + ' photo ' + (index + 1)" />
+                     <img :src="'/storage/' + photo" class="img-fluid rounded mb-2" :alt="profile.name + ' photo ' + (index + 1)" />
                      <div class="d-flex justify-content-between align-items-center small text-muted px-1 pb-1">
                         <span>Photo {{ index + 1 }}</span>
                         <button type="button" class="btn btn-outline-danger btn-sm" @click="deletePhoto(index)" :disabled="deletingIndex === index" v-if="canManageGallery">
@@ -34,7 +34,7 @@
 
             <div v-else class="panel-card p-5 text-center text-muted">
                <i class="bi bi-images fs-1 d-block mb-2 opacity-25"></i>
-               No gallery photos yet for this branch.
+               No gallery photos yet for this location.
             </div>
          </div>
       </div>
@@ -44,7 +44,7 @@
 <script>
 export default {
    props: {
-      branch: { type: Object, required: true },
+      profile: { type: Object, required: true },
    },
 
    emits: ["updated"],
@@ -54,12 +54,12 @@ export default {
          uploading: false,
          deletingIndex: null,
          generalError: "",
-         photos: Array.isArray(this.branch.photos) ? [...this.branch.photos] : [],
+         photos: Array.isArray(this.profile.photos) ? [...this.profile.photos] : [],
       };
    },
 
    watch: {
-      branch: function (value) {
+      profile: function (value) {
          this.photos = Array.isArray(value.photos) ? [...value.photos] : [];
       },
    },
@@ -72,7 +72,7 @@ export default {
 
    methods: {
       emitUpdatedPhotos: function (photos) {
-         this.$emit("updated", { ...this.branch, photos });
+         this.$emit("updated", { ...this.profile, photos });
       },
 
       uploadPhotos: function (event) {
@@ -100,7 +100,7 @@ export default {
             formData.append("photo", files[index]);
 
             return axios
-               .post(`/panel/branches/${this.branch.id}/photos`, formData, {
+               .post("/panel/settings/photos", formData, {
                   headers: { "Content-Type": "multipart/form-data" },
                })
                .then((response) => {
@@ -127,7 +127,7 @@ export default {
          this.generalError = "";
 
          axios
-            .delete(`/panel/branches/${this.branch.id}/photos/${index}`)
+            .delete(`/panel/settings/photos/${index}`)
             .then(() => {
                this.photos.splice(index, 1);
                this.emitUpdatedPhotos([...this.photos]);

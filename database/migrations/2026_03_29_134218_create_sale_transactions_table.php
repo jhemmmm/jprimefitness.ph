@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('sale_transactions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->foreignId('member_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('type', 50);
             $table->decimal('total', 10, 2);
@@ -25,8 +24,8 @@ return new class extends Migration
             $table->json('details')->nullable();
             $table->timestamps();
 
-            $table->index(['branch_id', 'sold_at']);
             $table->index(['type', 'sold_at']);
+            $table->index('sold_at');
         });
     }
 

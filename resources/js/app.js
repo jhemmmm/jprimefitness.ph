@@ -5,12 +5,6 @@ const app = createApp({});
 import LaravelPermissionToVueJS from "laravel-permission-to-vuejs";
 app.use(LaravelPermissionToVueJS);
 
-import BranchSelector from "./components/panel/_vendor/BranchSelector.vue";
-app.component("branch-selector", BranchSelector);
-
-import BranchSelectorCollapsed from "./components/panel/_vendor/BranchSelectorCollapsed.vue";
-app.component("branch-selector-collapsed", BranchSelectorCollapsed);
-
 import GlobalSearch from "./components/panel/_vendor/GlobalSearch.vue";
 app.component("global-search", GlobalSearch);
 
@@ -19,12 +13,6 @@ app.component("panel-notifications", PanelNotifications);
 
 import AsyncSearchSelect from "./components/panel/_vendor/AsyncSearchSelect.vue";
 app.component("async-search-select", AsyncSearchSelect);
-
-import HomeComponent from "./components/home/HomeComponent.vue";
-app.component("home-component", HomeComponent);
-
-import BranchComponent from "./components/home/BranchComponent.vue";
-app.component("branch-component", BranchComponent);
 
 import DashboardPage from "./components/panel/DashboardPage.vue";
 app.component("dashboard-page", DashboardPage);
@@ -38,11 +26,8 @@ app.component("member-detail-page", MemberDetailPage);
 import WalkInsPage from "./components/panel/WalkInsPage.vue";
 app.component("walk-ins-page", WalkInsPage);
 
-import BranchesPage from "./components/panel/BranchesPage.vue";
-app.component("branches-page", BranchesPage);
-
-import BranchDetailPage from "./components/panel/BranchDetailPage.vue";
-app.component("branch-detail-page", BranchDetailPage);
+import SettingsPage from "./components/panel/SettingsPage.vue";
+app.component("settings-page", SettingsPage);
 
 import InventoryPage from "./components/panel/InventoryPage.vue";
 app.component("inventory-page", InventoryPage);

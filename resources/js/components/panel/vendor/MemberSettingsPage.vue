@@ -29,11 +29,8 @@
                   <div class="invalid-feedback" v-if="errors.status">{{ errors.status[0] }}</div>
                </div>
                <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Branches</label>
-                  <div :class="{ 'is-invalid': errors.branch_ids }">
-                     <MultiSelect v-model="form.branch_ids" :options="branchesData" placeholder="Select branches..." searchable />
-                  </div>
-                  <div class="invalid-feedback" v-if="errors.branch_ids">{{ errors.branch_ids[0] }}</div>
+                  <label class="form-label form-label-sm fw-semibold">Location</label>
+                  <input type="text" class="form-control" :value="currentLocationName" disabled />
                </div>
 
                <div class="col-12"><hr class="my-1" /></div>
@@ -82,13 +79,7 @@
 </template>
 
 <script>
-import MultiSelect from "../_vendor/MultiSelect.vue";
-
 export default {
-   components: {
-      MultiSelect,
-   },
-
    props: {
       member: { type: Object, required: true },
       branchesData: { type: Array, default: () => [] },
@@ -113,6 +104,9 @@ export default {
    },
 
    computed: {
+      currentLocationName: function () {
+         return window.JPrime?.profile?.name || this.member.branches?.[0]?.name || "Current location";
+      },
       statusOptions: function () {
          return ["active", "inactive", "suspended"];
       },
@@ -125,7 +119,7 @@ export default {
             email: member.email || "",
             phone: member.phone || "",
             status: member.status || "active",
-            branch_ids: member.branches ? member.branches.map((branch) => branch.id) : [],
+            branch_ids: [],
             date_of_birth: member.profile?.date_of_birth || "",
             gender: member.profile?.gender || "",
             emergency_contact_name: member.profile?.emergency_contact_name || "",

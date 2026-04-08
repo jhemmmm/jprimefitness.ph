@@ -3,425 +3,136 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Pricing & Rates</h4>
-            <p class="text-muted small mb-0">Manage branch-specific membership pricing and PT package rates for {{ currentBranchName }}</p>
+            <p class="text-muted small mb-0">Manage single-location membership pricing and PT package rates for {{ currentBusinessName }}</p>
          </div>
       </div>
 
-      <div v-if="!branchesData.length" class="panel-card p-5 text-center text-muted">
-         <i class="bi bi-tag-fill fs-1 d-block mb-2 opacity-25"></i>
-         <div>No accessible branches found.</div>
-      </div>
-
-      <div v-else-if="!selectedBranch" class="panel-card p-5 text-center text-muted">
-         <i class="bi bi-diagram-3 fs-1 d-block mb-2 opacity-25"></i>
-         <div class="fw-semibold mb-1">Select a branch</div>
-         <div class="small">Choose a specific branch from the sidebar to manage pricing and rates.</div>
-      </div>
-
-      <template v-else>
-         <div class="row g-3 mb-4">
-            <div class="col-6 col-lg-3">
-               <div class="stat-card">
-                  <div class="stat-card-icon bg-primary-soft">
-                     <i class="bi bi-card-checklist text-primary"></i>
-                  </div>
-                  <div class="stat-card-body">
-                     <div class="stat-card-label">Configured Membership Rates</div>
-                     <div class="stat-card-value" v-if="loading">
-                        <div class="skeleton-box" style="width: 52px; height: 18px; border-radius: 5px"></div>
-                     </div>
-                     <div class="stat-card-value" v-else>{{ pricing.stats.membership_configured }}</div>
-                  </div>
+      <div class="row g-3 mb-4">
+         <div class="col-6 col-lg-3" v-for="card in statCards" :key="card.label">
+            <div class="stat-card">
+               <div class="stat-card-icon" :class="card.iconBg">
+                  <i class="bi" :class="[card.icon, card.iconColor]"></i>
                </div>
-            </div>
-            <div class="col-6 col-lg-3">
-               <div class="stat-card">
-                  <div class="stat-card-icon bg-success-soft">
-                     <i class="bi bi-check-circle-fill text-success"></i>
+               <div class="stat-card-body">
+                  <div class="stat-card-label">{{ card.label }}</div>
+                  <div class="stat-card-value" v-if="loading">
+                     <div class="skeleton-box" style="width: 52px; height: 18px; border-radius: 5px"></div>
                   </div>
-                  <div class="stat-card-body">
-                     <div class="stat-card-label">Active Membership Rates</div>
-                     <div class="stat-card-value" v-if="loading">
-                        <div class="skeleton-box" style="width: 52px; height: 18px; border-radius: 5px"></div>
-                     </div>
-                     <div class="stat-card-value" v-else>{{ pricing.stats.membership_active }}</div>
-                  </div>
-               </div>
-            </div>
-            <div class="col-6 col-lg-3">
-               <div class="stat-card">
-                  <div class="stat-card-icon bg-warning-soft">
-                     <i class="bi bi-person-badge-fill text-warning"></i>
-                  </div>
-                  <div class="stat-card-body">
-                     <div class="stat-card-label">Configured PT Rates</div>
-                     <div class="stat-card-value" v-if="loading">
-                        <div class="skeleton-box" style="width: 52px; height: 18px; border-radius: 5px"></div>
-                     </div>
-                     <div class="stat-card-value" v-else>{{ pricing.stats.pt_configured }}</div>
-                  </div>
-               </div>
-            </div>
-            <div class="col-6 col-lg-3">
-               <div class="stat-card">
-                  <div class="stat-card-icon bg-danger-soft">
-                     <i class="bi bi-graph-up-arrow text-danger"></i>
-                  </div>
-                  <div class="stat-card-body">
-                     <div class="stat-card-label">Active PT Rates</div>
-                     <div class="stat-card-value" v-if="loading">
-                        <div class="skeleton-box" style="width: 52px; height: 18px; border-radius: 5px"></div>
-                     </div>
-                     <div class="stat-card-value" v-else>{{ pricing.stats.pt_active }}</div>
-                  </div>
+                  <div class="stat-card-value" v-else>{{ card.value }}</div>
                </div>
             </div>
          </div>
+      </div>
 
-         <div class="panel-card mb-4">
-            <div class="panel-card-header d-flex justify-content-between align-items-center">
-               <span class="panel-card-title">Membership Rates</span>
-               <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreateMembershipModal" :disabled="pricing.available_membership_rate_plans.length === 0">
-                  <i class="bi bi-plus-lg me-1"></i>
-                  Add Membership Rate
-               </button>
-            </div>
+      <div class="panel-card mb-4">
+         <div class="panel-card-header d-flex justify-content-between align-items-center">
+            <span class="panel-card-title">Membership Rates</span>
+            <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreateMembershipModal" :disabled="pricing.available_membership_rate_plans.length === 0">
+               <i class="bi bi-plus-lg me-1"></i>
+               Add Membership Rate
+            </button>
+         </div>
 
-            <div v-if="loading">
-               <div class="table-responsive d-none d-md-block">
-                  <table class="table table-striped align-middle mb-0 panel-table">
-                     <thead>
-                        <tr>
-                           <th>Plan</th>
-                           <th>Duration</th>
-                           <th>Branch Price</th>
-                           <th>Manager Commission</th>
-                           <th>Status</th>
-                           <th>Effectivity</th>
-                           <th class="col-actions"></th>
-                        </tr>
-                     </thead>
-                     <tbody>
-                        <tr v-for="i in 4" :key="'membership-sk-' + i">
-                           <td>
-                              <div class="skeleton-box mb-1" style="width: 140px; height: 14px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 100px; height: 11px; border-radius: 4px"></div>
-                           </td>
-                           <td><div class="skeleton-box" style="width: 88px; height: 12px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 74px; height: 12px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 70px; height: 12px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 84px; height: 22px; border-radius: 999px"></div></td>
-                           <td>
-                              <div class="skeleton-box mb-1" style="width: 96px; height: 12px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 96px; height: 12px; border-radius: 4px"></div>
-                           </td>
-                           <td><div class="skeleton-box ms-auto" style="width: 70px; height: 32px; border-radius: 6px"></div></td>
-                        </tr>
-                     </tbody>
-                  </table>
-               </div>
-
-               <div class="d-md-none p-3">
-                  <div class="member-card" v-for="i in 4" :key="'membership-mobile-sk-' + i">
-                     <div class="member-card-top">
-                        <div class="member-card-identity">
-                           <div class="inventory-avatar">
-                              <i class="bi bi-card-checklist"></i>
-                           </div>
-                           <div>
-                              <div class="skeleton-box mb-1" style="width: 132px; height: 14px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 88px; height: 11px; border-radius: 4px"></div>
-                           </div>
-                        </div>
-                     </div>
-                     <div class="member-card-tags ps-0 mt-2">
-                        <div class="skeleton-box" style="width: 94px; height: 22px; border-radius: 999px"></div>
-                        <div class="skeleton-box" style="width: 82px; height: 22px; border-radius: 999px"></div>
-                     </div>
-                     <div class="small text-muted mb-2">
-                        <div class="skeleton-box mb-1" style="width: 108px; height: 12px; border-radius: 4px"></div>
-                        <div class="skeleton-box mb-1" style="width: 120px; height: 12px; border-radius: 4px"></div>
-                        <div class="skeleton-box" style="width: 120px; height: 12px; border-radius: 4px"></div>
-                     </div>
-                     <div class="member-card-footer">
-                        <div class="skeleton-box" style="width: 86px; height: 12px; border-radius: 4px"></div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-
-            <div v-else-if="pricing.membership_rates.length === 0" class="text-center py-5 text-muted">
-               <i class="bi bi-card-checklist empty-icon"></i>
-               <p class="mt-2 mb-1">No membership rates configured for this branch.</p>
-            </div>
-
-            <div v-else>
-               <div class="table-responsive d-none d-md-block">
-                  <table class="table table-hover table-striped align-middle mb-0 panel-table">
-                     <thead>
-                        <tr>
-                           <th>Plan</th>
-                           <th>Duration</th>
-                           <th>Branch Price</th>
-                           <th>Manager Commission</th>
-                           <th>Status</th>
-                           <th>Effectivity</th>
-                           <th class="col-actions"></th>
-                        </tr>
-                     </thead>
-                     <tbody>
-                        <tr v-for="rate in pricing.membership_rates" :key="'membership-' + rate.id">
-                           <td>
-                              <div class="fw-semibold">{{ rate.name }}</div>
-                              <div class="text-muted small">{{ rate.description || "No description" }}</div>
-                           </td>
-                           <td class="small">{{ membershipDurationLabel(rate.duration_days) }}</td>
-                           <td class="fw-semibold">₱{{ $filters.formatMoney(rate.branch_price) }}</td>
-                           <td class="small">{{ $filters.formatMoney(rate.manager_commission_rate) }}%</td>
-                           <td>
-                              <span :class="['m-badge', rate.branch_is_active ? 'm-badge--active' : 'm-badge--inactive']">
-                                 {{ rate.branch_is_active ? "Active" : "Inactive" }}
-                              </span>
-                           </td>
-                           <td class="small text-muted">
-                              <div>From: {{ $filters.formatDate(rate.effective_from) }}</div>
-                              <div>Until: {{ $filters.formatDate(rate.effective_until) }}</div>
-                           </td>
-                           <td>
-                              <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
-                                 <button class="btn btn-sm btn-outline-secondary" @click="openEditMembershipModal(rate)">
-                                    <i class="bi bi-pencil tbl-icon"></i>
-                                 </button>
-                                 <button class="btn btn-sm btn-outline-danger" @click="confirmDelete('membership', rate)">
-                                    <i class="bi bi-trash tbl-icon"></i>
-                                 </button>
-                              </div>
-                           </td>
-                        </tr>
-                     </tbody>
-                  </table>
-               </div>
-
-               <div class="d-md-none p-3">
-                  <div class="member-card" v-for="rate in pricing.membership_rates" :key="'membership-mobile-' + rate.id">
-                     <div class="member-card-top">
-                        <div class="member-card-identity">
-                           <div class="inventory-avatar">
-                              <i class="bi bi-card-checklist"></i>
-                           </div>
-                           <div>
-                              <div class="member-card-name">{{ rate.name }}</div>
-                              <div class="member-card-sub">{{ rate.description || "No description" }}</div>
-                           </div>
-                        </div>
-                        <div class="dropdown" v-if="canManagePricing">
-                           <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
-                              <i class="bi bi-three-dots-vertical"></i>
-                           </button>
-                           <ul class="dropdown-menu dropdown-menu-end">
-                              <li>
-                                 <a class="dropdown-item" href="#" @click.prevent="openEditMembershipModal(rate)"><i class="bi bi-pencil me-2"></i>Edit</a>
-                              </li>
-                              <li><hr class="dropdown-divider" /></li>
-                              <li>
-                                 <a class="dropdown-item text-danger" href="#" @click.prevent="confirmDelete('membership', rate)"><i class="bi bi-trash me-2"></i>Delete</a>
-                              </li>
-                           </ul>
-                        </div>
-                     </div>
-                     <div class="member-card-tags ps-0">
-                        <span class="m-badge m-badge--plan">{{ membershipDurationLabel(rate.duration_days) }}</span>
-                        <span :class="['m-badge', rate.branch_is_active ? 'm-badge--active' : 'm-badge--inactive']">
-                           {{ rate.branch_is_active ? "Active" : "Inactive" }}
-                        </span>
-                     </div>
-                     <div class="small text-muted mb-2">
-                        <div>Branch Price: ₱{{ $filters.formatMoney(rate.branch_price) }}</div>
-                        <div>Manager Commission: {{ $filters.formatMoney(rate.manager_commission_rate) }}%</div>
+         <div v-if="loading" class="p-4 text-muted">Loading membership rates...</div>
+         <div v-else-if="pricing.membership_rates.length === 0" class="text-center py-5 text-muted">
+            <i class="bi bi-card-checklist empty-icon"></i>
+            <p class="mt-2 mb-1">No membership rates configured yet.</p>
+         </div>
+         <div v-else class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0 panel-table">
+               <thead>
+                  <tr>
+                     <th>Plan</th>
+                     <th>Duration</th>
+                     <th>Price</th>
+                     <th>Manager Commission</th>
+                     <th>Status</th>
+                     <th>Effectivity</th>
+                     <th class="col-actions"></th>
+                  </tr>
+               </thead>
+               <tbody>
+                  <tr v-for="rate in pricing.membership_rates" :key="'membership-' + rate.id">
+                     <td>
+                        <div class="fw-semibold">{{ rate.name }}</div>
+                        <div class="text-muted small">{{ rate.description || "No description" }}</div>
+                     </td>
+                     <td class="small">{{ membershipDurationLabel(rate.duration_days) }}</td>
+                     <td class="fw-semibold">₱{{ $filters.formatMoney(rate.price) }}</td>
+                     <td class="small">{{ $filters.formatMoney(rate.manager_commission_rate) }}%</td>
+                     <td>
+                        <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
+                     </td>
+                     <td class="small text-muted">
                         <div>From: {{ $filters.formatDate(rate.effective_from) }}</div>
                         <div>Until: {{ $filters.formatDate(rate.effective_until) }}</div>
-                     </div>
-                     <div class="member-card-footer">
-                        <span>{{ membershipDurationLabel(rate.duration_days) }}</span>
-                        <span class="member-card-num">#{{ rate.id }}</span>
-                     </div>
-                  </div>
-               </div>
-            </div>
+                     </td>
+                     <td>
+                        <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
+                           <button class="btn btn-sm btn-outline-secondary" @click="openEditMembershipModal(rate)"><i class="bi bi-pencil tbl-icon"></i></button>
+                           <button class="btn btn-sm btn-outline-danger" @click="confirmDelete('membership', rate)"><i class="bi bi-trash tbl-icon"></i></button>
+                        </div>
+                     </td>
+                  </tr>
+               </tbody>
+            </table>
+         </div>
+      </div>
+
+      <div class="panel-card">
+         <div class="panel-card-header d-flex justify-content-between align-items-center">
+            <span class="panel-card-title">PT Rates</span>
+            <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreatePtModal" :disabled="pricing.available_pt_products.length === 0">
+               <i class="bi bi-plus-lg me-1"></i>
+               Add PT Rate
+            </button>
          </div>
 
-         <div class="panel-card">
-            <div class="panel-card-header d-flex justify-content-between align-items-center">
-               <span class="panel-card-title">PT Rates</span>
-               <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreatePtModal" :disabled="pricing.available_pt_products.length === 0">
-                  <i class="bi bi-plus-lg me-1"></i>
-                  Add PT Rate
-               </button>
-            </div>
-
-            <div v-if="loading">
-               <div class="table-responsive d-none d-md-block">
-                  <table class="table table-striped align-middle mb-0 panel-table">
-                     <thead>
-                        <tr>
-                           <th>Package</th>
-                           <th>Sessions</th>
-                           <th>Branch Price</th>
-                           <th>Coach Commission</th>
-                           <th>Status</th>
-                           <th>Effectivity</th>
-                           <th class="col-actions"></th>
-                        </tr>
-                     </thead>
-                     <tbody>
-                        <tr v-for="i in 4" :key="'pt-sk-' + i">
-                           <td>
-                              <div class="skeleton-box mb-1" style="width: 126px; height: 14px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 92px; height: 11px; border-radius: 4px"></div>
-                           </td>
-                           <td><div class="skeleton-box" style="width: 58px; height: 12px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 74px; height: 12px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 70px; height: 12px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 84px; height: 22px; border-radius: 999px"></div></td>
-                           <td>
-                              <div class="skeleton-box mb-1" style="width: 96px; height: 12px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 96px; height: 12px; border-radius: 4px"></div>
-                           </td>
-                           <td><div class="skeleton-box ms-auto" style="width: 70px; height: 32px; border-radius: 6px"></div></td>
-                        </tr>
-                     </tbody>
-                  </table>
-               </div>
-
-               <div class="d-md-none p-3">
-                  <div class="member-card" v-for="i in 4" :key="'pt-mobile-sk-' + i">
-                     <div class="member-card-top">
-                        <div class="member-card-identity">
-                           <div class="inventory-avatar">
-                              <i class="bi bi-person-badge-fill"></i>
-                           </div>
-                           <div>
-                              <div class="skeleton-box mb-1" style="width: 126px; height: 14px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 84px; height: 11px; border-radius: 4px"></div>
-                           </div>
-                        </div>
-                     </div>
-                     <div class="member-card-tags mt-2">
-                        <div class="skeleton-box" style="width: 88px; height: 22px; border-radius: 999px"></div>
-                        <div class="skeleton-box" style="width: 82px; height: 22px; border-radius: 999px"></div>
-                     </div>
-                     <div class="small text-muted mb-2">
-                        <div class="skeleton-box mb-1" style="width: 104px; height: 12px; border-radius: 4px"></div>
-                        <div class="skeleton-box mb-1" style="width: 116px; height: 12px; border-radius: 4px"></div>
-                        <div class="skeleton-box" style="width: 120px; height: 12px; border-radius: 4px"></div>
-                     </div>
-                     <div class="member-card-footer">
-                        <div class="skeleton-box" style="width: 86px; height: 12px; border-radius: 4px"></div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-
-            <div v-else-if="pricing.pt_rates.length === 0" class="text-center py-5 text-muted">
-               <i class="bi bi-person-badge-fill empty-icon"></i>
-               <p class="mt-2 mb-1">No PT rates configured for this branch.</p>
-            </div>
-
-            <div v-else>
-               <div class="table-responsive d-none d-md-block">
-                  <table class="table table-hover table-striped align-middle mb-0 panel-table">
-                     <thead>
-                        <tr>
-                           <th>Package</th>
-                           <th>Sessions</th>
-                           <th>Branch Price</th>
-                           <th>Coach Commission</th>
-                           <th>Status</th>
-                           <th>Effectivity</th>
-                           <th class="col-actions"></th>
-                        </tr>
-                     </thead>
-                     <tbody>
-                        <tr v-for="rate in pricing.pt_rates" :key="'pt-' + rate.id">
-                           <td>
-                              <div class="fw-semibold">{{ rate.name }}</div>
-                              <div class="text-muted small">{{ rate.description || rate.category || "No description" }}</div>
-                           </td>
-                           <td class="small">{{ rate.session_count }} session{{ rate.session_count !== 1 ? "s" : "" }}</td>
-                           <td class="fw-semibold">₱{{ $filters.formatMoney(rate.branch_price) }}</td>
-                           <td class="small">{{ $filters.formatMoney(rate.coach_commission_rate) }}%</td>
-                           <td>
-                              <span :class="['m-badge', rate.branch_is_active ? 'm-badge--active' : 'm-badge--inactive']">
-                                 {{ rate.branch_is_active ? "Active" : "Inactive" }}
-                              </span>
-                           </td>
-                           <td class="small text-muted">
-                              <div>From: {{ $filters.formatDate(rate.effective_from) }}</div>
-                              <div>Until: {{ $filters.formatDate(rate.effective_until) }}</div>
-                           </td>
-                           <td>
-                              <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
-                                 <button class="btn btn-sm btn-outline-secondary" @click="openEditPtModal(rate)">
-                                    <i class="bi bi-pencil tbl-icon"></i>
-                                 </button>
-                                 <button class="btn btn-sm btn-outline-danger" @click="confirmDelete('pt', rate)">
-                                    <i class="bi bi-trash tbl-icon"></i>
-                                 </button>
-                              </div>
-                           </td>
-                        </tr>
-                     </tbody>
-                  </table>
-               </div>
-
-               <div class="d-md-none p-3">
-                  <div class="member-card" v-for="rate in pricing.pt_rates" :key="'pt-mobile-' + rate.id">
-                     <div class="member-card-top">
-                        <div class="member-card-identity">
-                           <div class="inventory-avatar">
-                              <i class="bi bi-person-badge-fill"></i>
-                           </div>
-                           <div>
-                              <div class="member-card-name">{{ rate.name }}</div>
-                              <div class="member-card-sub">{{ rate.description || rate.category || "No description" }}</div>
-                           </div>
-                        </div>
-                        <div class="dropdown" v-if="canManagePricing">
-                           <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
-                              <i class="bi bi-three-dots-vertical"></i>
-                           </button>
-                           <ul class="dropdown-menu dropdown-menu-end">
-                              <li>
-                                 <a class="dropdown-item" href="#" @click.prevent="openEditPtModal(rate)"><i class="bi bi-pencil me-2"></i>Edit</a>
-                              </li>
-                              <li><hr class="dropdown-divider" /></li>
-                              <li>
-                                 <a class="dropdown-item text-danger" href="#" @click.prevent="confirmDelete('pt', rate)"><i class="bi bi-trash me-2"></i>Delete</a>
-                              </li>
-                           </ul>
-                        </div>
-                     </div>
-                     <div class="member-card-tags">
-                        <span class="m-badge m-badge--plan">{{ rate.session_count }} session{{ rate.session_count !== 1 ? "s" : "" }}</span>
-                        <span :class="['m-badge', rate.branch_is_active ? 'm-badge--active' : 'm-badge--inactive']">
-                           {{ rate.branch_is_active ? "Active" : "Inactive" }}
-                        </span>
-                     </div>
-                     <div class="small text-muted mb-2">
-                        <div>Branch Price: ₱{{ $filters.formatMoney(rate.branch_price) }}</div>
-                        <div>Coach Commission: {{ $filters.formatMoney(rate.coach_commission_rate) }}%</div>
+         <div v-if="loading" class="p-4 text-muted">Loading PT rates...</div>
+         <div v-else-if="pricing.pt_rates.length === 0" class="text-center py-5 text-muted">
+            <i class="bi bi-person-badge-fill empty-icon"></i>
+            <p class="mt-2 mb-1">No PT rates configured yet.</p>
+         </div>
+         <div v-else class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0 panel-table">
+               <thead>
+                  <tr>
+                     <th>Package</th>
+                     <th>Sessions</th>
+                     <th>Price</th>
+                     <th>Coach Commission</th>
+                     <th>Status</th>
+                     <th>Effectivity</th>
+                     <th class="col-actions"></th>
+                  </tr>
+               </thead>
+               <tbody>
+                  <tr v-for="rate in pricing.pt_rates" :key="'pt-' + rate.id">
+                     <td>
+                        <div class="fw-semibold">{{ rate.name }}</div>
+                        <div class="text-muted small">{{ rate.description || rate.category || "No description" }}</div>
+                     </td>
+                     <td class="small">{{ rate.session_count }} session{{ rate.session_count !== 1 ? "s" : "" }}</td>
+                     <td class="fw-semibold">₱{{ $filters.formatMoney(rate.price) }}</td>
+                     <td class="small">{{ $filters.formatMoney(rate.coach_commission_rate) }}%</td>
+                     <td>
+                        <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
+                     </td>
+                     <td class="small text-muted">
                         <div>From: {{ $filters.formatDate(rate.effective_from) }}</div>
                         <div>Until: {{ $filters.formatDate(rate.effective_until) }}</div>
-                     </div>
-                     <div class="member-card-footer">
-                        <span>{{ rate.session_count }} session{{ rate.session_count !== 1 ? "s" : "" }}</span>
-                        <span class="member-card-num">#{{ rate.id }}</span>
-                     </div>
-                  </div>
-               </div>
-            </div>
+                     </td>
+                     <td>
+                        <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
+                           <button class="btn btn-sm btn-outline-secondary" @click="openEditPtModal(rate)"><i class="bi bi-pencil tbl-icon"></i></button>
+                           <button class="btn btn-sm btn-outline-danger" @click="confirmDelete('pt', rate)"><i class="bi bi-trash tbl-icon"></i></button>
+                        </div>
+                     </td>
+                  </tr>
+               </tbody>
+            </table>
          </div>
-      </template>
+      </div>
 
       <div class="modal fade" id="membershipRateModal" tabindex="-1" ref="membershipRateModal">
          <div class="modal-dialog modal-dialog-centered">
@@ -444,21 +155,17 @@
                      <label class="form-label form-label-sm">Plan</label>
                      <input type="text" class="form-control" :value="membershipForm.name" disabled />
                   </div>
-                  <div class="mb-3">
-                     <div class="row g-3">
-                        <div class="col-md-6">
-                           <label class="form-label form-label-sm">Branch Price <span class="text-danger">*</span></label>
-                           <input type="number" min="0" step="0.01" class="form-control" v-model="membershipForm.price" :class="{ 'is-invalid': membershipFormErrors.price }" />
-                           <div class="invalid-feedback" v-if="membershipFormErrors.price">{{ membershipFormErrors.price }}</div>
-                        </div>
-                        <div class="col-md-6">
-                           <label class="form-label form-label-sm">Manager Commission Rate</label>
-                           <input type="number" min="0" max="100" step="0.01" class="form-control" v-model="membershipForm.manager_commission_rate" :class="{ 'is-invalid': membershipFormErrors.manager_commission_rate }" />
-                           <div class="invalid-feedback" v-if="membershipFormErrors.manager_commission_rate">{{ membershipFormErrors.manager_commission_rate }}</div>
-                        </div>
-                     </div>
-                  </div>
                   <div class="row g-3">
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm">Price <span class="text-danger">*</span></label>
+                        <input type="number" min="0" step="0.01" class="form-control" v-model="membershipForm.price" :class="{ 'is-invalid': membershipFormErrors.price }" />
+                        <div class="invalid-feedback" v-if="membershipFormErrors.price">{{ membershipFormErrors.price }}</div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm">Manager Commission Rate</label>
+                        <input type="number" min="0" max="100" step="0.01" class="form-control" v-model="membershipForm.manager_commission_rate" :class="{ 'is-invalid': membershipFormErrors.manager_commission_rate }" />
+                        <div class="invalid-feedback" v-if="membershipFormErrors.manager_commission_rate">{{ membershipFormErrors.manager_commission_rate }}</div>
+                     </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Effective From</label>
                         <input type="date" class="form-control" v-model="membershipForm.effective_from" :class="{ 'is-invalid': membershipFormErrors.effective_from }" />
@@ -472,7 +179,7 @@
                   </div>
                   <div class="form-check form-switch mt-3">
                      <input class="form-check-input" type="checkbox" id="membershipRateActive" v-model="membershipForm.is_active" />
-                     <label class="form-check-label" for="membershipRateActive">Active for this branch</label>
+                     <label class="form-check-label" for="membershipRateActive">Active</label>
                   </div>
                </div>
                <div class="modal-footer">
@@ -509,12 +216,12 @@
                   </div>
                   <div class="row g-3">
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Branch Price <span class="text-danger">*</span></label>
+                        <label class="form-label form-label-sm">Price <span class="text-danger">*</span></label>
                         <input type="number" min="0" step="0.01" class="form-control" v-model="ptForm.price" :class="{ 'is-invalid': ptFormErrors.price }" />
                         <div class="invalid-feedback" v-if="ptFormErrors.price">{{ ptFormErrors.price }}</div>
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Coach Commission Rate <span class="text-danger">*</span></label>
+                        <label class="form-label form-label-sm">Coach Commission Rate</label>
                         <input type="number" min="0" max="100" step="0.01" class="form-control" v-model="ptForm.coach_commission_rate" :class="{ 'is-invalid': ptFormErrors.coach_commission_rate }" />
                         <div class="invalid-feedback" v-if="ptFormErrors.coach_commission_rate">{{ ptFormErrors.coach_commission_rate }}</div>
                      </div>
@@ -531,7 +238,7 @@
                   </div>
                   <div class="form-check form-switch mt-3">
                      <input class="form-check-input" type="checkbox" id="ptRateActive" v-model="ptForm.is_active" />
-                     <label class="form-check-label" for="ptRateActive">Active for this branch</label>
+                     <label class="form-check-label" for="ptRateActive">Active</label>
                   </div>
                </div>
                <div class="modal-footer">
@@ -553,7 +260,7 @@
                   <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                </div>
                <div class="modal-body" v-if="deleteTarget">
-                  <p class="mb-1">Are you sure you want to delete this pricing entry?</p>
+                  <p class="mb-1">Are you sure you want to clear this pricing entry?</p>
                   <p class="fw-semibold mb-0">{{ deleteTarget.name }}</p>
                   <p class="text-muted small mb-0">{{ deleteTarget.type === "membership" ? "Membership rate" : "PT rate" }}</p>
                </div>
@@ -561,7 +268,7 @@
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                   <button type="button" class="btn btn-danger px-4" @click="deletePricing" :disabled="deleting">
                      <span v-if="deleting" class="spinner-border spinner-border-sm me-1 spinner-sm-fixed"></span>
-                     Delete
+                     Clear
                   </button>
                </div>
             </div>
@@ -575,25 +282,15 @@ import { Modal } from "bootstrap";
 
 export default {
    props: {
-      branchesData: {
-         type: Array,
-         default: function () {
-            return [];
-         },
-      },
       canManagePricing: {
          type: Boolean,
          default: false,
       },
    },
    data: function () {
-      var storedBranchId = localStorage.getItem("selectedBranch");
-
       return {
          loading: true,
-         selectedBranch: storedBranchId && storedBranchId !== "null" ? parseInt(storedBranchId, 10) || "" : "",
          pricing: {
-            branch: null,
             membership_rates: [],
             available_membership_rate_plans: [],
             pt_rates: [],
@@ -623,24 +320,23 @@ export default {
       };
    },
    computed: {
-      currentBranchName: function () {
-         return this.pricing.branch?.name || this.branchesData.find((branch) => branch.id === this.selectedBranch)?.name || "the selected branch";
+      currentBusinessName: function () {
+         return window.JPrime?.profile?.name || "your business";
+      },
+      statCards: function () {
+         return [
+            { label: "Configured Membership Rates", value: this.pricing.stats.membership_configured, icon: "bi-card-checklist", iconBg: "bg-primary-soft", iconColor: "text-primary" },
+            { label: "Active Membership Rates", value: this.pricing.stats.membership_active, icon: "bi-check-circle-fill", iconBg: "bg-success-soft", iconColor: "text-success" },
+            { label: "Configured PT Rates", value: this.pricing.stats.pt_configured, icon: "bi-person-badge-fill", iconBg: "bg-warning-soft", iconColor: "text-warning" },
+            { label: "Active PT Rates", value: this.pricing.stats.pt_active, icon: "bi-graph-up-arrow", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+         ];
       },
    },
    mounted: function () {
-      if (this.selectedBranch && !this.branchesData.some((branch) => branch.id === this.selectedBranch)) {
-         this.selectedBranch = "";
-      }
-
       this.membershipRateModal = new Modal(this.$refs.membershipRateModal);
       this.ptRateModal = new Modal(this.$refs.ptRateModal);
       this.pricingDeleteModal = new Modal(this.$refs.pricingDeleteModal);
-
-      if (this.selectedBranch) {
-         this.fetchPricing();
-      } else {
-         this.loading = false;
-      }
+      this.fetchPricing();
    },
    methods: {
       emptyMembershipForm: function () {
@@ -666,19 +362,14 @@ export default {
          };
       },
       fetchPricing: function () {
-         if (!this.selectedBranch) {
-            return;
-         }
-
          this.loading = true;
 
          axios
-            .get(`/panel/pricing/branches/${this.selectedBranch}`)
+            .get("/panel/pricing/data")
             .then((response) => {
                this.pricing = response.data;
-               this.loading = false;
             })
-            .catch(() => {
+            .finally(() => {
                this.loading = false;
             });
       },
@@ -688,7 +379,7 @@ export default {
          }
 
          if (durationDays % 30 === 0) {
-            var months = durationDays / 30;
+            const months = durationDays / 30;
 
             return `${months} month${months !== 1 ? "s" : ""}`;
          }
@@ -709,9 +400,9 @@ export default {
          this.membershipForm = {
             id: rate.id,
             name: rate.name,
-            price: rate.branch_price,
+            price: rate.price,
             manager_commission_rate: rate.manager_commission_rate,
-            is_active: !!rate.branch_is_active,
+            is_active: !!rate.is_active,
             effective_from: rate.effective_from || "",
             effective_until: rate.effective_until || "",
          };
@@ -731,9 +422,9 @@ export default {
          this.ptForm = {
             id: rate.id,
             name: rate.name,
-            price: rate.branch_price,
+            price: rate.price,
             coach_commission_rate: rate.coach_commission_rate,
-            is_active: !!rate.branch_is_active,
+            is_active: !!rate.is_active,
             effective_from: rate.effective_from || "",
             effective_until: rate.effective_until || "",
          };
@@ -741,10 +432,7 @@ export default {
       },
       submitMembershipRate: function () {
          if (this.membershipModalMode === "create" && !this.membershipForm.id) {
-            this.membershipFormErrors = {
-               rate_plan_id: "Please select a rate plan.",
-            };
-
+            this.membershipFormErrors = { rate_plan_id: "Please select a rate plan." };
             return;
          }
 
@@ -752,7 +440,7 @@ export default {
          this.membershipFormError = "";
          this.membershipFormErrors = {};
 
-         var payload = {
+         const payload = {
             price: this.membershipForm.price,
             manager_commission_rate: this.membershipForm.manager_commission_rate,
             is_active: this.membershipForm.is_active,
@@ -760,7 +448,9 @@ export default {
             effective_until: this.membershipForm.effective_until || null,
          };
 
-         var request = this.membershipModalMode === "create" ? axios.post(`/panel/pricing/branches/${this.selectedBranch}/rate-plans/${this.membershipForm.id}`, payload) : axios.put(`/panel/pricing/branches/${this.selectedBranch}/rate-plans/${this.membershipForm.id}`, payload);
+         const request = this.membershipModalMode === "create"
+            ? axios.post(`/panel/pricing/rate-plans/${this.membershipForm.id}`, payload)
+            : axios.put(`/panel/pricing/rate-plans/${this.membershipForm.id}`, payload);
 
          request
             .then(() => {
@@ -768,11 +458,12 @@ export default {
                this.fetchPricing();
             })
             .catch((error) => {
-               if (error.response && error.response.status === 422) {
+               if (error.response?.status === 422) {
                   this.membershipFormErrors = this.normalizeErrors(error.response.data.errors || {});
-               } else {
-                  this.membershipFormError = "Something went wrong. Please try again.";
+                  return;
                }
+
+               this.membershipFormError = "Something went wrong. Please try again.";
             })
             .finally(() => {
                this.submittingMembership = false;
@@ -780,10 +471,7 @@ export default {
       },
       submitPtRate: function () {
          if (this.ptModalMode === "create" && !this.ptForm.id) {
-            this.ptFormErrors = {
-               pt_product_id: "Please select a PT package.",
-            };
-
+            this.ptFormErrors = { pt_product_id: "Please select a PT package." };
             return;
          }
 
@@ -791,7 +479,7 @@ export default {
          this.ptFormError = "";
          this.ptFormErrors = {};
 
-         var payload = {
+         const payload = {
             price: this.ptForm.price,
             coach_commission_rate: this.ptForm.coach_commission_rate,
             is_active: this.ptForm.is_active,
@@ -799,7 +487,9 @@ export default {
             effective_until: this.ptForm.effective_until || null,
          };
 
-         var request = this.ptModalMode === "create" ? axios.post(`/panel/pricing/branches/${this.selectedBranch}/pt-products/${this.ptForm.id}`, payload) : axios.put(`/panel/pricing/branches/${this.selectedBranch}/pt-products/${this.ptForm.id}`, payload);
+         const request = this.ptModalMode === "create"
+            ? axios.post(`/panel/pricing/pt-products/${this.ptForm.id}`, payload)
+            : axios.put(`/panel/pricing/pt-products/${this.ptForm.id}`, payload);
 
          request
             .then(() => {
@@ -807,22 +497,19 @@ export default {
                this.fetchPricing();
             })
             .catch((error) => {
-               if (error.response && error.response.status === 422) {
+               if (error.response?.status === 422) {
                   this.ptFormErrors = this.normalizeErrors(error.response.data.errors || {});
-               } else {
-                  this.ptFormError = "Something went wrong. Please try again.";
+                  return;
                }
+
+               this.ptFormError = "Something went wrong. Please try again.";
             })
             .finally(() => {
                this.submittingPt = false;
             });
       },
       confirmDelete: function (type, rate) {
-         this.deleteTarget = {
-            id: rate.id,
-            name: rate.name,
-            type: type,
-         };
+         this.deleteTarget = { id: rate.id, name: rate.name, type: type };
          this.pricingDeleteModal.show();
       },
       deletePricing: function () {
@@ -832,7 +519,9 @@ export default {
 
          this.deleting = true;
 
-         var url = this.deleteTarget.type === "membership" ? `/panel/pricing/branches/${this.selectedBranch}/rate-plans/${this.deleteTarget.id}` : `/panel/pricing/branches/${this.selectedBranch}/pt-products/${this.deleteTarget.id}`;
+         const url = this.deleteTarget.type === "membership"
+            ? `/panel/pricing/rate-plans/${this.deleteTarget.id}`
+            : `/panel/pricing/pt-products/${this.deleteTarget.id}`;
 
          axios
             .delete(url)
@@ -841,16 +530,13 @@ export default {
                this.deleteTarget = null;
                this.fetchPricing();
             })
-            .catch(() => {})
             .finally(() => {
                this.deleting = false;
             });
       },
       normalizeErrors: function (errors) {
          return Object.fromEntries(
-            Object.entries(errors).map(function (entry) {
-               return [entry[0], Array.isArray(entry[1]) ? entry[1][0] : entry[1]];
-            }),
+            Object.entries(errors).map((entry) => [entry[0], Array.isArray(entry[1]) ? entry[1][0] : entry[1]]),
          );
       },
    },

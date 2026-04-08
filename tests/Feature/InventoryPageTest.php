@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Branch;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\User;
@@ -29,8 +28,7 @@ class InventoryPageTest extends TestCase
 
     public function test_inventory_page_loads_for_panel_users(): void
     {
-        $branch = $this->createBranch('Naga');
-        $manager = $this->createUserWithRole('manager', [$branch->id], 'Manager Mia');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
 
         $this->actingAs($manager)
             ->get('/panel/inventory')
@@ -51,39 +49,29 @@ class InventoryPageTest extends TestCase
         ]);
     }
 
-    public function test_inventory_list_is_scoped_to_accessible_branches_and_reports_stats(): void
+    public function test_inventory_list_reports_stats_for_the_single_location(): void
     {
-        $accessibleBranch = $this->createBranch('Naga');
-        $otherBranch = $this->createBranch('Legazpi');
-        $staff = $this->createUserWithRole('staff', [$accessibleBranch->id], 'Staff Ana');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
         $drinkCategory = InventoryCategory::factory()->create(['name' => 'Drinks']);
         $supplementCategory = InventoryCategory::factory()->create(['name' => 'Supplements']);
 
         InventoryItem::factory()->create([
-            'branch_id' => $accessibleBranch->id,
             'inventory_category_id' => $drinkCategory->id,
             'name' => 'Bottled Water',
             'quantity' => 12,
             'low_stock_threshold' => 5,
         ]);
         InventoryItem::factory()->create([
-            'branch_id' => $accessibleBranch->id,
             'inventory_category_id' => $supplementCategory->id,
             'name' => 'Protein Shake',
             'quantity' => 2,
             'low_stock_threshold' => 5,
         ]);
         InventoryItem::factory()->create([
-            'branch_id' => $accessibleBranch->id,
             'inventory_category_id' => $supplementCategory->id,
             'name' => 'Towel',
             'quantity' => 0,
             'low_stock_threshold' => 3,
-        ]);
-        InventoryItem::factory()->create([
-            'branch_id' => $otherBranch->id,
-            'inventory_category_id' => $drinkCategory->id,
-            'name' => 'Other Branch Item',
         ]);
 
         $response = $this->actingAs($staff)
@@ -95,51 +83,37 @@ class InventoryPageTest extends TestCase
 
         $names = collect($response->json('inventory.data'))->pluck('name')->all();
 
-        $this->assertContains('Bottled Water', $names);
-        $this->assertContains('Protein Shake', $names);
-        $this->assertContains('Towel', $names);
-        $this->assertNotContains('Other Branch Item', $names);
+        $this->assertSame(['Bottled Water', 'Protein Shake', 'Towel'], $names);
     }
 
-    public function test_inventory_list_does_not_leak_other_branch_items_when_filtered_by_branch(): void
+    public function test_inventory_list_ignores_legacy_branch_filters(): void
     {
-        $accessibleBranch = $this->createBranch('Naga');
-        $otherBranch = $this->createBranch('Legazpi');
-        $staff = $this->createUserWithRole('staff', [$accessibleBranch->id], 'Staff Ana');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
         $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
 
         InventoryItem::factory()->create([
-            'branch_id' => $accessibleBranch->id,
             'inventory_category_id' => $category->id,
             'name' => 'Bottled Water',
         ]);
-        InventoryItem::factory()->create([
-            'branch_id' => $otherBranch->id,
-            'inventory_category_id' => $category->id,
-            'name' => 'Other Branch Item',
-        ]);
 
         $this->actingAs($staff)
-            ->getJson('/panel/inventory/list?branch='.$otherBranch->id)
+            ->getJson('/panel/inventory/list?branch=999')
             ->assertOk()
-            ->assertJsonPath('stats.total', 0)
-            ->assertJsonPath('inventory.data', []);
+            ->assertJsonPath('stats.total', 1)
+            ->assertJsonPath('inventory.data.0.name', 'Bottled Water');
     }
 
     public function test_inventory_list_can_be_filtered_by_category(): void
     {
-        $branch = $this->createBranch('Naga');
-        $staff = $this->createUserWithRole('staff', [$branch->id], 'Staff Ana');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
         $drinkCategory = InventoryCategory::factory()->create(['name' => 'Drinks']);
         $supplementCategory = InventoryCategory::factory()->create(['name' => 'Supplements']);
 
         InventoryItem::factory()->create([
-            'branch_id' => $branch->id,
             'inventory_category_id' => $drinkCategory->id,
             'name' => 'Bottled Water',
         ]);
         InventoryItem::factory()->create([
-            'branch_id' => $branch->id,
             'inventory_category_id' => $supplementCategory->id,
             'name' => 'Whey Protein',
         ]);
@@ -154,15 +128,13 @@ class InventoryPageTest extends TestCase
         $this->assertSame(['Bottled Water'], $names);
     }
 
-    public function test_staff_can_create_update_and_delete_inventory_items_for_accessible_branch(): void
+    public function test_staff_can_create_update_and_delete_inventory_items(): void
     {
-        $branch = $this->createBranch('Iriga');
-        $staff = $this->createUserWithRole('staff', [$branch->id], 'Staff Ben');
+        $staff = $this->createUserWithRole('staff', 'Staff Ben');
         $category = InventoryCategory::factory()->create(['name' => 'Equipment']);
 
         $createResponse = $this->actingAs($staff)
             ->postJson('/panel/inventory', [
-                'branch_id' => $branch->id,
                 'inventory_category_id' => $category->id,
                 'name' => 'Yoga Mat',
                 'sku' => null,
@@ -177,13 +149,12 @@ class InventoryPageTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('name', 'Yoga Mat')
-            ->assertJsonPath('branch.id', $branch->id);
+            ->assertJsonPath('category.id', $category->id);
 
         $itemId = $createResponse->json('id');
 
         $this->actingAs($staff)
             ->putJson("/panel/inventory/{$itemId}", [
-                'branch_id' => $branch->id,
                 'inventory_category_id' => $category->id,
                 'name' => 'Yoga Mat',
                 'sku' => null,
@@ -202,7 +173,6 @@ class InventoryPageTest extends TestCase
 
         $this->assertDatabaseHas('inventory_items', [
             'id' => $itemId,
-            'branch_id' => $branch->id,
             'inventory_category_id' => $category->id,
             'quantity' => 2,
             'notes' => 'Moved near the cashier',
@@ -217,58 +187,13 @@ class InventoryPageTest extends TestCase
         ]);
     }
 
-    public function test_staff_cannot_manage_inventory_for_inaccessible_branches(): void
-    {
-        $accessibleBranch = $this->createBranch('Daet');
-        $otherBranch = $this->createBranch('Tabaco');
-        $staff = $this->createUserWithRole('staff', [$accessibleBranch->id], 'Staff Gio');
-        $category = InventoryCategory::factory()->create(['name' => 'Supplies']);
-        $item = InventoryItem::factory()->create([
-            'branch_id' => $otherBranch->id,
-            'inventory_category_id' => $category->id,
-            'name' => 'Restricted Item',
-        ]);
-
-        $this->actingAs($staff)
-            ->postJson('/panel/inventory', [
-                'branch_id' => $otherBranch->id,
-                'inventory_category_id' => $category->id,
-                'name' => 'Unauthorized Item',
-                'sku' => 'INV-LOCK-001',
-                'unit' => 'pcs',
-                'quantity' => 4,
-                'low_stock_threshold' => 1,
-                'cost_price' => 125,
-                'selling_price' => 250,
-                'status' => InventoryItem::STATUS_ACTIVE,
-            ])
-            ->assertForbidden();
-
-        $this->actingAs($staff)
-            ->putJson("/panel/inventory/{$item->id}", [
-                'branch_id' => $otherBranch->id,
-                'inventory_category_id' => $category->id,
-                'name' => 'Restricted Item',
-                'sku' => 'INV-REST-001',
-                'unit' => 'pcs',
-                'quantity' => 2,
-                'low_stock_threshold' => 1,
-                'cost_price' => 125,
-                'selling_price' => 250,
-                'status' => InventoryItem::STATUS_ACTIVE,
-            ])
-            ->assertNotFound();
-    }
-
     public function test_inventory_requires_category_but_not_sku_or_prices(): void
     {
-        $branch = $this->createBranch('Iriga');
-        $staff = $this->createUserWithRole('staff', [$branch->id], 'Staff Ben');
+        $staff = $this->createUserWithRole('staff', 'Staff Ben');
         $category = InventoryCategory::factory()->create(['name' => 'Equipment']);
 
         $this->actingAs($staff)
             ->postJson('/panel/inventory', [
-                'branch_id' => $branch->id,
                 'name' => 'Foam Roller',
                 'sku' => null,
                 'unit' => 'pcs',
@@ -281,7 +206,6 @@ class InventoryPageTest extends TestCase
 
         $this->actingAs($staff)
             ->postJson('/panel/inventory', [
-                'branch_id' => $branch->id,
                 'inventory_category_id' => $category->id,
                 'name' => 'Foam Roller',
                 'sku' => null,
@@ -299,11 +223,9 @@ class InventoryPageTest extends TestCase
 
     public function test_edit_modal_zero_price_values_remain_persisted_on_save(): void
     {
-        $branch = $this->createBranch('Iriga');
-        $staff = $this->createUserWithRole('staff', [$branch->id], 'Staff Ben');
+        $staff = $this->createUserWithRole('staff', 'Staff Ben');
         $category = InventoryCategory::factory()->create(['name' => 'Supplies']);
         $item = InventoryItem::factory()->create([
-            'branch_id' => $branch->id,
             'inventory_category_id' => $category->id,
             'name' => 'Complimentary Towel',
             'cost_price' => 0,
@@ -313,7 +235,6 @@ class InventoryPageTest extends TestCase
 
         $this->actingAs($staff)
             ->putJson("/panel/inventory/{$item->id}", [
-                'branch_id' => $branch->id,
                 'inventory_category_id' => $category->id,
                 'name' => 'Complimentary Towel',
                 'sku' => $item->sku,
@@ -337,30 +258,16 @@ class InventoryPageTest extends TestCase
         ]);
     }
 
-    private function createBranch(string $name): Branch
-    {
-        return Branch::create([
-            'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => Branch::COUNTRY_PHILIPPINES,
-            'city' => 'Naga City',
-        ]);
-    }
-
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds, string $name): User
+    private function createUserWithRole(string $role, string $name): User
     {
         $user = User::factory()->create([
             'name' => $name,
             'status' => User::STATUS_ACTIVE,
             'daily_rate' => 500,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

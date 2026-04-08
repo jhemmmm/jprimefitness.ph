@@ -3,21 +3,14 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Attendance Reports</h4>
-            <p class="text-muted small mb-0">Review attendance trends, active check-ins, and branch activity for {{ currentBranchLabel }}</p>
+            <p class="text-muted small mb-0">Review attendance trends, active check-ins, and location activity for {{ currentLocationLabel }}</p>
          </div>
       </div>
-
-      <div v-if="!branchesData.length" class="panel-card p-5 text-center text-muted">
-         <i class="bi bi-graph-up-arrow fs-1 d-block mb-2 opacity-25"></i>
-         <div>No accessible branches found.</div>
-      </div>
-
-      <template v-else>
-         <div class="panel-card mb-4">
+      <div class="panel-card mb-4">
             <div class="panel-card-header">
                <div>
                   <div class="panel-card-title">Filters</div>
-                  <div class="panel-card-sub">Use the sidebar branch selector, date range, and attendee type to refine this report.</div>
+                  <div class="panel-card-sub">Use the date range and attendee type to refine this report.</div>
                </div>
             </div>
             <div class="p-3 p-md-4">
@@ -172,7 +165,7 @@
             <div class="col-12 col-xl-6">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
-                     <div class="panel-card-title">Branch Breakdown</div>
+                     <div class="panel-card-title">Location Summary</div>
                   </div>
                   <div class="panel-card-body p-0">
                      <div v-if="loading">
@@ -195,24 +188,24 @@
                            </div>
                         </div>
                      </div>
-                     <div v-else-if="report.branch_breakdown.length === 0" class="text-center py-5 text-muted">
+                     <div v-else-if="report.location_breakdown.length === 0" class="text-center py-5 text-muted">
                         <i class="bi bi-geo-alt empty-icon"></i>
-                        <p class="mt-2 mb-1">No branch attendance found for this filter.</p>
+                        <p class="mt-2 mb-1">No location attendance found for this filter.</p>
                      </div>
                      <div v-else>
                         <div class="table-responsive d-none d-md-block">
                            <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
                               <thead>
                                  <tr>
-                                    <th>Branch</th>
+                                    <th>Location</th>
                                     <th>Check-ins</th>
                                     <th>Unique</th>
                                     <th>Currently In</th>
                                  </tr>
                               </thead>
                               <tbody>
-                                 <tr v-for="row in report.branch_breakdown" :key="row.branch_id">
-                                    <td>{{ row.branch_name }}</td>
+                                 <tr v-for="row in report.location_breakdown" :key="row.location_id">
+                                    <td>{{ row.location_name }}</td>
                                     <td>{{ row.check_in_count }}</td>
                                     <td>{{ row.unique_attendees }}</td>
                                     <td>{{ row.currently_in_count }}</td>
@@ -221,14 +214,14 @@
                            </table>
                         </div>
                         <div class="d-md-none p-3">
-                           <div class="member-card" v-for="row in report.branch_breakdown" :key="'branch-mobile-' + row.branch_id">
+                           <div class="member-card" v-for="row in report.location_breakdown" :key="'location-mobile-' + row.location_id">
                               <div class="member-card-top">
                                  <div class="member-card-identity">
                                     <div class="member-avatar">
                                        <i class="bi bi-geo-alt-fill"></i>
                                     </div>
                                     <div>
-                                       <div class="member-card-name">{{ row.branch_name }}</div>
+                                       <div class="member-card-name">{{ row.location_name }}</div>
                                        <div class="member-card-sub">{{ row.check_in_count }} check-in{{ row.check_in_count !== 1 ? "s" : "" }}</div>
                                     </div>
                                  </div>
@@ -408,7 +401,7 @@
                            <tr>
                               <th>Name</th>
                               <th>Type</th>
-                              <th>Branch</th>
+                              <th>Location</th>
                               <th>Checked In</th>
                               <th>Checked Out</th>
                               <th>Duration</th>
@@ -421,7 +414,7 @@
                               <td>
                                  <span :class="['m-badge', $filters.roleBadge(record.attendee_type)]">{{ record.attendee_type_label }}</span>
                               </td>
-                              <td>{{ record.branch_name }}</td>
+                              <td>{{ record.location_name }}</td>
                               <td class="small text-muted">{{ $filters.formatDateTime(record.checked_in_at) }}</td>
                               <td class="small text-muted">{{ record.checked_out_at ? $filters.formatDateTime(record.checked_out_at) : "-" }}</td>
                               <td>{{ formatDuration(record.duration_minutes) }}</td>
@@ -443,7 +436,7 @@
                               </div>
                               <div>
                                  <div class="member-card-name">{{ record.name }}</div>
-                                 <div class="member-card-sub">{{ record.branch_name }}</div>
+                                 <div class="member-card-sub">{{ record.location_name }}</div>
                               </div>
                            </div>
                         </div>
@@ -463,7 +456,6 @@
                </div>
             </div>
          </div>
-      </template>
    </div>
 </template>
 
@@ -475,10 +467,10 @@ export default {
       AttendanceDailyTrendChart,
    },
    props: {
-      branchesData: {
-         type: Array,
+      businessProfile: {
+         type: Object,
          default: function () {
-            return [];
+            return null;
          },
       },
    },
@@ -486,7 +478,6 @@ export default {
       return {
          loading: false,
          pageError: "",
-         selectedBranch: null,
          filters: {
             date_from: this.defaultDateFrom(),
             date_to: this.defaultDateTo(),
@@ -503,13 +494,8 @@ export default {
             { value: "employee", label: "Employees" },
          ];
       },
-      currentBranchLabel: function () {
-         if (!this.selectedBranch) {
-            return "all accessible branches";
-         }
-
-         const branch = this.branchesData.find((item) => item.id === this.selectedBranch);
-         return branch ? branch.name : "the selected branch";
+      currentLocationLabel: function () {
+         return this.report.scope.location?.name || this.businessProfile?.name || window.JPrime?.profile?.name || "this location";
       },
       averageVisitLabel: function () {
          return this.formatDuration(this.report.summary.average_visit_minutes);
@@ -517,7 +503,6 @@ export default {
       exportUrl: function () {
          const params = new URLSearchParams();
          const payload = {
-            branch: this.report.scope.branch?.id || undefined,
             date_from: this.report.filters.date_from || undefined,
             date_to: this.report.filters.date_to || undefined,
             type: this.report.filters.type || undefined,
@@ -572,15 +557,13 @@ export default {
       },
    },
    mounted: function () {
-      this.selectedBranch = this.resolveSelectedBranch();
       this.fetchReport();
    },
    methods: {
       emptyReport: function () {
          return {
             scope: {
-               branch: null,
-               is_all_branches: true,
+               location: null,
             },
             filters: {
                date_from: null,
@@ -596,7 +579,7 @@ export default {
                average_visit_minutes: 0,
             },
             type_breakdown: [],
-            branch_breakdown: [],
+            location_breakdown: [],
             daily_trend: [],
             busiest_hours: [],
             recent_records: [],
@@ -613,23 +596,8 @@ export default {
          const day = String(now.getDate()).padStart(2, "0");
          return `${now.getFullYear()}-${month}-${day}`;
       },
-      resolveSelectedBranch: function () {
-         const storedBranchId = localStorage.getItem("selectedBranch");
-
-         if (!storedBranchId || storedBranchId === "null") {
-            return null;
-         }
-
-         const branchId = parseInt(storedBranchId, 10);
-         if (Number.isNaN(branchId)) {
-            return null;
-         }
-
-         return this.branchesData.some((branch) => branch.id === branchId) ? branchId : null;
-      },
       buildParams: function () {
          return {
-            branch: this.selectedBranch || undefined,
             date_from: this.filters.date_from || undefined,
             date_to: this.filters.date_to || undefined,
             type: this.filters.type || undefined,

@@ -14,20 +14,9 @@ class NotificationRecipientResolver
      */
     public function resolve(?int $branchId = null): Collection
     {
-        $administrators = User::query()
-            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['super admin', 'admin']))
+        return User::query()
+            ->whereHas('roles', fn ($query) => $query->whereIn('name', ['super admin', 'admin', 'manager']))
             ->get();
-
-        if ($branchId === null) {
-            return $administrators->unique('id')->values();
-        }
-
-        $managers = User::query()
-            ->whereHas('roles', fn ($query) => $query->where('name', 'manager'))
-            ->whereHas('branches', fn ($query) => $query->whereKey($branchId))
-            ->get();
-
-        return $administrators->concat($managers)->unique('id')->values();
     }
 
     public function send(Notification $notification, ?int $branchId = null): void

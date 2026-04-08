@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Branch;
 use App\Models\RatePlan;
+use App\Models\User;
 use App\Models\WalkIn;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
@@ -12,17 +12,29 @@ class WalkInSeeder extends Seeder
 {
     public function run(): void
     {
-        $branches  = Branch::all();
-        $rates = RatePlan::all();
+        $rates = RatePlan::query()->where('is_active', true)->get();
+        $servedByUsers = User::role(['super admin', 'admin', 'manager', 'staff'])->pluck('id')->all();
 
-        for ($i = 0; $i < 50; $i++) {
-            WalkIn::create([
-                'branch_id' => fake()->randomElement($branches)->id,
-                'rate_plan_id' => fake()->randomElement($rates)->id,
+        if ($rates->isEmpty()) {
+            return;
+        }
+
+        WalkIn::query()->delete();
+
+        for ($index = 0; $index < 24; $index++) {
+            $ratePlan = $rates[$index % $rates->count()];
+
+            WalkIn::query()->create([
+                'rate_plan_id' => $ratePlan->id,
+                'served_by' => $servedByUsers !== [] ? $servedByUsers[$index % count($servedByUsers)] : null,
                 'name' => fake()->name(),
                 'phone' => fake()->phoneNumber(),
-                'amount_paid' => fake()->randomFloat(2, 50, 200),
-                'visited_at' => Carbon::now()->subDays(rand(0, 30))->setHour(rand(6, 22))->setMinute(rand(0, 59)),
+                'amount_paid' => (float) ($ratePlan->price ?? fake()->randomFloat(2, 100, 500)),
+                'payment_method' => $index % 3 === 0 ? 'gcash' : 'cash',
+                'visited_at' => Carbon::now()
+                    ->subDays($index)
+                    ->setTime(6 + ($index % 8), ($index * 7) % 60),
+                'notes' => $index % 5 === 0 ? 'Seeded walk-in record' : null,
             ]);
         }
     }

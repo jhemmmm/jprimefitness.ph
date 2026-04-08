@@ -17,7 +17,6 @@ class InventoryItem extends Model
     public const STATUS_INACTIVE = 'inactive';
 
     protected $fillable = [
-        'branch_id',
         'inventory_category_id',
         'name',
         'sku',
@@ -43,11 +42,6 @@ class InventoryItem extends Model
         'is_low_stock',
         'is_out_of_stock',
     ];
-
-    public function branch(): BelongsTo
-    {
-        return $this->belongsTo(Branch::class);
-    }
 
     public function category(): BelongsTo
     {

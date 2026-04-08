@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
-use App\Models\Branch;
+use App\Models\BusinessProfile;
 use App\Models\MemberSubscription;
 use App\Models\Payout;
 use App\Models\Payroll;
@@ -47,47 +47,34 @@ class DashboardPageTest extends TestCase
 
     public function test_dashboard_page_loads_for_panel_users(): void
     {
-        $branch = $this->createBranch('Naga');
-        $staff = $this->createUserWithRole('staff', [$branch->id], 'Staff Ana');
+        $this->setBusinessProfile('Naga');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
 
         $this->actingAs($staff)
             ->get('/panel/dashboard')
             ->assertOk()
             ->assertSee('dashboard-page', false)
-            ->assertSee('branches-data=', false);
+            ->assertSee('business-profile=', false);
     }
 
-    public function test_dashboard_data_returns_scoped_peak_hours_branch_load_and_financial_widgets_for_managers(): void
+    public function test_dashboard_data_returns_single_location_metrics_for_managers(): void
     {
-        $naga = $this->createBranch('Naga');
-        $legazpi = $this->createBranch('Legazpi');
-        $manager = $this->createUserWithRole('manager', [$naga->id, $legazpi->id], 'Manager Mia');
-        $staffEmployee = $this->createUserWithRole('staff', [$naga->id], 'Staff Ben');
-        $coach = $this->createUserWithRole('coach', [$naga->id], 'Coach Joy');
-        $member = $this->createUserWithRole('member', [$naga->id], 'Member Lea');
-        $otherMember = $this->createUserWithRole('member', [$legazpi->id], 'Member Kai');
+        $profile = $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $staffEmployee = $this->createUserWithRole('staff', 'Staff Ben');
+        $coach = $this->createUserWithRole('coach', 'Coach Joy');
+        $member = $this->createUserWithRole('member', 'Member Lea');
         $monthly = $this->createRatePlan('Monthly', 30);
 
         MemberSubscription::create([
             'user_id' => $member->id,
-            'branch_id' => $naga->id,
             'rate_plan_id' => $monthly->id,
             'start_date' => '2026-04-01',
             'end_date' => '2026-04-20',
             'status' => MemberSubscription::STATUS_ACTIVE,
         ]);
 
-        MemberSubscription::create([
-            'user_id' => $otherMember->id,
-            'branch_id' => $legazpi->id,
-            'rate_plan_id' => $monthly->id,
-            'start_date' => '2026-04-01',
-            'end_date' => '2026-04-30',
-            'status' => MemberSubscription::STATUS_ACTIVE,
-        ]);
-
         $walkIn = WalkIn::create([
-            'branch_id' => $naga->id,
             'served_by' => $manager->id,
             'name' => 'Walk-in Pia',
             'amount_paid' => 350,
@@ -96,7 +83,6 @@ class DashboardPageTest extends TestCase
         ]);
 
         Attendance::create([
-            'branch_id' => $naga->id,
             'attendee_type' => Attendance::TYPE_MEMBER,
             'user_id' => $member->id,
             'name' => $member->name,
@@ -106,7 +92,6 @@ class DashboardPageTest extends TestCase
         ]);
 
         Attendance::create([
-            'branch_id' => $naga->id,
             'attendee_type' => Attendance::TYPE_EMPLOYEE,
             'user_id' => $coach->id,
             'name' => $coach->name,
@@ -116,7 +101,6 @@ class DashboardPageTest extends TestCase
         ]);
 
         Attendance::create([
-            'branch_id' => $naga->id,
             'attendee_type' => Attendance::TYPE_WALK_IN,
             'walk_in_id' => $walkIn->id,
             'name' => $walkIn->name,
@@ -126,7 +110,6 @@ class DashboardPageTest extends TestCase
         ]);
 
         Attendance::create([
-            'branch_id' => $naga->id,
             'attendee_type' => Attendance::TYPE_MEMBER,
             'user_id' => $member->id,
             'name' => $member->name,
@@ -136,27 +119,14 @@ class DashboardPageTest extends TestCase
         ]);
 
         Attendance::create([
-            'branch_id' => $naga->id,
             'attendee_type' => Attendance::TYPE_MEMBER,
-            'user_id' => $member->id,
             'name' => 'March Visitor',
             'checked_in_at' => '2026-03-25 08:00:00',
             'checked_out_at' => '2026-03-25 09:00:00',
             'recorded_by' => $manager->id,
         ]);
 
-        Attendance::create([
-            'branch_id' => $legazpi->id,
-            'attendee_type' => Attendance::TYPE_MEMBER,
-            'user_id' => $otherMember->id,
-            'name' => $otherMember->name,
-            'checked_in_at' => '2026-04-15 08:00:00',
-            'checked_out_at' => null,
-            'recorded_by' => $manager->id,
-        ]);
-
         SaleTransaction::create([
-            'branch_id' => $naga->id,
             'member_id' => $member->id,
             'type' => SaleTransaction::TYPE_MEMBERSHIP,
             'total' => 600,
@@ -168,7 +138,6 @@ class DashboardPageTest extends TestCase
         ]);
 
         SaleTransaction::create([
-            'branch_id' => $naga->id,
             'member_id' => $member->id,
             'type' => SaleTransaction::TYPE_PT_PACKAGE,
             'total' => 800,
@@ -180,7 +149,6 @@ class DashboardPageTest extends TestCase
         ]);
 
         SaleTransaction::create([
-            'branch_id' => $naga->id,
             'type' => SaleTransaction::TYPE_INVENTORY,
             'total' => 999,
             'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
@@ -192,8 +160,7 @@ class DashboardPageTest extends TestCase
 
         $payroll = Payroll::create([
             'employee_id' => $coach->id,
-            'branch_id' => $naga->id,
-            'pay_frequency' => Branch::PAYROLL_FREQUENCY_SEMI_MONTHLY,
+            'pay_frequency' => 'semi_monthly',
             'period_start' => '2026-04-01',
             'period_end' => '2026-04-15',
             'gross_amount' => 1200,
@@ -223,11 +190,11 @@ class DashboardPageTest extends TestCase
         ]);
 
         $response = $this->actingAs($manager)
-            ->getJson('/panel/dashboard/data?branch='.$naga->id)
+            ->getJson('/panel/dashboard/data')
             ->assertOk();
 
-        $response->assertJsonPath('scope.branch.id', $naga->id);
-        $response->assertJsonPath('scope.is_all_branches', false);
+        $response->assertJsonPath('scope.location.id', $profile->id);
+        $response->assertJsonPath('scope.location.name', 'Naga');
         $response->assertJsonPath('permissions.can_view_financial_data', true);
         $response->assertJsonPath('stats_row_1.total_members', 1);
         $response->assertJsonPath('stats_row_1.check_ins_today', 3);
@@ -242,9 +209,9 @@ class DashboardPageTest extends TestCase
         $response->assertJsonPath('peak_hours.8.check_in_count', 2);
         $response->assertJsonPath('peak_hours.11.hour_slot', '11:00');
         $response->assertJsonPath('peak_hours.11.check_in_count', 2);
-        $response->assertJsonPath('branch_load.0.branch_name', 'Naga');
-        $response->assertJsonPath('branch_load.0.current_occupancy', 1);
-        $response->assertJsonPath('branch_load.0.today_check_ins', 3);
+        $response->assertJsonPath('location_load.0.location_name', 'Naga');
+        $response->assertJsonPath('location_load.0.current_occupancy', 1);
+        $response->assertJsonPath('location_load.0.today_check_ins', 3);
         $response->assertJsonPath('check_ins_today.0.name', 'Walk-in Pia');
         $response->assertJsonPath('check_ins_today.0.plan_or_rate', 'Walk-in Rate');
         $response->assertJsonPath('recent_members.0.name', 'Member Lea');
@@ -254,16 +221,12 @@ class DashboardPageTest extends TestCase
         $response->assertJsonPath('pending_payrolls.0.outstanding_balance', 1000);
     }
 
-    public function test_dashboard_data_can_aggregate_all_accessible_branches_and_only_returns_todays_check_ins_feed(): void
+    public function test_dashboard_hides_financial_widgets_for_staff_roles(): void
     {
-        $naga = $this->createBranch('Naga');
-        $legazpi = $this->createBranch('Legazpi');
-        $outside = $this->createBranch('Outside');
-        $staff = $this->createUserWithRole('staff', [$naga->id, $legazpi->id], 'Staff Ana');
-        $outsideStaff = $this->createUserWithRole('staff', [$outside->id], 'Staff Bea');
+        $this->setBusinessProfile('Naga');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
 
         Attendance::create([
-            'branch_id' => $naga->id,
             'attendee_type' => Attendance::TYPE_MEMBER,
             'name' => 'Today Naga',
             'checked_in_at' => '2026-04-15 08:00:00',
@@ -272,70 +235,37 @@ class DashboardPageTest extends TestCase
         ]);
 
         Attendance::create([
-            'branch_id' => $legazpi->id,
             'attendee_type' => Attendance::TYPE_WALK_IN,
-            'name' => 'Today Legazpi',
+            'name' => 'Today Guest',
             'checked_in_at' => '2026-04-15 10:00:00',
             'checked_out_at' => '2026-04-15 11:00:00',
             'recorded_by' => $staff->id,
-        ]);
-
-        Attendance::create([
-            'branch_id' => $naga->id,
-            'attendee_type' => Attendance::TYPE_MEMBER,
-            'name' => 'Older Feed Record',
-            'checked_in_at' => '2026-04-14 09:00:00',
-            'checked_out_at' => '2026-04-14 10:00:00',
-            'recorded_by' => $staff->id,
-        ]);
-
-        Attendance::create([
-            'branch_id' => $outside->id,
-            'attendee_type' => Attendance::TYPE_EMPLOYEE,
-            'name' => 'Outside Feed Record',
-            'checked_in_at' => '2026-04-15 12:00:00',
-            'checked_out_at' => null,
-            'recorded_by' => $outsideStaff->id,
         ]);
 
         $response = $this->actingAs($staff)
             ->getJson('/panel/dashboard/data')
             ->assertOk();
 
-        $response->assertJsonPath('scope.is_all_branches', true);
+        $payload = $response->json();
+
         $response->assertJsonPath('permissions.can_view_financial_data', false);
         $response->assertJsonPath('stats_row_1.check_ins_today', 2);
-        $response->assertJsonPath('branch_load.0.current_occupancy', 1);
-        $response->assertJsonCount(2, 'branch_load');
-        $response->assertJsonMissing(['branch_name' => 'Outside']);
-
-        $payload = $response->json();
+        $response->assertJsonPath('location_load.0.current_occupancy', 1);
 
         $this->assertArrayNotHasKey('pending_payrolls', $payload);
         $this->assertArrayNotHasKey('revenue_today', $payload['stats_row_1']);
         $this->assertArrayNotHasKey('revenue_this_month', $payload['stats_row_1']);
         $this->assertArrayNotHasKey('pending_payroll_balance', $payload['stats_row_2']);
-        $this->assertSame(['Today Legazpi', 'Today Naga'], collect($payload['check_ins_today'])->pluck('name')->all());
+        $this->assertSame(['Today Guest', 'Today Naga'], collect($payload['check_ins_today'])->pluck('name')->all());
     }
 
-    public function test_dashboard_branch_filter_rejects_inaccessible_branches(): void
+    private function setBusinessProfile(string $name): BusinessProfile
     {
-        $naga = $this->createBranch('Naga');
-        $legazpi = $this->createBranch('Legazpi');
-        $staff = $this->createUserWithRole('staff', [$naga->id], 'Staff Ana');
-
-        $this->actingAs($staff)
-            ->getJson('/panel/dashboard/data?branch='.$legazpi->id)
-            ->assertForbidden();
-    }
-
-    private function createBranch(string $name): Branch
-    {
-        return Branch::create([
+        return BusinessProfile::factory()->create([
             'name' => $name,
-            'status' => Branch::STATUS_OPEN,
-            'country_code' => Branch::COUNTRY_PHILIPPINES,
+            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
+            'province' => 'Camarines Sur',
         ]);
     }
 
@@ -344,23 +274,23 @@ class DashboardPageTest extends TestCase
         return RatePlan::create([
             'name' => $name,
             'duration_days' => $durationDays,
+            'price' => 1500,
+            'manager_commission_rate' => 10,
             'is_active' => true,
         ]);
     }
 
-    /**
-     * @param  array<int>  $branchIds
-     */
-    private function createUserWithRole(string $role, array $branchIds, string $name): User
+    private function createUserWithRole(string $role, string $name): User
     {
         $user = User::factory()->create([
             'name' => $name,
             'email' => str($name)->slug('-').'@example.com',
             'status' => User::STATUS_ACTIVE,
+            'daily_rate' => 500,
+            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);
-        $user->branches()->sync($branchIds);
 
         return $user;
     }

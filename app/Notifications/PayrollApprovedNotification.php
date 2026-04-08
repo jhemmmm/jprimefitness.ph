@@ -23,7 +23,7 @@ class PayrollApprovedNotification extends PanelDatabaseNotification
      */
     protected function data(): array
     {
-        $this->payroll->loadMissing(['branch:id,name', 'approvedBy:id,name']);
+        $this->payroll->loadMissing(['approvedBy:id,name']);
 
         $approvedBy = $this->payroll->approvedBy?->name
             ? ' by '.$this->payroll->approvedBy->name
@@ -35,8 +35,6 @@ class PayrollApprovedNotification extends PanelDatabaseNotification
             'action_url' => route('panel.employees.show', $this->employee),
             'type' => $this->typeSlug(),
             'severity' => 'success',
-            'branch_id' => $this->payroll->branch_id,
-            'branch_name' => $this->payroll->branch?->name,
             'subject_id' => $this->payroll->id,
             'subject_type' => 'payroll',
             'occurred_at' => $this->payroll->approved_at?->toISOString(),

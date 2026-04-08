@@ -3,7 +3,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Inventory</h4>
-            <p class="text-muted small mb-0">Track branch stock, categories, and item pricing</p>
+            <p class="text-muted small mb-0">Track stock levels, categories, and item pricing for your location</p>
          </div>
          <button class="btn btn-danger px-3" @click="openAddModal">
             <i class="bi bi-plus-lg me-1"></i>
@@ -77,7 +77,7 @@
                   <thead>
                      <tr>
                         <th>Item</th>
-                        <th>Branch</th>
+                        <th>Location</th>
                         <th>Stock</th>
                         <th>Pricing</th>
                         <th>Updated</th>
@@ -166,7 +166,7 @@
                   <thead>
                      <tr>
                         <th>Item</th>
-                        <th>Branch</th>
+                        <th>Location</th>
                         <th>Stock</th>
                         <th>Pricing</th>
                         <th>Updated</th>
@@ -299,14 +299,6 @@
                   <div v-if="formError" class="alert alert-danger py-2 small mb-3">{{ formError }}</div>
                   <div class="row g-3">
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Branch <span class="text-danger">*</span></label>
-                        <select class="form-select" v-model="form.branch_id" :class="{ 'is-invalid': formErrors.branch_id }">
-                           <option value="" disabled>Select branch</option>
-                           <option v-for="branch in branchesData" :key="branch.id" :value="branch.id">{{ branch.name }}</option>
-                        </select>
-                        <div class="invalid-feedback" v-if="formErrors.branch_id">{{ formErrors.branch_id }}</div>
-                     </div>
-                     <div class="col-md-6">
                         <label class="form-label form-label-sm">Item Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" v-model="form.name" :class="{ 'is-invalid': formErrors.name }" />
                         <div class="invalid-feedback" v-if="formErrors.name">{{ formErrors.name }}</div>
@@ -390,7 +382,7 @@
                <div class="modal-body" v-if="deleteTarget">
                   <p class="mb-1">Are you sure you want to delete this inventory item?</p>
                   <p class="fw-semibold mb-0">{{ deleteTarget.name }}</p>
-                  <p class="text-muted small mb-0">{{ deleteTarget.branch?.name || "-" }}</p>
+                  <p class="text-muted small mb-0">{{ deleteTarget.category?.name || "Inventory item" }}</p>
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -432,7 +424,6 @@ export default {
          stats: { total: 0, active: 0, low_stock: 0, out_of_stock: 0 },
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          search: new URLSearchParams(window.location.search).get("search") || "",
-         selectedBranch: parseInt(localStorage.getItem("selectedBranch"), 10) || "",
          selectedCategory: "",
          selectedStatus: "",
          selectedStockState: "",
@@ -456,7 +447,6 @@ export default {
       emptyForm: function () {
          return {
             id: null,
-            branch_id: this.selectedBranch || this.branchesData[0]?.id || "",
             inventory_category_id: "",
             name: "",
             sku: "",
@@ -476,7 +466,6 @@ export default {
             .get("/panel/inventory/list", {
                params: {
                   search: this.search || undefined,
-                  branch: this.selectedBranch || undefined,
                   category: this.selectedCategory || undefined,
                   status: this.selectedStatus || undefined,
                   stock_state: this.selectedStockState || undefined,
@@ -526,7 +515,6 @@ export default {
          this.formErrors = {};
          this.form = {
             id: item.id,
-            branch_id: item.branch_id,
             inventory_category_id: item.inventory_category_id || item.category?.id || "",
             name: item.name || "",
             sku: item.sku || "",
@@ -569,7 +557,6 @@ export default {
          this.formErrors = {};
 
          var payload = {
-            branch_id: this.form.branch_id,
             inventory_category_id: this.form.inventory_category_id,
             name: this.form.name,
             sku: this.form.sku || null,

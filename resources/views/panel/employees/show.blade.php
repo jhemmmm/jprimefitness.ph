@@ -1,6 +1,6 @@
 @extends('panel.layouts.app')
 
-@section('title', $employee->name . ' - Employee')
+@section('title', $employeeName . ' - Employee')
 
 @section('content')
     <employee-detail-page :employee='@json($employee)' :branches-data='@json($branches)'

@@ -18,8 +18,9 @@ class DatabaseSeeder extends Seeder
             PTProductSeeder::class,
             InventoryCategorySeeder::class,
             RoleSeeder::class,
-            BranchSeeder::class,
+            BusinessProfileSeeder::class,
             UserSeeder::class,
+            MemberSeeder::class,
             WalkInSeeder::class,
             AttendanceSeeder::class,
         ]);

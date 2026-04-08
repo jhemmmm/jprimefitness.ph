@@ -15,7 +15,7 @@
                         v-model="search"
                         type="text"
                         class="global-search-input"
-                        placeholder="Search members, branches, employees, inventory, or walk-ins"
+                        placeholder="Search members, employees, inventory, or walk-ins"
                         @input="onSearchInput"
                      />
                      <button v-if="search" type="button" class="btn btn-link btn-sm text-muted text-decoration-none px-0" @click="clearSearch">
@@ -28,7 +28,7 @@
 
                      <div v-else-if="!hasEnoughCharacters" class="global-search-state text-muted">
                         <div class="fw-semibold text-body mb-1">Search across the panel</div>
-                        <div>Type at least 2 characters to search members, branches, employees, inventory, and walk-ins.</div>
+                        <div>Type at least 2 characters to search members, employees, inventory, and walk-ins.</div>
                      </div>
 
                      <div v-else-if="loading" class="global-search-state text-muted">
@@ -38,7 +38,7 @@
 
                      <div v-else-if="visibleGroups.length === 0" class="global-search-state text-muted">
                         <div class="fw-semibold text-body mb-1">No matches found</div>
-                        <div>Try a different name, email, phone, SKU, category, or branch.</div>
+                        <div>Try a different name, email, phone, SKU, or category.</div>
                      </div>
 
                      <div v-else class="global-search-results">
@@ -81,7 +81,6 @@ import { Modal } from "bootstrap";
 
 const GROUP_CONFIG = {
    members: { icon: "bi-people-fill", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-   branches: { icon: "bi-geo-alt-fill", iconBg: "bg-success-soft", iconColor: "text-success" },
    employees: { icon: "bi-person-workspace", iconBg: "bg-warning-soft", iconColor: "text-warning" },
    inventory: { icon: "bi-box-seam-fill", iconBg: "bg-danger-soft", iconColor: "text-danger" },
    walkins: { icon: "bi-person-plus-fill", iconBg: "bg-primary-soft", iconColor: "text-primary" },
@@ -166,7 +165,6 @@ export default {
             .get("/panel/search", {
                params: {
                   search: this.normalizedSearch,
-                  branch: this.selectedBranchId() || undefined,
                },
             })
             .then((response) => {
@@ -205,11 +203,6 @@ export default {
          this.loading = false;
          this.error = "";
          this.groups = {};
-      },
-      selectedBranchId: function () {
-         const branchId = parseInt(localStorage.getItem("selectedBranch") || "", 10);
-
-         return Number.isNaN(branchId) ? null : branchId;
       },
    },
    computed: {

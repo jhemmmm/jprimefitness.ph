@@ -2,13 +2,13 @@
 
 namespace Database\Factories;
 
-use App\Models\BranchCashLedgerEntry;
+use App\Models\CashLedgerEntry;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<BranchCashLedgerEntry>
+ * @extends Factory<CashLedgerEntry>
  */
-class BranchCashLedgerEntryFactory extends Factory
+class CashLedgerEntryFactory extends Factory
 {
     /**
      * Define the model's default state.
