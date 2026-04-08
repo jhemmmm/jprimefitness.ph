@@ -19,6 +19,7 @@ return new class extends Migration
             $table->decimal('cost_price', 12, 2)->nullable();
             $table->decimal('selling_price', 12, 2)->nullable();
             $table->string('status', 30)->default('active');
+            $table->string('stock_alert_state', 30)->nullable();
             $table->text('notes')->nullable();
             $table->timestamp('last_restocked_at')->nullable();
             $table->timestamps();

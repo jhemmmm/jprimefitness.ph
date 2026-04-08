@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\User;
+use Database\Seeders\InventoryCategorySeeder;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -36,8 +37,12 @@ class InventoryPageTest extends TestCase
             ->assertSee('inventory-page', false);
     }
 
-    public function test_inventory_default_categories_exist_after_migration_without_manual_seeding(): void
+    public function test_inventory_default_categories_are_seeded_explicitly(): void
     {
+        $this->assertDatabaseCount('inventory_categories', 0);
+
+        $this->seed(InventoryCategorySeeder::class);
+
         $this->assertDatabaseHas('inventory_categories', [
             'slug' => 'equipment',
             'name' => 'Equipment',
