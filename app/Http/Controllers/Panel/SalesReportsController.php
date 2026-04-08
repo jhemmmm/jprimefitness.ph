@@ -139,7 +139,7 @@ class SalesReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $location = $this->businessProfileContext->legacyLocation();
+        $location = $this->businessProfileContext->locationSummary();
 
         $salesQuery = SaleTransaction::query()
             ->when($data['type'] ?? null, fn ($query) => $query->where('type', $data['type']))

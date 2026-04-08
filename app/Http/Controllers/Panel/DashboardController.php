@@ -37,7 +37,7 @@ class DashboardController extends Controller
      */
     private function dashboardPayload(): array
     {
-        $location = $this->businessProfileContext->legacyLocation();
+        $location = $this->businessProfileContext->locationSummary();
 
         /** @var User $user */
         $user = auth()->user();

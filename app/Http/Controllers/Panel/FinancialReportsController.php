@@ -116,7 +116,7 @@ class FinancialReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $location = $this->businessProfileContext->legacyLocation();
+        $location = $this->businessProfileContext->locationSummary();
 
         $salesQuery = $this->salesQuery($data);
         $directWalkInQuery = $this->directWalkInQuery($data);

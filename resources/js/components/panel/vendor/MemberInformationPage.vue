@@ -81,7 +81,7 @@ export default {
 
    computed: {
       currentLocationName: function () {
-         return window.JPrime?.profile?.name || this.member.branches?.[0]?.name || "-";
+         return this.member.location?.name || window.JPrime?.profile?.name || "-";
       },
       activeMembership: function () {
          if (!this.member.member_subscriptions || !this.member.member_subscriptions.length) {

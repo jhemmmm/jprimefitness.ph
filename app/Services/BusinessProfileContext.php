@@ -30,7 +30,7 @@ class BusinessProfileContext
     /**
      * @return array{id:int, name:string, city:?string, province:?string, status:?string}
      */
-    public function legacyLocation(): array
+    public function locationSummary(): array
     {
         $profile = $this->profile();
 

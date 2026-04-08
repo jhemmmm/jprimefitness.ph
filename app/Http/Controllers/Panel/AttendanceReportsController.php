@@ -123,7 +123,7 @@ class AttendanceReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $location = $this->businessProfileContext->legacyLocation();
+        $location = $this->businessProfileContext->locationSummary();
 
         $attendanceRecords = Attendance::query()
             ->when($data['type'] ?? null, fn ($query) => $query->where('attendee_type', $data['type']))

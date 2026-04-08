@@ -174,7 +174,6 @@ import { Modal } from "bootstrap";
 export default {
    props: {
       member: { type: Object, required: true },
-      branchesData: { type: Array, default: () => [] },
    },
 
    data: function () {
@@ -189,7 +188,7 @@ export default {
          dateTo: "",
          currentPage: 1,
          pageError: "",
-         logForm: { branch_id: "", checked_in_at: "", checked_out_at: "", notes: "" },
+         logForm: { checked_in_at: "", checked_out_at: "", notes: "" },
          formError: "",
          formErrors: {},
          deleteTarget: null,
@@ -206,11 +205,11 @@ export default {
 
    computed: {
       currentLocationId: function () {
-         return window.JPrime?.profile?.id || this.member.branches?.[0]?.id || null;
+         return this.member.location?.id || window.JPrime?.profile?.id || null;
       },
 
       currentLocationName: function () {
-         return window.JPrime?.profile?.name || this.member.branches?.[0]?.name || "Current location";
+         return this.member.location?.name || window.JPrime?.profile?.name || "Current location";
       },
 
       statCards: function () {
@@ -258,7 +257,6 @@ export default {
 
       openLogModal: function () {
          this.logForm = {
-            branch_id: this.currentLocationId || "",
             checked_in_at: new Date().toISOString().slice(0, 16),
             checked_out_at: "",
             notes: "",
@@ -276,7 +274,6 @@ export default {
             .post("/panel/attendance", {
                attendee_type: "member",
                user_id: this.member.id,
-               branch_id: this.logForm.branch_id,
                checked_in_at: this.logForm.checked_in_at,
                checked_out_at: this.logForm.checked_out_at || null,
                notes: this.logForm.notes || null,

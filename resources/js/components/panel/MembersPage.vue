@@ -182,7 +182,7 @@
                            </a>
                         </td>
                         <td class="text-muted small">{{ member.phone || "-" }}</td>
-                        <td class="small">{{ member.branches && member.branches.length ? member.branches.map((b) => b.name).join(", ") : "Main location" }}</td>
+                        <td class="small">{{ member.location?.name || currentLocationName }}</td>
                         <td>
                            <template v-if="getCurrentMembership(member)">
                               <div class="plan-name mb-1">{{ getCurrentMembership(member).rate_plan.name }}</div>
@@ -388,12 +388,6 @@ import { Modal } from "bootstrap";
 
 export default {
    props: {
-      branchesData: {
-         type: Array,
-         default: function () {
-            return [];
-         },
-      },
       ratePlansData: {
          type: Array,
          default: function () {
@@ -426,6 +420,12 @@ export default {
    mounted: function () {
       this.memberModal = new Modal(this.$refs.memberFormModal);
       this.fetchMembers();
+   },
+
+   computed: {
+      currentLocationName: function () {
+         return window.JPrime?.profile?.name || "Current location";
+      },
    },
 
    methods: {

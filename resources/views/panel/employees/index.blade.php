@@ -3,6 +3,5 @@
 @section('title', 'Employees')
 
 @section('content')
-    <employees-page :branches-data='@json($branches)'
-        :roles-data='@json($roles)'></employees-page>
+    <employees-page :roles-data='@json($roles)'></employees-page>
 @endsection

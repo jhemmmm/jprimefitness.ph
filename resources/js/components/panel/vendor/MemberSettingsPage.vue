@@ -82,7 +82,6 @@
 export default {
    props: {
       member: { type: Object, required: true },
-      branchesData: { type: Array, default: () => [] },
    },
 
    emits: ["updated"],
@@ -105,7 +104,7 @@ export default {
 
    computed: {
       currentLocationName: function () {
-         return window.JPrime?.profile?.name || this.member.branches?.[0]?.name || "Current location";
+         return this.member.location?.name || window.JPrime?.profile?.name || "Current location";
       },
       statusOptions: function () {
          return ["active", "inactive", "suspended"];
@@ -119,7 +118,6 @@ export default {
             email: member.email || "",
             phone: member.phone || "",
             status: member.status || "active",
-            branch_ids: [],
             date_of_birth: member.profile?.date_of_birth || "",
             gender: member.profile?.gender || "",
             emergency_contact_name: member.profile?.emergency_contact_name || "",

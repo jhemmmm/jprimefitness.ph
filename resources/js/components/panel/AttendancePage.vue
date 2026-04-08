@@ -385,9 +385,6 @@ export default {
    components: {
       AsyncSearchSelect,
    },
-   props: {
-      branchesData: { type: Array, default: () => [] },
-   },
    data: function () {
       return {
          loading: true,

@@ -817,7 +817,7 @@ class EmployeeController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'branches' => [$this->locationPayload()],
+            'location' => $this->locationPayload(),
         ];
     }
 
@@ -914,6 +914,6 @@ class EmployeeController extends Controller
      */
     private function locationPayload(): array
     {
-        return $this->businessProfileContext->legacyLocation();
+        return $this->businessProfileContext->locationSummary();
     }
 }

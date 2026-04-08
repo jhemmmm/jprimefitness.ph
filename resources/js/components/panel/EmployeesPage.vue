@@ -201,7 +201,6 @@ export default {
       MultiSelect,
    },
    props: {
-      branchesData: { type: Array, default: () => [] },
       rolesData: { type: Array, default: () => [] },
    },
    data: function () {

@@ -35,7 +35,7 @@
          </li>
       </ul>
       <div class="panel-card" style="border-top-left-radius: 0">
-         <component :is="activeComponent" :member="localMember" :branches-data="branchesData" :rate-plans-data="ratePlansData" @updated="onMemberUpdated" />
+         <component :is="activeComponent" :member="localMember" :rate-plans-data="ratePlansData" @updated="onMemberUpdated" />
       </div>
    </div>
 </template>
@@ -58,7 +58,6 @@ export default {
 
    props: {
       member: { type: Object, required: true },
-      branchesData: { type: Array, default: () => [] },
       ratePlansData: { type: Array, default: () => [] },
    },
 

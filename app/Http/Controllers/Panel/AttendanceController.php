@@ -26,7 +26,7 @@ class AttendanceController extends Controller
 
     public function list(Request $request): JsonResponse
     {
-        $legacyLocation = $this->businessProfileContext->legacyLocation();
+        $location = $this->businessProfileContext->locationSummary();
 
         $records = Attendance::with(['user', 'walkIn', 'recordedBy'])
             ->when($request->search, fn ($query) => $query->where(function ($inner) use ($request) {
@@ -42,7 +42,7 @@ class AttendanceController extends Controller
             ->withQueryString();
 
         $records->setCollection(
-            $records->getCollection()->map(fn (Attendance $attendance) => $this->serializeAttendance($attendance, $legacyLocation))
+            $records->getCollection()->map(fn (Attendance $attendance) => $this->serializeAttendance($attendance, $location))
         );
 
         $baseStatsQuery = Attendance::query();
@@ -136,23 +136,23 @@ class AttendanceController extends Controller
     }
 
     /**
-     * @param  array{id:int, name:string, city:?string, province:?string, status:?string}|null  $legacyLocation
+     * @param  array{id:int, name:string, city:?string, province:?string, status:?string}|null  $location
      * @return array<string, mixed>
      */
-    private function serializeAttendance(Attendance $attendance, ?array $legacyLocation = null): array
+    private function serializeAttendance(Attendance $attendance, ?array $location = null): array
     {
-        $legacyLocation ??= $this->businessProfileContext->legacyLocation();
+        $location ??= $this->businessProfileContext->locationSummary();
 
         return [
             'id' => $attendance->id,
             'attendee_type' => $attendance->attendee_type,
             'user_id' => $attendance->user_id,
-            'branch_id' => $legacyLocation['id'],
+            'branch_id' => $location['id'],
             'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
             'checked_in_at' => $attendance->checked_in_at?->toISOString(),
             'checked_out_at' => $attendance->checked_out_at?->toISOString(),
             'notes' => $attendance->notes,
-            'branch' => $legacyLocation,
+            'branch' => $location,
         ];
     }
 }

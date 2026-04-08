@@ -215,10 +215,10 @@ export default {
 
    computed: {
       currentLocationId: function () {
-         return window.JPrime?.profile?.id || this.employee.branches?.[0]?.id || null;
+         return this.employee.location?.id || window.JPrime?.profile?.id || null;
       },
       currentLocationName: function () {
-         return window.JPrime?.profile?.name || this.employee.branches?.[0]?.name || "Current location";
+         return this.employee.location?.name || window.JPrime?.profile?.name || "Current location";
       },
       statCards: function () {
          return [
@@ -274,7 +274,6 @@ export default {
             .post("/panel/attendance", {
                attendee_type: "employee",
                user_id: this.employee.id,
-               branch_id: this.currentLocationId,
                checked_in_at: this.logForm.checked_in_at,
                checked_out_at: this.logForm.checked_out_at || null,
                notes: this.logForm.notes || null,

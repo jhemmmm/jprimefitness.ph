@@ -29,7 +29,7 @@ class WalkInsController extends Controller
 
     public function list(Request $request): JsonResponse
     {
-        $legacyLocation = $this->businessProfileContext->legacyLocation();
+        $location = $this->businessProfileContext->locationSummary();
 
         $walkIns = WalkIn::with('ratePlan')
             ->when(! empty($request->search), fn ($query) => $query->where(function ($inner) use ($request) {
@@ -42,8 +42,8 @@ class WalkInsController extends Controller
             ->paginate(20)
             ->through(fn (WalkIn $walkIn) => [
                 'id' => $walkIn->id,
-                'branch_id' => $legacyLocation['id'],
-                'branch' => $legacyLocation,
+                'branch_id' => $location['id'],
+                'branch' => $location,
                 'rate_plan_id' => $walkIn->rate_plan_id,
                 'rate_plan' => $walkIn->ratePlan,
                 'served_by' => $walkIn->served_by,
@@ -134,7 +134,7 @@ class WalkInsController extends Controller
         return [
             'id' => $walkIn->id,
             'branch_id' => $this->businessProfileContext->profile()->id,
-            'branch' => $this->businessProfileContext->legacyLocation(),
+            'branch' => $this->businessProfileContext->locationSummary(),
             'rate_plan_id' => $walkIn->rate_plan_id,
             'rate_plan' => $walkIn->ratePlan,
             'served_by' => $walkIn->served_by,

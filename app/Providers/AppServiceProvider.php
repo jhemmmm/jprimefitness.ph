@@ -30,19 +30,12 @@ class AppServiceProvider extends ServiceProvider
             $cashLedgerSummary = app(CashLedgerService::class)->summarize();
             $businessProfile->setAttribute('cash_ledger_summary', $cashLedgerSummary);
             $businessProfile->setAttribute('cash_balance', $cashLedgerSummary['balance']);
-            $branches = collect([[
-                'id' => $businessProfile->id,
-                'name' => $businessProfile->name,
-                'city' => $businessProfile->city,
-                'province' => $businessProfile->province,
-                'status' => $businessProfile->status,
-            ]]);
 
             $ratePlans = RatePlan::where('is_active', true)->get();
             $ptProducts = PTProduct::where('is_active', true)->get();
             $roles = Role::all();
 
-            $view->with(compact('businessProfile', 'branches', 'ratePlans', 'ptProducts', 'roles'));
+            $view->with(compact('businessProfile', 'ratePlans', 'ptProducts', 'roles'));
         });
 
         View::composer('home.*', function ($view) {

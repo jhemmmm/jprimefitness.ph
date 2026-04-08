@@ -335,7 +335,6 @@ import { Modal } from "bootstrap";
 
 export default {
    props: {
-      branchesData: { type: Array, default: () => [] },
       ratePlansData: { type: Array, default: () => [] },
    },
 

@@ -33,7 +33,7 @@ class SalesController extends Controller
     public function context(): JsonResponse
     {
         return response()->json([
-            'location' => $this->businessProfileContext->legacyLocation(),
+            'location' => $this->businessProfileContext->locationSummary(),
             'options' => $this->posSaleService->context(),
         ]);
     }
@@ -72,7 +72,7 @@ class SalesController extends Controller
             ->withQueryString();
 
         return response()->json([
-            'location' => $this->businessProfileContext->legacyLocation(),
+            'location' => $this->businessProfileContext->locationSummary(),
             'transactions' => $history,
         ]);
     }
@@ -220,7 +220,7 @@ class SalesController extends Controller
     private function transformTransaction(SaleTransaction $transaction): array
     {
         $details = $transaction->details ?? [];
-        $location = $this->businessProfileContext->legacyLocation();
+        $location = $this->businessProfileContext->locationSummary();
 
         return [
             'id' => $transaction->id,

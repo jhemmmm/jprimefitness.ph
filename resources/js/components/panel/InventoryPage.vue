@@ -402,12 +402,6 @@ import { Modal } from "bootstrap";
 
 export default {
    props: {
-      branchesData: {
-         type: Array,
-         default: function () {
-            return [];
-         },
-      },
       categoriesData: {
          type: Array,
          default: function () {

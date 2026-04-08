@@ -29,7 +29,7 @@ class InventoryController extends Controller
 
     public function list(Request $request): JsonResponse
     {
-        $legacyLocation = $this->businessProfileContext->legacyLocation();
+        $location = $this->businessProfileContext->locationSummary();
 
         $itemsQuery = InventoryItem::query()
             ->with('category:id,name')
@@ -72,8 +72,8 @@ class InventoryController extends Controller
             ->paginate(20)
             ->through(fn (InventoryItem $item) => [
                 'id' => $item->id,
-                'branch_id' => $legacyLocation['id'],
-                'branch' => $legacyLocation,
+                'branch_id' => $location['id'],
+                'branch' => $location,
                 'inventory_category_id' => $item->inventory_category_id,
                 'category' => $item->category,
                 'name' => $item->name,
@@ -166,7 +166,7 @@ class InventoryController extends Controller
         return [
             ...$item->toArray(),
             'branch_id' => $this->businessProfileContext->profile()->id,
-            'branch' => $this->businessProfileContext->legacyLocation(),
+            'branch' => $this->businessProfileContext->locationSummary(),
         ];
     }
 }

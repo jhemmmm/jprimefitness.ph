@@ -275,12 +275,11 @@ export default {
       return {
          savingPackage: false,
          savingUsage: false,
-         saved: false,
-         generalError: "",
-         packageErrors: {},
-         usageErrors: {},
-         packageForm: {
-            branch_id: window.JPrime?.profile?.id || "",
+        saved: false,
+        generalError: "",
+        packageErrors: {},
+        usageErrors: {},
+        packageForm: {
             pt_product_id: "",
             coach_id: "",
             assigned_at: new Date().toISOString().slice(0, 10),
@@ -332,7 +331,7 @@ export default {
 
    computed: {
       currentLocation: function () {
-         return this.member.branches?.[0] || window.JPrime?.profile || null;
+         return this.member.location || window.JPrime?.profile || null;
       },
 
       currentLocationId: function () {
@@ -422,7 +421,6 @@ export default {
    methods: {
       resetPackageForm: function () {
          this.packageForm = {
-            branch_id: this.currentLocationId || "",
             pt_product_id: "",
             coach_id: "",
             assigned_at: new Date().toISOString().slice(0, 10),
@@ -464,11 +462,7 @@ export default {
       },
 
       coachesForBranch: function (branchId) {
-         if (!branchId) {
-            return this.availableCoaches;
-         }
-
-         return this.availableCoaches.filter((coach) => (coach.branches || []).some((branch) => branch.id === branchId));
+         return this.availableCoaches;
       },
 
       submitPackage: function () {

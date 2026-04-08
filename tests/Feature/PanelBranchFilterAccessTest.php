@@ -80,7 +80,7 @@ class PanelBranchFilterAccessTest extends TestCase
 
     public function test_employee_list_ignores_legacy_branch_query_params(): void
     {
-        $this->setBusinessProfile('Naga');
+        $profile = $this->setBusinessProfile('Naga');
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $employee = $this->createUserWithRole('employee', 'Team Member');
 
@@ -88,23 +88,32 @@ class PanelBranchFilterAccessTest extends TestCase
             ->getJson('/panel/employees/list?branch=999')
             ->assertOk();
 
-        $employeeIds = collect($response->json())->pluck('id')->all();
+        $employeePayload = collect($response->json())
+            ->firstWhere('id', $employee->id);
 
-        $this->assertContains($employee->id, $employeeIds);
+        $this->assertIsArray($employeePayload);
+        $this->assertSame($profile->id, $employeePayload['location']['id'] ?? null);
+        $this->assertArrayNotHasKey('branches', $employeePayload);
     }
 
     public function test_member_list_ignores_legacy_branch_query_params(): void
     {
-        $this->setBusinessProfile('Naga');
+        $profile = $this->setBusinessProfile('Naga');
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
         $member = $this->createUserWithRole('member', 'Accessible Member');
 
-        $this->actingAs($staff)
+        $response = $this->actingAs($staff)
             ->getJson('/panel/members/list?branch=999')
             ->assertOk()
             ->assertJsonPath('members.data.0.id', $member->id)
+            ->assertJsonPath('members.data.0.location.id', $profile->id)
             ->assertJsonPath('stats.total', 1)
             ->assertJsonPath('stats.active', 1);
+
+        $memberPayload = $response->json('members.data.0');
+
+        $this->assertIsArray($memberPayload);
+        $this->assertArrayNotHasKey('branches', $memberPayload);
     }
 
     private function setBusinessProfile(string $name): BusinessProfile

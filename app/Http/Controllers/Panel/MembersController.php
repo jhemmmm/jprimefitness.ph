@@ -484,7 +484,7 @@ class MembersController extends Controller
                 'emergency_contact_phone' => $member->profile->emergency_contact_phone,
                 'notes' => $member->profile->notes,
             ] : null,
-            'branches' => [$this->locationPayload(includePtProducts: true)],
+            'location' => $this->locationPayload(includePtProducts: true),
             'member_subscriptions' => $member->memberSubscriptions
                 ->map(fn (MemberSubscription $subscription) => $this->serializeMemberSubscription($subscription))
                 ->values()
@@ -630,7 +630,7 @@ class MembersController extends Controller
      */
     private function locationPayload(bool $includePtProducts = false): array
     {
-        $payload = $this->businessProfileContext->legacyLocation();
+        $payload = $this->businessProfileContext->locationSummary();
 
         if (! $includePtProducts) {
             return $payload;
@@ -714,7 +714,7 @@ class MembersController extends Controller
                 'id' => $coach->id,
                 'name' => $coach->name,
                 'status' => $coach->status,
-                'branches' => [$location],
+                'location' => $location,
             ])
             ->values()
             ->all();

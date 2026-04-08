@@ -162,7 +162,7 @@ class PayrollReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $location = $this->businessProfileContext->legacyLocation();
+        $location = $this->businessProfileContext->locationSummary();
 
         $payrollQuery = $this->payrollQuery($data);
         $payoutQuery = $this->payoutQuery($data);

@@ -37,7 +37,7 @@
          </li>
       </ul>
       <div class="panel-card" style="border-top-left-radius: 0">
-         <component :is="activeComponent" :employee="localEmployee" :branches-data="branchesData" :roles-data="rolesData" @updated="onEmployeeUpdated" />
+         <component :is="activeComponent" :employee="localEmployee" :roles-data="rolesData" @updated="onEmployeeUpdated" />
       </div>
    </div>
 </template>
@@ -60,7 +60,6 @@ export default {
 
    props: {
       employee: { type: Object, required: true },
-      branchesData: { type: Array, default: () => [] },
       rolesData: { type: Array, default: () => [] },
    },
 

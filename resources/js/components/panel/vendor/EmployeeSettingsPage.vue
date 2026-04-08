@@ -86,7 +86,6 @@ export default {
    },
    props: {
       employee: { type: Object, required: true },
-      branchesData: { type: Array, default: () => [] },
       rolesData: { type: Array, default: () => [] },
    },
 
@@ -129,7 +128,7 @@ export default {
          return ["active", "inactive", "suspended"];
       },
       currentLocationName: function () {
-         return window.JPrime?.profile?.name || this.employee.branches?.[0]?.name || "Current location";
+         return this.employee.location?.name || window.JPrime?.profile?.name || "Current location";
       },
    },
 
@@ -141,7 +140,6 @@ export default {
             phone: employee.phone || "",
             status: employee.status,
             role_ids: employee.roles ? employee.roles.map((r) => r.id) : [],
-            branch_ids: [],
             daily_rate: employee.daily_rate || "",
             pay_frequency: employee.pay_frequency,
             password: "",
@@ -152,7 +150,7 @@ export default {
          this.saved = false;
          this.generalError = "";
          this.errors = {};
-         const payload = { ...this.form, branch_ids: this.form.branch_ids, role_ids: this.form.role_ids };
+         const payload = { ...this.form, role_ids: this.form.role_ids };
 
          axios
             .put(`/panel/employees/${this.employee.id}`, payload)
