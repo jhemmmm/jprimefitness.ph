@@ -135,6 +135,23 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString('panel-card-title', $galleryContents);
     }
 
+    public function test_panel_sidebar_groups_business_and_system_navigation_items(): void
+    {
+        $contents = file_get_contents(resource_path('views/panel/layouts/app.blade.php'));
+
+        $this->assertNotFalse($contents);
+        $this->assertStringContainsString('<div class="sidebar-menu-heading">Business</div>', $contents);
+        $this->assertStringContainsString("route('panel.business.cash-ledger')", $contents);
+        $this->assertStringContainsString('<span class="sidebar-nav-label">Cash Ledger</span>', $contents);
+        $this->assertStringContainsString("route('panel.business.settings')", $contents);
+        $this->assertStringContainsString('<span class="sidebar-nav-label">Business Settings</span>', $contents);
+        $this->assertStringContainsString("route('panel.business.photos')", $contents);
+        $this->assertStringContainsString('<span class="sidebar-nav-label">Photos</span>', $contents);
+        $this->assertStringContainsString('<div class="sidebar-menu-heading">System</div>', $contents);
+        $this->assertStringContainsString("route('panel.settings')", $contents);
+        $this->assertStringContainsString('<span class="sidebar-nav-label">Settings</span>', $contents);
+    }
+
     public function test_removed_branch_selector_files_are_gone(): void
     {
         $this->assertFileDoesNotExist(resource_path('js/components/panel/_vendor/businessFormOptions.js'));

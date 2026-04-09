@@ -188,9 +188,7 @@ class NotificationsCenterTest extends TestCase
 
         $this->actingAs($actingAdmin)
             ->putJson("/panel/employees/{$employee->id}/cash-advances/{$cashAdvanceId}", [
-                'amount' => 1500,
                 'status' => CashAdvance::STATUS_RELEASED,
-                'notes' => 'Released at cashier',
             ])
             ->assertOk();
 
@@ -222,6 +220,48 @@ class NotificationsCenterTest extends TestCase
         $this->assertSame($expectedTypes, $this->notificationTypesFor($actingAdmin));
         $this->assertSame($expectedTypes, $this->notificationTypesFor($superAdmin));
         $this->assertSame($expectedTypes, $this->notificationTypesFor($manager));
+    }
+
+    public function test_approved_cash_advance_cannot_be_edited_without_creating_another_notification(): void
+    {
+        $actingAdmin = $this->createUserWithRole('admin', 'Admin Rex');
+        $employee = $this->createUserWithRole('employee', 'Employee Rae');
+
+        $cashAdvanceId = $this->actingAs($actingAdmin)
+            ->postJson("/panel/employees/{$employee->id}/cash-advances", [
+                'amount' => 1500,
+                'notes' => 'Uniform allowance',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $this->actingAs($actingAdmin)
+            ->putJson("/panel/employees/{$employee->id}/cash-advances/{$cashAdvanceId}", [
+                'amount' => 1500,
+                'status' => CashAdvance::STATUS_APPROVED,
+                'notes' => 'Approved for release',
+            ])
+            ->assertOk();
+
+        $this->actingAs($actingAdmin)
+            ->putJson("/panel/employees/{$employee->id}/cash-advances/{$cashAdvanceId}", [
+                'amount' => 2000,
+                'notes' => 'Changed after approval',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Approved cash advances cannot be edited.');
+
+        $this->assertDatabaseHas('cash_advances', [
+            'id' => $cashAdvanceId,
+            'amount' => '1500.00',
+            'status' => CashAdvance::STATUS_APPROVED,
+            'notes' => 'Approved for release',
+        ]);
+
+        $this->assertSame([
+            'cash-advance-status-changed',
+            'cash-advance-status-changed',
+        ], $this->notificationTypesFor($actingAdmin));
     }
 
     public function test_inventory_stock_alerts_only_fire_on_threshold_crossings_for_global_recipients(): void

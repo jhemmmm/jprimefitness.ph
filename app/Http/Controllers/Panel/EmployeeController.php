@@ -698,6 +698,17 @@ class EmployeeController extends Controller
             'requested_at' => ['nullable', 'date'],
         ]);
 
+        $isEditingApprovedAdvance = $cashAdvance->status === CashAdvance::STATUS_APPROVED
+            && (array_key_exists('amount', $data)
+                || array_key_exists('notes', $data)
+                || array_key_exists('requested_at', $data));
+
+        if ($isEditingApprovedAdvance) {
+            return response()->json([
+                'message' => 'Approved cash advances cannot be edited.',
+            ], 422);
+        }
+
         $allowedTransitions = match ($cashAdvance->status) {
             CashAdvance::STATUS_REQUESTED => [
                 CashAdvance::STATUS_REQUESTED,

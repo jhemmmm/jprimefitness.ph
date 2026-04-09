@@ -160,14 +160,23 @@
                     </div>
                 @endif
                 <div class="sidebar-nav-item">
+                    <a href="{{ route('panel.business.settings') }}" @class(['active' => request()->routeIs('panel.business.settings*')])>
+                        <i class="bi bi-gear-fill"></i>
+                        <span class="sidebar-nav-label">Business Settings</span>
+                    </a>
+                </div>
+                <div class="sidebar-nav-item">
                     <a href="{{ route('panel.business.photos') }}" @class(['active' => request()->routeIs('panel.business.photos*')])>
                         <i class="bi bi-images"></i>
                         <span class="sidebar-nav-label">Photos</span>
                     </a>
                 </div>
+
+                {{-- System --}}
+                <div class="sidebar-menu-heading">System</div>
                 <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.business.settings') }}" @class(['active' => request()->routeIs('panel.business.settings*')])>
-                        <i class="bi bi-gear-fill"></i>
+                    <a href="{{ route('panel.settings') }}" @class(['active' => request()->routeIs('panel.settings')])>
+                        <i class="bi bi-gear"></i>
                         <span class="sidebar-nav-label">Settings</span>
                     </a>
                 </div>
@@ -238,7 +247,7 @@
                             style="min-width: 180px; font-size: 0.85rem;">
                             <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>Profile</a>
                             </li>
-                            <li><a class="dropdown-item" href="{{ route('panel.business.settings') }}"><i class="bi bi-gear me-2"></i>Settings</a>
+                            <li><a class="dropdown-item" href="{{ route('panel.settings') }}"><i class="bi bi-gear me-2"></i>Settings</a>
                             </li>
                             <li>
                                 <hr class="dropdown-divider" />

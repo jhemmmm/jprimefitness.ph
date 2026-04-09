@@ -81,7 +81,7 @@
                               <span v-if="isActioning(a.id, 'released')" class="spinner-border spinner-border-sm"></span>
                               <i v-else class="bi bi-box-arrow-up-right tbl-icon"></i>
                            </button>
-                           <button v-if="canManageAdvance(a.status)" class="btn btn-sm btn-outline-secondary" title="Edit" @click.stop="openEdit(a)">
+                           <button v-if="canEditAdvance(a.status)" class="btn btn-sm btn-outline-secondary" title="Edit" @click.stop="openEdit(a)">
                               <i class="bi bi-pencil tbl-icon"></i>
                            </button>
                            <button v-if="canCancelAdvance(a.status)" class="btn btn-sm btn-outline-warning" title="Cancel" :disabled="isActioning(a.id, 'cancelled')" @click.stop="setAdvanceStatus(a, 'cancelled')">
@@ -124,7 +124,7 @@
                </div>
                <div class="d-flex gap-2 align-items-center">
                   <span :class="['m-badge', $filters.statusBadge(a.status)]">{{ $filters.capitalize(a.status) }}</span>
-                  <div class="dropdown" v-if="canManageAdvance(a.status)">
+                  <div class="dropdown" v-if="hasAdvanceActions(a.status)">
                      <button class="btn-icon-sm" data-bs-toggle="dropdown" @click.stop><i class="bi bi-three-dots-vertical"></i></button>
                      <ul class="dropdown-menu dropdown-menu-end">
                         <li v-if="canApproveAdvance(a.status)">
@@ -133,7 +133,7 @@
                         <li v-if="canReleaseAdvance(a.status)">
                            <a class="dropdown-item text-primary" href="#" @click.prevent.stop="setAdvanceStatus(a, 'released')"><i class="bi bi-box-arrow-up-right me-2"></i>Release</a>
                         </li>
-                        <li>
+                        <li v-if="canEditAdvance(a.status)">
                            <a class="dropdown-item" href="#" @click.prevent.stop="openEdit(a)"><i class="bi bi-pencil me-2"></i>Edit</a>
                         </li>
                         <li v-if="canCancelAdvance(a.status)">
@@ -178,13 +178,6 @@
                         <label class="form-label form-label-sm">Amount (₱) <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" v-model="form.amount" min="1" step="0.01" :class="{ 'is-invalid': formErrors.amount }" />
                         <div class="invalid-feedback">{{ formErrors.amount }}</div>
-                     </div>
-                     <div class="col-md-6" v-if="modalMode === 'edit'">
-                        <label class="form-label form-label-sm">Status <span class="text-danger">*</span></label>
-                        <select class="form-select" v-model="form.status" :class="{ 'is-invalid': formErrors.status }">
-                           <option v-for="status in statusOptions" :key="status" :value="status">{{ $filters.capitalize(status) }}</option>
-                        </select>
-                        <div class="invalid-feedback">{{ formErrors.status }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Date</label>
@@ -231,7 +224,6 @@ export default {
          formError: "",
          formErrors: {},
          caModalInst: null,
-         editingAdvance: null,
       };
    },
 
@@ -336,7 +328,6 @@ export default {
 
       openCreate: function () {
          this.modalMode = "create";
-         this.editingAdvance = null;
          this.form = this.emptyForm();
          this.formError = "";
          this.formErrors = {};
@@ -345,11 +336,10 @@ export default {
 
       openEdit: function (a) {
          this.modalMode = "edit";
-         this.editingAdvance = a;
          this.formError = "";
          this.formErrors = {};
          const d = a.requested_at ? new Date(a.requested_at).toISOString().slice(0, 16) : "";
-         this.form = { id: a.id, amount: a.amount, status: a.status, notes: a.notes || "", requested_at: d };
+         this.form = { id: a.id, amount: a.amount, notes: a.notes || "", requested_at: d };
          this.caModalInst.show();
       },
 
@@ -362,7 +352,6 @@ export default {
 
          req.then((res) => {
             this.caModalInst.hide();
-            this.editingAdvance = null;
             if (this.modalMode === "create") {
                this.advances.unshift(res.data);
             } else {
@@ -376,6 +365,7 @@ export default {
                if (err.response?.status === 422) {
                   const errors = err.response.data.errors || {};
                   this.formErrors = Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]));
+                  this.formError = Object.keys(errors).length === 0 ? err.response?.data?.message || "Something went wrong." : "";
                } else {
                   this.formError = err.response?.data?.message || "Something went wrong.";
                }
@@ -386,11 +376,15 @@ export default {
       emptyForm: function () {
          const d = new Date();
          d.setSeconds(0, 0);
-         return { amount: "", status: "requested", notes: "", requested_at: d.toISOString().slice(0, 16) };
+         return { amount: "", notes: "", requested_at: d.toISOString().slice(0, 16) };
       },
 
-      canManageAdvance: function (status) {
-         return ["requested", "approved"].includes(status);
+      hasAdvanceActions: function (status) {
+         return this.canApproveAdvance(status) || this.canReleaseAdvance(status) || this.canEditAdvance(status) || this.canCancelAdvance(status);
+      },
+
+      canEditAdvance: function (status) {
+         return status === "requested";
       },
 
       canApproveAdvance: function (status) {
@@ -417,18 +411,6 @@ export default {
             { label: "Partially Paid", value: this.stats.partially_paid_count, isMoney: false, icon: "bi-dash-circle", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             { label: "Paid", value: this.stats.paid_count, isMoney: false, icon: "bi-check-circle", iconBg: "bg-success-soft", iconColor: "text-success" },
          ];
-      },
-      statusOptions: function () {
-         if (!this.editingAdvance) {
-            return ["requested"];
-         }
-
-         return (
-            {
-               requested: ["requested", "approved", "cancelled"],
-               approved: ["approved", "released", "cancelled"],
-            }[this.editingAdvance.status] ?? []
-         );
       },
    },
 };
