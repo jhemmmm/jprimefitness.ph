@@ -373,7 +373,7 @@
 
 <script>
 import { Modal } from "bootstrap";
-import AsyncSearchSelect from "./_vendor/AsyncSearchSelect.vue";
+import AsyncSearchSelect from "./vendor/AsyncSearchSelect.vue";
 
 export default {
    components: {

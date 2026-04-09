@@ -1,9 +1,11 @@
 <template>
    <div>
-      <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap mb-4">
+      <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
+
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
          <div>
-            <h4 class="fw-bold mb-0">Notifications</h4>
-            <div class="text-muted small">Operational alerts for payroll, cash advances, and inventory.</div>
+            <h4 class="panel-page-title mb-0">Notifications</h4>
+            <p class="text-muted small mb-0">Operational alerts for payroll, cash advances, and inventory.</p>
          </div>
 
          <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -91,6 +93,7 @@ export default {
    data: function () {
       return {
          loading: false,
+         pageError: "",
          filter: "all",
          notifications: [],
          unreadCount: 0,
@@ -125,8 +128,9 @@ export default {
    methods: {
       fetchNotifications: function (page = 1) {
          this.loading = true;
+         this.pageError = "";
 
-         axios
+         return axios
             .get("/panel/notifications/list", {
                params: {
                   filter: this.filter,
@@ -145,6 +149,9 @@ export default {
                   total: notifications.total || 0,
                   links: notifications.links || [],
                };
+            })
+            .catch((error) => {
+               this.pageError = error.response?.data?.message || "Failed to load notifications.";
             })
             .finally(() => {
                this.loading = false;
@@ -171,27 +178,41 @@ export default {
       },
 
       markNotificationAsRead: function (notification) {
+         this.pageError = "";
+
          if (notification.is_read) {
             return Promise.resolve();
          }
 
-         return axios.post(`/panel/notifications/${notification.id}/read`).then((response) => {
-            notification.is_read = true;
-            notification.read_at = response.data.notification?.read_at || new Date().toISOString();
-            this.unreadCount = Number(response.data.unread_count || 0);
-            window.dispatchEvent(new Event("panel-notifications:refresh"));
+         return axios
+            .post(`/panel/notifications/${notification.id}/read`)
+            .then((response) => {
+               notification.is_read = true;
+               notification.read_at = response.data.notification?.read_at || new Date().toISOString();
+               this.unreadCount = Number(response.data.unread_count || 0);
+               window.dispatchEvent(new Event("panel-notifications:refresh"));
 
-            if (this.filter === "unread") {
-               this.fetchNotifications(this.pagination.currentPage);
-            }
-         });
+               if (this.filter === "unread") {
+                  this.fetchNotifications(this.pagination.currentPage);
+               }
+            })
+            .catch((error) => {
+               this.pageError = error.response?.data?.message || "Failed to update the notification.";
+            });
       },
 
       markAllAsRead: function () {
-         axios.post("/panel/notifications/read-all").then(() => {
-            window.dispatchEvent(new Event("panel-notifications:refresh"));
-            this.fetchNotifications(1);
-         });
+         this.pageError = "";
+
+         axios
+            .post("/panel/notifications/read-all")
+            .then(() => {
+               window.dispatchEvent(new Event("panel-notifications:refresh"));
+               this.fetchNotifications(1);
+            })
+            .catch((error) => {
+               this.pageError = error.response?.data?.message || "Failed to mark notifications as read.";
+            });
       },
 
       openNotification: function (notification) {

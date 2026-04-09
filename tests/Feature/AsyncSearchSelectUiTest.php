@@ -8,7 +8,7 @@ class AsyncSearchSelectUiTest extends TestCase
 {
     public function test_async_search_select_uses_bootstrap_theme_variables_for_dark_mode(): void
     {
-        $contents = file_get_contents(resource_path('js/components/panel/_vendor/AsyncSearchSelect.vue'));
+        $contents = file_get_contents(resource_path('js/components/panel/vendor/AsyncSearchSelect.vue'));
 
         $this->assertNotFalse($contents);
         $this->assertStringNotContainsString('bg-white', $contents);

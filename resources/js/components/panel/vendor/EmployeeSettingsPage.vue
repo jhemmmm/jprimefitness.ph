@@ -78,7 +78,7 @@
 </template>
 
 <script>
-import MultiSelect from "../_vendor/MultiSelect.vue";
+import MultiSelect from "./MultiSelect.vue";
 
 export default {
    components: {

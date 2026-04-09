@@ -1,9 +1,9 @@
 <template>
-   <div>
-      <div class="d-flex align-items-center justify-content-between mb-4">
+   <div class="business-settings-page">
+      <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
-            <h4 class="fw-bold mb-0">Business Settings</h4>
-            <div class="text-muted small">Manage business profile details, hours, contact links, and public-site copy.</div>
+            <h4 class="panel-page-title mb-0">Business Settings</h4>
+            <p class="text-muted small mb-0">Manage business profile details, hours, contact links, and public-site copy.</p>
          </div>
       </div>
 

@@ -5,13 +5,13 @@ const app = createApp({});
 import LaravelPermissionToVueJS from "laravel-permission-to-vuejs";
 app.use(LaravelPermissionToVueJS);
 
-import GlobalSearch from "./components/panel/_vendor/GlobalSearch.vue";
+import GlobalSearch from "./components/panel/vendor/GlobalSearch.vue";
 app.component("global-search", GlobalSearch);
 
-import PanelNotifications from "./components/panel/_vendor/PanelNotifications.vue";
+import PanelNotifications from "./components/panel/vendor/PanelNotifications.vue";
 app.component("panel-notifications", PanelNotifications);
 
-import AsyncSearchSelect from "./components/panel/_vendor/AsyncSearchSelect.vue";
+import AsyncSearchSelect from "./components/panel/vendor/AsyncSearchSelect.vue";
 app.component("async-search-select", AsyncSearchSelect);
 
 import DashboardPage from "./components/panel/DashboardPage.vue";

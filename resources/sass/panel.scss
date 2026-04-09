@@ -910,6 +910,7 @@ body.panel-body {
     align-items: flex-start;
     gap: 14px;
     height: 100%;
+    min-width: 0;
 
     &:hover {
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
@@ -958,9 +959,9 @@ body.panel-body {
     text-transform: uppercase;
     letter-spacing: 0.8px;
     color: #888;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    line-height: 1.35;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .stat-card-value {
@@ -969,11 +970,42 @@ body.panel-body {
     color: #111;
     line-height: 1.2;
     margin: 2px 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .stat-card-sub {
     font-size: 0.7rem;
     color: #aaa;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 575.98px) {
+    .stat-card {
+        padding: 14px;
+        gap: 12px;
+    }
+
+    .stat-card-icon {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        font-size: 1.05rem;
+    }
+
+    .stat-card-label {
+        font-size: 0.68rem;
+        letter-spacing: 0.5px;
+    }
+
+    .stat-card-value {
+        font-size: 1.15rem;
+    }
+
+    .stat-card-sub {
+        font-size: 0.68rem;
+    }
 }
 
 .badge-trend {

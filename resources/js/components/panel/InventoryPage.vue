@@ -325,12 +325,12 @@
                      </div>
                      <div class="col-md-3">
                         <label class="form-label form-label-sm">Quantity <span class="text-danger">*</span></label>
-                        <input type="number" min="0" step="0.01" class="form-control" v-model="form.quantity" :class="{ 'is-invalid': formErrors.quantity }" />
+                        <input type="number" min="0" class="form-control" v-model="form.quantity" :class="{ 'is-invalid': formErrors.quantity }" />
                         <div class="invalid-feedback" v-if="formErrors.quantity">{{ formErrors.quantity }}</div>
                      </div>
                      <div class="col-md-3">
                         <label class="form-label form-label-sm">Low Stock Threshold <span class="text-danger">*</span></label>
-                        <input type="number" min="0" step="0.01" class="form-control" v-model="form.low_stock_threshold" :class="{ 'is-invalid': formErrors.low_stock_threshold }" />
+                        <input type="number" min="0" class="form-control" v-model="form.low_stock_threshold" :class="{ 'is-invalid': formErrors.low_stock_threshold }" />
                         <div class="invalid-feedback" v-if="formErrors.low_stock_threshold">{{ formErrors.low_stock_threshold }}</div>
                      </div>
                      <div class="col-md-3">

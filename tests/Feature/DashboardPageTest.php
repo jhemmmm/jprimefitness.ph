@@ -57,6 +57,30 @@ class DashboardPageTest extends TestCase
             ->assertSee('business-profile=', false);
     }
 
+    public function test_dashboard_component_uses_single_business_sections_instead_of_location_cards(): void
+    {
+        $contents = file_get_contents(resource_path('js/components/panel/DashboardPage.vue'));
+
+        $this->assertNotFalse($contents);
+        $this->assertStringNotContainsString('Location Load', $contents);
+        $this->assertStringNotContainsString('Location Overview', $contents);
+        $this->assertStringContainsString("Today's Operations", $contents);
+        $this->assertStringContainsString('Business Snapshot', $contents);
+        $this->assertStringNotContainsString('<th>Location</th>', $contents);
+        $this->assertStringNotContainsString('bi-arrow-repeat', $contents);
+        $this->assertStringNotContainsString('>Refresh<', $contents);
+    }
+
+    public function test_stat_cards_allow_wrapping_on_small_screen_layouts(): void
+    {
+        $contents = file_get_contents(resource_path('sass/panel.scss'));
+
+        $this->assertNotFalse($contents);
+        $this->assertStringContainsString('white-space: normal;', $contents);
+        $this->assertStringContainsString('overflow-wrap: anywhere;', $contents);
+        $this->assertStringContainsString('@media (max-width: 575.98px)', $contents);
+    }
+
     public function test_dashboard_data_returns_single_location_metrics_for_managers(): void
     {
         $profile = $this->setBusinessProfile('Naga');

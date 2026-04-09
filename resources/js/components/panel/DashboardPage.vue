@@ -3,54 +3,56 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Dashboard</h4>
-            <p class="text-muted small mb-0">Live operations, occupancy, and recent activity for {{ currentLocationLabel }}</p>
+            <p class="text-muted small mb-0">Live operations, occupancy, and recent activity for your business</p>
          </div>
-         <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchDashboard" :disabled="loading">
-            <i class="bi bi-arrow-repeat me-1"></i>
-            Refresh
-         </button>
       </div>
 
       <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
 
-         <div class="row g-3 mb-4">
-            <div class="col-6 col-xl-3" v-for="stat in visibleStatsRow1" :key="stat.key">
-               <div class="stat-card h-100">
-                  <div class="stat-card-icon" :class="stat.iconBg">
-                     <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+      <div class="row g-3 mb-4">
+         <div class="col-6 col-xl-3" v-for="stat in visibleStatsRow1" :key="stat.key">
+            <div class="stat-card h-100">
+               <div class="stat-card-icon" :class="stat.iconBg">
+                  <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+               </div>
+               <div class="stat-card-body">
+                  <div class="stat-card-label">{{ stat.label }}</div>
+                  <div class="stat-card-value" v-if="loading">
+                     <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 5px"></div>
                   </div>
-                  <div class="stat-card-body">
-                     <div class="stat-card-label">{{ stat.label }}</div>
-                     <div class="stat-card-value" v-if="loading">
-                        <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 5px"></div>
-                     </div>
-                     <div class="stat-card-value" v-else>{{ stat.value }}</div>
-                     <div class="stat-card-sub">{{ stat.sub }}</div>
+                  <div class="stat-card-value" v-else>{{ stat.value }}</div>
+                  <div class="stat-card-sub" v-if="loading">
+                     <div class="skeleton-box" style="width: 120px; height: 11px; border-radius: 4px"></div>
                   </div>
+                  <div class="stat-card-sub" v-else>{{ stat.sub }}</div>
                </div>
             </div>
          </div>
+      </div>
 
-         <div class="row g-3 mb-4">
-            <div class="col-6 col-xl-3" v-for="stat in visibleStatsRow2" :key="stat.key">
-               <div class="stat-card h-100">
-                  <div class="stat-card-icon" :class="stat.iconBg">
-                     <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+      <div class="row g-3 mb-4">
+         <div class="col-6 col-xl-3" v-for="stat in visibleStatsRow2" :key="stat.key">
+            <div class="stat-card h-100">
+               <div class="stat-card-icon" :class="stat.iconBg">
+                  <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+               </div>
+               <div class="stat-card-body">
+                  <div class="stat-card-label">{{ stat.label }}</div>
+                  <div class="stat-card-value" v-if="loading">
+                     <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 5px"></div>
                   </div>
-                  <div class="stat-card-body">
-                     <div class="stat-card-label">{{ stat.label }}</div>
-                     <div class="stat-card-value" v-if="loading">
-                        <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 5px"></div>
-                     </div>
-                     <div class="stat-card-value" v-else>{{ stat.value }}</div>
-                     <div class="stat-card-sub">{{ stat.sub }}</div>
+                  <div class="stat-card-value" v-else>{{ stat.value }}</div>
+                  <div class="stat-card-sub" v-if="loading">
+                     <div class="skeleton-box" style="width: 120px; height: 11px; border-radius: 4px"></div>
                   </div>
+                  <div class="stat-card-sub" v-else>{{ stat.sub }}</div>
                </div>
             </div>
          </div>
+      </div>
 
-         <div class="row g-3 mb-4">
-            <div class="col-12 col-xl-8">
+      <div class="row g-3 mb-4">
+         <div class="col-12 col-xl-8">
                <peak-hours-chart v-if="!loading && dashboard.peak_hours.length > 0" :hours="dashboard.peak_hours"></peak-hours-chart>
                <div v-else class="panel-card h-100">
                   <div class="panel-card-header">
@@ -65,52 +67,45 @@
                      </div>
                      <div v-else class="text-center py-5 text-muted">
                         <i class="bi bi-bar-chart empty-icon"></i>
-                        <p class="mt-2 mb-1">No peak-hour activity found for this scope.</p>
+                        <p class="mt-2 mb-1">No peak-hour activity found for this business.</p>
                      </div>
                   </div>
                </div>
-            </div>
+         </div>
 
-            <div class="col-12 col-xl-4">
+         <div class="col-12 col-xl-4">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
                      <div>
-                        <div class="panel-card-title">Location Load</div>
-                        <div class="panel-card-sub">Live occupancy and today’s traffic for your location</div>
+                        <div class="panel-card-title">Today's Operations</div>
+                        <div class="panel-card-sub">Live occupancy and front-desk activity</div>
                      </div>
                   </div>
                   <div class="panel-card-body">
                      <div v-if="loading">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 20px; border-radius: 4px" v-for="index in 5" :key="'branch-load-sk-' + index"></div>
-                     </div>
-                     <div v-else-if="dashboard.location_load.length === 0" class="text-center py-5 text-muted">
-                        <i class="bi bi-diagram-3 empty-icon"></i>
-                        <p class="mt-2 mb-1">No occupancy data available.</p>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 56px; border-radius: 12px" v-for="index in 4" :key="'operations-sk-' + index"></div>
                      </div>
                      <div v-else class="d-flex flex-column gap-2">
-                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2" v-for="row in dashboard.location_load" :key="'location-load-' + row.location_id">
+                        <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2" v-for="item in operationsSummaryItems" :key="item.label">
                            <div>
-                              <div class="fw-semibold">{{ row.location_name }}</div>
-                              <div class="text-muted small">{{ row.today_check_ins }} check-in{{ row.today_check_ins !== 1 ? "s" : "" }} today</div>
+                              <div class="fw-semibold">{{ item.label }}</div>
+                              <div class="text-muted small">{{ item.sub }}</div>
                            </div>
-                           <div class="text-end">
-                              <div class="fw-bold fs-5">{{ row.current_occupancy }}</div>
-                              <div class="text-muted small">currently in</div>
-                           </div>
+                           <div class="fw-bold fs-5">{{ item.value }}</div>
                         </div>
                      </div>
                   </div>
                </div>
-            </div>
          </div>
+      </div>
 
-         <div class="row g-3 mb-4">
-            <div class="col-12 col-xl-8">
+      <div class="row g-3 mb-4">
+         <div class="col-12 col-xl-8">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
                      <div>
                         <div class="panel-card-title">Check-ins / Attendance</div>
-                        <div class="panel-card-sub">Today’s latest attendance activity across the current scope</div>
+                        <div class="panel-card-sub">Today’s latest attendance activity for your business</div>
                      </div>
                      <a href="/panel/attendance" class="panel-card-action">View all <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
@@ -123,14 +118,13 @@
                            <tr>
                               <th>Name</th>
                               <th>Type</th>
-                              <th>Location</th>
                               <th>Plan / Rate</th>
                               <th>Time In</th>
                            </tr>
                         </thead>
                         <tbody>
                            <tr v-if="dashboard.check_ins_today.length === 0" class="empty-row">
-                              <td colspan="5">
+                              <td colspan="4">
                                  <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
                                  <div class="mt-1 text-muted small">No check-ins recorded today.</div>
                               </td>
@@ -140,7 +134,6 @@
                               <td>
                                  <span :class="['m-badge', $filters.roleBadge(row.attendee_type)]">{{ row.attendee_type_label }}</span>
                               </td>
-                              <td>{{ row.location_name }}</td>
                               <td>{{ row.plan_or_rate }}</td>
                               <td>{{ formatTime(row.checked_in_at) }}</td>
                            </tr>
@@ -148,26 +141,29 @@
                      </table>
                   </div>
                </div>
-            </div>
+         </div>
 
-            <div class="col-12 col-xl-4 d-flex flex-column gap-3">
+         <div class="col-12 col-xl-4 d-flex flex-column gap-3">
                <div class="panel-card">
                   <div class="panel-card-header">
-                     <div class="panel-card-title">Location Overview</div>
+                     <div>
+                        <div class="panel-card-title">Business Snapshot</div>
+                        <div class="panel-card-sub">Hours, status, and profile details</div>
+                     </div>
                      <a href="/panel/business/settings" class="panel-card-action">Manage <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
                   <div class="panel-card-body">
                      <div v-if="loading">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 20px; border-radius: 4px" v-for="index in 4" :key="'branch-status-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 48px; border-radius: 12px" v-for="index in 5" :key="'business-snapshot-sk-' + index"></div>
                      </div>
-                     <div v-else-if="dashboard.location_status.length === 0" class="text-muted small text-center py-2">No location summary available.</div>
                      <div v-else class="d-flex flex-column gap-2">
-                        <div class="border rounded-3 px-3 py-2" v-for="location in dashboard.location_status" :key="'location-status-' + location.location_id">
+                        <div class="border rounded-3 px-3 py-2" v-for="item in businessSnapshotItems" :key="item.label">
                            <div class="d-flex align-items-center justify-content-between">
-                              <div class="fw-semibold">{{ location.location_name }}</div>
-                              <span :class="['m-badge', $filters.statusBadge(location.status)]">{{ $filters.capitalize(location.status) }}</span>
+                              <div class="text-muted small">{{ item.label }}</div>
+                              <span v-if="item.badge" :class="['m-badge', $filters.statusBadge(item.badge)]">{{ item.value }}</span>
+                              <div v-else class="fw-semibold text-end">{{ item.value }}</div>
                            </div>
-                           <div class="text-muted small mt-1">{{ location.current_occupancy }} currently in · {{ location.today_check_ins }} check-in{{ location.today_check_ins !== 1 ? "s" : "" }} today</div>
+                           <div class="text-muted small mt-1" v-if="item.sub">{{ item.sub }}</div>
                         </div>
                      </div>
                   </div>
@@ -189,21 +185,21 @@
                               <div class="fw-semibold">{{ trainer.name }}</div>
                               <span :class="['m-badge', $filters.statusBadge(trainer.status)]">{{ $filters.capitalize(trainer.status) }}</span>
                            </div>
-                           <div class="text-muted small mt-1">{{ currentLocationLabel }}</div>
+                           <div class="text-muted small mt-1">Ready for coaching sessions</div>
                         </div>
                      </div>
                   </div>
                </div>
-            </div>
          </div>
+      </div>
 
-         <div class="row g-3 mb-4">
-            <div class="col-12 col-lg-6">
+      <div class="row g-3 mb-4">
+         <div class="col-12 col-lg-6">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
                      <div>
                         <div class="panel-card-title">Recent Members</div>
-                        <div class="panel-card-sub">Latest registrations in the current scope</div>
+                        <div class="panel-card-sub">Latest registrations for your business</div>
                      </div>
                      <a href="/panel/members" class="panel-card-action">View all <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
@@ -216,13 +212,12 @@
                            <tr>
                               <th>Name</th>
                               <th>Plan</th>
-                              <th>Location</th>
                               <th>Status</th>
                            </tr>
                         </thead>
                         <tbody>
                            <tr v-if="dashboard.recent_members.length === 0" class="empty-row">
-                              <td colspan="4">
+                              <td colspan="3">
                                  <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
                                  <div class="mt-1 text-muted small">No members yet.</div>
                               </td>
@@ -230,7 +225,6 @@
                            <tr v-for="member in dashboard.recent_members" :key="member.id" v-else>
                               <td>{{ member.name }}</td>
                               <td>{{ member.plan_name }}</td>
-                              <td>{{ member.location_name }}</td>
                               <td>
                                  <span :class="['m-badge', $filters.statusBadge(member.status)]">{{ $filters.capitalize(member.status) }}</span>
                               </td>
@@ -239,14 +233,14 @@
                      </table>
                   </div>
                </div>
-            </div>
+         </div>
 
-            <div class="col-12 col-lg-6">
+         <div class="col-12 col-lg-6">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
                      <div>
                         <div class="panel-card-title">Recent Sales</div>
-                        <div class="panel-card-sub">Latest transactions in the current scope</div>
+                        <div class="panel-card-sub">Latest transactions for your business</div>
                      </div>
                      <a href="/panel/sales" class="panel-card-action">View all <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
@@ -280,11 +274,11 @@
                      </table>
                   </div>
                </div>
-            </div>
          </div>
+      </div>
 
-         <div class="row g-3">
-            <div :class="canViewFinancialData ? 'col-12 col-lg-6' : 'col-12'">
+      <div class="row g-3">
+         <div :class="canViewFinancialData ? 'col-12 col-lg-6' : 'col-12'">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
                      <div>
@@ -302,13 +296,12 @@
                            <tr>
                               <th>Member</th>
                               <th>Plan</th>
-                              <th>Location</th>
                               <th>Expires</th>
                            </tr>
                         </thead>
                         <tbody>
                            <tr v-if="dashboard.expiring_memberships.length === 0" class="empty-row">
-                              <td colspan="4">
+                              <td colspan="3">
                                  <i class="bi bi-check-circle text-muted" style="font-size: 1.5rem"></i>
                                  <div class="mt-1 text-muted small">No memberships expiring soon.</div>
                               </td>
@@ -316,16 +309,15 @@
                            <tr v-for="membership in dashboard.expiring_memberships" :key="membership.id" v-else>
                               <td>{{ membership.member_name }}</td>
                               <td>{{ membership.plan_name }}</td>
-                              <td>{{ membership.location_name }}</td>
                               <td>{{ $filters.formatDate(membership.end_date) }}</td>
                            </tr>
                         </tbody>
                      </table>
                   </div>
                </div>
-            </div>
+         </div>
 
-            <div v-if="canViewFinancialData" class="col-12 col-lg-6">
+         <div v-if="canViewFinancialData" class="col-12 col-lg-6">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
                      <div>
@@ -366,8 +358,8 @@
                      </table>
                   </div>
                </div>
-            </div>
          </div>
+      </div>
    </div>
 </template>
 
@@ -390,15 +382,81 @@ export default {
       return {
          loading: false,
          pageError: "",
+         financialAccessState: null,
          dashboard: this.emptyDashboard(),
       };
    },
    computed: {
       canViewFinancialData: function () {
-         return Boolean(this.dashboard.permissions.can_view_financial_data);
+         return this.financialAccessState === true;
+      },
+      showFinancialStats: function () {
+         return this.financialAccessState === null ? true : this.canViewFinancialData;
       },
       currentLocationLabel: function () {
          return this.dashboard.scope.location?.name || this.businessProfile?.name || window.JPrime?.profile?.name || "this location";
+      },
+      businessHoursLabel: function () {
+         const opening = this.formatBusinessTime(this.businessProfile?.opening_time);
+         const closing = this.formatBusinessTime(this.businessProfile?.closing_time);
+
+         if (opening && closing) {
+            return `${opening} - ${closing}`;
+         }
+
+         return opening || closing || "Not set";
+      },
+      operationsSummaryItems: function () {
+         const locationLoad = this.dashboard.location_load?.[0] || {};
+
+         return [
+            {
+               label: "Current Occupancy",
+               value: this.formatCount(locationLoad.current_occupancy),
+               sub: "People currently checked in",
+            },
+            {
+               label: "Check-ins Today",
+               value: this.formatCount(this.dashboard.stats_row_1.check_ins_today),
+               sub: "Attendance activity recorded today",
+            },
+            {
+               label: "Walk-ins Today",
+               value: this.formatCount(this.dashboard.stats_row_2.walk_ins_today),
+               sub: "Front-desk walk-in visits today",
+            },
+            {
+               label: "Active Trainers",
+               value: this.formatCount(this.dashboard.stats_row_2.active_trainers),
+               sub: "Coaches currently active on roster",
+            },
+         ];
+      },
+      businessSnapshotItems: function () {
+         return [
+            {
+               label: "Business",
+               value: this.currentLocationLabel,
+            },
+            {
+               label: "Status",
+               value: this.$filters.capitalize(this.businessProfile?.status || "open"),
+               badge: this.businessProfile?.status || "open",
+            },
+            {
+               label: "Address",
+               value: [this.businessProfile?.city, this.businessProfile?.province].filter(Boolean).join(", ") || "Not set",
+               sub: this.businessProfile?.address || "",
+            },
+            {
+               label: "Hours",
+               value: this.businessHoursLabel,
+            },
+            {
+               label: "Timezone",
+               value: this.businessProfile?.timezone || "Not set",
+            },
+         ];
       },
       visibleStatsRow1: function () {
          const stats = [
@@ -406,7 +464,7 @@ export default {
                key: "total_members",
                label: "Total Members",
                value: this.formatCount(this.dashboard.stats_row_1.total_members),
-               sub: "assigned to the current scope",
+               sub: "registered in your business",
                icon: "bi-people-fill",
                iconBg: "bg-primary-soft",
                iconColor: "text-primary",
@@ -422,7 +480,7 @@ export default {
             },
          ];
 
-         if (this.canViewFinancialData) {
+         if (this.showFinancialStats) {
             stats.push(
                {
                   key: "revenue_today",
@@ -478,7 +536,7 @@ export default {
             },
          ];
 
-         if (this.canViewFinancialData) {
+         if (this.showFinancialStats) {
             stats.push({
                key: "pending_payroll_balance",
                label: "Pending Payroll",
@@ -574,6 +632,7 @@ export default {
             })
             .then((response) => {
                this.dashboard = this.normalizeDashboard(response.data || {});
+               this.financialAccessState = Boolean(this.dashboard.permissions.can_view_financial_data);
             })
             .catch((error) => {
                this.pageError = error.response?.data?.message || "Unable to load the dashboard right now.";
@@ -598,6 +657,20 @@ export default {
             hour: "numeric",
             minute: "2-digit",
          });
+      },
+      formatBusinessTime: function (value) {
+         if (!value) {
+            return "";
+         }
+
+         const parts = String(value).split(":");
+         let hour = parseInt(parts[0], 10);
+         const minute = parts[1];
+         const suffix = hour >= 12 ? "PM" : "AM";
+
+         hour = hour % 12 || 12;
+
+         return `${hour}:${minute} ${suffix}`;
       },
    },
 };

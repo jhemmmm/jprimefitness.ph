@@ -71,7 +71,7 @@ class SidebarBranchSelectorUiTest extends TestCase
             resource_path('js/components/panel/WalkInsPage.vue'),
             resource_path('js/components/panel/InventoryPage.vue'),
             resource_path('js/components/panel/NotificationsPage.vue'),
-            resource_path('js/components/panel/_vendor/PanelNotifications.vue'),
+            resource_path('js/components/panel/vendor/PanelNotifications.vue'),
             resource_path('js/components/panel/vendor/MemberAttendancePage.vue'),
             resource_path('js/components/panel/vendor/EmployeeAttendancePage.vue'),
             resource_path('js/components/panel/vendor/MemberMembershipPage.vue'),
@@ -116,8 +116,33 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringNotContainsString('>Clear</button>', $contents);
     }
 
+    public function test_business_and_notifications_pages_use_standard_panel_page_headers(): void
+    {
+        $notificationsContents = file_get_contents(resource_path('js/components/panel/NotificationsPage.vue'));
+        $settingsContents = file_get_contents(resource_path('js/components/panel/BusinessSettingsPage.vue'));
+        $galleryContents = file_get_contents(resource_path('js/components/panel/vendor/BusinessGalleryPage.vue'));
+
+        $this->assertNotFalse($notificationsContents);
+        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Notifications</h4>', $notificationsContents);
+        $this->assertStringContainsString('v-if="pageError"', $notificationsContents);
+
+        $this->assertNotFalse($settingsContents);
+        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Business Settings</h4>', $settingsContents);
+
+        $this->assertNotFalse($galleryContents);
+        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Business Gallery</h4>', $galleryContents);
+        $this->assertStringContainsString('v-if="pageError"', $galleryContents);
+        $this->assertStringContainsString('panel-card-title', $galleryContents);
+    }
+
     public function test_removed_branch_selector_files_are_gone(): void
     {
+        $this->assertFileDoesNotExist(resource_path('js/components/panel/_vendor/businessFormOptions.js'));
+        $this->assertFileExists(resource_path('js/components/panel/vendor/AsyncSearchSelect.vue'));
+        $this->assertFileExists(resource_path('js/components/panel/vendor/GlobalSearch.vue'));
+        $this->assertFileExists(resource_path('js/components/panel/vendor/MultiSelect.vue'));
+        $this->assertFileExists(resource_path('js/components/panel/vendor/PanelNotifications.vue'));
+        $this->assertDirectoryDoesNotExist(resource_path('js/components/panel/_vendor'));
         $this->assertFileDoesNotExist(resource_path('js/components/panel/_vendor/BranchSelector.vue'));
         $this->assertFileDoesNotExist(resource_path('js/components/panel/_vendor/BranchSelectorCollapsed.vue'));
         $this->assertFileDoesNotExist(resource_path('js/components/panel/BranchesPage.vue'));

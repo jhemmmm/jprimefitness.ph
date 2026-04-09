@@ -199,7 +199,7 @@
 
 <script>
 import { Modal } from "bootstrap";
-import MultiSelect from "./_vendor/MultiSelect.vue";
+import MultiSelect from "./vendor/MultiSelect.vue";
 
 export default {
    components: {

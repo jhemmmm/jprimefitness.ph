@@ -1,26 +1,34 @@
 <template>
-   <div class="p-4">
-      <div class="row justify-content-center">
-         <div class="col-xl-10">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
-               <div>
-                  <div class="fw-semibold">Business Gallery</div>
-                  <div class="text-muted small">Upload storefront, interior, facility, and team photos for your business.</div>
-               </div>
-               <label class="btn btn-danger btn-sm mb-0" :class="{ disabled: uploading }" v-if="canManageGallery">
-                  <span v-if="uploading" class="spinner-border spinner-border-sm me-1"></span>
-                  <i v-else class="bi bi-upload me-1"></i>
-                  Upload Photos
-                  <input type="file" accept="image/*" multiple class="d-none" @change="uploadPhotos" :disabled="uploading" ref="photoInput" />
-               </label>
-            </div>
+   <div class="business-gallery-page">
+      <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
 
-            <div v-if="generalError" class="alert alert-danger py-2 small">{{ generalError }}</div>
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+         <div>
+            <h4 class="panel-page-title mb-0">Business Gallery</h4>
+            <p class="text-muted small mb-0">Upload storefront, interior, facility, and team photos for your business.</p>
+         </div>
+         <label class="btn btn-danger btn-sm mb-0" :class="{ disabled: uploading }" v-if="canManageGallery">
+            <span v-if="uploading" class="spinner-border spinner-border-sm me-1"></span>
+            <i v-else class="bi bi-upload me-1"></i>
+            Upload Photos
+            <input type="file" accept="image/*" multiple class="d-none" @change="uploadPhotos" :disabled="uploading" ref="photoInput" />
+         </label>
+      </div>
 
-            <div v-if="photos.length" class="row g-3">
+      <div class="panel-card">
+         <div class="panel-card-header d-flex justify-content-between align-items-center gap-3 flex-wrap">
+            <span class="panel-card-title">
+               Gallery Photos
+               <span class="badge-count ms-1">{{ photos.length }}</span>
+            </span>
+            <span class="text-muted small">{{ canManageGallery ? "Manage uploaded business photos." : "Business photo gallery." }}</span>
+         </div>
+
+         <div v-if="photos.length" class="p-3 p-lg-4">
+            <div class="row g-3">
                <div class="col-sm-6 col-lg-4" v-for="(photo, index) in photos" :key="photo + '-' + index">
-                  <div class="panel-card h-100 p-2">
-                     <img :src="'/storage/' + photo" class="img-fluid rounded mb-2" :alt="profile.name + ' photo ' + (index + 1)" />
+                  <div class="border rounded-3 h-100 bg-white p-2">
+                     <img :src="'/storage/' + photo" class="img-fluid rounded mb-2 w-100" :alt="profile.name + ' photo ' + (index + 1)" />
                      <div class="d-flex justify-content-between align-items-center small text-muted px-1 pb-1">
                         <span>Photo {{ index + 1 }}</span>
                         <button type="button" class="btn btn-outline-danger btn-sm" @click="deletePhoto(index)" :disabled="deletingIndex === index" v-if="canManageGallery">
@@ -31,8 +39,10 @@
                   </div>
                </div>
             </div>
+         </div>
 
-            <div v-else class="panel-card p-5 text-center text-muted">
+         <div v-else class="p-5 text-center text-muted">
+            <div class="mx-auto" style="max-width: 20rem;">
                <i class="bi bi-images fs-1 d-block mb-2 opacity-25"></i>
                No gallery photos yet for this business.
             </div>
@@ -53,7 +63,7 @@ export default {
       return {
          uploading: false,
          deletingIndex: null,
-         generalError: "",
+         pageError: "",
          photos: Array.isArray(this.profile.photos) ? [...this.profile.photos] : [],
       };
    },
@@ -83,7 +93,7 @@ export default {
          }
 
          this.uploading = true;
-         this.generalError = "";
+         this.pageError = "";
 
          const uploadNext = (index) => {
             if (index >= files.length) {
@@ -110,7 +120,7 @@ export default {
                   return uploadNext(index + 1);
                })
                .catch((error) => {
-                  this.generalError = error.response?.data?.message || "Failed to upload photo.";
+                  this.pageError = error.response?.data?.message || "Failed to upload photo.";
                   this.uploading = false;
 
                   if (this.$refs.photoInput) {
@@ -124,16 +134,16 @@ export default {
 
       deletePhoto: function (index) {
          this.deletingIndex = index;
-         this.generalError = "";
+         this.pageError = "";
 
-        axios
+         axios
             .delete(`/panel/business/photos/${index}`)
             .then(() => {
                this.photos.splice(index, 1);
                this.emitUpdatedPhotos([...this.photos]);
             })
             .catch((error) => {
-               this.generalError = error.response?.data?.message || "Failed to remove photo.";
+               this.pageError = error.response?.data?.message || "Failed to remove photo.";
             })
             .finally(() => {
                this.deletingIndex = null;

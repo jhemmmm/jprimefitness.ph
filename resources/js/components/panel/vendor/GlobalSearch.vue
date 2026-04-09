@@ -10,14 +10,7 @@
                <div class="modal-content global-search-shell border-0 shadow-lg">
                   <div class="global-search-bar">
                      <i class="bi bi-search global-search-bar-icon"></i>
-                     <input
-                        ref="input"
-                        v-model="search"
-                        type="text"
-                        class="global-search-input"
-                        placeholder="Search members, employees, inventory, or walk-ins"
-                        @input="onSearchInput"
-                     />
+                     <input ref="input" v-model="search" type="text" class="global-search-input" placeholder="Search members, employees, inventory, or walk-ins" @input="onSearchInput" />
                      <button v-if="search" type="button" class="btn btn-link btn-sm text-muted text-decoration-none px-0" @click="clearSearch">
                         <i class="bi bi-x-lg"></i>
                      </button>
@@ -230,7 +223,6 @@ export default {
 
 <style scoped>
 .global-search-shell {
-   border-radius: 1rem;
    overflow: hidden;
 }
 
