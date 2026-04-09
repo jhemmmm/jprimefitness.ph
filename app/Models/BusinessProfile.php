@@ -86,4 +86,34 @@ class BusinessProfile extends Model
             'membership_note' => 'Membership, walk-in access, and PT pricing are managed from one central profile.',
         ];
     }
+
+    public static function current(): self
+    {
+        return static::query()->firstOrCreate([], static::defaultAttributes());
+    }
+
+    /**
+     * @return array{id:int, name:string, city:?string, province:?string, status:?string}
+     */
+    public function locationSummary(): array
+    {
+        return [
+            'id' => $this->id,
+            'name' => $this->name,
+            'city' => $this->city,
+            'province' => $this->province,
+            'status' => $this->status,
+        ];
+    }
+
+    /**
+     * @return array{id:int, name:string, city:?string, province:?string, status:?string, country_code:?string}
+     */
+    public function panelShellPayload(): array
+    {
+        return [
+            ...$this->locationSummary(),
+            'country_code' => $this->country_code,
+        ];
+    }
 }

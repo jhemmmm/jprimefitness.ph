@@ -89,8 +89,6 @@ class NotificationsController extends Controller
             'action_url' => $data['action_url'] ?? null,
             'type' => (string) ($data['type'] ?? $notification->type),
             'severity' => (string) ($data['severity'] ?? 'info'),
-            'branch_id' => $data['branch_id'] ?? null,
-            'branch_name' => $data['branch_name'] ?? null,
             'subject_id' => $data['subject_id'] ?? null,
             'subject_type' => $data['subject_type'] ?? null,
             'occurred_at' => $data['occurred_at'] ?? $notification->created_at?->toISOString(),

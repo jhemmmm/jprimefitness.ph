@@ -40,7 +40,6 @@
                      <div class="small text-muted mt-1">{{ notification.message }}</div>
 
                      <div class="small text-muted mt-2 d-flex align-items-center gap-2 flex-wrap">
-                        <span v-if="notification.branch_name">{{ notification.branch_name }}</span>
                         <span>{{ formatOccurredAt(notification.occurred_at) }}</span>
                      </div>
                   </div>

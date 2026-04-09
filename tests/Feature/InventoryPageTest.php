@@ -87,8 +87,12 @@ class InventoryPageTest extends TestCase
             ->assertJsonPath('stats.out_of_stock', 1);
 
         $names = collect($response->json('inventory.data'))->pluck('name')->all();
+        $firstItem = $response->json('inventory.data.0');
 
         $this->assertSame(['Bottled Water', 'Protein Shake', 'Towel'], $names);
+        $this->assertIsArray($firstItem);
+        $this->assertArrayNotHasKey('branch', $firstItem);
+        $this->assertArrayNotHasKey('branch_id', $firstItem);
     }
 
     public function test_inventory_list_ignores_legacy_branch_filters(): void
@@ -156,6 +160,9 @@ class InventoryPageTest extends TestCase
             ->assertJsonPath('name', 'Yoga Mat')
             ->assertJsonPath('category.id', $category->id);
 
+        $this->assertArrayNotHasKey('branch', $createResponse->json());
+        $this->assertArrayNotHasKey('branch_id', $createResponse->json());
+
         $itemId = $createResponse->json('id');
 
         $this->actingAs($staff)
@@ -174,7 +181,9 @@ class InventoryPageTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('quantity', '2.00')
-            ->assertJsonPath('is_low_stock', true);
+            ->assertJsonPath('is_low_stock', true)
+            ->assertJsonMissingPath('branch')
+            ->assertJsonMissingPath('branch_id');
 
         $this->assertDatabaseHas('inventory_items', [
             'id' => $itemId,

@@ -3,31 +3,52 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessProfile;
 use App\Models\CashLedgerEntry;
-use App\Services\BusinessProfileContext;
 use App\Services\CashLedgerService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class SettingsController extends Controller
 {
     public function __construct(
-        private BusinessProfileContext $businessProfileContext,
         private CashLedgerService $cashLedgerService,
     ) {
     }
 
-    public function index(): View
+    public function index(): RedirectResponse
     {
-        $businessProfile = $this->businessProfileContext->profile();
-        $cashLedgerSummary = $this->cashLedgerService->summarize();
-        $businessProfile->setAttribute('cash_ledger_summary', $cashLedgerSummary);
-
-        return view('panel.settings', compact('businessProfile'));
+        return to_route('panel.business.settings');
     }
 
-    public function update(Request $request)
+    public function cashLedgerPage(): View
+    {
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+
+        return view('panel.business.cash-ledger', [
+            'businessProfile' => $this->businessProfile(),
+        ]);
+    }
+
+    public function photosPage(): View
+    {
+        return view('panel.business.photos', [
+            'businessProfile' => $this->businessProfile(),
+        ]);
+    }
+
+    public function settingsPage(): View
+    {
+        return view('panel.business.settings', [
+            'businessProfile' => $this->businessProfile(),
+        ]);
+    }
+
+    public function update(Request $request): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
@@ -60,14 +81,16 @@ class SettingsController extends Controller
 
         $data['country_code'] = strtoupper($data['country_code']);
 
-        $profile = $this->businessProfileContext->profile();
+        $profile = BusinessProfile::current();
         $profile->update($data);
+        $profile = $profile->fresh();
         $profile->setAttribute('cash_ledger_summary', $this->cashLedgerService->summarize());
+        $profile->setAttribute('cash_balance', $profile->cash_ledger_summary['balance'] ?? 0);
 
-        return response()->json($profile->fresh());
+        return response()->json($profile);
     }
 
-    public function storePhoto(Request $request)
+    public function storePhoto(Request $request): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
 
@@ -75,7 +98,7 @@ class SettingsController extends Controller
             'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
         ]);
 
-        $profile = $this->businessProfileContext->profile();
+        $profile = BusinessProfile::current();
         $path = $request->file('photo')->store("business-profile/{$profile->id}", 'public');
 
         $photos = $profile->photos ?? [];
@@ -85,11 +108,11 @@ class SettingsController extends Controller
         return response()->json(['path' => $path, 'url' => asset('storage/' . $path)], 201);
     }
 
-    public function destroyPhoto(int $index)
+    public function destroyPhoto(int $index): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
 
-        $profile = $this->businessProfileContext->profile();
+        $profile = BusinessProfile::current();
         $photos = $profile->photos ?? [];
 
         if (! array_key_exists($index, $photos)) {
@@ -103,17 +126,35 @@ class SettingsController extends Controller
         return response()->json(null, 204);
     }
 
-    public function cashLedger()
+    public function cashLedger(Request $request): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
+        $filters = $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'direction' => ['nullable', Rule::in([CashLedgerEntry::DIRECTION_IN, CashLedgerEntry::DIRECTION_OUT])],
+            'entry_type' => ['nullable', Rule::in([
+                CashLedgerEntry::TYPE_MANUAL_ADJUSTMENT,
+                CashLedgerEntry::TYPE_INVENTORY_SALE,
+                CashLedgerEntry::TYPE_MEMBERSHIP_SALE,
+                CashLedgerEntry::TYPE_PT_PACKAGE_SALE,
+                CashLedgerEntry::TYPE_WALK_IN_SALE,
+                CashLedgerEntry::TYPE_PAYROLL_PAYOUT,
+                CashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE,
+            ])],
+            'mode' => ['nullable', Rule::in(['system', 'manual'])],
+            'search' => ['nullable', 'string', 'max:255'],
+        ]);
+
         return response()->json([
-            'entries' => $this->cashLedgerService->listEntries(),
+            'entries' => $this->cashLedgerService->listEntries($filters),
             'summary' => $this->cashLedgerService->summarize(),
+            'filters' => $filters,
         ]);
     }
 
-    public function storeCashLedgerEntry(Request $request)
+    public function storeCashLedgerEntry(Request $request): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
@@ -133,7 +174,7 @@ class SettingsController extends Controller
         ], 201);
     }
 
-    public function updateCashLedgerEntry(Request $request, CashLedgerEntry $entry)
+    public function updateCashLedgerEntry(Request $request, CashLedgerEntry $entry): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
         abort_if($entry->is_system, 422, 'System-generated cash entries cannot be edited.');
@@ -154,7 +195,7 @@ class SettingsController extends Controller
         ]);
     }
 
-    public function destroyCashLedgerEntry(CashLedgerEntry $entry)
+    public function destroyCashLedgerEntry(CashLedgerEntry $entry): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
         abort_if($entry->is_system, 422, 'System-generated cash entries cannot be deleted.');
@@ -162,5 +203,15 @@ class SettingsController extends Controller
         $this->cashLedgerService->deleteManualEntry($entry);
 
         return response()->json(null, 204);
+    }
+
+    private function businessProfile(): BusinessProfile
+    {
+        $businessProfile = BusinessProfile::current();
+        $cashLedgerSummary = $this->cashLedgerService->summarize();
+        $businessProfile->setAttribute('cash_ledger_summary', $cashLedgerSummary);
+        $businessProfile->setAttribute('cash_balance', $cashLedgerSummary['balance']);
+
+        return $businessProfile;
     }
 }

@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Services\BusinessProfileContext;
+use App\Models\BusinessProfile;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,10 +14,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceReportsController extends Controller
 {
-    public function __construct(private BusinessProfileContext $businessProfileContext)
-    {
-    }
-
     public function index(): View
     {
         return view('panel.reports.attendance');
@@ -123,7 +119,7 @@ class AttendanceReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $location = $this->businessProfileContext->locationSummary();
+        $location = BusinessProfile::current()->locationSummary();
 
         $attendanceRecords = Attendance::query()
             ->when($data['type'] ?? null, fn ($query) => $query->where('attendee_type', $data['type']))

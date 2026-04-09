@@ -183,8 +183,8 @@
                         <span v-if="suggestion.max_cash_advance_deduction < suggestion.pending_ca_total"> &nbsp;· Eligible CA this payroll: ₱{{ $filters.formatMoney(suggestion.suggested_ca) }}</span>
                         <span v-if="suggestion.pt_commission_amount > 0"> &nbsp;· PT commissions: ₱{{ $filters.formatMoney(suggestion.pt_commission_amount) }}</span>
                         <span v-if="suggestion.membership_commission_amount > 0"> &nbsp;· Membership commissions: ₱{{ $filters.formatMoney(suggestion.membership_commission_amount) }}</span>
-                        <span v-if="suggestion.branch_country_code === 'PH' && suggestion.bonus_non_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-gift me-1"></i>PH exempt bonus applied this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }} </span>
-                        <span v-if="suggestion.branch_country_code === 'PH' && suggestion.bonus_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-calculator me-1"></i>Taxable bonus excess this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }} </span>
+                        <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_non_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-gift me-1"></i>PH exempt bonus applied this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }} </span>
+                        <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-calculator me-1"></i>Taxable bonus excess this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }} </span>
                         <span v-if="suggestion.days_worked === 0" class="d-block text-muted mt-1"><i class="bi bi-info-circle me-1"></i>No attendance records found for this period.</span>
                         <span v-if="suggestion.pt_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-stopwatch me-1"></i>{{ suggestion.pt_commission_items.length }} completed PT package{{ suggestion.pt_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
                         <span v-if="suggestion.membership_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-person-check me-1"></i>{{ suggestion.membership_commission_items.length }} membership sale commission{{ suggestion.membership_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
@@ -211,7 +211,7 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Bonus (₱)</label>
                         <input type="number" class="form-control" v-model="form.bonus" min="0" step="0.01" />
-                        <div class="form-text" v-if="suggestion && suggestion.branch_country_code === 'PH'">
+                        <div class="form-text" v-if="suggestion && payrollCountryCode === 'PH'">
                            PH payrolls apply the annual 13th month and other benefits exemption first.
                            <span v-if="suggestion.remaining_bonus_exemption > 0"> Available exempt balance before this payroll: ₱{{ $filters.formatMoney(suggestion.remaining_bonus_exemption) }}.</span>
                            <span v-if="suggestion.bonus_non_taxable_amount > 0"> Exempt this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }}.</span>
@@ -241,7 +241,7 @@
                            Calculated from ₱{{ $filters.formatMoney(suggestion.taxable_earnings) }} taxable earnings.
                            <span v-if="suggestion.bonus_taxable_amount > 0">Taxable bonus portion: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}.</span>
                         </div>
-                        <div class="form-text" v-else>Calculated automatically from the payroll branch and pay frequency.</div>
+                        <div class="form-text" v-else>Calculated automatically from the business country and pay frequency.</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Other Deductions (₱)</label>
@@ -437,6 +437,9 @@ export default {
    },
 
    computed: {
+      payrollCountryCode: function () {
+         return globalThis.JPrime?.profile?.country_code || "PH";
+      },
       netPreview: function () {
          return Number(this.suggestion?.net_amount_preview || 0);
       },

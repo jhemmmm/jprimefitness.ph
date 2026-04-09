@@ -155,7 +155,7 @@
 </template>
 
 <script>
-import { COUNTRY_OPTIONS, TIMEZONE_OPTIONS, ensureSelectOption } from "../_vendor/branchFormOptions";
+import { COUNTRY_OPTIONS, TIMEZONE_OPTIONS, ensureSelectOption } from "../_vendor/businessFormOptions";
 
 export default {
    props: {
@@ -260,7 +260,7 @@ export default {
          this.errors = {};
 
          axios
-            .put("/panel/settings", this.buildPayload())
+            .put("/panel/business/settings", this.buildPayload())
             .then((response) => {
                this.saved = true;
                this.$emit("updated", response.data);

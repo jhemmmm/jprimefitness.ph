@@ -38,7 +38,7 @@ class PanelBranchFilterAccessTest extends TestCase
 
     public function test_attendance_list_ignores_legacy_branch_query_params(): void
     {
-        $profile = $this->setBusinessProfile('Naga');
+        $this->setBusinessProfile('Naga');
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
 
         Attendance::create([
@@ -48,17 +48,22 @@ class PanelBranchFilterAccessTest extends TestCase
             'recorded_by' => $staff->id,
         ]);
 
-        $this->actingAs($staff)
+        $response = $this->actingAs($staff)
             ->getJson('/panel/attendance/list?branch=999')
             ->assertOk()
             ->assertJsonPath('records.data.0.name', 'Guest One')
-            ->assertJsonPath('records.data.0.branch_id', $profile->id)
             ->assertJsonPath('stats.today', 1);
+
+        $record = $response->json('records.data.0');
+
+        $this->assertIsArray($record);
+        $this->assertArrayNotHasKey('branch_id', $record);
+        $this->assertArrayNotHasKey('branch', $record);
     }
 
     public function test_walk_in_list_ignores_legacy_branch_query_params(): void
     {
-        $profile = $this->setBusinessProfile('Naga');
+        $this->setBusinessProfile('Naga');
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
 
         WalkIn::create([
@@ -69,13 +74,18 @@ class PanelBranchFilterAccessTest extends TestCase
             'visited_at' => now()->subHour(),
         ]);
 
-        $this->actingAs($staff)
+        $response = $this->actingAs($staff)
             ->getJson('/panel/walk-ins/list?branch=999')
             ->assertOk()
             ->assertJsonPath('walkIns.data.0.name', 'Guest One')
-            ->assertJsonPath('walkIns.data.0.branch_id', $profile->id)
             ->assertJsonPath('stats.today', 1)
             ->assertJsonPath('stats.revenue_today', 350);
+
+        $walkIn = $response->json('walkIns.data.0');
+
+        $this->assertIsArray($walkIn);
+        $this->assertArrayNotHasKey('branch_id', $walkIn);
+        $this->assertArrayNotHasKey('branch', $walkIn);
     }
 
     public function test_employee_list_ignores_legacy_branch_query_params(): void
@@ -94,6 +104,8 @@ class PanelBranchFilterAccessTest extends TestCase
         $this->assertIsArray($employeePayload);
         $this->assertSame($profile->id, $employeePayload['location']['id'] ?? null);
         $this->assertArrayNotHasKey('branches', $employeePayload);
+        $this->assertArrayNotHasKey('branch_id', $employeePayload);
+        $this->assertArrayNotHasKey('branch', $employeePayload);
     }
 
     public function test_member_list_ignores_legacy_branch_query_params(): void
@@ -114,6 +126,8 @@ class PanelBranchFilterAccessTest extends TestCase
 
         $this->assertIsArray($memberPayload);
         $this->assertArrayNotHasKey('branches', $memberPayload);
+        $this->assertArrayNotHasKey('branch_id', $memberPayload);
+        $this->assertArrayNotHasKey('branch', $memberPayload);
     }
 
     private function setBusinessProfile(string $name): BusinessProfile

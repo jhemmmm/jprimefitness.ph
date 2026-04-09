@@ -50,7 +50,6 @@
                         <span class="badge rounded-pill" :class="severityBadgeClass(notification.severity)">
                            {{ severityLabel(notification.severity) }}
                         </span>
-                        <span v-if="notification.branch_name" class="text-muted small">{{ notification.branch_name }}</span>
                         <span v-if="!notification.is_read" class="badge rounded-pill text-bg-danger-subtle notification-unread-badge">Unread</span>
                      </div>
 

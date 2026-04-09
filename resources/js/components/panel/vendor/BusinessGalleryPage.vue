@@ -5,7 +5,7 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
                <div>
                   <div class="fw-semibold">Business Gallery</div>
-                  <div class="text-muted small">Upload storefront, interior, facility, and team photos for your single location.</div>
+                  <div class="text-muted small">Upload storefront, interior, facility, and team photos for your business.</div>
                </div>
                <label class="btn btn-danger btn-sm mb-0" :class="{ disabled: uploading }" v-if="canManageGallery">
                   <span v-if="uploading" class="spinner-border spinner-border-sm me-1"></span>
@@ -34,7 +34,7 @@
 
             <div v-else class="panel-card p-5 text-center text-muted">
                <i class="bi bi-images fs-1 d-block mb-2 opacity-25"></i>
-               No gallery photos yet for this location.
+               No gallery photos yet for this business.
             </div>
          </div>
       </div>
@@ -100,7 +100,7 @@ export default {
             formData.append("photo", files[index]);
 
             return axios
-               .post("/panel/settings/photos", formData, {
+               .post("/panel/business/photos", formData, {
                   headers: { "Content-Type": "multipart/form-data" },
                })
                .then((response) => {
@@ -126,8 +126,8 @@ export default {
          this.deletingIndex = index;
          this.generalError = "";
 
-         axios
-            .delete(`/panel/settings/photos/${index}`)
+        axios
+            .delete(`/panel/business/photos/${index}`)
             .then(() => {
                this.photos.splice(index, 1);
                this.emitUpdatedPhotos([...this.photos]);

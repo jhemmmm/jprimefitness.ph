@@ -45,6 +45,18 @@ class MembersAccessTest extends TestCase
             ->assertJsonPath('records.data.0.name', $member->name);
     }
 
+    public function test_manager_can_view_member_details(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
+
+        $this->actingAs($manager)
+            ->get("/panel/members/{$member->id}")
+            ->assertOk()
+            ->assertSee('member-detail-page', false)
+            ->assertSeeText($member->name);
+    }
+
     public function test_manager_can_change_membership_for_a_member(): void
     {
         $manager = $this->createUserWithRole('manager');

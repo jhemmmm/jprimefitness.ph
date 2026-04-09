@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
-use App\Services\BusinessProfileContext;
 use App\Services\InventoryStockAlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -16,7 +15,6 @@ class InventoryController extends Controller
 {
     public function __construct(
         private InventoryStockAlertService $inventoryStockAlertService,
-        private BusinessProfileContext $businessProfileContext,
     ) {
     }
 
@@ -29,8 +27,6 @@ class InventoryController extends Controller
 
     public function list(Request $request): JsonResponse
     {
-        $location = $this->businessProfileContext->locationSummary();
-
         $itemsQuery = InventoryItem::query()
             ->with('category:id,name')
             ->when($request->category, fn ($query) => $query->where('inventory_category_id', $request->category))
@@ -72,8 +68,6 @@ class InventoryController extends Controller
             ->paginate(20)
             ->through(fn (InventoryItem $item) => [
                 'id' => $item->id,
-                'branch_id' => $location['id'],
-                'branch' => $location,
                 'inventory_category_id' => $item->inventory_category_id,
                 'category' => $item->category,
                 'name' => $item->name,
@@ -163,10 +157,6 @@ class InventoryController extends Controller
      */
     private function serializeItem(InventoryItem $item): array
     {
-        return [
-            ...$item->toArray(),
-            'branch_id' => $this->businessProfileContext->profile()->id,
-            'branch' => $this->businessProfileContext->locationSummary(),
-        ];
+        return $item->toArray();
     }
 }

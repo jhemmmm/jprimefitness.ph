@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\BusinessProfile;
 use App\Models\CashAdvance;
 use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\User;
 use App\Notifications\CashAdvanceStatusChangedNotification;
 use App\Notifications\PayrollApprovedNotification;
-use App\Services\BusinessProfileContext;
 use App\Services\CashLedgerService;
 use App\Services\NotificationRecipientResolver;
 use App\Services\PayrollService;
@@ -28,7 +28,6 @@ class EmployeeController extends Controller
         private PayrollService $payrollService,
         private CashLedgerService $cashLedgerService,
         private NotificationRecipientResolver $notificationRecipientResolver,
-        private BusinessProfileContext $businessProfileContext,
     ) {
         $this->middleware('can:manage employees');
     }
@@ -141,8 +140,6 @@ class EmployeeController extends Controller
 
     public function attendance(Request $request, User $employee): JsonResponse
     {
-        $location = $this->locationPayload();
-
         $records = Attendance::query()
             ->where('user_id', $employee->id)
             ->when($request->filled('date_from'), fn ($query) => $query->whereDate('checked_in_at', '>=', $request->date_from))
@@ -151,8 +148,6 @@ class EmployeeController extends Controller
             ->paginate(15)
             ->through(fn (Attendance $attendance) => [
                 'id' => $attendance->id,
-                'branch_id' => $location['id'],
-                'branch' => $location,
                 'attendee_type' => $attendance->attendee_type,
                 'name' => $attendance->name,
                 'checked_in_at' => $attendance->checked_in_at?->toISOString(),
@@ -222,7 +217,7 @@ class EmployeeController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $countryCode = $this->businessProfileContext->profile()->country_code;
+        $countryCode = $this->businessProfile()->country_code;
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
@@ -319,7 +314,7 @@ class EmployeeController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $countryCode = $this->businessProfileContext->profile()->country_code;
+        $countryCode = $this->businessProfile()->country_code;
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
@@ -467,7 +462,7 @@ class EmployeeController extends Controller
             }
         }
 
-        $countryCode = $this->businessProfileContext->profile()->country_code;
+        $countryCode = $this->businessProfile()->country_code;
         $ptCommissionSummary = $this->payrollService->previewPtCommissions(
             $employee,
             $data['period_start'],
@@ -529,7 +524,6 @@ class EmployeeController extends Controller
                 'pt_commission_items' => $ptCommissionSummary['items'],
                 'membership_commission_amount' => $membershipCommissionSummary['amount'],
                 'membership_commission_items' => $membershipCommissionSummary['items'],
-                'branch_country_code' => $countryCode,
                 'bonus_non_taxable_amount' => $payrollTotals['bonus_non_taxable_amount'],
                 'bonus_taxable_amount' => $payrollTotals['bonus_taxable_amount'],
                 'income_tax' => $payrollTotals['income_tax'],
@@ -827,7 +821,6 @@ class EmployeeController extends Controller
     private function serializePayroll(Payroll $payroll): array
     {
         $payroll->loadMissing(['payouts', 'approvedBy:id,name']);
-        $countryCode = $this->businessProfileContext->profile()->country_code;
         $totalPaid = (float) $payroll->payouts->sum('amount');
 
         return [
@@ -854,8 +847,6 @@ class EmployeeController extends Controller
             'payouts_count' => $payroll->payouts->count(),
             'approved_by_name' => $payroll->approvedBy?->name,
             'approved_at' => $payroll->approved_at?->toISOString(),
-            'branch_country_code' => $countryCode,
-            'branch_name' => $this->locationPayload()['name'],
             'created_at' => $payroll->created_at?->toISOString(),
         ];
     }
@@ -912,8 +903,16 @@ class EmployeeController extends Controller
     /**
      * @return array{id:int, name:string, city:?string, province:?string, status:?string}
      */
+    private function businessProfile(): BusinessProfile
+    {
+        return BusinessProfile::current();
+    }
+
+    /**
+     * @return array{id:int, name:string, city:?string, province:?string, status:?string}
+     */
     private function locationPayload(): array
     {
-        return $this->businessProfileContext->locationSummary();
+        return $this->businessProfile()->locationSummary();
     }
 }

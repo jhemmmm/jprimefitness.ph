@@ -26,8 +26,14 @@ app.component("member-detail-page", MemberDetailPage);
 import WalkInsPage from "./components/panel/WalkInsPage.vue";
 app.component("walk-ins-page", WalkInsPage);
 
-import SettingsPage from "./components/panel/SettingsPage.vue";
-app.component("settings-page", SettingsPage);
+import BusinessCashLedgerPage from "./components/panel/vendor/BusinessCashLedgerPage.vue";
+app.component("business-cash-ledger-page", BusinessCashLedgerPage);
+
+import BusinessPhotosPage from "./components/panel/vendor/BusinessGalleryPage.vue";
+app.component("business-photos-page", BusinessPhotosPage);
+
+import BusinessSettingsPage from "./components/panel/BusinessSettingsPage.vue";
+app.component("business-settings-page", BusinessSettingsPage);
 
 import InventoryPage from "./components/panel/InventoryPage.vue";
 app.component("inventory-page", InventoryPage);

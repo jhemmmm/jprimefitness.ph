@@ -2,7 +2,7 @@
    <div class="walk-ins-page">
       <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
 
-      <!-- ── Page Header ──────────────────────────────────────────────────── -->
+      <!-- Page Header -->
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Walk-ins</h4>
@@ -14,7 +14,7 @@
          </button>
       </div>
 
-      <!-- ── Stat Cards ───────────────────────────────────────────────────── -->
+      <!-- Stat Cards -->
       <div class="row g-3 mb-4">
          <div class="col-6 col-lg-3" v-for="stat in statCards" :key="stat.label">
             <div class="stat-card">
@@ -23,7 +23,7 @@
                </div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ stat.label }}</div>
-                  <div class="stat-card-value" v-if="statsLoading">
+                  <div class="stat-card-value" v-if="loading">
                      <div class="skeleton-box sk-stat-val"></div>
                   </div>
                   <div class="stat-card-value" v-else>{{ stat.value }}</div>
@@ -71,7 +71,6 @@
                      <tr>
                         <th>Name</th>
                         <th>Phone</th>
-                        <th>Location</th>
                         <th>Rate Plan</th>
                         <th>Amount</th>
                         <th>Payment</th>
@@ -88,7 +87,6 @@
                            </div>
                         </td>
                         <td><div class="skeleton-box sk-phone"></div></td>
-                        <td><div class="skeleton-box sk-branch"></div></td>
                         <td><div class="skeleton-box sk-plan-badge"></div></td>
                         <td><div class="skeleton-box sk-amount"></div></td>
                         <td><div class="skeleton-box sk-plan-badge"></div></td>
@@ -145,7 +143,6 @@
                      <tr>
                         <th>Name</th>
                         <th>Phone</th>
-                        <th>Location</th>
                         <th>Rate Plan</th>
                         <th>Amount</th>
                         <th>Method</th>
@@ -164,7 +161,6 @@
                            </div>
                         </td>
                         <td class="text-muted small">{{ w.phone || "-" }}</td>
-                        <td class="small">{{ w.branch ? w.branch.name : "-" }}</td>
                         <td>
                            <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
                            <span class="text-muted small" v-else>-</span>
@@ -195,7 +191,7 @@
                         <div class="member-avatar">{{ $filters.getNameInitials(w.name) }}</div>
                         <div>
                            <div class="member-card-name">{{ w.name }}</div>
-                           <div class="member-card-sub">{{ w.phone || w.branch?.name }}</div>
+                           <div class="member-card-sub">{{ w.phone || "-" }}</div>
                         </div>
                      </div>
                      <div class="dropdown">

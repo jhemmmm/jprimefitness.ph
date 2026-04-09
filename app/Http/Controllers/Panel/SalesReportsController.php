@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessProfile;
 use App\Models\SaleTransaction;
-use App\Services\BusinessProfileContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
@@ -17,10 +17,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SalesReportsController extends Controller
 {
-    public function __construct(private BusinessProfileContext $businessProfileContext)
-    {
-    }
-
     public function index(): View
     {
         return view('panel.reports.sales');
@@ -139,7 +135,7 @@ class SalesReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $location = $this->businessProfileContext->locationSummary();
+        $location = BusinessProfile::current()->locationSummary();
 
         $salesQuery = SaleTransaction::query()
             ->when($data['type'] ?? null, fn ($query) => $query->where('type', $data['type']))

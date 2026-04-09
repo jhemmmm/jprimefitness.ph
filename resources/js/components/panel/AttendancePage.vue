@@ -78,7 +78,6 @@
                      <tr>
                         <th>Name</th>
                         <th>Type</th>
-                        <th>Location</th>
                         <th>Checked In</th>
                         <th>Checked Out</th>
                         <th class="col-actions"></th>
@@ -93,7 +92,6 @@
                            </div>
                         </td>
                         <td><div class="skeleton-box sk-plan-badge"></div></td>
-                        <td><div class="skeleton-box sk-branch"></div></td>
                         <td><div class="skeleton-box sk-joined"></div></td>
                         <td><div class="skeleton-box sk-joined"></div></td>
                         <td>
@@ -147,7 +145,6 @@
                      <tr>
                         <th>Name</th>
                         <th>Type</th>
-                        <th>Location</th>
                         <th>Checked In</th>
                         <th>Checked Out</th>
                         <th class="col-actions"></th>
@@ -178,7 +175,6 @@
                               {{ $filters.capitalize(r.attendee_type) }}
                            </span>
                         </td>
-                        <td class="small">{{ r.branch ? r.branch.name : "-" }}</td>
                         <td class="text-muted small">{{ $filters.formatDateTime(r.checked_in_at) }}</td>
                         <td>
                            <span v-if="r.checked_out_at" class="text-muted small">{{ $filters.formatDateTime(r.checked_out_at) }}</span>
@@ -209,7 +205,6 @@
                         </div>
                         <div>
                            <div class="member-card-name">{{ r.name }}</div>
-                           <div class="member-card-sub">{{ r.branch ? r.branch.name : "-" }}</div>
                         </div>
                      </a>
                      <div v-else class="member-card-identity">
@@ -218,7 +213,6 @@
                         </div>
                         <div>
                            <div class="member-card-name">{{ r.name }}</div>
-                           <div class="member-card-sub">{{ r.branch ? r.branch.name : "-" }}</div>
                         </div>
                      </div>
                      <div class="dropdown">

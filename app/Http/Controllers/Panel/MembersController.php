@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\BusinessProfile;
 use App\Models\MemberPtPackage;
 use App\Models\MemberPtSessionUsage;
 use App\Models\MemberSubscription;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
 use App\Models\User;
-use App\Services\BusinessProfileContext;
 use App\Services\MemberPtPackageAlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -22,7 +22,6 @@ class MembersController extends Controller
 {
     public function __construct(
         private MemberPtPackageAlertService $memberPtPackageAlertService,
-        private BusinessProfileContext $businessProfileContext,
     ) {
     }
 
@@ -144,8 +143,6 @@ class MembersController extends Controller
     {
         abort_unless($member->hasRole('member'), 404);
 
-        $location = $this->locationPayload();
-
         $records = Attendance::query()
             ->where('user_id', $member->id)
             ->where('attendee_type', Attendance::TYPE_MEMBER)
@@ -155,8 +152,6 @@ class MembersController extends Controller
             ->paginate(15)
             ->through(fn (Attendance $attendance) => [
                 'id' => $attendance->id,
-                'branch_id' => $location['id'],
-                'branch' => $location,
                 'attendee_type' => $attendance->attendee_type,
                 'name' => $attendance->name,
                 'checked_in_at' => $attendance->checked_in_at?->toISOString(),
@@ -520,7 +515,6 @@ class MembersController extends Controller
                 'name' => $subscription->ratePlan->name,
                 'duration_days' => $subscription->ratePlan->duration_days,
             ] : null,
-            'branch' => $this->locationPayload(),
             'manager' => $subscription->manager ? [
                 'id' => $subscription->manager->id,
                 'name' => $subscription->manager->name,
@@ -553,7 +547,6 @@ class MembersController extends Controller
                 'commission_amount' => round((float) $subscription->manager_commission_amount, 2),
                 'earned_at' => $subscription->manager_commission_earned_at?->toISOString(),
                 'manager_name' => $subscription->manager?->name,
-                'branch_name' => $this->locationPayload()['name'],
                 'payroll_label' => $commissionPayrollLabel,
             ],
             'action_state' => [
@@ -578,8 +571,6 @@ class MembersController extends Controller
     {
         return [
             'id' => $package->id,
-            'branch_id' => $this->locationPayload()['id'],
-            'branch' => $this->locationPayload(),
             'pt_product_id' => $package->pt_product_id,
             'pt_product' => $package->ptProduct ? [
                 'id' => $package->ptProduct->id,
@@ -630,7 +621,7 @@ class MembersController extends Controller
      */
     private function locationPayload(bool $includePtProducts = false): array
     {
-        $payload = $this->businessProfileContext->locationSummary();
+        $payload = BusinessProfile::current()->locationSummary();
 
         if (! $includePtProducts) {
             return $payload;
@@ -704,8 +695,6 @@ class MembersController extends Controller
      */
     private function availableCoaches(): array
     {
-        $location = $this->locationPayload();
-
         return User::role('coach')
             ->where('status', User::STATUS_ACTIVE)
             ->orderBy('name')
@@ -714,7 +703,6 @@ class MembersController extends Controller
                 'id' => $coach->id,
                 'name' => $coach->name,
                 'status' => $coach->status,
-                'location' => $location,
             ])
             ->values()
             ->all();

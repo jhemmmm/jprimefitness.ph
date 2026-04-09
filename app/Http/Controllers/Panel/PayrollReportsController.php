@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessProfile;
 use App\Models\Payout;
 use App\Models\Payroll;
-use App\Services\BusinessProfileContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -15,10 +15,6 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PayrollReportsController extends Controller
 {
-    public function __construct(private BusinessProfileContext $businessProfileContext)
-    {
-    }
-
     public function index(): View
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
@@ -162,7 +158,7 @@ class PayrollReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $location = $this->businessProfileContext->locationSummary();
+        $location = BusinessProfile::current()->locationSummary();
 
         $payrollQuery = $this->payrollQuery($data);
         $payoutQuery = $this->payoutQuery($data);

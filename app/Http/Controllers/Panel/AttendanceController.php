@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\User;
-use App\Services\BusinessProfileContext;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,10 +14,6 @@ use Illuminate\View\View;
 
 class AttendanceController extends Controller
 {
-    public function __construct(private BusinessProfileContext $businessProfileContext)
-    {
-    }
-
     public function index(): View
     {
         return view('panel.attendance');
@@ -26,8 +21,6 @@ class AttendanceController extends Controller
 
     public function list(Request $request): JsonResponse
     {
-        $location = $this->businessProfileContext->locationSummary();
-
         $records = Attendance::with(['user', 'walkIn', 'recordedBy'])
             ->when($request->search, fn ($query) => $query->where(function ($inner) use ($request) {
                 $inner->where('name', 'like', "%{$request->search}%")
@@ -42,7 +35,7 @@ class AttendanceController extends Controller
             ->withQueryString();
 
         $records->setCollection(
-            $records->getCollection()->map(fn (Attendance $attendance) => $this->serializeAttendance($attendance, $location))
+            $records->getCollection()->map(fn (Attendance $attendance) => $this->serializeAttendance($attendance))
         );
 
         $baseStatsQuery = Attendance::query();
@@ -136,23 +129,18 @@ class AttendanceController extends Controller
     }
 
     /**
-     * @param  array{id:int, name:string, city:?string, province:?string, status:?string}|null  $location
      * @return array<string, mixed>
      */
-    private function serializeAttendance(Attendance $attendance, ?array $location = null): array
+    private function serializeAttendance(Attendance $attendance): array
     {
-        $location ??= $this->businessProfileContext->locationSummary();
-
         return [
             'id' => $attendance->id,
             'attendee_type' => $attendance->attendee_type,
             'user_id' => $attendance->user_id,
-            'branch_id' => $location['id'],
             'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
             'checked_in_at' => $attendance->checked_in_at?->toISOString(),
             'checked_out_at' => $attendance->checked_out_at?->toISOString(),
             'notes' => $attendance->notes,
-            'branch' => $location,
         ];
     }
 }

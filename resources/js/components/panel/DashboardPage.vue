@@ -154,7 +154,7 @@
                <div class="panel-card">
                   <div class="panel-card-header">
                      <div class="panel-card-title">Location Overview</div>
-                     <a href="/panel/settings" class="panel-card-action">Manage <i class="bi bi-arrow-right ms-1"></i></a>
+                     <a href="/panel/business/settings" class="panel-card-action">Manage <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
                   <div class="panel-card-body">
                      <div v-if="loading">

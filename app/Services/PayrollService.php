@@ -155,7 +155,7 @@ class PayrollService
     public function syncCalculatedAmounts(Payroll $payroll): array
     {
         $totals = $this->calculatePayrollTotals(
-            app(BusinessProfileContext::class)->profile()->country_code,
+            BusinessProfile::current()->country_code,
             $payroll->pay_frequency,
             (float) $payroll->gross_amount,
             (float) $payroll->bonus,
@@ -214,7 +214,7 @@ class PayrollService
     {
         $maxDeduction = $this->maxCashAdvanceDeduction(
             $payroll->employee_id,
-            app(BusinessProfileContext::class)->profile()->country_code,
+            BusinessProfile::current()->country_code,
             $payroll->pay_frequency,
             (float) $payroll->gross_amount,
             (float) $payroll->bonus,
@@ -648,7 +648,7 @@ class PayrollService
     }
 
     /**
-     * Resolve the tax profile configured for the payroll branch country code.
+     * Resolve the tax profile configured for the business country code.
      */
     private function resolveTaxProfile(?string $countryCode): PayrollTaxProfile
     {

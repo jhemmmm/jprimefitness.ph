@@ -31,7 +31,6 @@
                <thead class="table-light">
                   <tr>
                      <th>Product</th>
-                     <th>Location</th>
                      <th>Coach</th>
                      <th>Balance</th>
                      <th>Commission</th>
@@ -46,7 +45,6 @@
                         <div class="fw-semibold">{{ pkg.pt_product?.name || "-" }}</div>
                         <div class="small text-muted" v-if="pkg.notes">{{ pkg.notes }}</div>
                      </td>
-                     <td class="small">{{ pkg.branch?.name || currentLocationName }}</td>
                      <td class="small">{{ pkg.coach?.name || "-" }}</td>
                      <td class="small">
                         <span class="fw-semibold">{{ pkg.remaining_sessions }}</span>
@@ -74,7 +72,6 @@
                <div class="member-card-top">
                   <div>
                      <div class="fw-semibold">{{ pkg.pt_product?.name || "-" }}</div>
-                     <div class="text-muted small">{{ pkg.branch?.name || currentLocationName }}</div>
                      <div class="text-muted small" v-if="pkg.coach?.name">Coach: {{ pkg.coach.name }}</div>
                      <div class="text-muted small">Commission: ₱{{ $filters.formatMoney(pkg.coach_commission_amount || 0) }} · {{ commissionLabel(pkg) }}</div>
                   </div>
@@ -98,7 +95,6 @@
                      <tr>
                         <th>Used At</th>
                         <th>Product</th>
-                        <th>Location</th>
                         <th>Sessions</th>
                         <th>Coach</th>
                         <th>Confirmed By</th>
@@ -112,7 +108,6 @@
                            <div class="fw-semibold">{{ usage.package.pt_product?.name || "-" }}</div>
                            <div class="small text-muted" v-if="usage.notes">{{ usage.notes }}</div>
                         </td>
-                        <td class="small">{{ usage.package.branch?.name || currentLocationName }}</td>
                         <td class="small">{{ usage.sessions_used }}</td>
                         <td class="small">{{ usage.coach?.name || usage.package.coach?.name || "-" }}</td>
                         <td class="small">{{ usage.confirmed_by || "-" }}</td>
@@ -132,8 +127,7 @@
                      <span class="m-badge m-badge--plan-active">{{ usage.sessions_used }} used</span>
                   </div>
                   <div class="member-card-footer">
-                     <span>{{ usage.package.branch?.name || currentLocationName }}</span>
-                     <span class="text-muted small">{{ usage.coach?.name || usage.package.coach?.name || usage.confirmed_by || usage.recorded_by?.name || "-" }}</span>
+                     <span>{{ usage.coach?.name || usage.package.coach?.name || usage.confirmed_by || usage.recorded_by?.name || "-" }}</span>
                   </div>
                </div>
             </div>
@@ -149,10 +143,6 @@
                </div>
                <div class="modal-body">
                   <div class="row g-3">
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm fw-semibold">Location</label>
-                        <input type="text" class="form-control" :value="currentLocationName" disabled />
-                     </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm fw-semibold">PT Product</label>
                         <select class="form-select" v-model="packageForm.pt_product_id" :class="{ 'is-invalid': packageErrors.pt_product_id }">
@@ -330,20 +320,8 @@ export default {
    },
 
    computed: {
-      currentLocation: function () {
-         return this.member.location || window.JPrime?.profile || null;
-      },
-
-      currentLocationId: function () {
-         return this.currentLocation?.id || null;
-      },
-
-      currentLocationName: function () {
-         return this.currentLocation?.name || "Current location";
-      },
-
       availableProducts: function () {
-         return this.currentLocation?.pt_products || [];
+         return this.member.location?.pt_products || window.JPrime?.profile?.pt_products || [];
       },
 
       availableCoaches: function () {
@@ -351,7 +329,7 @@ export default {
       },
 
       availablePackageCoaches: function () {
-         return this.coachesForBranch(this.currentLocationId);
+         return this.availableCoaches;
       },
 
       selectedPackageProduct: function () {
@@ -382,7 +360,7 @@ export default {
       },
 
       availableUsageCoaches: function () {
-         return this.coachesForBranch(this.selectedUsagePackage?.branch_id || this.currentLocationId);
+         return this.availableCoaches;
       },
 
       usageEntries: function () {
@@ -459,10 +437,6 @@ export default {
 
       normalizeErrors: function (errors) {
          return Object.fromEntries(Object.entries(errors || {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
-      },
-
-      coachesForBranch: function (branchId) {
-         return this.availableCoaches;
       },
 
       submitPackage: function () {

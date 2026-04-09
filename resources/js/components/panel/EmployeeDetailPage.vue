@@ -19,7 +19,7 @@
                   </span>
                   <span :class="['m-badge', $filters.statusBadge(localEmployee.status)]">{{ $filters.capitalize(localEmployee.status) }}</span>
                </div>
-               <div class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>{{ window.JPrime?.profile?.name || "Current location" }}</div>
+               <div class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>{{ currentLocationName }}</div>
                <div class="d-flex gap-3 flex-wrap small text-muted">
                   <span v-if="localEmployee.email"><i class="bi bi-envelope me-1"></i>{{ localEmployee.email }}</span>
                   <span v-if="localEmployee.phone"><i class="bi bi-telephone me-1"></i>{{ localEmployee.phone }}</span>
@@ -86,6 +86,10 @@ export default {
             cashAdvance: "EmployeeCashAdvancePage",
             settings: "EmployeeSettingsPage",
          }[this.activeTab];
+      },
+
+      currentLocationName: function () {
+         return this.localEmployee.location?.name || globalThis.JPrime?.profile?.name || "Current location";
       },
    },
 

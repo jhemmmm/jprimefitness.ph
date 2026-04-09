@@ -56,13 +56,13 @@ class SettingsCashLedgerTest extends TestCase
             ->assertCreated();
 
         $response = $this->actingAs($manager)
-            ->getJson('/panel/settings/cash-ledger')
+            ->getJson('/panel/business/cash-ledger/list')
             ->assertOk()
             ->assertJsonPath('summary.balance', 350)
             ->assertJsonPath('summary.cash_in_total', 350)
             ->assertJsonPath('summary.cash_out_total', 0);
 
-        $entryTypes = collect($response->json('entries'))->pluck('entry_type')->all();
+        $entryTypes = collect($response->json('entries.data'))->pluck('entry_type')->all();
 
         $this->assertContains(CashLedgerEntry::TYPE_WALK_IN_SALE, $entryTypes);
         $this->assertNotContains(CashLedgerEntry::TYPE_PT_PACKAGE_SALE, $entryTypes);
@@ -83,8 +83,41 @@ class SettingsCashLedgerTest extends TestCase
         $staff = $this->createUserWithRole('staff', 'Front Desk Staff');
 
         $this->actingAs($staff)
-            ->getJson('/panel/settings/cash-ledger')
+            ->get('/panel/business/cash-ledger')
             ->assertForbidden();
+
+        $this->actingAs($staff)
+            ->getJson('/panel/business/cash-ledger/list')
+            ->assertForbidden();
+
+        $this->actingAs($staff)
+            ->get('/panel/business/settings')
+            ->assertOk()
+            ->assertDontSee('/panel/business/cash-ledger');
+    }
+
+    public function test_business_pages_render_and_legacy_settings_route_redirects(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Bea');
+
+        $this->actingAs($manager)
+            ->get('/panel/business/cash-ledger')
+            ->assertOk()
+            ->assertSee('business-cash-ledger-page', false);
+
+        $this->actingAs($manager)
+            ->get('/panel/business/photos')
+            ->assertOk()
+            ->assertSee('business-photos-page', false);
+
+        $this->actingAs($manager)
+            ->get('/panel/business/settings')
+            ->assertOk()
+            ->assertSee('business-settings-page', false);
+
+        $this->actingAs($manager)
+            ->get('/panel/settings')
+            ->assertRedirect('/panel/business/settings');
     }
 
     public function test_cash_payouts_and_released_cash_advances_reduce_cash_balance(): void
@@ -137,13 +170,13 @@ class SettingsCashLedgerTest extends TestCase
             ->assertOk();
 
         $response = $this->actingAs($manager)
-            ->getJson('/panel/settings/cash-ledger')
+            ->getJson('/panel/business/cash-ledger/list')
             ->assertOk()
             ->assertJsonPath('summary.balance', -1300)
             ->assertJsonPath('summary.cash_in_total', 0)
             ->assertJsonPath('summary.cash_out_total', 1300);
 
-        $entryTypes = collect($response->json('entries'))->pluck('entry_type')->all();
+        $entryTypes = collect($response->json('entries.data'))->pluck('entry_type')->all();
 
         $this->assertContains(CashLedgerEntry::TYPE_PAYROLL_PAYOUT, $entryTypes);
         $this->assertContains(CashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE, $entryTypes);
@@ -154,7 +187,7 @@ class SettingsCashLedgerTest extends TestCase
         $manager = $this->createUserWithRole('manager', 'Manager Zoe');
 
         $entryId = $this->actingAs($manager)
-            ->postJson('/panel/settings/cash-ledger', [
+            ->postJson('/panel/business/cash-ledger', [
                 'direction' => 'in',
                 'amount' => 2500,
                 'occurred_at' => '2026-03-18 10:15:00',
@@ -166,7 +199,7 @@ class SettingsCashLedgerTest extends TestCase
             ->json('entry.id');
 
         $this->actingAs($manager)
-            ->putJson("/panel/settings/cash-ledger/{$entryId}", [
+            ->putJson("/panel/business/cash-ledger/{$entryId}", [
                 'direction' => 'out',
                 'amount' => 400,
                 'occurred_at' => '2026-03-18 11:00:00',
@@ -186,7 +219,7 @@ class SettingsCashLedgerTest extends TestCase
         ]);
 
         $this->actingAs($manager)
-            ->deleteJson("/panel/settings/cash-ledger/{$entryId}")
+            ->deleteJson("/panel/business/cash-ledger/{$entryId}")
             ->assertNoContent();
 
         $this->assertSoftDeleted('cash_ledger_entries', [
@@ -194,11 +227,138 @@ class SettingsCashLedgerTest extends TestCase
         ]);
 
         $this->actingAs($manager)
-            ->getJson('/panel/settings/cash-ledger')
+            ->getJson('/panel/business/cash-ledger/list')
             ->assertOk()
             ->assertJsonPath('summary.balance', 0)
-            ->assertJsonPath('entries.0.id', $entryId)
-            ->assertJsonPath('entries.0.is_deleted', true);
+            ->assertJsonPath('entries.data.0.id', $entryId)
+            ->assertJsonPath('entries.data.0.is_deleted', true);
+    }
+
+    public function test_cash_ledger_filters_only_change_the_entries_list_not_the_summary_cards(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Faye');
+
+        CashLedgerEntry::create([
+            'entry_type' => CashLedgerEntry::TYPE_MANUAL_ADJUSTMENT,
+            'direction' => CashLedgerEntry::DIRECTION_IN,
+            'amount' => 100,
+            'occurred_at' => '2026-03-01 09:00:00',
+            'title' => 'Opening Float',
+            'description' => 'Cash drawer start',
+            'metadata' => [],
+            'is_system' => false,
+            'created_by' => $manager->id,
+        ]);
+
+        CashLedgerEntry::create([
+            'entry_type' => CashLedgerEntry::TYPE_MANUAL_ADJUSTMENT,
+            'direction' => CashLedgerEntry::DIRECTION_OUT,
+            'amount' => 40,
+            'occurred_at' => '2026-03-05 10:00:00',
+            'title' => 'Cleaning Supplies',
+            'description' => 'Bought sanitizer',
+            'metadata' => [],
+            'is_system' => false,
+            'created_by' => $manager->id,
+        ]);
+
+        CashLedgerEntry::create([
+            'entry_type' => CashLedgerEntry::TYPE_WALK_IN_SALE,
+            'direction' => CashLedgerEntry::DIRECTION_IN,
+            'amount' => 500,
+            'occurred_at' => '2026-03-10 11:00:00',
+            'title' => 'Walk-in payment',
+            'description' => 'Guest One',
+            'metadata' => [],
+            'is_system' => true,
+            'created_by' => $manager->id,
+        ]);
+
+        CashLedgerEntry::create([
+            'entry_type' => CashLedgerEntry::TYPE_PAYROLL_PAYOUT,
+            'direction' => CashLedgerEntry::DIRECTION_OUT,
+            'amount' => 200,
+            'occurred_at' => '2026-03-12 12:00:00',
+            'title' => 'Payroll cash payout',
+            'description' => 'Coach Lou',
+            'metadata' => [],
+            'is_system' => true,
+            'created_by' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->getJson('/panel/business/cash-ledger/list?date_from=2026-03-05&date_to=2026-03-10')
+            ->assertOk()
+            ->assertJsonCount(2, 'entries.data')
+            ->assertJsonPath('summary.balance', 360)
+            ->assertJsonPath('summary.cash_in_total', 600)
+            ->assertJsonPath('summary.cash_out_total', 240);
+
+        $directionResponse = $this->actingAs($manager)
+            ->getJson('/panel/business/cash-ledger/list?direction=in')
+            ->assertOk()
+            ->assertJsonCount(2, 'entries.data');
+
+        $this->assertSame(
+            [CashLedgerEntry::TYPE_WALK_IN_SALE, CashLedgerEntry::TYPE_MANUAL_ADJUSTMENT],
+            collect($directionResponse->json('entries.data'))->pluck('entry_type')->all()
+        );
+
+        $this->actingAs($manager)
+            ->getJson('/panel/business/cash-ledger/list?entry_type=walk_in_sale')
+            ->assertOk()
+            ->assertJsonCount(1, 'entries.data')
+            ->assertJsonPath('entries.data.0.title', 'Walk-in payment')
+            ->assertJsonPath('summary.balance', 360);
+
+        $modeResponse = $this->actingAs($manager)
+            ->getJson('/panel/business/cash-ledger/list?mode=manual')
+            ->assertOk()
+            ->assertJsonCount(2, 'entries.data')
+            ->assertJsonPath('summary.balance', 360);
+
+        $this->assertFalse((bool) $modeResponse->json('entries.data.0.is_system'));
+        $this->assertFalse((bool) $modeResponse->json('entries.data.1.is_system'));
+
+        $this->actingAs($manager)
+            ->getJson('/panel/business/cash-ledger/list?search=Cleaning')
+            ->assertOk()
+            ->assertJsonCount(1, 'entries.data')
+            ->assertJsonPath('entries.data.0.title', 'Cleaning Supplies')
+            ->assertJsonPath('summary.balance', 360);
+    }
+
+    public function test_cash_ledger_list_is_paginated_by_default(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Lio');
+
+        foreach (range(1, 25) as $index) {
+            CashLedgerEntry::create([
+                'entry_type' => CashLedgerEntry::TYPE_MANUAL_ADJUSTMENT,
+                'direction' => CashLedgerEntry::DIRECTION_IN,
+                'amount' => 100 + $index,
+                'occurred_at' => now()->subMinutes($index),
+                'title' => "Entry {$index}",
+                'description' => "Ledger entry {$index}",
+                'metadata' => [],
+                'is_system' => false,
+                'created_by' => $manager->id,
+            ]);
+        }
+
+        $this->actingAs($manager)
+            ->getJson('/panel/business/cash-ledger/list')
+            ->assertOk()
+            ->assertJsonPath('entries.current_page', 1)
+            ->assertJsonPath('entries.per_page', 20)
+            ->assertJsonPath('entries.last_page', 2)
+            ->assertJsonCount(20, 'entries.data');
+
+        $this->actingAs($manager)
+            ->getJson('/panel/business/cash-ledger/list?page=2')
+            ->assertOk()
+            ->assertJsonPath('entries.current_page', 2)
+            ->assertJsonCount(5, 'entries.data');
     }
 
     public function test_resyncing_a_soft_deleted_walk_in_restores_the_original_system_entry(): void
@@ -252,7 +412,7 @@ class SettingsCashLedgerTest extends TestCase
         $this->assertNull($restoredEntry->first()->deleted_at);
 
         $this->actingAs($manager)
-            ->getJson('/panel/settings/cash-ledger')
+            ->getJson('/panel/business/cash-ledger/list')
             ->assertOk()
             ->assertJsonPath('summary.balance', 350)
             ->assertJsonPath('summary.cash_in_total', 350)
@@ -283,12 +443,12 @@ class SettingsCashLedgerTest extends TestCase
             ->assertOk();
 
         $this->actingAs($manager)
-            ->getJson('/panel/settings/cash-ledger')
+            ->getJson('/panel/business/cash-ledger/list')
             ->assertOk()
             ->assertJsonPath('summary.balance', 0)
             ->assertJsonPath('summary.cash_in_total', 0)
-            ->assertJsonPath('entries.0.entry_type', CashLedgerEntry::TYPE_WALK_IN_SALE)
-            ->assertJsonPath('entries.0.is_deleted', true);
+            ->assertJsonPath('entries.data.0.entry_type', CashLedgerEntry::TYPE_WALK_IN_SALE)
+            ->assertJsonPath('entries.data.0.is_deleted', true);
     }
 
     private function createPtProduct(string $name, int $sessionCount, float $price): PTProduct

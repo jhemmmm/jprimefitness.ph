@@ -3,7 +3,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Inventory</h4>
-            <p class="text-muted small mb-0">Track stock levels, categories, and item pricing for your location</p>
+            <p class="text-muted small mb-0">Track stock levels, categories, and item pricing for your business</p>
          </div>
          <button class="btn btn-danger px-3" @click="openAddModal">
             <i class="bi bi-plus-lg me-1"></i>
@@ -77,7 +77,6 @@
                   <thead>
                      <tr>
                         <th>Item</th>
-                        <th>Location</th>
                         <th>Stock</th>
                         <th>Pricing</th>
                         <th>Updated</th>
@@ -166,7 +165,6 @@
                   <thead>
                      <tr>
                         <th>Item</th>
-                        <th>Location</th>
                         <th>Stock</th>
                         <th>Pricing</th>
                         <th>Updated</th>
@@ -199,7 +197,6 @@
                               </div>
                            </div>
                         </td>
-                        <td class="small">{{ item.branch?.name || "-" }}</td>
                         <td>
                            <div class="fw-semibold">{{ $filters.formatQuantity(item.quantity) }} {{ item.unit }}</div>
                            <div class="text-muted small">Low stock at {{ $filters.formatQuantity(item.low_stock_threshold) }} {{ item.unit }}</div>
@@ -237,7 +234,12 @@
                         </div>
                         <div>
                            <div class="member-card-name">{{ item.name }}</div>
-                           <div class="member-card-sub">{{ item.branch?.name || "-" }}</div>
+                           <div class="member-card-sub">
+                              <span v-if="item.category">{{ item.category.name }}</span>
+                              <span v-if="item.category && item.sku"> • </span>
+                              <span v-if="item.sku">{{ item.sku }}</span>
+                              <span v-if="!item.category && !item.sku">No category or SKU</span>
+                           </div>
                         </div>
                      </div>
                      <div class="dropdown">

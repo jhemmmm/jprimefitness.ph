@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     @vite(['resources/sass/panel.scss', 'resources/js/app.js'])
     @php
-        $panelBusinessProfile = $businessProfile->only(['id', 'name', 'city', 'province', 'status', 'country_code']);
+        $panelBusinessProfile = $businessProfile->panelShellPayload();
     @endphp
     <script>
         const storedTheme = localStorage.getItem('panel-theme');
@@ -149,10 +149,24 @@
                     </div>
                 @endif
 
-                {{-- System --}}
-                <div class="sidebar-menu-heading">System</div>
+                {{-- Business --}}
+                <div class="sidebar-menu-heading">Business</div>
+                @if (auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']))
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.business.cash-ledger') }}" @class(['active' => request()->routeIs('panel.business.cash-ledger*')])>
+                            <i class="bi bi-cash-stack"></i>
+                            <span class="sidebar-nav-label">Cash Ledger</span>
+                        </a>
+                    </div>
+                @endif
                 <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.settings') }}" @class(['active' => request()->routeIs('panel.settings*')])>
+                    <a href="{{ route('panel.business.photos') }}" @class(['active' => request()->routeIs('panel.business.photos*')])>
+                        <i class="bi bi-images"></i>
+                        <span class="sidebar-nav-label">Photos</span>
+                    </a>
+                </div>
+                <div class="sidebar-nav-item">
+                    <a href="{{ route('panel.business.settings') }}" @class(['active' => request()->routeIs('panel.business.settings*')])>
                         <i class="bi bi-gear-fill"></i>
                         <span class="sidebar-nav-label">Settings</span>
                     </a>
@@ -224,7 +238,7 @@
                             style="min-width: 180px; font-size: 0.85rem;">
                             <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>Profile</a>
                             </li>
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-gear me-2"></i>Settings</a>
+                            <li><a class="dropdown-item" href="{{ route('panel.business.settings') }}"><i class="bi bi-gear me-2"></i>Settings</a>
                             </li>
                             <li>
                                 <hr class="dropdown-divider" />

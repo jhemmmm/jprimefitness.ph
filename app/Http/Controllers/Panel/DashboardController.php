@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\BusinessProfile;
 use App\Models\MemberSubscription;
 use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\SaleTransaction;
 use App\Models\User;
 use App\Models\WalkIn;
-use App\Services\BusinessProfileContext;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -18,10 +18,6 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __construct(private BusinessProfileContext $businessProfileContext)
-    {
-    }
-
     public function index(): View
     {
         return view('panel.dashboard');
@@ -37,7 +33,7 @@ class DashboardController extends Controller
      */
     private function dashboardPayload(): array
     {
-        $location = $this->businessProfileContext->locationSummary();
+        $location = BusinessProfile::current()->locationSummary();
 
         /** @var User $user */
         $user = auth()->user();

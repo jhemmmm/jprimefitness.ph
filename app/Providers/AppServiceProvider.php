@@ -2,9 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\BusinessProfile;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
-use App\Services\BusinessProfileContext;
 use App\Services\CashLedgerService;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -17,7 +17,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->scoped(BusinessProfileContext::class);
     }
 
     /**
@@ -26,7 +25,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('panel.*', function ($view) {
-            $businessProfile = app(BusinessProfileContext::class)->profile();
+            $businessProfile = BusinessProfile::current();
             $cashLedgerSummary = app(CashLedgerService::class)->summarize();
             $businessProfile->setAttribute('cash_ledger_summary', $cashLedgerSummary);
             $businessProfile->setAttribute('cash_balance', $cashLedgerSummary['balance']);
@@ -40,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('home.*', function ($view) {
             $view->with([
-                'businessProfile' => app(BusinessProfileContext::class)->profile(),
+                'businessProfile' => BusinessProfile::current(),
                 'ratePlans' => RatePlan::query()
                     ->where('is_active', true)
                     ->whereNotNull('price')

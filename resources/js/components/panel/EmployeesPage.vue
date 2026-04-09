@@ -1,12 +1,17 @@
 <template>
-   <div>
-      <!-- Header -->
-      <div class="d-flex align-items-center justify-content-between mb-4">
+   <div class="employees-page">
+      <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
+
+      <!-- Page Header -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
-            <h4 class="fw-bold mb-0">Employees</h4>
-            <div class="text-muted small">{{ employees.length }} employee{{ employees.length !== 1 ? "s" : "" }}</div>
+            <h4 class="panel-page-title mb-0">Employees</h4>
+            <p class="text-muted small mb-0">{{ employees.length }} employee{{ employees.length !== 1 ? "s" : "" }}</p>
          </div>
-         <button class="btn btn-danger px-3" @click="openAdd"><i class="bi bi-plus-lg me-1"></i> Add Employee</button>
+         <button class="btn btn-danger px-3" @click="openAdd">
+            <i class="bi bi-plus-lg me-1"></i>
+            Add Employee
+         </button>
       </div>
 
       <!-- Filters -->
@@ -206,6 +211,7 @@ export default {
    data: function () {
       return {
          loading: true,
+         pageError: "",
          employees: [],
          pagination: null,
          search: new URLSearchParams(window.location.search).get("search") || "",
@@ -236,6 +242,7 @@ export default {
       },
       fetchEmployees: function () {
          this.loading = true;
+         this.pageError = "";
          axios
             .get("/panel/employees/list", {
                params: {
@@ -245,7 +252,7 @@ export default {
                },
             })
             .then((res) => (this.employees = res.data))
-            .catch((err) => console.error(err))
+            .catch((err) => (this.pageError = err.response?.data?.message || "Failed to load employees."))
             .finally(() => (this.loading = false));
       },
       onSearchInput: function () {
@@ -255,6 +262,7 @@ export default {
       openAdd: function () {
          this.form = this.emptyForm();
          this.formErrors = {};
+         this.pageError = "";
          this.modalMode = "create";
          this.editTarget = null;
          this.employeeModal.show();
@@ -271,6 +279,7 @@ export default {
             password: "",
          };
          this.formErrors = {};
+         this.pageError = "";
          this.modalMode = "edit";
          this.editTarget = emp;
          this.employeeModal.show();

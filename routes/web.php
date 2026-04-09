@@ -26,13 +26,18 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/dashboard/data', [DashboardController::class, 'data'])->name('dashboard.data');
     Route::get('/search', [SearchController::class, 'index'])->name('search');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
-    Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
-    Route::post('/settings/photos', [SettingsController::class, 'storePhoto'])->name('settings.photos.store');
-    Route::delete('/settings/photos/{index}', [SettingsController::class, 'destroyPhoto'])->name('settings.photos.destroy')->whereNumber('index');
-    Route::get('/settings/cash-ledger', [SettingsController::class, 'cashLedger'])->name('settings.cash-ledger.list');
-    Route::post('/settings/cash-ledger', [SettingsController::class, 'storeCashLedgerEntry'])->name('settings.cash-ledger.store');
-    Route::put('/settings/cash-ledger/{entry}', [SettingsController::class, 'updateCashLedgerEntry'])->name('settings.cash-ledger.update')->whereNumber('entry');
-    Route::delete('/settings/cash-ledger/{entry}', [SettingsController::class, 'destroyCashLedgerEntry'])->name('settings.cash-ledger.destroy')->whereNumber('entry');
+    Route::prefix('business')->name('business.')->group(function () {
+        Route::get('/cash-ledger', [SettingsController::class, 'cashLedgerPage'])->name('cash-ledger');
+        Route::get('/photos', [SettingsController::class, 'photosPage'])->name('photos');
+        Route::get('/settings', [SettingsController::class, 'settingsPage'])->name('settings');
+        Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+        Route::post('/photos', [SettingsController::class, 'storePhoto'])->name('photos.store');
+        Route::delete('/photos/{index}', [SettingsController::class, 'destroyPhoto'])->name('photos.destroy')->whereNumber('index');
+        Route::get('/cash-ledger/list', [SettingsController::class, 'cashLedger'])->name('cash-ledger.list');
+        Route::post('/cash-ledger', [SettingsController::class, 'storeCashLedgerEntry'])->name('cash-ledger.store');
+        Route::put('/cash-ledger/{entry}', [SettingsController::class, 'updateCashLedgerEntry'])->name('cash-ledger.update')->whereNumber('entry');
+        Route::delete('/cash-ledger/{entry}', [SettingsController::class, 'destroyCashLedgerEntry'])->name('cash-ledger.destroy')->whereNumber('entry');
+    });
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/list', [NotificationsController::class, 'list'])->name('notifications.list');
     Route::post('/notifications/read-all', [NotificationsController::class, 'markAllAsRead'])->name('notifications.read-all');

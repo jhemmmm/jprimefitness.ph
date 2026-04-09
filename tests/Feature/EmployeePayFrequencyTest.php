@@ -47,6 +47,19 @@ class EmployeePayFrequencyTest extends TestCase
             ->assertJsonValidationErrors(['pay_frequency']);
     }
 
+    public function test_manager_can_view_employee_details(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $employee = $this->createUserWithRole('staff', 'Coach Ben');
+
+        $this->actingAs($manager)
+            ->get("/panel/employees/{$employee->id}")
+            ->assertOk()
+            ->assertSee('employee-detail-page', false)
+            ->assertSeeText($employee->name);
+    }
+
     public function test_employee_creation_and_update_store_explicit_pay_frequency(): void
     {
         $this->setBusinessProfile('Legazpi');

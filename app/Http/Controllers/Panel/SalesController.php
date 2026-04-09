@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\BusinessProfile;
 use App\Models\SaleTransaction;
-use App\Services\BusinessProfileContext;
 use App\Services\PosSaleService;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Contracts\View\View;
@@ -19,21 +19,20 @@ class SalesController extends Controller
 {
     public function __construct(
         private PosSaleService $posSaleService,
-        private BusinessProfileContext $businessProfileContext,
     ) {
     }
 
     public function index(): View
     {
         return view('panel.sales', [
-            'businessProfile' => $this->businessProfileContext->profile(),
+            'businessProfile' => BusinessProfile::current(),
         ]);
     }
 
     public function context(): JsonResponse
     {
         return response()->json([
-            'location' => $this->businessProfileContext->locationSummary(),
+            'location' => BusinessProfile::current()->locationSummary(),
             'options' => $this->posSaleService->context(),
         ]);
     }
@@ -72,7 +71,7 @@ class SalesController extends Controller
             ->withQueryString();
 
         return response()->json([
-            'location' => $this->businessProfileContext->locationSummary(),
+            'location' => BusinessProfile::current()->locationSummary(),
             'transactions' => $history,
         ]);
     }
@@ -220,7 +219,7 @@ class SalesController extends Controller
     private function transformTransaction(SaleTransaction $transaction): array
     {
         $details = $transaction->details ?? [];
-        $location = $this->businessProfileContext->locationSummary();
+        $location = BusinessProfile::current()->locationSummary();
 
         return [
             'id' => $transaction->id,

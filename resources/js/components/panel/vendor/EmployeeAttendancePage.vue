@@ -59,7 +59,6 @@
                <tr>
                   <th>Checked In</th>
                   <th>Checked Out</th>
-                  <th>Location</th>
                   <th>Status</th>
                   <th class="col-actions"></th>
                </tr>
@@ -71,7 +70,6 @@
                      <span v-if="r.checked_out_at" class="text-muted small">{{ $filters.formatDateTime(r.checked_out_at) }}</span>
                      <button v-else class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                   </td>
-                  <td class="small">{{ r.branch?.name || currentLocationName }}</td>
                   <td>
                      <span :class="['m-badge', $filters.statusBadge(r.checked_out_at ? 'inactive' : 'active')]">
                         {{ r.checked_out_at ? "Out" : "In" }}
@@ -93,7 +91,6 @@
             <div class="member-card-top">
                <div>
                   <div class="fw-semibold small">{{ $filters.formatDateTime(r.checked_in_at) }}</div>
-                  <div class="text-muted small">{{ r.branch?.name || currentLocationName }}</div>
                </div>
                <span :class="['m-badge', $filters.statusBadge(r.checked_out_at ? 'inactive' : 'active')]">
                   {{ r.checked_out_at ? "Out" : "In" }}
@@ -131,10 +128,6 @@
                      <div class="alert alert-danger py-2 small">{{ formError }}</div>
                   </div>
                   <div class="row g-3">
-                     <div class="col-12">
-                        <label class="form-label form-label-sm">Location</label>
-                        <input type="text" class="form-control" :value="currentLocationName" disabled />
-                     </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Checked In <span class="text-danger">*</span></label>
                         <input type="datetime-local" class="form-control" v-model="logForm.checked_in_at" :class="{ 'is-invalid': formErrors.checked_in_at }" />
@@ -214,12 +207,6 @@ export default {
    },
 
    computed: {
-      currentLocationId: function () {
-         return this.employee.location?.id || window.JPrime?.profile?.id || null;
-      },
-      currentLocationName: function () {
-         return this.employee.location?.name || window.JPrime?.profile?.name || "Current location";
-      },
       statCards: function () {
          return [
             { label: "Total", value: this.stats.total, icon: "bi-calendar-check", iconBg: "bg-primary-soft", iconColor: "text-primary" },

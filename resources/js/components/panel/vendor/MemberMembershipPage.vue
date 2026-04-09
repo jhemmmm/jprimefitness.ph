@@ -58,10 +58,6 @@
                      <div class="fw-semibold">{{ $filters.formatDate(currentMembership.end_date) }}</div>
                   </div>
                   <div class="col-sm-6">
-                     <div class="text-muted">Location</div>
-                     <div class="fw-semibold">{{ currentMembership.branch?.name || currentLocationName }}</div>
-                  </div>
-                  <div class="col-sm-6">
                      <div class="text-muted">Recorded</div>
                      <div class="fw-semibold">{{ $filters.formatDateTime(currentMembership.created_at) }}</div>
                   </div>
@@ -352,14 +348,10 @@ export default {
 
       managerAssignmentReason: function () {
          if (this.currentMembershipActionState.can_assign_manager && !this.availableManagers.length) {
-            return "No active manager is assigned to this membership location.";
+            return "No active manager is available for this membership.";
          }
 
          return this.currentMembershipActionState.assign_manager_reason || this.currentCommissionSummary.assignment_reason || "";
-      },
-
-      currentLocationName: function () {
-         return window.JPrime?.profile?.name || this.currentMembership?.branch?.name || "Current location";
       },
 
       canManageMembership: function () {

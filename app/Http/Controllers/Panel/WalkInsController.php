@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\WalkIn;
-use App\Services\BusinessProfileContext;
 use App\Services\CashLedgerService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -18,7 +17,6 @@ class WalkInsController extends Controller
 {
     public function __construct(
         private CashLedgerService $cashLedgerService,
-        private BusinessProfileContext $businessProfileContext,
     ) {
     }
 
@@ -29,8 +27,6 @@ class WalkInsController extends Controller
 
     public function list(Request $request): JsonResponse
     {
-        $location = $this->businessProfileContext->locationSummary();
-
         $walkIns = WalkIn::with('ratePlan')
             ->when(! empty($request->search), fn ($query) => $query->where(function ($inner) use ($request) {
                 $inner->where('name', 'like', "%{$request->search}%")
@@ -42,8 +38,6 @@ class WalkInsController extends Controller
             ->paginate(20)
             ->through(fn (WalkIn $walkIn) => [
                 'id' => $walkIn->id,
-                'branch_id' => $location['id'],
-                'branch' => $location,
                 'rate_plan_id' => $walkIn->rate_plan_id,
                 'rate_plan' => $walkIn->ratePlan,
                 'served_by' => $walkIn->served_by,
@@ -133,8 +127,6 @@ class WalkInsController extends Controller
     {
         return [
             'id' => $walkIn->id,
-            'branch_id' => $this->businessProfileContext->profile()->id,
-            'branch' => $this->businessProfileContext->locationSummary(),
             'rate_plan_id' => $walkIn->rate_plan_id,
             'rate_plan' => $walkIn->ratePlan,
             'served_by' => $walkIn->served_by,

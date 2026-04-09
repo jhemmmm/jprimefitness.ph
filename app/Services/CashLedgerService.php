@@ -9,6 +9,8 @@ use App\Models\SaleTransaction;
 use App\Models\WalkIn;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class CashLedgerService
 {
@@ -57,19 +59,16 @@ class CashLedgerService
     }
 
     /**
-     * @return array<int, array<string, mixed>>
+     * @return LengthAwarePaginator<int, array<string, mixed>>
      */
-    public function listEntries(int $limit = 60): array
+    public function listEntries(array $filters = [], int $perPage = 20): LengthAwarePaginator
     {
-        return CashLedgerEntry::query()
-            ->withTrashed()
+        return $this->filteredEntriesQuery($filters)
             ->with('createdBy:id,name')
             ->orderByDesc('occurred_at')
             ->orderByDesc('id')
-            ->limit($limit)
-            ->get()
-            ->map(fn (CashLedgerEntry $entry) => $this->serializeEntry($entry))
-            ->all();
+            ->paginate($perPage)
+            ->through(fn (CashLedgerEntry $entry) => $this->serializeEntry($entry));
     }
 
     public function createManualEntry(array $data, int $createdBy): CashLedgerEntry
@@ -273,6 +272,26 @@ class CashLedgerService
             'created_by_name' => $entry->createdBy?->name,
             'created_at' => $entry->created_at?->toISOString(),
         ];
+    }
+
+    private function filteredEntriesQuery(array $filters): Builder
+    {
+        return CashLedgerEntry::query()
+            ->withTrashed()
+            ->when($filters['date_from'] ?? null, fn (Builder $query, string $dateFrom) => $query->whereDate('occurred_at', '>=', $dateFrom))
+            ->when($filters['date_to'] ?? null, fn (Builder $query, string $dateTo) => $query->whereDate('occurred_at', '<=', $dateTo))
+            ->when($filters['direction'] ?? null, fn (Builder $query, string $direction) => $query->where('direction', $direction))
+            ->when($filters['entry_type'] ?? null, fn (Builder $query, string $entryType) => $query->where('entry_type', $entryType))
+            ->when(($filters['mode'] ?? null) === 'system', fn (Builder $query) => $query->where('is_system', true))
+            ->when(($filters['mode'] ?? null) === 'manual', fn (Builder $query) => $query->where('is_system', false))
+            ->when($filters['search'] ?? null, function (Builder $query, string $search): void {
+                $term = trim($search);
+
+                $query->where(function (Builder $inner) use ($term): void {
+                    $inner->where('title', 'like', "%{$term}%")
+                        ->orWhere('description', 'like', "%{$term}%");
+                });
+            });
     }
 
     private function syncSystemEntry(
