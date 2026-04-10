@@ -56,7 +56,7 @@
             <tbody>
                <template v-for="a in advances" :key="a.id">
                   <tr role="button" @click="toggleAudit(a)">
-                     <td class="small">{{ $filters.formatDate(a.requested_at) }}</td>
+                     <td class="small">{{ formatDate(a.requested_at) }}</td>
                      <td class="text-end small fw-semibold">₱{{ $filters.formatMoney(a.amount) }}</td>
                      <td class="text-end small text-success">{{ a.deducted_amount > 0 ? "₱" + $filters.formatMoney(a.deducted_amount) : "-" }}</td>
                      <td class="text-end small" :class="a.remaining_amount > 0 ? 'text-danger' : 'text-success'">
@@ -109,7 +109,7 @@
             <div class="member-card-top">
                <div>
                   <div class="fw-semibold small">₱{{ $filters.formatMoney(a.amount) }}</div>
-                  <div class="text-muted small">{{ $filters.formatDate(a.requested_at) }}</div>
+                  <div class="text-muted small">{{ formatDate(a.requested_at) }}</div>
                </div>
                <div class="d-flex gap-2 align-items-center">
                   <span :class="['m-badge', $filters.statusBadge(a.status)]">{{ $filters.capitalize(a.status) }}</span>
@@ -190,6 +190,7 @@
 <script>
 import { Modal } from "bootstrap";
 import AuditEventList from "./AuditEventList.vue";
+import { formatDate, toDateTimeInputValue } from "../../../dates";
 
 export default {
    components: {
@@ -226,6 +227,7 @@ export default {
    },
 
    methods: {
+      formatDate,
       fetchAdvances: function () {
          this.loading = true;
          this.pageError = "";
@@ -368,7 +370,7 @@ export default {
          this.modalMode = "edit";
          this.formError = "";
          this.formErrors = {};
-         const requestedAt = advance.requested_at ? new Date(advance.requested_at).toISOString().slice(0, 16) : "";
+         const requestedAt = advance.requested_at ? toDateTimeInputValue(advance.requested_at) : "";
          this.form = { id: advance.id, amount: advance.amount, notes: advance.notes || "", requested_at: requestedAt };
          this.caModalInst.show();
       },
@@ -412,10 +414,7 @@ export default {
       },
 
       emptyForm: function () {
-         const date = new Date();
-         date.setSeconds(0, 0);
-
-         return { amount: "", notes: "", requested_at: date.toISOString().slice(0, 16) };
+         return { amount: "", notes: "", requested_at: toDateTimeInputValue() };
       },
 
       hasAdvanceActions: function (status) {

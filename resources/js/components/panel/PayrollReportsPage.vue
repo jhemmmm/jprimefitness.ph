@@ -277,7 +277,7 @@
                               </thead>
                               <tbody>
                                  <tr v-for="row in report.payroll_trend" :key="row.period_end">
-                                    <td>{{ $filters.formatDate(row.period_end) }}</td>
+                                    <td>{{ formatDate(row.period_end) }}</td>
                                     <td>{{ row.payroll_count }}</td>
                                     <td class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</td>
                                  </tr>
@@ -288,7 +288,7 @@
                            <div class="member-card" v-for="row in report.payroll_trend" :key="'trend-mobile-' + row.period_end">
                               <div class="member-card-top">
                                  <div>
-                                    <div class="member-card-name">{{ $filters.formatDate(row.period_end) }}</div>
+                                    <div class="member-card-name">{{ formatDate(row.period_end) }}</div>
                                     <div class="member-card-sub">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
                                  </div>
                                  <div class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</div>
@@ -398,6 +398,7 @@
 <script>
 import PayrollStatusBreakdownChart from "./charts/PayrollStatusBreakdownChart.vue";
 import PayrollTrendChart from "./charts/PayrollTrendChart.vue";
+import { formatDate, startOfCurrentMonthDate, todayDate } from "../../dates";
 
 export default {
    components: {
@@ -554,6 +555,7 @@ export default {
       this.fetchReport();
    },
    methods: {
+      formatDate,
       emptyReport: function () {
          return {
             scope: {
@@ -588,15 +590,10 @@ export default {
          };
       },
       defaultDateFrom: function () {
-         const now = new Date();
-         const month = String(now.getMonth() + 1).padStart(2, "0");
-         return `${now.getFullYear()}-${month}-01`;
+         return startOfCurrentMonthDate();
       },
       defaultDateTo: function () {
-         const now = new Date();
-         const month = String(now.getMonth() + 1).padStart(2, "0");
-         const day = String(now.getDate()).padStart(2, "0");
-         return `${now.getFullYear()}-${month}-${day}`;
+         return todayDate();
       },
       formatCurrencyLabel: function (amount) {
          return `₱${this.$filters.formatMoney(amount || 0)}`;

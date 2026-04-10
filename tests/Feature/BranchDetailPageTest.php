@@ -47,7 +47,8 @@ class BranchDetailPageTest extends TestCase
             ->assertSee('Memberships and PT packages')
             ->assertSee('Monthly')
             ->assertSee('12 Sessions')
-            ->assertSee('All current prices are managed centrally for this location.');
+            ->assertSee('All current prices are managed centrally for this location.')
+            ->assertSee('window.JPrime.timezone =', false);
     }
 
     public function test_legacy_branch_urls_return_not_found(): void

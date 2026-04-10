@@ -206,8 +206,8 @@
                            <div>Selling: {{ item.selling_price !== null ? `₱${$filters.formatMoney(item.selling_price)}` : "-" }}</div>
                         </td>
                         <td class="small text-muted">
-                           <div>{{ $filters.formatDateTime(item.updated_at) }}</div>
-                           <div v-if="item.last_restocked_at">Restocked {{ $filters.formatDate(item.last_restocked_at) }}</div>
+                           <div>{{ formatDateTime(item.updated_at) }}</div>
+                           <div v-if="item.last_restocked_at">Restocked {{ formatDate(item.last_restocked_at) }}</div>
                            <div v-else>Never restocked</div>
                         </td>
                         <td>
@@ -402,6 +402,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { formatDate, formatDateTime, toDateTimeInputValue } from "../../dates";
 
 export default {
    props: {
@@ -441,6 +442,8 @@ export default {
       this.fetchItems();
    },
    methods: {
+      formatDate,
+      formatDateTime,
       emptyForm: function () {
          return {
             id: null,
@@ -522,7 +525,7 @@ export default {
             selling_price: item.selling_price ?? "",
             status: item.status || "active",
             notes: item.notes || "",
-            last_restocked_at: this.$filters.formatDateTime(item.last_restocked_at, "input"),
+            last_restocked_at: toDateTimeInputValue(item.last_restocked_at, false),
          };
          this.formModal.show();
       },

@@ -402,7 +402,7 @@
                                     </td>
                                  </tr>
                                  <tr v-for="row in report.daily_trend" :key="row.sale_date">
-                                    <td>{{ $filters.formatDate(row.sale_date) }}</td>
+                                    <td>{{ formatDate(row.sale_date) }}</td>
                                     <td>{{ row.transaction_count }}</td>
                                     <td class="fw-semibold">₱{{ $filters.formatMoney(row.total_sales) }}</td>
                                  </tr>
@@ -418,7 +418,7 @@
                                        <i class="bi bi-calendar3"></i>
                                     </div>
                                     <div>
-                                       <div class="member-card-name">{{ $filters.formatDate(row.sale_date) }}</div>
+                                       <div class="member-card-name">{{ formatDate(row.sale_date) }}</div>
                                        <div class="member-card-sub">{{ row.transaction_count }} transaction{{ row.transaction_count !== 1 ? "s" : "" }}</div>
                                     </div>
                                  </div>
@@ -613,7 +613,7 @@
                               <td>{{ transaction.payment_method_label }}</td>
                               <td class="fw-semibold">₱{{ $filters.formatMoney(transaction.total) }}</td>
                               <td class="small text-muted">
-                                 <div>{{ $filters.formatDateTime(transaction.sold_at) }}</div>
+                                 <div>{{ formatDateTime(transaction.sold_at) }}</div>
                                  <div>{{ transaction.processed_by || "-" }}</div>
                               </td>
                            </tr>
@@ -640,7 +640,7 @@
                         </div>
                         <div class="small text-muted mb-2">
                            <div>Location: {{ transaction.location_name || "-" }}</div>
-                           <div>Sold At: {{ $filters.formatDateTime(transaction.sold_at) }}</div>
+                           <div>Sold At: {{ formatDateTime(transaction.sold_at) }}</div>
                            <div>Processed By: {{ transaction.processed_by || "-" }}</div>
                         </div>
                         <div class="member-card-footer">
@@ -658,6 +658,7 @@
 <script>
 import SalesDailyTrendChart from "./charts/SalesDailyTrendChart.vue";
 import SalesTypeBreakdownChart from "./charts/SalesTypeBreakdownChart.vue";
+import { formatDate, formatDateTime, startOfCurrentMonthDate, todayDate } from "../../dates";
 
 export default {
    components: {
@@ -713,6 +714,8 @@ export default {
       this.fetchReport();
    },
    methods: {
+      formatDate,
+      formatDateTime,
       emptyReport: function () {
          return {
             scope: {
@@ -733,15 +736,10 @@ export default {
          };
       },
       defaultDateFrom: function () {
-         const now = new Date();
-         const month = String(now.getMonth() + 1).padStart(2, "0");
-         return `${now.getFullYear()}-${month}-01`;
+         return startOfCurrentMonthDate();
       },
       defaultDateTo: function () {
-         const now = new Date();
-         const month = String(now.getMonth() + 1).padStart(2, "0");
-         const day = String(now.getDate()).padStart(2, "0");
-         return `${now.getFullYear()}-${month}-${day}`;
+         return todayDate();
       },
       buildParams: function () {
          return {

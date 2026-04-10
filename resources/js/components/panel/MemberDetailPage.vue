@@ -23,7 +23,7 @@
                <div class="d-flex gap-3 flex-wrap small text-muted">
                   <span v-if="localMember.email"><i class="bi bi-envelope me-1"></i>{{ localMember.email }}</span>
                   <span v-if="localMember.phone"><i class="bi bi-telephone me-1"></i>{{ localMember.phone }}</span>
-                  <span><i class="bi bi-calendar3 me-1"></i>Member since {{ $filters.formatDate(localMember.created_at) }}</span>
+                  <span><i class="bi bi-calendar3 me-1"></i>Member since {{ formatDate(localMember.created_at) }}</span>
                </div>
             </div>
          </div>
@@ -46,6 +46,7 @@ import MemberInformationPage from "./vendor/MemberInformationPage.vue";
 import MemberMembershipPage from "./vendor/MemberMembershipPage.vue";
 import MemberPtSessionsPage from "./vendor/MemberPtSessionsPage.vue";
 import MemberSettingsPage from "./vendor/MemberSettingsPage.vue";
+import { formatDate } from "../../dates";
 
 export default {
    components: {
@@ -103,6 +104,7 @@ export default {
    },
 
    methods: {
+      formatDate,
       onMemberUpdated: function (updatedMember) {
          this.localMember = { ...updatedMember };
       },

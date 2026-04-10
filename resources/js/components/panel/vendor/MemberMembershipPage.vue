@@ -51,15 +51,15 @@
                <div v-if="currentMembership" class="row g-3 mt-1 small">
                   <div class="col-sm-6">
                      <div class="text-muted">Start Date</div>
-                     <div class="fw-semibold">{{ $filters.formatDate(currentMembership.start_date) }}</div>
+                     <div class="fw-semibold">{{ formatDate(currentMembership.start_date) }}</div>
                   </div>
                   <div class="col-sm-6">
                      <div class="text-muted">End Date</div>
-                     <div class="fw-semibold">{{ $filters.formatDate(currentMembership.end_date) }}</div>
+                     <div class="fw-semibold">{{ formatDate(currentMembership.end_date) }}</div>
                   </div>
                   <div class="col-sm-6">
                      <div class="text-muted">Recorded</div>
-                     <div class="fw-semibold">{{ $filters.formatDateTime(currentMembership.created_at) }}</div>
+                     <div class="fw-semibold">{{ formatDateTime(currentMembership.created_at) }}</div>
                   </div>
                </div>
                <div v-else class="text-muted small mt-3">Assign a new plan to start tracking membership activity and commission status here.</div>
@@ -92,7 +92,7 @@
                   </div>
                   <div class="col-sm-6">
                      <div class="text-muted">Earned At</div>
-                     <div class="fw-semibold">{{ $filters.formatDateTime(currentCommissionSummary.earned_at) }}</div>
+                     <div class="fw-semibold">{{ formatDateTime(currentCommissionSummary.earned_at) }}</div>
                   </div>
                   <div class="col-12" v-if="currentCommissionSummary.payroll_label">
                      <div class="text-muted">Payroll</div>
@@ -203,7 +203,7 @@
                         <div class="text-muted">{{ Number(membership.commission_summary.commission_rate || 0) }}% · {{ membership.commission_summary.manager_name || "Unassigned" }}</div>
                         <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
                            <span class="m-badge" :class="commissionStatusClass(membership.commission_summary.status)">{{ commissionStatusLabel(membership.commission_summary.status) }}</span>
-                           <span class="text-muted" v-if="membership.commission_summary.earned_at">{{ $filters.formatDateTime(membership.commission_summary.earned_at) }}</span>
+                           <span class="text-muted" v-if="membership.commission_summary.earned_at">{{ formatDateTime(membership.commission_summary.earned_at) }}</span>
                         </div>
                         <div class="text-muted mt-1" v-if="membership.commission_summary.assignment_reason && membership.commission_summary.status === 'unassigned'">{{ membership.commission_summary.assignment_reason }}</div>
                         <div class="text-muted mt-1" v-if="membership.commission_summary.payroll_label">Payroll {{ membership.commission_summary.payroll_label }}</div>
@@ -213,9 +213,9 @@
                   <td>
                      <span class="m-badge" :class="planStatusClass(membership.status)">{{ $filters.capitalize(membership.status) }}</span>
                   </td>
-                  <td class="small">{{ $filters.formatDate(membership.start_date) }}</td>
-                  <td class="small">{{ $filters.formatDate(membership.end_date) }}</td>
-                  <td class="small text-muted">{{ $filters.formatDateTime(membership.created_at) }}</td>
+                  <td class="small">{{ formatDate(membership.start_date) }}</td>
+                  <td class="small">{{ formatDate(membership.end_date) }}</td>
+                  <td class="small text-muted">{{ formatDateTime(membership.created_at) }}</td>
                </tr>
             </tbody>
          </table>
@@ -226,7 +226,7 @@
             <div class="member-card-top">
                <div>
                   <div class="fw-semibold">{{ membership.rate_plan.name }}</div>
-                  <div class="text-muted small">Start {{ $filters.formatDate(membership.start_date) }}</div>
+                  <div class="text-muted small">Start {{ formatDate(membership.start_date) }}</div>
                </div>
                <span class="m-badge" :class="planStatusClass(membership.status)">{{ $filters.capitalize(membership.status) }}</span>
             </div>
@@ -235,15 +235,15 @@
                <div class="text-muted">{{ Number(membership.commission_summary.commission_rate || 0) }}% · {{ membership.commission_summary.manager_name || "Unassigned" }}</div>
                <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
                   <span class="m-badge" :class="commissionStatusClass(membership.commission_summary.status)">{{ commissionStatusLabel(membership.commission_summary.status) }}</span>
-                  <span class="text-muted" v-if="membership.commission_summary.earned_at">{{ $filters.formatDateTime(membership.commission_summary.earned_at) }}</span>
+                  <span class="text-muted" v-if="membership.commission_summary.earned_at">{{ formatDateTime(membership.commission_summary.earned_at) }}</span>
                </div>
                <div class="text-muted mt-1" v-if="membership.commission_summary.assignment_reason && membership.commission_summary.status === 'unassigned'">{{ membership.commission_summary.assignment_reason }}</div>
                <div class="text-muted mt-1" v-if="membership.commission_summary.payroll_label">Payroll {{ membership.commission_summary.payroll_label }}</div>
             </div>
             <div class="small text-muted mt-3" v-else>No manager commission tracked.</div>
             <div class="member-card-footer">
-               <span><i class="bi bi-calendar3 me-1"></i>{{ $filters.formatDate(membership.end_date) }}</span>
-               <span class="text-muted small">{{ $filters.formatDateTime(membership.created_at) }}</span>
+               <span><i class="bi bi-calendar3 me-1"></i>{{ formatDate(membership.end_date) }}</span>
+               <span class="text-muted small">{{ formatDateTime(membership.created_at) }}</span>
             </div>
          </div>
       </div>
@@ -252,6 +252,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { formatDate, formatDateTime, toDateInputValue } from "../../../dates";
 
 export default {
    props: {
@@ -272,7 +273,7 @@ export default {
          managerModalInst: null,
          form: {
             rate_plan_id: "",
-            start_date: new Date().toISOString().slice(0, 10),
+            start_date: toDateInputValue(),
          },
          managerForm: {
             manager_id: "",
@@ -289,9 +290,9 @@ export default {
       member: {
          immediate: true,
          handler: function () {
-            this.form = {
+           this.form = {
                rate_plan_id: this.currentMembership?.rate_plan_id || "",
-               start_date: this.currentMembership?.start_date || new Date().toISOString().slice(0, 10),
+               start_date: this.currentMembership?.start_date || toDateInputValue(),
             };
             this.managerForm = {
                manager_id: this.defaultManagerId,
@@ -410,6 +411,8 @@ export default {
    },
 
    methods: {
+      formatDate,
+      formatDateTime,
       openPlanModal: function () {
          if (this.isCurrentMembershipLocked) {
             this.generalError = this.membershipLockReason;
@@ -419,7 +422,7 @@ export default {
          this.generalError = "";
          this.form = {
             rate_plan_id: this.currentMembership?.rate_plan_id || "",
-            start_date: this.currentMembership?.start_date || new Date().toISOString().slice(0, 10),
+            start_date: this.currentMembership?.start_date || toDateInputValue(),
          };
          this.planModalInst.show();
       },

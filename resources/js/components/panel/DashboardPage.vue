@@ -268,7 +268,7 @@
                               <td>{{ sale.customer_name }}</td>
                               <td>{{ sale.item_name }}</td>
                               <td>{{ formatCurrency(sale.total) }}</td>
-                              <td>{{ $filters.formatDateTime(sale.sold_at) }}</td>
+                              <td>{{ formatDateTime(sale.sold_at) }}</td>
                            </tr>
                         </tbody>
                      </table>
@@ -309,7 +309,7 @@
                            <tr v-for="membership in dashboard.expiring_memberships" :key="membership.id" v-else>
                               <td>{{ membership.member_name }}</td>
                               <td>{{ membership.plan_name }}</td>
-                              <td>{{ $filters.formatDate(membership.end_date) }}</td>
+                              <td>{{ formatDate(membership.end_date) }}</td>
                            </tr>
                         </tbody>
                      </table>
@@ -365,6 +365,7 @@
 
 <script>
 import PeakHoursChart from "./charts/PeakHoursChart.vue";
+import { formatDate, formatDateTime, formatTime as formatClockTime } from "../../dates";
 
 export default {
    components: {
@@ -555,6 +556,8 @@ export default {
       this.fetchDashboard();
    },
    methods: {
+      formatDate,
+      formatDateTime,
       emptyDashboard: function () {
          return {
             scope: {
@@ -649,14 +652,7 @@ export default {
          return `₱${this.$filters.formatMoney(value || 0)}`;
       },
       formatTime: function (value) {
-         if (!value) {
-            return "-";
-         }
-
-         return new Date(value).toLocaleTimeString("en-PH", {
-            hour: "numeric",
-            minute: "2-digit",
-         });
+         return formatClockTime(value);
       },
       formatBusinessTime: function (value) {
          if (!value) {

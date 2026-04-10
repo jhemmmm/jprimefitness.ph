@@ -40,7 +40,7 @@
             <tbody>
                <tr v-for="p in payouts" :key="p.id">
                   <td class="small text-muted">{{ p.payroll_period ?? "-" }}</td>
-                  <td class="small">{{ $filters.formatDateTime(p.paid_at) }}</td>
+                  <td class="small">{{ formatDateTime(p.paid_at) }}</td>
                   <td>
                      <span class="m-badge" :class="$filters.statusBadge(p.method)">{{ $filters.capitalize(p.method) }}</span>
                   </td>
@@ -65,7 +65,7 @@
                </div>
             </div>
             <div class="member-card-footer">
-               <span class="text-muted small"><i class="bi bi-clock me-1"></i>{{ $filters.formatDateTime(p.paid_at) }}</span>
+               <span class="text-muted small"><i class="bi bi-clock me-1"></i>{{ formatDateTime(p.paid_at) }}</span>
                <span class="text-muted small" v-if="p.reference_number"><i class="bi bi-hash me-1"></i>{{ p.reference_number }}</span>
             </div>
          </div>
@@ -74,6 +74,8 @@
 </template>
 
 <script>
+import { formatDateTime } from "../../../dates";
+
 export default {
    props: {
       employee: { type: Object, required: true },
@@ -92,6 +94,7 @@ export default {
    },
 
    methods: {
+      formatDateTime,
       fetchPayouts: function () {
          this.loading = true;
          this.pageError = "";

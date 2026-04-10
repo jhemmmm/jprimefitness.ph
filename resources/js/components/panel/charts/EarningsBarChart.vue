@@ -15,6 +15,7 @@
 <script>
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
+import { todayIndexMondayFirst } from "../../../dates";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, ChartDataLabels);
 
@@ -31,7 +32,7 @@ export default {
       return {
          chart: null,
          weekDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-         todayIdx: (new Date().getDay() + 6) % 7,
+         todayIdx: todayIndexMondayFirst(),
       };
    },
    mounted: function () {

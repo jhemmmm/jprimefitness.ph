@@ -175,9 +175,9 @@
                               {{ $filters.capitalize(r.attendee_type) }}
                            </span>
                         </td>
-                        <td class="text-muted small">{{ $filters.formatDateTime(r.checked_in_at) }}</td>
+                        <td class="text-muted small">{{ formatDateTime(r.checked_in_at) }}</td>
                         <td>
-                           <span v-if="r.checked_out_at" class="text-muted small">{{ $filters.formatDateTime(r.checked_out_at) }}</span>
+                           <span v-if="r.checked_out_at" class="text-muted small">{{ formatDateTime(r.checked_out_at) }}</span>
                            <button v-else class="btn btn-sm btn-outline-success py-0 px-2" title="Check out now" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                         </td>
                         <td>
@@ -238,8 +238,8 @@
                      <span :class="['m-badge', $filters.statusBadge('active')]" v-if="!r.checked_out_at">Currently In</span>
                   </div>
                   <div class="member-card-footer">
-                     <span><i class="bi bi-box-arrow-in-right me-1"></i>{{ $filters.formatDateTime(r.checked_in_at) }}</span>
-                     <span v-if="r.checked_out_at" class="text-muted small"> <i class="bi bi-box-arrow-right me-1"></i>{{ $filters.formatDateTime(r.checked_out_at) }} </span>
+                     <span><i class="bi bi-box-arrow-in-right me-1"></i>{{ formatDateTime(r.checked_in_at) }}</span>
+                     <span v-if="r.checked_out_at" class="text-muted small"> <i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(r.checked_out_at) }} </span>
                      <button v-if="!r.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                   </div>
                </div>
@@ -354,7 +354,7 @@
                   <p class="mb-1">Are you sure you want to delete this attendance record?</p>
                   <p class="fw-semibold mb-0">
                      {{ deleteTarget.name }} &mdash;
-                     {{ $filters.formatDateTime(deleteTarget.checked_in_at) }}
+                     {{ formatDateTime(deleteTarget.checked_in_at) }}
                   </p>
                   <p class="text-muted small mt-2 mb-0">You can restore this record later from Audit History.</p>
                </div>
@@ -374,6 +374,7 @@
 <script>
 import { Modal } from "bootstrap";
 import AsyncSearchSelect from "./vendor/AsyncSearchSelect.vue";
+import { formatDateTime, toDateTimeInputValue } from "../../dates";
 
 export default {
    components: {
@@ -411,12 +412,13 @@ export default {
    },
 
    methods: {
+      formatDateTime,
       emptyForm: function () {
          return {
             attendee_type: "member",
             user_id: "",
             name: "",
-            checked_in_at: new Date().toISOString().slice(0, 16),
+            checked_in_at: toDateTimeInputValue(),
             checked_out_at: "",
             notes: "",
          };
@@ -528,8 +530,8 @@ export default {
             attendee_type: r.attendee_type,
             user_id: r.user_id || "",
             name: r.name || "",
-            checked_in_at: r.checked_in_at ? r.checked_in_at.slice(0, 16) : new Date().toISOString().slice(0, 16),
-            checked_out_at: r.checked_out_at ? r.checked_out_at.slice(0, 16) : "",
+            checked_in_at: toDateTimeInputValue(r.checked_in_at),
+            checked_out_at: r.checked_out_at ? toDateTimeInputValue(r.checked_out_at) : "",
             notes: r.notes || "",
          };
          this.formModal.show();

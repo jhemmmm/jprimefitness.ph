@@ -10,20 +10,21 @@
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800,900|nunito:400,600,700|oswald:400,700"
         rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-    @vite(['resources/sass/panel.scss', 'resources/js/app.js'])
     @php
         $panelBusinessProfile = $businessProfile->panelShellPayload();
     @endphp
     <script>
+        window.JPrime = window.JPrime || {};
+        window.JPrime.timezone = @js(config('app.timezone'));
+        window.JPrime.profile = @json($panelBusinessProfile);
+
         const storedTheme = localStorage.getItem('panel-theme');
         const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         if (theme === 'dark') {
             document.documentElement.setAttribute('data-bs-theme', 'dark');
         }
-        window.JPrime = {
-            profile: @json($panelBusinessProfile)
-        };
     </script>
+    @vite(['resources/sass/panel.scss', 'resources/js/app.js'])
 </head>
 
 <body class="panel-body">

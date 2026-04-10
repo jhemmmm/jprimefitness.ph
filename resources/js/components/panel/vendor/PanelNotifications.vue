@@ -53,6 +53,8 @@
 </template>
 
 <script>
+import { formatDateTime, nowTimestamp } from "../../../dates";
+
 export default {
    data: function () {
       return {
@@ -139,7 +141,7 @@ export default {
 
          return axios.post(`/panel/notifications/${notification.id}/read`).then((response) => {
             notification.is_read = true;
-            notification.read_at = response.data.notification?.read_at || new Date().toISOString();
+            notification.read_at = response.data.notification?.read_at || nowTimestamp();
             this.unreadCount = Number(response.data.unread_count || 0);
             window.dispatchEvent(new Event("panel-notifications:refresh"));
          });
@@ -170,7 +172,7 @@ export default {
       },
 
       formatOccurredAt: function (value) {
-         return this.$filters.formatDateTime(value);
+         return formatDateTime(value);
       },
 
       severityLabel: function (severity) {

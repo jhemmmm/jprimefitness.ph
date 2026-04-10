@@ -281,7 +281,7 @@
                               </thead>
                               <tbody>
                                  <tr v-for="row in report.daily_trend" :key="row.attendance_date">
-                                    <td>{{ $filters.formatDate(row.attendance_date) }}</td>
+                                    <td>{{ formatDate(row.attendance_date) }}</td>
                                     <td>{{ row.check_in_count }}</td>
                                     <td>{{ row.unique_attendees }}</td>
                                  </tr>
@@ -296,7 +296,7 @@
                                        <i class="bi bi-calendar3"></i>
                                     </div>
                                     <div>
-                                       <div class="member-card-name">{{ $filters.formatDate(row.attendance_date) }}</div>
+                                       <div class="member-card-name">{{ formatDate(row.attendance_date) }}</div>
                                        <div class="member-card-sub">{{ row.check_in_count }} check-in{{ row.check_in_count !== 1 ? "s" : "" }}</div>
                                     </div>
                                  </div>
@@ -415,8 +415,8 @@
                                  <span :class="['m-badge', $filters.roleBadge(record.attendee_type)]">{{ record.attendee_type_label }}</span>
                               </td>
                               <td>{{ record.location_name }}</td>
-                              <td class="small text-muted">{{ $filters.formatDateTime(record.checked_in_at) }}</td>
-                              <td class="small text-muted">{{ record.checked_out_at ? $filters.formatDateTime(record.checked_out_at) : "-" }}</td>
+                              <td class="small text-muted">{{ formatDateTime(record.checked_in_at) }}</td>
+                              <td class="small text-muted">{{ record.checked_out_at ? formatDateTime(record.checked_out_at) : "-" }}</td>
                               <td>{{ formatDuration(record.duration_minutes) }}</td>
                               <td>
                                  <span :class="['m-badge', $filters.statusBadge(record.is_currently_in ? 'active' : 'inactive')]">
@@ -447,8 +447,8 @@
                            </span>
                         </div>
                         <div class="member-card-footer flex-column align-items-start gap-1">
-                           <span><i class="bi bi-box-arrow-in-right me-1"></i>{{ $filters.formatDateTime(record.checked_in_at) }}</span>
-                           <span v-if="record.checked_out_at"><i class="bi bi-box-arrow-right me-1"></i>{{ $filters.formatDateTime(record.checked_out_at) }}</span>
+                           <span><i class="bi bi-box-arrow-in-right me-1"></i>{{ formatDateTime(record.checked_in_at) }}</span>
+                           <span v-if="record.checked_out_at"><i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(record.checked_out_at) }}</span>
                            <span><i class="bi bi-clock me-1"></i>{{ formatDuration(record.duration_minutes) }}</span>
                         </div>
                      </div>
@@ -461,6 +461,7 @@
 
 <script>
 import AttendanceDailyTrendChart from "./charts/AttendanceDailyTrendChart.vue";
+import { formatDate, formatDateTime, startOfCurrentMonthDate, todayDate } from "../../dates";
 
 export default {
    components: {
@@ -560,6 +561,8 @@ export default {
       this.fetchReport();
    },
    methods: {
+      formatDate,
+      formatDateTime,
       emptyReport: function () {
          return {
             scope: {
@@ -586,15 +589,10 @@ export default {
          };
       },
       defaultDateFrom: function () {
-         const now = new Date();
-         const month = String(now.getMonth() + 1).padStart(2, "0");
-         return `${now.getFullYear()}-${month}-01`;
+         return startOfCurrentMonthDate();
       },
       defaultDateTo: function () {
-         const now = new Date();
-         const month = String(now.getMonth() + 1).padStart(2, "0");
-         const day = String(now.getDate()).padStart(2, "0");
-         return `${now.getFullYear()}-${month}-${day}`;
+         return todayDate();
       },
       buildParams: function () {
          return {

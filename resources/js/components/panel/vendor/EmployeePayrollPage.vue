@@ -68,7 +68,7 @@
                <tbody>
                   <tr v-for="p in payrolls" :key="p.id">
                      <td class="small">
-                        <div class="fw-semibold">{{ $filters.formatDate(p.period_start) }} – {{ $filters.formatDate(p.period_end) }}</div>
+                        <div class="fw-semibold">{{ formatDate(p.period_start) }} – {{ formatDate(p.period_end) }}</div>
                         <div class="text-muted" style="font-size: 0.75rem">{{ p.notes }}</div>
                      </td>
                      <td class="text-end small">₱{{ $filters.formatMoney(p.gross_amount) }}</td>
@@ -114,7 +114,7 @@
             <div class="member-card" v-for="p in payrolls" :key="'pm' + p.id">
                <div class="member-card-top">
                   <div>
-                     <div class="fw-semibold small">{{ $filters.formatDate(p.period_start) }} – {{ $filters.formatDate(p.period_end) }}</div>
+                     <div class="fw-semibold small">{{ formatDate(p.period_start) }} – {{ formatDate(p.period_end) }}</div>
                      <div class="text-muted" style="font-size: 0.75rem">
                         Net: <strong>₱{{ $filters.formatMoney(p.net_amount) }}</strong>
                      </div>
@@ -297,7 +297,7 @@
                <div class="modal-body" v-if="payoutTarget">
                   <div class="alert alert-danger py-2 small" v-if="payoutError">{{ payoutError }}</div>
                   <div class="d-flex justify-content-between mb-3 small">
-                     <span class="text-muted">Period: {{ $filters.formatDate(payoutTarget.period_start) }} – {{ $filters.formatDate(payoutTarget.period_end) }}</span>
+                     <span class="text-muted">Period: {{ formatDate(payoutTarget.period_start) }} – {{ formatDate(payoutTarget.period_end) }}</span>
                      <span class="fw-bold text-danger">Balance: ₱{{ $filters.formatMoney(payoutTarget.remaining_balance) }}</span>
                   </div>
                   <div class="row g-3">
@@ -335,7 +335,7 @@
                      <div v-else>
                         <div v-for="po in existingPayouts" :key="po.id" class="d-flex justify-content-between align-items-center small border-bottom py-1">
                            <span
-                              >{{ $filters.formatDate(po.paid_at) }} · <span>{{ $filters.capitalize(po.method) }}</span> <span v-if="po.reference_number" class="text-muted">({{ po.reference_number }})</span></span
+                              >{{ formatDate(po.paid_at) }} · <span>{{ $filters.capitalize(po.method) }}</span> <span v-if="po.reference_number" class="text-muted">({{ po.reference_number }})</span></span
                            >
                            <span class="fw-semibold text-success">₱{{ $filters.formatMoney(po.amount) }}</span>
                         </div>
@@ -371,6 +371,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { appDayjs, formatDate, nowTimestamp, startOfCurrentMonthDate, toDateTimeInputValue } from "../../../dates";
 
 export default {
    props: {
@@ -458,6 +459,7 @@ export default {
    },
 
    methods: {
+      formatDate,
       queueSuggestionFetch: function () {
          if (!this.form.period_start || !this.form.period_end) {
             this.suggestion = null;
@@ -483,9 +485,9 @@ export default {
       openCreate: function () {
          this.modalMode = "create";
          // Default period to current calendar month
-         const now = new Date();
-         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+         const currentMonth = appDayjs(nowTimestamp());
+         const firstDay = startOfCurrentMonthDate();
+         const lastDay = currentMonth.endOf("month").format("YYYY-MM-DD");
          this.form = { ...this.emptyForm(), period_start: firstDay, period_end: lastDay };
          this.formError = "";
          this.formErrors = {};
@@ -690,9 +692,7 @@ export default {
       },
 
       emptyPayoutForm: function () {
-         const d = new Date();
-         d.setSeconds(0, 0);
-         return { amount: "", method: "cash", reference_number: "", notes: "", paid_at: d.toISOString().slice(0, 16) };
+         return { amount: "", method: "cash", reference_number: "", notes: "", paid_at: toDateTimeInputValue() };
       },
 
       getPayslipUrl: function (payroll) {

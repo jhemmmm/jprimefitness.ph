@@ -22,6 +22,7 @@
     "dependencies": {
         "chart.js": "^4.5.1",
         "chartjs-plugin-datalabels": "^2.2.0",
+        "dayjs": "^1.11.20",
         "laravel-permission-to-vuejs": "^3.0.8"
     }
 }

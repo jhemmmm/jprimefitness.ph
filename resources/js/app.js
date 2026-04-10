@@ -85,24 +85,6 @@ app.config.globalProperties.$filters = {
       if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
       return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
    },
-   formatDateTime: function (dt, format = "display") {
-      if (!dt) {
-         return format === "input" ? "" : "-";
-      }
-
-      const date = new Date(dt);
-
-      if (format === "input") {
-         const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-         return localDate.toISOString().slice(0, 16);
-      }
-
-      return date.toLocaleString("en-PH", { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-   },
-   formatDate: function (dateStr) {
-      if (!dateStr) return "-";
-      return new Date(dateStr).toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
-   },
    formatQuantity: function (value) {
       if (value === null || value === undefined || value === "") return "0";
       return parseFloat(value).toLocaleString("en-PH", {

@@ -18,7 +18,7 @@
                      Caused by {{ event.caused_by.subject_label || event.caused_by.subject_type }} · {{ event.caused_by.event_label }}
                   </div>
                   <div class="small text-muted mt-2">
-                     <span v-if="event.actor_name">{{ event.actor_name }} · </span>{{ $filters.formatDateTime(event.occurred_at) }}
+                     <span v-if="event.actor_name">{{ event.actor_name }} · </span>{{ formatDateTime(event.occurred_at) }}
                   </div>
                </div>
 
@@ -32,6 +32,8 @@
 </template>
 
 <script>
+import { formatDateTime } from "../../../dates";
+
 export default {
    props: {
       events: {
@@ -56,6 +58,9 @@ export default {
          type: Boolean,
          default: false,
       },
+   },
+   methods: {
+      formatDateTime,
    },
 };
 </script>

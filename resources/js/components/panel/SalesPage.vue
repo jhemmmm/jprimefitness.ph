@@ -305,7 +305,7 @@
                      </div>
                      <div class="d-flex justify-content-between align-items-center pb-2 mb-3">
                         <span class="text-muted small">Sold At</span>
-                        <span class="fw-semibold text-end">{{ $filters.formatDateTime(form.sold_at) }}</span>
+                        <span class="fw-semibold text-end">{{ formatDateTime(form.sold_at) }}</span>
                      </div>
 
                      <div v-if="saleType === 'inventory' && normalizedInventoryLines.length" class="rounded-3 border mb-3 overflow-hidden">
@@ -504,7 +504,7 @@
                               <div class="text-muted" v-if="transaction.payment_reference">{{ transaction.payment_reference }}</div>
                            </td>
                            <td class="fw-semibold small">₱{{ $filters.formatMoney(transaction.total) }}</td>
-                           <td class="small text-muted">{{ $filters.formatDateTime(transaction.sold_at) }}</td>
+                           <td class="small text-muted">{{ formatDateTime(transaction.sold_at) }}</td>
                            <td>
                               <div class="d-flex gap-1">
                                  <a class="btn btn-sm btn-outline-info" :href="transaction.receipt_url" target="_blank" rel="noopener" title="Download receipt">
@@ -538,7 +538,7 @@
                      <div class="small text-muted mt-2">
                         <div>{{ transaction.item_name || "-" }}</div>
                         <div>{{ transaction.payment_method_label || $filters.capitalize(transaction.payment_method) }}</div>
-                        <div>{{ $filters.formatDateTime(transaction.sold_at) }}</div>
+                        <div>{{ formatDateTime(transaction.sold_at) }}</div>
                      </div>
                      <div class="d-flex gap-2 mt-3">
                         <a class="btn btn-sm btn-outline-info" :href="transaction.receipt_url" target="_blank" rel="noopener">Download Receipt</a>
@@ -563,6 +563,8 @@
 </template>
 
 <script>
+import { formatDateTime, nowTimestamp, todayDate, toDateTimeInputValue } from "../../dates";
+
 export default {
    props: {
       profile: {
@@ -573,9 +575,6 @@ export default {
       },
    },
    data: function () {
-      var now = new Date();
-      var localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
-
       return {
          saleType: "inventory",
          loadingContext: false,
@@ -602,7 +601,7 @@ export default {
          form: {
             inventory_lines: [
                {
-                  key: "inv-" + Date.now() + "-0",
+                  key: "inv-" + nowTimestamp() + "-0",
                   inventory_item_id: "",
                   inventory_item_label: "",
                   quantity: 1,
@@ -617,14 +616,14 @@ export default {
             membership_rate_plan_id: "",
             pt_product_id: "",
             walk_in_rate_plan_id: "",
-            start_date: now.toISOString().slice(0, 10),
-            assigned_at: now.toISOString().slice(0, 10),
+            start_date: todayDate(),
+            assigned_at: todayDate(),
             expires_at: "",
             amount_paid: "",
             payment_method: "cash",
             amount_received: "",
             payment_reference: "",
-            sold_at: localDate.toISOString().slice(0, 16),
+            sold_at: toDateTimeInputValue(),
             notes: "",
          },
          paymentMethods: [
@@ -795,17 +794,16 @@ export default {
       },
    },
    methods: {
+      formatDateTime,
       defaultInventoryLine: function () {
          return {
-            key: "inv-" + Date.now() + "-" + Math.floor(Math.random() * 100000),
+            key: "inv-" + nowTimestamp() + "-" + Math.floor(Math.random() * 100000),
             inventory_item_id: "",
             inventory_item_label: "",
             quantity: 1,
          };
       },
       defaultForm: function () {
-         var currentDate = new Date();
-
          return {
             inventory_lines: [this.defaultInventoryLine()],
             member_mode: "existing",
@@ -817,14 +815,14 @@ export default {
             membership_rate_plan_id: "",
             pt_product_id: "",
             walk_in_rate_plan_id: "",
-            start_date: currentDate.toISOString().slice(0, 10),
-            assigned_at: currentDate.toISOString().slice(0, 10),
+            start_date: todayDate(),
+            assigned_at: todayDate(),
             expires_at: "",
             amount_paid: "",
             payment_method: "cash",
             amount_received: "",
             payment_reference: "",
-            sold_at: this.$filters.formatDateTime(new Date(), "input"),
+            sold_at: toDateTimeInputValue(),
             notes: "",
          };
       },

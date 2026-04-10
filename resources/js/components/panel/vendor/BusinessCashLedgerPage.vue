@@ -159,11 +159,11 @@
                   </thead>
                   <tbody>
                      <tr v-for="entry in entries" :key="entry.id" :class="{ 'opacity-50': entry.is_deleted }">
-                        <td class="text-muted small">{{ $filters.formatDateTime(entry.occurred_at) }}</td>
+                        <td class="text-muted small">{{ formatDateTime(entry.occurred_at) }}</td>
                         <td>
                            <div class="member-name">{{ entry.title }}</div>
                            <div class="text-muted small" v-if="entry.description">{{ entry.description }}</div>
-                           <div class="text-danger small" v-if="entry.is_deleted">Deleted {{ $filters.formatDateTime(entry.deleted_at) }}</div>
+                           <div class="text-danger small" v-if="entry.is_deleted">Deleted {{ formatDateTime(entry.deleted_at) }}</div>
                         </td>
                         <td>
                            <div class="d-flex gap-1 flex-wrap">
@@ -199,7 +199,7 @@
                   <div class="member-card-top">
                      <div>
                         <div class="member-card-name">{{ entry.title }}</div>
-                        <div class="member-card-sub">{{ $filters.formatDateTime(entry.occurred_at) }}</div>
+                        <div class="member-card-sub">{{ formatDateTime(entry.occurred_at) }}</div>
                      </div>
                      <span class="fw-semibold small" :class="entry.direction === 'in' ? 'text-success' : 'text-danger'">{{ entry.direction === "in" ? "+" : "-" }}&#8369;{{ $filters.formatMoney(entry.amount) }}</span>
                   </div>
@@ -209,7 +209,7 @@
                      <span class="m-badge m-badge--inactive" v-if="entry.is_deleted">Deleted</span>
                   </div>
                   <div class="text-muted small mt-3" v-if="entry.description">{{ entry.description }}</div>
-                  <div class="text-danger small mt-2" v-if="entry.is_deleted">Deleted {{ $filters.formatDateTime(entry.deleted_at) }}</div>
+                  <div class="text-danger small mt-2" v-if="entry.is_deleted">Deleted {{ formatDateTime(entry.deleted_at) }}</div>
                   <div class="member-card-footer mt-3">
                      <span>{{ entry.created_by_name || "System" }}</span>
                      <div class="d-flex gap-2" v-if="canManageEntries && !entry.is_system && !entry.is_deleted">
@@ -312,6 +312,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { formatDateTime, toDateTimeInputValue } from "../../../dates";
 
 export default {
    props: {
@@ -407,6 +408,7 @@ export default {
    },
 
    methods: {
+      formatDateTime,
       emptyForm: function () {
          return {
             id: null,
@@ -414,24 +416,8 @@ export default {
             amount: "",
             title: "",
             description: "",
-            occurred_at: this.toInputDateTime(new Date()),
+            occurred_at: toDateTimeInputValue(),
          };
-      },
-
-      toInputDateTime: function (value) {
-         const date = value instanceof Date ? value : new Date(value);
-
-         if (Number.isNaN(date.getTime())) {
-            return "";
-         }
-
-         const year = date.getFullYear();
-         const month = String(date.getMonth() + 1).padStart(2, "0");
-         const day = String(date.getDate()).padStart(2, "0");
-         const hours = String(date.getHours()).padStart(2, "0");
-         const minutes = String(date.getMinutes()).padStart(2, "0");
-
-         return `${year}-${month}-${day}T${hours}:${minutes}`;
       },
 
       filterParams: function (page = 1) {
@@ -525,8 +511,8 @@ export default {
             amount: entry.amount,
             title: entry.title,
             description: entry.description || "",
-            occurred_at: this.toInputDateTime(entry.occurred_at),
-         };
+            occurred_at: toDateTimeInputValue(entry.occurred_at),
+            };
          this.formErrors = {};
          this.modalError = "";
          this.entryModalInst.show();

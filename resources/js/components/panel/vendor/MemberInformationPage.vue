@@ -23,7 +23,7 @@
                   </div>
                   <div class="col-md-6">
                      <div class="small text-muted">Date of Birth</div>
-                     <div class="fw-semibold small">{{ $filters.formatDate(member.profile?.date_of_birth) }}</div>
+                     <div class="fw-semibold small">{{ formatDate(member.profile?.date_of_birth) }}</div>
                   </div>
                   <div class="col-md-6">
                      <div class="small text-muted">Gender</div>
@@ -52,12 +52,12 @@
                   <div class="d-flex align-items-start justify-content-between gap-3 mb-2">
                      <div>
                         <div class="fw-semibold">{{ activeMembership.rate_plan.name }}</div>
-                        <div class="small text-muted">Start {{ $filters.formatDate(activeMembership.start_date) }}</div>
+                        <div class="small text-muted">Start {{ formatDate(activeMembership.start_date) }}</div>
                      </div>
                      <span class="m-badge" :class="planStatusClass(activeMembership.status)">{{ $filters.capitalize(activeMembership.status) }}</span>
                   </div>
                   <div class="small text-muted">
-                     <span v-if="activeMembership.end_date">Ends {{ $filters.formatDate(activeMembership.end_date) }}</span>
+                     <span v-if="activeMembership.end_date">Ends {{ formatDate(activeMembership.end_date) }}</span>
                      <span v-else>No end date set.</span>
                   </div>
                </div>
@@ -66,7 +66,7 @@
                <hr class="my-3" />
 
                <div class="small text-muted">Member since</div>
-               <div class="fw-semibold small">{{ $filters.formatDate(member.created_at) }}</div>
+               <div class="fw-semibold small">{{ formatDate(member.created_at) }}</div>
             </div>
          </div>
       </div>
@@ -74,6 +74,8 @@
 </template>
 
 <script>
+import { formatDate } from "../../../dates";
+
 export default {
    props: {
       member: { type: Object, required: true },
@@ -93,6 +95,7 @@ export default {
    },
 
    methods: {
+      formatDate,
       planStatusClass: function (status) {
          return (
             {

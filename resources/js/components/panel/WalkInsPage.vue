@@ -167,7 +167,7 @@
                         </td>
                         <td class="fw-semibold small">₱{{ $filters.formatMoney(w.amount_paid) }}</td>
                         <td class="small">{{ $filters.capitalize(w.payment_method || "cash") }}</td>
-                        <td class="text-muted small">{{ $filters.formatDateTime(w.visited_at) }}</td>
+                        <td class="text-muted small">{{ formatDateTime(w.visited_at) }}</td>
                         <td>
                            <div class="d-flex gap-1">
                               <button class="btn btn-sm btn-outline-secondary" title="Edit" @click="openEditModal(w)">
@@ -215,7 +215,7 @@
                      <span class="m-badge m-badge--plan" v-if="w.rate_plan">{{ w.rate_plan.name }}</span>
                   </div>
                   <div class="member-card-footer">
-                     <span><i class="bi bi-calendar3 me-1"></i>{{ $filters.formatDateTime(w.visited_at) }}</span>
+                     <span><i class="bi bi-calendar3 me-1"></i>{{ formatDateTime(w.visited_at) }}</span>
                      <span class="member-card-num">#{{ w.id }}</span>
                   </div>
                </div>
@@ -310,7 +310,7 @@
                </div>
                <div class="modal-body" v-if="deleteTarget">
                   <p class="mb-1">Are you sure you want to delete this walk-in record?</p>
-                  <p class="fw-semibold mb-0">{{ deleteTarget.name }} &mdash; {{ $filters.formatDateTime(deleteTarget.visited_at) }}</p>
+                  <p class="fw-semibold mb-0">{{ deleteTarget.name }} &mdash; {{ formatDateTime(deleteTarget.visited_at) }}</p>
                   <p class="text-muted small mt-2 mb-0">You can restore this walk-in later from Audit History.</p>
                </div>
                <div class="modal-footer">
@@ -328,6 +328,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { formatDateTime, toDateTimeInputValue } from "../../dates";
 
 export default {
    props: {
@@ -365,6 +366,7 @@ export default {
    },
 
    methods: {
+      formatDateTime,
       emptyForm: function () {
          return {
             name: "",
@@ -372,7 +374,7 @@ export default {
             rate_plan_id: "",
             amount_paid: "",
             payment_method: "cash",
-            visited_at: new Date().toISOString().slice(0, 16),
+            visited_at: toDateTimeInputValue(),
             notes: "",
          };
       },
@@ -438,7 +440,7 @@ export default {
             rate_plan_id: w.rate_plan_id || "",
             amount_paid: w.amount_paid || "",
             payment_method: w.payment_method || "cash",
-            visited_at: w.visited_at ? w.visited_at.slice(0, 16) : new Date().toISOString().slice(0, 16),
+            visited_at: w.visited_at ? toDateTimeInputValue(w.visited_at) : toDateTimeInputValue(),
             notes: w.notes || "",
          };
          this.formModal.show();

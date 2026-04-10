@@ -15,6 +15,7 @@
 <script>
 import { Chart, CategoryScale, Filler, LineController, LineElement, LinearScale, PointElement, Tooltip } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
+import { formatShortMonthDay } from "../../../dates";
 
 Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Filler, ChartDataLabels);
 
@@ -65,11 +66,7 @@ export default {
          return this.isDark() ? "rgba(200,16,46,0.26)" : "rgba(200,16,46,0.14)";
       },
       formatDateLabel: function (value) {
-         if (!value) {
-            return "-";
-         }
-
-         return new Date(value).toLocaleDateString("en-PH", { month: "short", day: "numeric" });
+         return formatShortMonthDay(value);
       },
       chartLabels: function () {
          return this.trend.map((row) => this.formatDateLabel(row.sale_date));

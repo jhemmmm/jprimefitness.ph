@@ -54,7 +54,8 @@ class DashboardPageTest extends TestCase
             ->get('/panel/dashboard')
             ->assertOk()
             ->assertSee('dashboard-page', false)
-            ->assertSee('business-profile=', false);
+            ->assertSee('business-profile=', false)
+            ->assertSee('window.JPrime.timezone =', false);
     }
 
     public function test_dashboard_component_uses_single_business_sections_instead_of_location_cards(): void

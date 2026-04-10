@@ -58,8 +58,8 @@
                         <span class="m-badge" :class="packageStatusClass(pkg.status)">{{ $filters.capitalize(pkg.status) }}</span>
                      </td>
                      <td class="small">
-                        <div>{{ $filters.formatDate(pkg.assigned_at) }}</div>
-                        <div class="text-muted" v-if="pkg.expires_at">Expires {{ $filters.formatDate(pkg.expires_at) }}</div>
+                        <div>{{ formatDate(pkg.assigned_at) }}</div>
+                        <div class="text-muted" v-if="pkg.expires_at">Expires {{ formatDate(pkg.expires_at) }}</div>
                      </td>
                      <td class="small text-muted">{{ pkg.created_by?.name || "-" }}</td>
                   </tr>
@@ -79,7 +79,7 @@
                </div>
                <div class="member-card-footer">
                   <span>{{ pkg.remaining_sessions }}/{{ pkg.total_sessions }} left</span>
-                  <span class="text-muted small">{{ $filters.formatDate(pkg.assigned_at) }}</span>
+                  <span class="text-muted small">{{ formatDate(pkg.assigned_at) }}</span>
                </div>
             </div>
          </div>
@@ -103,7 +103,7 @@
                   </thead>
                   <tbody>
                      <tr v-for="usage in usageEntries" :key="usage.id">
-                        <td class="small">{{ $filters.formatDateTime(usage.used_at) }}</td>
+                        <td class="small">{{ formatDateTime(usage.used_at) }}</td>
                         <td>
                            <div class="fw-semibold">{{ usage.package.pt_product?.name || "-" }}</div>
                            <div class="small text-muted" v-if="usage.notes">{{ usage.notes }}</div>
@@ -122,7 +122,7 @@
                   <div class="member-card-top">
                      <div>
                         <div class="fw-semibold">{{ usage.package.pt_product?.name || "-" }}</div>
-                        <div class="text-muted small">{{ $filters.formatDateTime(usage.used_at) }}</div>
+                        <div class="text-muted small">{{ formatDateTime(usage.used_at) }}</div>
                      </div>
                      <span class="m-badge m-badge--plan-active">{{ usage.sessions_used }} used</span>
                   </div>
@@ -253,6 +253,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { formatDate, formatDateTime, toDateInputValue, toDateTimeInputValue } from "../../../dates";
 
 export default {
    props: {
@@ -272,7 +273,7 @@ export default {
         packageForm: {
             pt_product_id: "",
             coach_id: "",
-            assigned_at: new Date().toISOString().slice(0, 10),
+            assigned_at: toDateInputValue(),
             expires_at: "",
             notes: "",
          },
@@ -280,7 +281,7 @@ export default {
             member_pt_package_id: "",
             coach_id: "",
             sessions_used: 1,
-            used_at: new Date().toISOString().slice(0, 16),
+            used_at: toDateTimeInputValue(),
             confirmed_by: "",
             notes: "",
          },
@@ -397,11 +398,13 @@ export default {
    },
 
    methods: {
+      formatDate,
+      formatDateTime,
       resetPackageForm: function () {
          this.packageForm = {
             pt_product_id: "",
             coach_id: "",
-            assigned_at: new Date().toISOString().slice(0, 10),
+            assigned_at: toDateInputValue(),
             expires_at: "",
             notes: "",
          };
@@ -415,7 +418,7 @@ export default {
             member_pt_package_id: this.activePackages[0]?.id || "",
             coach_id: this.activePackages[0]?.coach_id || "",
             sessions_used: 1,
-            used_at: new Date().toISOString().slice(0, 16),
+            used_at: toDateTimeInputValue(),
             confirmed_by: this.member.name || "",
             notes: "",
          };

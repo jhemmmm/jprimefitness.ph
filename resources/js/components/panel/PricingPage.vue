@@ -64,8 +64,8 @@
                         <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
                      </td>
                      <td class="small text-muted">
-                        <div>From: {{ $filters.formatDate(rate.effective_from) }}</div>
-                        <div>Until: {{ $filters.formatDate(rate.effective_until) }}</div>
+                        <div>From: {{ formatDate(rate.effective_from) }}</div>
+                        <div>Until: {{ formatDate(rate.effective_until) }}</div>
                      </td>
                      <td>
                         <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
@@ -119,8 +119,8 @@
                         <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
                      </td>
                      <td class="small text-muted">
-                        <div>From: {{ $filters.formatDate(rate.effective_from) }}</div>
-                        <div>Until: {{ $filters.formatDate(rate.effective_until) }}</div>
+                        <div>From: {{ formatDate(rate.effective_from) }}</div>
+                        <div>Until: {{ formatDate(rate.effective_until) }}</div>
                      </td>
                      <td>
                         <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
@@ -279,6 +279,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { formatDate } from "../../dates";
 
 export default {
    props: {
@@ -339,6 +340,7 @@ export default {
       this.fetchPricing();
    },
    methods: {
+      formatDate,
       emptyMembershipForm: function () {
          return {
             id: "",

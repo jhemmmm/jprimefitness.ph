@@ -194,7 +194,7 @@
                            <div class="d-flex justify-content-between align-items-start gap-3">
                               <div>
                                  <div class="fw-semibold">{{ entry.title }}</div>
-                                 <div class="text-muted small">{{ entry.location_name || "-" }} · {{ $filters.formatDateTime(entry.occurred_at) }}</div>
+                                 <div class="text-muted small">{{ entry.location_name || "-" }} · {{ formatDateTime(entry.occurred_at) }}</div>
                                  <div class="text-muted small" v-if="entry.description">{{ entry.description }}</div>
                                  <div class="text-muted small" v-if="entry.created_by_name">Logged by {{ entry.created_by_name }}</div>
                               </div>
@@ -210,6 +210,8 @@
 </template>
 
 <script>
+import { formatDateTime, startOfCurrentMonthDate, todayDate } from "../../dates";
+
 export default {
    props: {
       businessProfile: {
@@ -306,6 +308,7 @@ export default {
       this.fetchReport();
    },
    methods: {
+      formatDateTime,
       emptyReport: function () {
          return {
             scope: {
@@ -331,15 +334,10 @@ export default {
          };
       },
       defaultDateFrom: function () {
-         const now = new Date();
-         const month = String(now.getMonth() + 1).padStart(2, "0");
-         return `${now.getFullYear()}-${month}-01`;
+         return startOfCurrentMonthDate();
       },
       defaultDateTo: function () {
-         const now = new Date();
-         const month = String(now.getMonth() + 1).padStart(2, "0");
-         const day = String(now.getDate()).padStart(2, "0");
-         return `${now.getFullYear()}-${month}-${day}`;
+         return todayDate();
       },
       buildParams: function () {
          return {

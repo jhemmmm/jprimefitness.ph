@@ -134,7 +134,7 @@
                </thead>
                <tbody>
                   <tr v-for="event in events" :key="event.id">
-                     <td class="text-muted small text-nowrap">{{ $filters.formatDateTime(event.occurred_at) }}</td>
+                     <td class="text-muted small text-nowrap">{{ formatDateTime(event.occurred_at) }}</td>
                      <td>
                         <span class="badge rounded-pill text-bg-light border">{{ event.event_label }}</span>
                      </td>
@@ -209,6 +209,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { formatDateTime } from "../../dates";
 
 export default {
    data: function () {
@@ -258,6 +259,7 @@ export default {
    },
 
    methods: {
+      formatDateTime,
       hydrateFiltersFromUrl: function () {
          const params = new URLSearchParams(window.location.search);
          const allowedSortColumns = ["occurred_at", "event", "subject_label", "title", "actor_name"];

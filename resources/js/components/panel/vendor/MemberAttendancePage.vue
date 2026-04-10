@@ -60,9 +60,9 @@
             </thead>
             <tbody>
                <tr v-for="record in records" :key="record.id" :class="{ 'table-success-soft': !record.checked_out_at }">
-                  <td class="small">{{ $filters.formatDateTime(record.checked_in_at) }}</td>
+                  <td class="small">{{ formatDateTime(record.checked_in_at) }}</td>
                   <td>
-                     <span v-if="record.checked_out_at" class="text-muted small">{{ $filters.formatDateTime(record.checked_out_at) }}</span>
+                     <span v-if="record.checked_out_at" class="text-muted small">{{ formatDateTime(record.checked_out_at) }}</span>
                      <button v-else class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(record)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                   </td>
                   <td>
@@ -84,14 +84,14 @@
          <div class="member-card" v-for="record in records" :key="'ma' + record.id">
             <div class="member-card-top">
                <div>
-                  <div class="fw-semibold small">{{ $filters.formatDateTime(record.checked_in_at) }}</div>
+                  <div class="fw-semibold small">{{ formatDateTime(record.checked_in_at) }}</div>
                </div>
                <span :class="['m-badge', $filters.statusBadge(record.checked_out_at ? 'inactive' : 'active')]">
                   {{ record.checked_out_at ? "Out" : "In" }}
                </span>
             </div>
             <div class="member-card-footer">
-               <span v-if="record.checked_out_at" class="text-muted small"><i class="bi bi-box-arrow-right me-1"></i>{{ $filters.formatDateTime(record.checked_out_at) }}</span>
+               <span v-if="record.checked_out_at" class="text-muted small"><i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(record.checked_out_at) }}</span>
                <button v-if="!record.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(record)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-auto" @click="confirmDelete(record)"><i class="bi bi-trash"></i></button>
             </div>
@@ -163,6 +163,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { formatDateTime, toDateTimeInputValue } from "../../../dates";
 
 export default {
    props: {
@@ -207,6 +208,7 @@ export default {
    },
 
    methods: {
+      formatDateTime,
       fetchRecords: function (page) {
          this.loading = true;
          this.pageError = "";
@@ -242,7 +244,7 @@ export default {
 
       openLogModal: function () {
          this.logForm = {
-            checked_in_at: new Date().toISOString().slice(0, 16),
+            checked_in_at: toDateTimeInputValue(),
             checked_out_at: "",
             notes: "",
          };

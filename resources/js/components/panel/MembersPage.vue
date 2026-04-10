@@ -200,7 +200,7 @@
                         <td>
                            <span :class="['m-badge', $filters.statusBadge(member.status)]">{{ $filters.capitalize(member.status) }}</span>
                         </td>
-                        <td class="text-muted small">{{ $filters.formatDate(member.created_at) }}</td>
+                        <td class="text-muted small">{{ formatDate(member.created_at) }}</td>
                         <td>
                            <div class="d-flex gap-1">
                               <button class="btn btn-sm btn-outline-secondary" title="Edit" @click="openEditModal(member)">
@@ -251,7 +251,7 @@
                   </div>
                   <div class="member-card-footer">
                      <span v-if="getActivePtPackage(member)">{{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} PT left</span>
-                     <span><i class="bi bi-calendar3 me-1"></i>{{ $filters.formatDate(member.created_at) }}</span>
+                     <span><i class="bi bi-calendar3 me-1"></i>{{ formatDate(member.created_at) }}</span>
                      <span class="member-card-num">#{{ member.id }}</span>
                   </div>
                </div>
@@ -385,6 +385,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { formatDate, toDateInputValue } from "../../dates";
 
 export default {
    props: {
@@ -429,6 +430,7 @@ export default {
    },
 
    methods: {
+      formatDate,
       emptyForm: function () {
          return {
             name: "",
@@ -442,7 +444,7 @@ export default {
             emergency_contact_phone: "",
             notes: "",
             rate_plan_id: "",
-            start_date: new Date().toISOString().slice(0, 10),
+            start_date: toDateInputValue(),
          };
       },
 
@@ -514,7 +516,7 @@ export default {
             emergency_contact_phone: (member.profile && member.profile.emergency_contact_phone) || "",
             notes: (member.profile && member.profile.notes) || "",
             rate_plan_id: plan ? plan.rate_plan_id : "",
-            start_date: plan ? plan.start_date : new Date().toISOString().slice(0, 10),
+            start_date: plan ? toDateInputValue(plan.start_date) : toDateInputValue(),
          };
          this.memberModal.show();
       },
