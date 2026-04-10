@@ -256,7 +256,7 @@ class EmployeeController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $countryCode = $this->businessProfile()->country_code;
+        $countryCode = BusinessProfile::current()->country_code;
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
@@ -365,7 +365,7 @@ class EmployeeController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $countryCode = $this->businessProfile()->country_code;
+        $countryCode = BusinessProfile::current()->country_code;
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
@@ -549,7 +549,7 @@ class EmployeeController extends Controller
             }
         }
 
-        $countryCode = $this->businessProfile()->country_code;
+        $countryCode = BusinessProfile::current()->country_code;
         $ptCommissionSummary = $this->payrollService->previewPtCommissions(
             $employee,
             $data['period_start'],
@@ -938,7 +938,7 @@ class EmployeeController extends Controller
                 ])
                 ->values()
                 ->all(),
-            'location' => $this->locationPayload(),
+            'location' => BusinessProfile::current()->locationSummary(),
         ];
     }
 
@@ -1103,21 +1103,5 @@ class EmployeeController extends Controller
             'amount' => round((float) $payout->amount, 2),
             'method' => $payout->method,
         ];
-    }
-
-    /**
-     * @return array{id:int, name:string, city:?string, province:?string, status:?string}
-     */
-    private function businessProfile(): BusinessProfile
-    {
-        return BusinessProfile::current();
-    }
-
-    /**
-     * @return array{id:int, name:string, city:?string, province:?string, status:?string}
-     */
-    private function locationPayload(): array
-    {
-        return $this->businessProfile()->locationSummary();
     }
 }
