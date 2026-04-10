@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Attendance extends Model
 {
+    use SoftDeletes;
+
     public const TYPE_MEMBER = 'member';
 
     public const TYPE_WALK_IN = 'walk_in';
@@ -27,6 +30,7 @@ class Attendance extends Model
     protected $casts = [
         'checked_in_at' => 'datetime',
         'checked_out_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     public function getIsCheckedOutAttribute(): bool

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AuditEvent;
 use App\Models\InventoryItem;
 use App\Models\MemberPtPackage;
 use App\Models\MemberSubscription;
@@ -10,6 +11,7 @@ use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\User;
 use App\Models\WalkIn;
+use DateTimeInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +24,8 @@ class PosSaleService
     public function __construct(
         private CashLedgerService $cashLedgerService,
         private InventoryStockAlertService $inventoryStockAlertService,
-    ) {
-    }
+        private AuditHistoryService $auditHistoryService,
+    ) {}
 
     /**
      * @return array{
@@ -127,6 +129,7 @@ class PosSaleService
 
             $lineItems = [];
             $saleTotal = 0.0;
+            $stockDeductions = [];
 
             foreach ($lines as $index => $line) {
                 $item = $items->get((int) $line['inventory_item_id']);
@@ -159,6 +162,11 @@ class PosSaleService
                 $item->quantity = round($availableQuantity - $quantity, 2);
                 $item->save();
                 $this->inventoryStockAlertService->sync($item);
+                $stockDeductions[] = [
+                    'item' => $item->fresh('category:id,name'),
+                    'deducted_quantity' => $quantity,
+                    'remaining_quantity' => (float) $item->quantity,
+                ];
 
                 $lineItems[] = [
                     'inventory_item_id' => $item->id,
@@ -192,6 +200,19 @@ class PosSaleService
                 ],
             ]);
 
+            $saleCause = $this->recordSaleTransactionAudit($saleTransaction, $processedBy);
+
+            foreach ($stockDeductions as $stockDeduction) {
+                $this->recordInventoryStockDeductionAudit(
+                    $stockDeduction['item'],
+                    $stockDeduction['deducted_quantity'],
+                    $stockDeduction['remaining_quantity'],
+                    $processedBy,
+                    $saleCause,
+                    $saleTransaction->sold_at,
+                );
+            }
+
             $this->cashLedgerService->syncSaleTransaction($saleTransaction);
 
             return $saleTransaction;
@@ -216,7 +237,10 @@ class PosSaleService
                 ]);
             }
 
-            $member = $this->resolveMember($data);
+            $memberResult = $this->resolveMember($data);
+            /** @var User $member */
+            $member = $memberResult['member'];
+            $memberCreated = (bool) $memberResult['created'];
             $saleTotal = round((float) $ratePlan->price, 2);
             $managerProcessedSale = $processedBy->hasRole('manager');
             $managerCommissionRate = round((float) ($ratePlan->manager_commission_rate ?? 0), 2);
@@ -270,6 +294,18 @@ class PosSaleService
                 ],
             ]);
 
+            $saleCause = $this->recordSaleTransactionAudit($saleTransaction, $processedBy);
+
+            if ($memberCreated) {
+                $this->recordMemberCreatedAudit($member->fresh(), $processedBy, $saleCause, $saleTransaction->sold_at);
+            }
+
+            $this->recordMembershipCreatedAudit(
+                $subscription->fresh(['ratePlan', 'manager', 'member']),
+                $processedBy,
+                $saleCause,
+                $saleTransaction->sold_at,
+            );
             $this->cashLedgerService->syncSaleTransaction($saleTransaction);
 
             return $saleTransaction;
@@ -294,7 +330,10 @@ class PosSaleService
                 ]);
             }
 
-            $member = $this->resolveMember($data);
+            $memberResult = $this->resolveMember($data);
+            /** @var User $member */
+            $member = $memberResult['member'];
+            $memberCreated = (bool) $memberResult['created'];
             $soldPrice = round((float) $ptProduct->price, 2);
             $coachCommissionRate = round((float) ($ptProduct->coach_commission_rate ?? 40), 2);
             $payment = $this->resolvePayment($soldPrice, $data);
@@ -343,6 +382,19 @@ class PosSaleService
                 ],
             ]);
 
+            $saleCause = $this->recordSaleTransactionAudit($saleTransaction, $processedBy);
+
+            if ($memberCreated) {
+                $this->recordMemberCreatedAudit($member->fresh(), $processedBy, $saleCause, $saleTransaction->sold_at);
+            }
+
+            $this->recordPtPackageAudit(
+                $package->fresh(['ptProduct', 'coach', 'member']),
+                'created',
+                $processedBy,
+                $saleCause,
+                $saleTransaction->sold_at,
+            );
             $this->cashLedgerService->syncSaleTransaction($saleTransaction);
 
             return $saleTransaction;
@@ -381,10 +433,12 @@ class PosSaleService
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            $this->cashLedgerService->syncWalkIn($walkIn);
+            $walkIn = $walkIn->fresh(['ratePlan']);
+            $this->recordWalkInAudit($walkIn, 'created', $processedBy);
+            $this->cashLedgerService->syncWalkIn($walkIn, 'created');
             $payment = $this->resolvePayment((float) $walkIn->amount_paid, $data);
 
-            return SaleTransaction::create([
+            $saleTransaction = SaleTransaction::create([
                 'member_id' => null,
                 'type' => SaleTransaction::TYPE_WALK_IN,
                 'total' => round((float) $walkIn->amount_paid, 2),
@@ -410,13 +464,17 @@ class PosSaleService
                     'notes' => $data['notes'] ?? null,
                 ],
             ]);
+
+            $this->recordSaleTransactionAudit($saleTransaction, $processedBy);
+
+            return $saleTransaction;
         });
     }
 
     /**
      * @param  array<string, mixed>  $data
      */
-    private function resolveMember(array $data): User
+    private function resolveMember(array $data): array
     {
         if (($data['member_mode'] ?? null) === 'existing') {
             $member = User::role('member')
@@ -429,7 +487,10 @@ class PosSaleService
                 ]);
             }
 
-            return $member;
+            return [
+                'member' => $member,
+                'created' => false,
+            ];
         }
 
         $member = User::create([
@@ -443,7 +504,237 @@ class PosSaleService
         $member->assignRole('member');
         $member->profile()->create([]);
 
-        return $member;
+        return [
+            'member' => $member,
+            'created' => true,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function recordSaleTransactionAudit(SaleTransaction $saleTransaction, User $processedBy): array
+    {
+        $snapshot = $this->saleTransactionAuditSnapshot($saleTransaction);
+        $causedBy = $this->auditHistoryService->causedBy(
+            AuditEvent::SUBJECT_SALE_TRANSACTION,
+            $saleTransaction->id,
+            'created',
+            $snapshot,
+            [
+                'member_id' => $saleTransaction->member_id,
+            ],
+        );
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_SALE_TRANSACTION,
+            $saleTransaction->id,
+            'created',
+            $snapshot,
+            [],
+            $processedBy->id,
+            $processedBy->name,
+            $saleTransaction->sold_at ?? now(),
+        );
+
+        return $causedBy;
+    }
+
+    private function recordMemberCreatedAudit(
+        User $member,
+        User $processedBy,
+        array $causedBy,
+        DateTimeInterface|string|null $occurredAt = null,
+    ): void
+    {
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER,
+            $member->id,
+            'created',
+            $this->memberAuditSnapshot($member),
+            [
+                'caused_by' => $causedBy,
+            ],
+            $processedBy->id,
+            $processedBy->name,
+            $occurredAt ?? now(),
+        );
+    }
+
+    private function recordMembershipCreatedAudit(
+        MemberSubscription $subscription,
+        User $processedBy,
+        array $causedBy,
+        DateTimeInterface|string|null $occurredAt = null,
+    ): void
+    {
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+            $subscription->id,
+            'created',
+            $this->membershipAuditSnapshot($subscription),
+            [
+                'caused_by' => $causedBy,
+            ],
+            $processedBy->id,
+            $processedBy->name,
+            $occurredAt ?? now(),
+        );
+    }
+
+    private function recordPtPackageAudit(
+        MemberPtPackage $package,
+        string $event,
+        User $processedBy,
+        ?array $causedBy = null,
+        DateTimeInterface|string|null $occurredAt = null,
+    ): void {
+        $metadata = $causedBy ? ['caused_by' => $causedBy] : [];
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER_PT_PACKAGE,
+            $package->id,
+            $event,
+            $this->ptPackageAuditSnapshot($package),
+            $metadata,
+            $processedBy->id,
+            $processedBy->name,
+            $occurredAt ?? now(),
+        );
+    }
+
+    private function recordInventoryStockDeductionAudit(
+        InventoryItem $item,
+        int $deductedQuantity,
+        float $remainingQuantity,
+        User $processedBy,
+        array $causedBy,
+        DateTimeInterface|string|null $occurredAt = null,
+    ): void {
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_INVENTORY_ITEM,
+            $item->id,
+            'stock_deducted',
+            $this->inventoryAuditSnapshot($item),
+            [
+                'deducted_quantity' => $deductedQuantity,
+                'remaining_quantity' => round($remainingQuantity, 2),
+                'caused_by' => $causedBy,
+            ],
+            $processedBy->id,
+            $processedBy->name,
+            $occurredAt ?? now(),
+        );
+    }
+
+    private function recordWalkInAudit(WalkIn $walkIn, string $event, User $processedBy): void
+    {
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_WALK_IN,
+            $walkIn->id,
+            $event,
+            $this->walkInAuditSnapshot($walkIn),
+            [],
+            $processedBy->id,
+            $processedBy->name,
+            $walkIn->visited_at ?? now(),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function saleTransactionAuditSnapshot(SaleTransaction $saleTransaction): array
+    {
+        return [
+            'id' => $saleTransaction->id,
+            'member_id' => $saleTransaction->member_id,
+            'type' => $saleTransaction->type,
+            'customer_name' => $saleTransaction->customer_name,
+            'item_name' => $saleTransaction->item_name,
+            'payment_method' => $saleTransaction->payment_method,
+            'total' => round((float) $saleTransaction->total, 2),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function memberAuditSnapshot(User $member): array
+    {
+        return [
+            'id' => $member->id,
+            'name' => $member->name,
+            'status' => $member->status,
+            'email' => $member->email,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function membershipAuditSnapshot(MemberSubscription $subscription): array
+    {
+        return [
+            'id' => $subscription->id,
+            'member_id' => $subscription->user_id,
+            'member_name' => $subscription->member?->name ?? 'Unknown Member',
+            'rate_plan_id' => $subscription->rate_plan_id,
+            'rate_plan_name' => $subscription->ratePlan?->name,
+            'status' => $subscription->status,
+            'start_date' => $subscription->start_date?->toDateString(),
+            'end_date' => $subscription->end_date?->toDateString(),
+            'manager_id' => $subscription->manager_id,
+            'manager_name' => $subscription->manager?->name,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function ptPackageAuditSnapshot(MemberPtPackage $package): array
+    {
+        return [
+            'id' => $package->id,
+            'member_id' => $package->user_id,
+            'member_name' => $package->member?->name ?? 'Unknown Member',
+            'pt_product_id' => $package->pt_product_id,
+            'product_name' => $package->ptProduct?->name,
+            'coach_id' => $package->coach_id,
+            'coach_name' => $package->coach?->name,
+            'total_sessions' => $package->total_sessions,
+            'remaining_sessions' => $package->remaining_sessions,
+            'assigned_at' => $package->assigned_at?->toDateString(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function inventoryAuditSnapshot(InventoryItem $item): array
+    {
+        return [
+            'id' => $item->id,
+            'name' => $item->name,
+            'category_name' => $item->category?->name,
+            'quantity' => round((float) $item->quantity, 2),
+            'unit' => $item->unit,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function walkInAuditSnapshot(WalkIn $walkIn): array
+    {
+        return [
+            'id' => $walkIn->id,
+            'name' => $walkIn->name,
+            'rate_plan_name' => $walkIn->ratePlan?->name,
+            'amount_paid' => round((float) $walkIn->amount_paid, 2),
+            'payment_method' => $walkIn->payment_method,
+            'served_by' => $walkIn->served_by,
+        ];
     }
 
     /**

@@ -311,7 +311,7 @@
                <div class="modal-body" v-if="deleteTarget">
                   <p class="mb-1">Are you sure you want to delete this walk-in record?</p>
                   <p class="fw-semibold mb-0">{{ deleteTarget.name }} &mdash; {{ $filters.formatDateTime(deleteTarget.visited_at) }}</p>
-                  <p class="text-danger small mt-2 mb-0">This action cannot be undone.</p>
+                  <p class="text-muted small mt-2 mb-0">You can restore this walk-in later from Audit History.</p>
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

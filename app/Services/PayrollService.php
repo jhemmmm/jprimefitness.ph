@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Attendance;
+use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
 use App\Models\CashAdvance;
 use App\Models\MemberPtPackage;
@@ -16,6 +17,11 @@ use Carbon\Carbon;
 class PayrollService
 {
     private const PH_NON_TAXABLE_BONUS_CAP = 90000.0;
+
+    public function __construct(
+        private AuditHistoryService $auditHistoryService,
+        private CashLedgerService $cashLedgerService,
+    ) {}
 
     /**
      * Compute net_amount from payroll components.
@@ -289,6 +295,7 @@ class PayrollService
 
         $advances = CashAdvance::where('employee_id', $payroll->employee_id)
             ->whereIn('status', [CashAdvance::STATUS_RELEASED, CashAdvance::STATUS_PARTIALLY_PAID])
+            ->with('employee:id,name')
             ->orderBy('requested_at')
             ->get();
 
@@ -310,18 +317,30 @@ class PayrollService
             $advance->paid_at = $advance->status === CashAdvance::STATUS_PAID
                 ? ($advance->paid_at ?? $processedAt)
                 : null;
-            $advance->appendAuditEvent([
-                'event' => $advance->status,
-                'at' => $processedAt->toISOString(),
-                'by_user_id' => auth()->id() ?? $payroll->approved_by,
-                'by_name' => auth()->user()?->name,
-                'source' => 'payroll',
-                'source_id' => $payroll->id,
-                'deducted_amount' => round($deduct, 2),
-                'remaining_before' => round($remainingBefore, 2),
-                'remaining_after' => round((float) $advance->remaining_amount, 2),
-            ]);
             $advance->save();
+
+            $this->auditHistoryService->recordSubjectEvent(
+                AuditEvent::SUBJECT_CASH_ADVANCE,
+                $advance->id,
+                $advance->status,
+                [
+                    'id' => $advance->id,
+                    'employee_id' => $advance->employee_id,
+                    'employee_name' => $advance->employee?->name ?? 'Unknown Employee',
+                    'amount' => round((float) $advance->amount, 2),
+                ],
+                [
+                    'source' => 'payroll',
+                    'source_id' => $payroll->id,
+                    'deducted_amount' => round($deduct, 2),
+                    'remaining_before' => round($remainingBefore, 2),
+                    'remaining_after' => round((float) $advance->remaining_amount, 2),
+                ],
+                auth()->id() ?? $payroll->approved_by,
+                auth()->user()?->name,
+                $processedAt,
+            );
+            $this->cashLedgerService->syncCashAdvance($advance, $advance->status);
 
             $remaining -= $deduct;
         }

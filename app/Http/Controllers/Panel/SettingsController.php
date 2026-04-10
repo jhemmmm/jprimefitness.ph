@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
 use App\Models\CashLedgerEntry;
+use App\Services\AuditHistoryService;
 use App\Services\CashLedgerService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -17,8 +19,8 @@ class SettingsController extends Controller
 {
     public function __construct(
         private CashLedgerService $cashLedgerService,
-    ) {
-    }
+        private AuditHistoryService $auditHistoryService,
+    ) {}
 
     public function index(): RedirectResponse
     {
@@ -84,6 +86,16 @@ class SettingsController extends Controller
         $profile = BusinessProfile::current();
         $profile->update($data);
         $profile = $profile->fresh();
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_BUSINESS_PROFILE,
+            $profile->id,
+            'updated',
+            $this->businessProfileAuditSnapshot($profile),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
         $profile->setAttribute('cash_ledger_summary', $this->cashLedgerService->summarize());
         $profile->setAttribute('cash_balance', $profile->cash_ledger_summary['balance'] ?? 0);
 
@@ -104,8 +116,22 @@ class SettingsController extends Controller
         $photos = $profile->photos ?? [];
         $photos[] = $path;
         $profile->update(['photos' => $photos]);
+        $profile = $profile->fresh();
 
-        return response()->json(['path' => $path, 'url' => asset('storage/' . $path)], 201);
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_BUSINESS_PROFILE,
+            $profile->id,
+            'photo_added',
+            $this->businessProfileAuditSnapshot($profile),
+            [
+                'photo_path' => $path,
+            ],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
+        return response()->json(['path' => $path, 'url' => asset('storage/'.$path)], 201);
     }
 
     public function destroyPhoto(int $index): JsonResponse
@@ -119,9 +145,26 @@ class SettingsController extends Controller
             return response()->json(['message' => 'Photo not found'], 404);
         }
 
-        Storage::disk('public')->delete($photos[$index]);
+        $removedPhoto = $photos[$index];
+
+        Storage::disk('public')->delete($removedPhoto);
         array_splice($photos, $index, 1);
         $profile->update(['photos' => $photos]);
+        $profile = $profile->fresh();
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_BUSINESS_PROFILE,
+            $profile->id,
+            'photo_removed',
+            $this->businessProfileAuditSnapshot($profile),
+            [
+                'photo_index' => $index,
+                'photo_path' => $removedPhoto,
+            ],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(null, 204);
     }
@@ -213,5 +256,17 @@ class SettingsController extends Controller
         $businessProfile->setAttribute('cash_balance', $cashLedgerSummary['balance']);
 
         return $businessProfile;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function businessProfileAuditSnapshot(BusinessProfile $profile): array
+    {
+        return [
+            'id' => $profile->id,
+            'name' => $profile->name,
+            'status' => $profile->status,
+        ];
     }
 }

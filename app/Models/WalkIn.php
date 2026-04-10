@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WalkIn extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'rate_plan_id',
         'served_by',
@@ -21,6 +24,7 @@ class WalkIn extends Model
     protected $casts = [
         'visited_at' => 'datetime',
         'amount_paid' => 'decimal:2',
+        'deleted_at' => 'datetime',
     ];
 
     public function ratePlan(): BelongsTo

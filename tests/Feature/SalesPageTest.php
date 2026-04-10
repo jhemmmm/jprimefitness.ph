@@ -254,6 +254,43 @@ class SalesPageTest extends TestCase
         ]);
     }
 
+    public function test_membership_sale_can_reuse_email_from_a_soft_deleted_member(): void
+    {
+        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $ratePlan = $this->createRatePlan('Monthly', 30, [
+            'price' => 1499,
+            'manager_commission_rate' => 10,
+        ]);
+
+        $archivedMember = $this->createUserWithRole('member', 'Archived Member');
+        $archivedMember->update(['email' => 'archived-sale@example.com']);
+        $archivedMember->delete();
+
+        $this->actingAs($staff)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_mode' => 'new',
+                'customer_name' => 'New Member Mia',
+                'customer_email' => 'archived-sale@example.com',
+                'customer_phone' => '09171234567',
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => '2026-04-01',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 1500,
+                'sold_at' => '2026-03-29 15:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('customer_name', 'New Member Mia');
+
+        $this->assertSoftDeleted('users', [
+            'id' => $archivedMember->id,
+        ]);
+        $this->assertDatabaseHas('users', [
+            'email' => 'archived-sale@example.com',
+            'deleted_at' => null,
+        ]);
+    }
+
     public function test_manager_processed_membership_sale_tracks_membership_commission(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Cole');
@@ -400,7 +437,10 @@ class SalesPageTest extends TestCase
             'id' => $transactionId,
         ]);
 
-        $this->assertNull(SaleTransaction::findOrFail($transactionId)->processed_by);
+        $transaction = SaleTransaction::findOrFail($transactionId);
+
+        $this->assertSame($staff->id, $transaction->processed_by);
+        $this->assertNull($transaction->processedBy);
     }
 
     public function test_receipt_page_can_be_viewed_and_printed_by_staff(): void

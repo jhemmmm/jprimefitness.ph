@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\AuditEvent;
 use App\Models\User;
+use App\Services\AuditHistoryService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +16,10 @@ use Illuminate\View\View;
 
 class AttendanceController extends Controller
 {
+    public function __construct(
+        private AuditHistoryService $auditHistoryService,
+    ) {}
+
     public function index(): View
     {
         return view('panel.attendance');
@@ -70,8 +76,20 @@ class AttendanceController extends Controller
             'checked_out_at' => $base['checked_out_at'] ?? null,
             'recorded_by' => Auth::id(),
         ]));
+        $attendance = $attendance->fresh(['user', 'walkIn', 'recordedBy']);
 
-        return response()->json($this->serializeAttendance($attendance->fresh(['user', 'walkIn', 'recordedBy'])), 201);
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_ATTENDANCE,
+            $attendance->id,
+            'checked_in',
+            $this->attendanceAuditSnapshot($attendance),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            $attendance->checked_in_at ?? now(),
+        );
+
+        return response()->json($this->serializeAttendance($attendance), 201);
     }
 
     public function update(Request $request, Attendance $attendance): JsonResponse
@@ -89,8 +107,20 @@ class AttendanceController extends Controller
         }
 
         $attendance->update($data);
+        $attendance = $attendance->fresh(['user', 'walkIn', 'recordedBy']);
 
-        return response()->json($this->serializeAttendance($attendance->fresh(['user', 'walkIn', 'recordedBy'])));
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_ATTENDANCE,
+            $attendance->id,
+            'updated',
+            $this->attendanceAuditSnapshot($attendance),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
+        return response()->json($this->serializeAttendance($attendance));
     }
 
     public function checkout(Attendance $attendance): JsonResponse
@@ -100,13 +130,38 @@ class AttendanceController extends Controller
         }
 
         $attendance->update(['checked_out_at' => now()]);
+        $attendance = $attendance->fresh(['user', 'walkIn', 'recordedBy']);
 
-        return response()->json($this->serializeAttendance($attendance->fresh(['user', 'walkIn', 'recordedBy'])));
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_ATTENDANCE,
+            $attendance->id,
+            'checked_out',
+            $this->attendanceAuditSnapshot($attendance),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            $attendance->checked_out_at ?? now(),
+        );
+
+        return response()->json($this->serializeAttendance($attendance));
     }
 
     public function destroy(Attendance $attendance): JsonResponse
     {
+        $snapshot = $this->attendanceAuditSnapshot($attendance->loadMissing(['user', 'walkIn', 'recordedBy']));
+
         $attendance->delete();
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_ATTENDANCE,
+            $attendance->id,
+            'deleted',
+            $snapshot,
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(null, 204);
     }
@@ -141,6 +196,22 @@ class AttendanceController extends Controller
             'checked_in_at' => $attendance->checked_in_at?->toISOString(),
             'checked_out_at' => $attendance->checked_out_at?->toISOString(),
             'notes' => $attendance->notes,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attendanceAuditSnapshot(Attendance $attendance): array
+    {
+        return [
+            'id' => $attendance->id,
+            'user_id' => $attendance->user_id,
+            'walk_in_id' => $attendance->walk_in_id,
+            'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
+            'attendee_type' => $attendance->attendee_type,
+            'checked_in_at' => $attendance->checked_in_at?->toISOString(),
+            'checked_out_at' => $attendance->checked_out_at?->toISOString(),
         ];
     }
 }

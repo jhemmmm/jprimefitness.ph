@@ -385,6 +385,7 @@
                   <p class="mb-1">Are you sure you want to delete this inventory item?</p>
                   <p class="fw-semibold mb-0">{{ deleteTarget.name }}</p>
                   <p class="text-muted small mb-0">{{ deleteTarget.category?.name || "Inventory item" }}</p>
+                  <p class="text-muted small mt-2 mb-0">You can restore this item later from Audit History.</p>
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

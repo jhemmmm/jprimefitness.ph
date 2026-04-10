@@ -4,9 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CashAdvance extends Model
 {
+    use SoftDeletes;
+
     public const STATUS_REQUESTED = 'requested';
 
     public const STATUS_APPROVED = 'approved';
@@ -33,7 +36,6 @@ class CashAdvance extends Model
         'cancelled_at',
         'cancelled_by',
         'paid_at',
-        'audit_data',
     ];
 
     protected $casts = [
@@ -44,7 +46,7 @@ class CashAdvance extends Model
         'released_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'paid_at' => 'datetime',
-        'audit_data' => 'array',
+        'deleted_at' => 'datetime',
     ];
 
     public function employee(): BelongsTo
@@ -65,13 +67,5 @@ class CashAdvance extends Model
     public function cancelledBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by');
-    }
-
-    public function appendAuditEvent(array $event): void
-    {
-        $auditData = $this->audit_data ?? [];
-        $auditData[] = array_filter($event, fn ($value) => $value !== null && $value !== '');
-
-        $this->audit_data = array_values($auditData);
     }
 }

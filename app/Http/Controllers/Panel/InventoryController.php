@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditEvent;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
+use App\Services\AuditHistoryService;
 use App\Services\InventoryStockAlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -15,8 +17,8 @@ class InventoryController extends Controller
 {
     public function __construct(
         private InventoryStockAlertService $inventoryStockAlertService,
-    ) {
-    }
+        private AuditHistoryService $auditHistoryService,
+    ) {}
 
     public function index(): View
     {
@@ -101,6 +103,16 @@ class InventoryController extends Controller
             ->load('category:id,name');
 
         $this->inventoryStockAlertService->sync($item);
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_INVENTORY_ITEM,
+            $item->id,
+            'created',
+            $this->inventoryAuditSnapshot($item),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json($this->serializeItem($item), 201);
     }
@@ -113,13 +125,36 @@ class InventoryController extends Controller
         $inventoryItem = $inventoryItem->fresh()->load('category:id,name');
 
         $this->inventoryStockAlertService->sync($inventoryItem, $previousAlertState);
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_INVENTORY_ITEM,
+            $inventoryItem->id,
+            'updated',
+            $this->inventoryAuditSnapshot($inventoryItem),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json($this->serializeItem($inventoryItem));
     }
 
     public function destroy(InventoryItem $inventoryItem): JsonResponse
     {
+        $snapshot = $this->inventoryAuditSnapshot($inventoryItem->loadMissing('category:id,name'));
+
         $inventoryItem->delete();
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_INVENTORY_ITEM,
+            $inventoryItem->id,
+            'deleted',
+            $snapshot,
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(null, 204);
     }
@@ -132,7 +167,7 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'inventory_category_id' => ['required', 'integer', 'exists:inventory_categories,id'],
             'name' => ['required', 'string', 'max:120'],
-            'sku' => ['nullable', 'string', 'max:80', Rule::unique('inventory_items', 'sku')->ignore($inventoryItem?->id)],
+            'sku' => ['nullable', 'string', 'max:80', Rule::unique('inventory_items', 'sku')->ignore($inventoryItem?->id)->withoutTrashed()],
             'unit' => ['required', 'string', 'max:40'],
             'quantity' => ['required', 'numeric', 'min:0'],
             'low_stock_threshold' => ['required', 'numeric', 'min:0'],
@@ -158,5 +193,19 @@ class InventoryController extends Controller
     private function serializeItem(InventoryItem $item): array
     {
         return $item->toArray();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function inventoryAuditSnapshot(InventoryItem $item): array
+    {
+        return [
+            'id' => $item->id,
+            'name' => $item->name,
+            'category_name' => $item->category?->name,
+            'quantity' => round((float) $item->quantity, 2),
+            'unit' => $item->unit,
+        ];
     }
 }

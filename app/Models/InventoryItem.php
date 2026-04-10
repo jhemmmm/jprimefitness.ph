@@ -6,11 +6,12 @@ use Database\Factories\InventoryItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class InventoryItem extends Model
 {
     /** @use HasFactory<InventoryItemFactory> */
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     public const STATUS_ACTIVE = 'active';
 
@@ -36,6 +37,7 @@ class InventoryItem extends Model
         'cost_price' => 'decimal:2',
         'selling_price' => 'decimal:2',
         'last_restocked_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     protected $appends = [

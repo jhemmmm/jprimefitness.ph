@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
 use App\Models\CashAdvance;
 use App\Models\Payout;
@@ -11,6 +12,7 @@ use App\Models\Payroll;
 use App\Models\User;
 use App\Notifications\CashAdvanceStatusChangedNotification;
 use App\Notifications\PayrollApprovedNotification;
+use App\Services\AuditHistoryService;
 use App\Services\CashLedgerService;
 use App\Services\NotificationRecipientResolver;
 use App\Services\PayrollService;
@@ -28,6 +30,7 @@ class EmployeeController extends Controller
         private PayrollService $payrollService,
         private CashLedgerService $cashLedgerService,
         private NotificationRecipientResolver $notificationRecipientResolver,
+        private AuditHistoryService $auditHistoryService,
     ) {
         $this->middleware('can:manage employees');
     }
@@ -73,7 +76,7 @@ class EmployeeController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', 'unique:users,email'],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
             'phone' => ['nullable', 'string', 'max:20'],
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'role_ids' => ['required', 'array', 'min:1'],
@@ -94,15 +97,27 @@ class EmployeeController extends Controller
         ]);
 
         $employee->roles()->attach($data['role_ids']);
+        $employee = $employee->fresh()->load('roles');
 
-        return response()->json($this->serializeEmployee($employee->fresh()->load('roles')), 201);
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_EMPLOYEE,
+            $employee->id,
+            'created',
+            $this->employeeAuditSnapshot($employee),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
+        return response()->json($this->serializeEmployee($employee), 201);
     }
 
     public function update(Request $request, User $employee): JsonResponse
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($employee->id)],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($employee->id)->withoutTrashed()],
             'phone' => ['nullable', 'string', 'max:20'],
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'role_ids' => ['required', 'array', 'min:1'],
@@ -125,15 +140,39 @@ class EmployeeController extends Controller
         ]);
 
         $employee->roles()->sync($data['role_ids']);
+        $employee = $employee->fresh()->load('roles');
 
-        return response()->json($this->serializeEmployee($employee->fresh()->load('roles')));
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_EMPLOYEE,
+            $employee->id,
+            'updated',
+            $this->employeeAuditSnapshot($employee),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
+        return response()->json($this->serializeEmployee($employee));
     }
 
     public function destroy(User $employee): JsonResponse
     {
         abort_if($employee->id === auth()->id(), 403);
+        $snapshot = $this->employeeAuditSnapshot($employee->loadMissing('roles'));
 
         $employee->delete();
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_EMPLOYEE,
+            $employee->id,
+            'deleted',
+            $snapshot,
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(['message' => 'Employee deleted.']);
     }
@@ -194,7 +233,7 @@ class EmployeeController extends Controller
                 ->orderBy('paid_at'),
         ]);
 
-        $businessProfile = $this->businessProfileContext->profile();
+        $businessProfile = BusinessProfile::current();
         $employee = $employee->fresh()->load('roles');
         $fileName = 'payslip-employee-'.$employee->id.'-payroll-'.$payroll->id.'.pdf';
 
@@ -292,6 +331,18 @@ class EmployeeController extends Controller
 
         $this->payrollService->syncPtCommissions($payroll);
         $this->payrollService->syncMembershipCommissions($payroll);
+        $payroll = $payroll->fresh(['employee:id,name']);
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_PAYROLL,
+            $payroll->id,
+            'created',
+            $this->payrollAuditSnapshot($payroll, $employee),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json($this->serializePayroll($payroll), 201);
     }
@@ -389,6 +440,18 @@ class EmployeeController extends Controller
 
         $this->payrollService->syncPtCommissions($payroll);
         $this->payrollService->syncMembershipCommissions($payroll);
+        $payroll = $payroll->fresh(['employee:id,name']);
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_PAYROLL,
+            $payroll->id,
+            'updated',
+            $this->payrollAuditSnapshot($payroll, $employee),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json($this->serializePayroll($payroll));
     }
@@ -413,6 +476,18 @@ class EmployeeController extends Controller
         $this->notificationRecipientResolver->send(
             new PayrollApprovedNotification($payroll, $employee),
         );
+        $payroll = $payroll->fresh(['employee:id,name']);
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_PAYROLL,
+            $payroll->id,
+            'approved',
+            $this->payrollAuditSnapshot($payroll, $employee),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            $payroll->approved_at ?? now(),
+        );
 
         return response()->json($this->serializePayroll($payroll));
     }
@@ -429,6 +504,18 @@ class EmployeeController extends Controller
         $this->payrollService->releaseMembershipCommissions($payroll);
         $payroll->status = Payroll::STATUS_CANCELED;
         $payroll->save();
+        $payroll = $payroll->fresh(['employee:id,name']);
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_PAYROLL,
+            $payroll->id,
+            'cancelled',
+            $this->payrollAuditSnapshot($payroll, $employee),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json($this->serializePayroll($payroll));
     }
@@ -601,8 +688,20 @@ class EmployeeController extends Controller
 
         $this->payrollService->syncStatus($payroll);
         $this->cashLedgerService->syncPayout($payout);
+        $payout = $payout->fresh(['payroll', 'releasedBy', 'employee:id,name']);
 
-        return response()->json($this->serializePayout($payout->fresh(['payroll', 'releasedBy'])), 201);
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_PAYOUT,
+            $payout->id,
+            'created',
+            $this->payoutAuditSnapshot($payout),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            $payout->paid_at ?? now(),
+        );
+
+        return response()->json($this->serializePayout($payout), 201);
     }
 
     public function cashAdvances(User $employee): JsonResponse
@@ -653,15 +752,16 @@ class EmployeeController extends Controller
             'requested_at' => $data['requested_at'] ?? now(),
         ]);
 
-        $cashAdvance->appendAuditEvent([
-            'event' => CashAdvance::STATUS_REQUESTED,
-            'at' => $cashAdvance->requested_at?->toISOString(),
-            'by_user_id' => $employee->id,
-            'by_name' => $employee->name,
-            'source' => 'panel',
-            'notes' => $cashAdvance->notes,
-        ]);
-        $cashAdvance->save();
+        $this->recordCashAdvanceAuditEvent(
+            $cashAdvance,
+            $employee,
+            CashAdvance::STATUS_REQUESTED,
+            [
+                'notes' => $cashAdvance->notes,
+                'source' => 'panel',
+            ],
+            $cashAdvance->requested_at,
+        );
 
         $this->notificationRecipientResolver->send(
             new CashAdvanceStatusChangedNotification($cashAdvance, $employee),
@@ -757,20 +857,24 @@ class EmployeeController extends Controller
                 default => now(),
             };
 
-            $cashAdvance->appendAuditEvent([
-                'event' => $cashAdvance->status,
-                'at' => $eventAt?->toISOString(),
-                'by_user_id' => $actor?->id,
-                'by_name' => $actor?->name,
-                'source' => 'panel',
-                'notes' => $cashAdvance->notes,
-            ]);
+            $this->recordCashAdvanceAuditEvent(
+                $cashAdvance,
+                $employee,
+                $cashAdvance->status,
+                [
+                    'notes' => $cashAdvance->notes,
+                    'source' => 'panel',
+                ],
+                $eventAt,
+                $actor?->id,
+                $actor?->name,
+            );
         }
 
         $cashAdvance->remaining_amount = (float) $cashAdvance->amount;
         $cashAdvance->save();
         $cashAdvance->load(['approvedBy:id,name', 'releasedBy:id,name', 'cancelledBy:id,name']);
-        $this->cashLedgerService->syncCashAdvance($cashAdvance);
+        $this->cashLedgerService->syncCashAdvance($cashAdvance, $cashAdvance->status);
 
         if ($previousStatus !== $cashAdvance->status) {
             $this->notificationRecipientResolver->send(
@@ -794,7 +898,19 @@ class EmployeeController extends Controller
             return response()->json(['message' => 'Finalized cash advances cannot be deleted.'], 422);
         }
 
-        $this->cashLedgerService->syncCashAdvance($cashAdvance);
+        $this->recordCashAdvanceAuditEvent(
+            $cashAdvance,
+            $employee,
+            'deleted',
+            [
+                'notes' => $cashAdvance->notes,
+                'source' => 'panel',
+            ],
+            now(),
+            auth()->id(),
+            auth()->user()?->name,
+        );
+        $this->cashLedgerService->syncCashAdvance($cashAdvance, 'deleted');
         $cashAdvance->delete();
 
         return response()->json(null, 204);
@@ -906,8 +1022,86 @@ class EmployeeController extends Controller
             'cancelled_at' => $cashAdvance->cancelled_at?->toISOString(),
             'cancelled_by_name' => $cashAdvance->cancelledBy?->name,
             'paid_at' => $cashAdvance->paid_at?->toISOString(),
-            'audit_data' => $cashAdvance->audit_data ?? [],
             'created_at' => $cashAdvance->created_at?->toISOString(),
+        ];
+    }
+
+    private function recordCashAdvanceAuditEvent(
+        CashAdvance $cashAdvance,
+        User $employee,
+        string $event,
+        array $metadata,
+        mixed $occurredAt,
+        ?int $actorUserId = null,
+        ?string $actorName = null,
+    ): void {
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_CASH_ADVANCE,
+            $cashAdvance->id,
+            $event,
+            [
+                'id' => $cashAdvance->id,
+                'employee_id' => $employee->id,
+                'employee_name' => $employee->name,
+                'amount' => round((float) $cashAdvance->amount, 2),
+            ],
+            $metadata,
+            $actorUserId ?? auth()->id(),
+            $actorName ?? auth()->user()?->name,
+            $occurredAt ?? now(),
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function employeeAuditSnapshot(User $employee): array
+    {
+        $employee->loadMissing('roles');
+
+        return [
+            'id' => $employee->id,
+            'name' => $employee->name,
+            'status' => $employee->status,
+            'role_names' => $employee->roles->pluck('name')->values()->all(),
+            'daily_rate' => $employee->daily_rate !== null ? round((float) $employee->daily_rate, 2) : null,
+            'pay_frequency' => $employee->pay_frequency,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function payrollAuditSnapshot(Payroll $payroll, User $employee): array
+    {
+        return [
+            'id' => $payroll->id,
+            'employee_id' => $employee->id,
+            'employee_name' => $employee->name,
+            'period_start' => $payroll->period_start?->format('Y-m-d'),
+            'period_end' => $payroll->period_end?->format('Y-m-d'),
+            'net_amount' => round((float) $payroll->net_amount, 2),
+            'status' => $payroll->status,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function payoutAuditSnapshot(Payout $payout): array
+    {
+        $payrollPeriod = $payout->payroll && $payout->payroll->period_start && $payout->payroll->period_end
+            ? $payout->payroll->period_start->format('Y-m-d').' - '.$payout->payroll->period_end->format('Y-m-d')
+            : null;
+
+        return [
+            'id' => $payout->id,
+            'employee_id' => $payout->employee_id,
+            'employee_name' => $payout->employee?->name ?? 'Unknown Employee',
+            'payroll_id' => $payout->payroll_id,
+            'payroll_period' => $payrollPeriod,
+            'amount' => round((float) $payout->amount, 2),
+            'method' => $payout->method,
         ];
     }
 

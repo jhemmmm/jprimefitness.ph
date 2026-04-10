@@ -3,14 +3,20 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditEvent;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
+use App\Services\AuditHistoryService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class PricingController extends Controller
 {
+    public function __construct(
+        private AuditHistoryService $auditHistoryService,
+    ) {}
+
     public function index(): View
     {
         return view('panel.pricing', [
@@ -89,6 +95,18 @@ class PricingController extends Controller
         abort_unless($ratePlan->is_active, 404);
 
         $ratePlan->update($this->validatedRatePlanPayload($request));
+        $ratePlan = $ratePlan->fresh();
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_RATE_PLAN,
+            $ratePlan->id,
+            'configured',
+            $this->ratePlanAuditSnapshot($ratePlan),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(['message' => 'Rate plan pricing created successfully.'], 201);
     }
@@ -98,6 +116,18 @@ class PricingController extends Controller
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
 
         $ratePlan->update($this->validatedRatePlanPayload($request));
+        $ratePlan = $ratePlan->fresh();
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_RATE_PLAN,
+            $ratePlan->id,
+            'updated',
+            $this->ratePlanAuditSnapshot($ratePlan),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(['message' => 'Rate plan pricing updated successfully.']);
     }
@@ -105,6 +135,7 @@ class PricingController extends Controller
     public function destroyRatePlan(RatePlan $ratePlan): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
+        $snapshot = $this->ratePlanAuditSnapshot($ratePlan);
 
         $ratePlan->update([
             'price' => null,
@@ -112,6 +143,16 @@ class PricingController extends Controller
             'effective_from' => null,
             'effective_until' => null,
         ]);
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_RATE_PLAN,
+            $ratePlan->id,
+            'removed',
+            $snapshot,
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(null, 204);
     }
@@ -122,6 +163,18 @@ class PricingController extends Controller
         abort_unless($ptProduct->is_active, 404);
 
         $ptProduct->update($this->validatedPtProductPayload($request));
+        $ptProduct = $ptProduct->fresh();
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_PT_PRODUCT,
+            $ptProduct->id,
+            'configured',
+            $this->ptProductAuditSnapshot($ptProduct),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(['message' => 'PT rate created successfully.'], 201);
     }
@@ -131,6 +184,18 @@ class PricingController extends Controller
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
 
         $ptProduct->update($this->validatedPtProductPayload($request));
+        $ptProduct = $ptProduct->fresh();
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_PT_PRODUCT,
+            $ptProduct->id,
+            'updated',
+            $this->ptProductAuditSnapshot($ptProduct),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(['message' => 'PT rate updated successfully.']);
     }
@@ -138,6 +203,7 @@ class PricingController extends Controller
     public function destroyPtProduct(PTProduct $ptProduct): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
+        $snapshot = $this->ptProductAuditSnapshot($ptProduct);
 
         $ptProduct->update([
             'price' => null,
@@ -145,6 +211,16 @@ class PricingController extends Controller
             'effective_from' => null,
             'effective_until' => null,
         ]);
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_PT_PRODUCT,
+            $ptProduct->id,
+            'removed',
+            $snapshot,
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(null, 204);
     }
@@ -231,6 +307,32 @@ class PricingController extends Controller
             'coach_commission_rate' => round((float) ($ptProduct->coach_commission_rate ?? 0), 2),
             'effective_from' => $ptProduct->effective_from,
             'effective_until' => $ptProduct->effective_until,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function ratePlanAuditSnapshot(RatePlan $ratePlan): array
+    {
+        return [
+            'id' => $ratePlan->id,
+            'name' => $ratePlan->name,
+            'duration_days' => $ratePlan->duration_days,
+            'price' => $ratePlan->price !== null ? round((float) $ratePlan->price, 2) : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function ptProductAuditSnapshot(PTProduct $ptProduct): array
+    {
+        return [
+            'id' => $ptProduct->id,
+            'name' => $ptProduct->name,
+            'session_count' => $ptProduct->session_count,
+            'price' => $ptProduct->price !== null ? round((float) $ptProduct->price, 2) : null,
         ];
     }
 }

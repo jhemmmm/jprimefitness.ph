@@ -4,13 +4,14 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
 use App\Models\MemberPtPackage;
 use App\Models\MemberPtSessionUsage;
 use App\Models\MemberSubscription;
 use App\Models\PTProduct;
-use App\Models\RatePlan;
 use App\Models\User;
+use App\Services\AuditHistoryService;
 use App\Services\MemberPtPackageAlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -22,8 +23,8 @@ class MembersController extends Controller
 {
     public function __construct(
         private MemberPtPackageAlertService $memberPtPackageAlertService,
-    ) {
-    }
+        private AuditHistoryService $auditHistoryService,
+    ) {}
 
     public function index(): View
     {
@@ -83,7 +84,7 @@ class MembersController extends Controller
     {
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email'],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
             'phone' => ['nullable', 'string', 'max:50'],
             'password' => ['required', 'string', 'min:8'],
             'status' => [
@@ -121,12 +122,34 @@ class MembersController extends Controller
             'notes' => $data['notes'] ?? null,
         ]);
 
-        $member->attachPlan(
+        $subscription = $member->attachPlan(
             (int) $data['rate_plan_id'],
             $data['start_date'] ?? now()->toDateString()
         );
+        $member = $member->fresh();
 
-        return response()->json($this->memberPayload($member->fresh(), detailed: true), 201);
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER,
+            $member->id,
+            'created',
+            $this->memberAuditSnapshot($member),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+            $subscription->id,
+            'created',
+            $this->membershipAuditSnapshot($subscription->fresh(['ratePlan', 'manager', 'member'])),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
+        return response()->json($this->memberPayload($member, detailed: true), 201);
     }
 
     public function show(User $member): View
@@ -189,7 +212,18 @@ class MembersController extends Controller
             'start_date' => ['required', 'date'],
         ]);
 
-        $member->changeMembershipPlan((int) $data['rate_plan_id'], $data['start_date']);
+        $membership = $member->changeMembershipPlan((int) $data['rate_plan_id'], $data['start_date']);
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+            $membership->id,
+            'plan_changed',
+            $this->membershipAuditSnapshot($membership->fresh(['ratePlan', 'manager', 'member'])),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json($this->memberPayload($member->fresh(), detailed: true));
     }
@@ -216,11 +250,25 @@ class MembersController extends Controller
             ],
         ]);
 
-        if (! $member->currentMembership()) {
+        $membershipToUpdate = $member->currentMembership();
+
+        if (! $membershipToUpdate) {
             return response()->json(['message' => 'No current membership found.'], 422);
         }
 
         $member->updateCurrentMembershipStatus($data['status']);
+        $membership = $membershipToUpdate->fresh(['ratePlan', 'manager', 'member']);
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+            $membership->id,
+            'status_updated',
+            $this->membershipAuditSnapshot($membership),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json($this->memberPayload($member->fresh(), detailed: true));
     }
@@ -276,6 +324,17 @@ class MembersController extends Controller
             'manager_commission_earned_at' => now(),
         ]);
 
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+            $currentMembership->id,
+            'manager_assigned',
+            $this->membershipAuditSnapshot($currentMembership->fresh(['ratePlan', 'manager', 'member'])),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
         return response()->json($this->memberPayload($member->fresh(), detailed: true));
     }
 
@@ -319,7 +378,7 @@ class MembersController extends Controller
         $soldPrice = round((float) ($ptProduct->price ?? 0), 2);
         $coachCommissionRate = round((float) ($ptProduct->coach_commission_rate ?? 40), 2);
 
-        $member->memberPtPackages()->create([
+        $package = $member->memberPtPackages()->create([
             'pt_product_id' => $ptProduct->id,
             'sold_price' => $soldPrice,
             'coach_commission_rate' => $coachCommissionRate,
@@ -333,6 +392,17 @@ class MembersController extends Controller
             'notes' => $data['notes'] ?? null,
             'created_by' => auth()->id(),
         ]);
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER_PT_PACKAGE,
+            $package->id,
+            'assigned',
+            $this->ptPackageAuditSnapshot($package->fresh(['ptProduct', 'coach', 'member'])),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            $package->assigned_at ?? now(),
+        );
 
         return response()->json($this->memberPayload($member->fresh(), detailed: true), 201);
     }
@@ -375,7 +445,7 @@ class MembersController extends Controller
 
         $previousRemainingSessions = (int) $package->remaining_sessions;
 
-        $package->consumeSessions(
+        $usage = $package->consumeSessions(
             (int) $data['sessions_used'],
             $data['used_at'],
             auth()->id(),
@@ -389,6 +459,19 @@ class MembersController extends Controller
             $previousRemainingSessions,
             $data['used_at']
         );
+        $package = $package->fresh(['member:id,name']);
+        $usage->loadMissing('coach:id,name');
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE,
+            $usage->id,
+            'recorded',
+            $this->ptSessionUsageAuditSnapshot($usage, $package),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            $usage->used_at ?? now(),
+        );
 
         return response()->json($this->memberPayload($member->fresh(), detailed: true), 201);
     }
@@ -399,7 +482,7 @@ class MembersController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($member->id)],
+            'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($member->id)->withoutTrashed()],
             'phone' => ['nullable', 'string', 'max:50'],
             'status' => [
                 'nullable',
@@ -417,6 +500,8 @@ class MembersController extends Controller
             'rate_plan_id' => ['nullable', 'exists:rate_plans,id'],
             'start_date' => ['nullable', 'date'],
         ]);
+
+        $previousMembership = $member->currentMembership()?->fresh();
 
         $member->update([
             'name' => $data['name'],
@@ -440,8 +525,40 @@ class MembersController extends Controller
             $data['rate_plan_id'] ?? null,
             $data['start_date'] ?? now()->toDateString()
         );
+        $member = $member->fresh();
 
-        return response()->json($this->memberPayload($member->fresh(), detailed: true));
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_MEMBER,
+            $member->id,
+            'updated',
+            $this->memberAuditSnapshot($member),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
+        $currentMembership = $member->currentMembership();
+
+        if ($currentMembership && (
+            ! $previousMembership
+            || (int) $previousMembership->id !== (int) $currentMembership->id
+            || (int) $previousMembership->rate_plan_id !== (int) $currentMembership->rate_plan_id
+            || optional($previousMembership->start_date)->toDateString() !== optional($currentMembership->start_date)->toDateString()
+        )) {
+            $this->auditHistoryService->recordSubjectEvent(
+                AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+                $currentMembership->id,
+                'plan_changed',
+                $this->membershipAuditSnapshot($currentMembership->fresh(['ratePlan', 'manager', 'member'])),
+                [],
+                auth()->id(),
+                auth()->user()?->name,
+                now(),
+            );
+        }
+
+        return response()->json($this->memberPayload($member, detailed: true));
     }
 
     /**
@@ -613,6 +730,75 @@ class MembersController extends Controller
                 ])
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function memberAuditSnapshot(User $member): array
+    {
+        return [
+            'id' => $member->id,
+            'name' => $member->name,
+            'status' => $member->status,
+            'email' => $member->email,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function membershipAuditSnapshot(MemberSubscription $subscription): array
+    {
+        return [
+            'id' => $subscription->id,
+            'member_id' => $subscription->user_id,
+            'member_name' => $subscription->member?->name ?? 'Unknown Member',
+            'rate_plan_id' => $subscription->rate_plan_id,
+            'rate_plan_name' => $subscription->ratePlan?->name,
+            'status' => $subscription->status,
+            'start_date' => $subscription->start_date?->toDateString(),
+            'end_date' => $subscription->end_date?->toDateString(),
+            'manager_id' => $subscription->manager_id,
+            'manager_name' => $subscription->manager?->name,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function ptPackageAuditSnapshot(MemberPtPackage $package): array
+    {
+        return [
+            'id' => $package->id,
+            'member_id' => $package->user_id,
+            'member_name' => $package->member?->name ?? 'Unknown Member',
+            'pt_product_id' => $package->pt_product_id,
+            'product_name' => $package->ptProduct?->name,
+            'coach_id' => $package->coach_id,
+            'coach_name' => $package->coach?->name,
+            'total_sessions' => $package->total_sessions,
+            'remaining_sessions' => $package->remaining_sessions,
+            'assigned_at' => $package->assigned_at?->toDateString(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function ptSessionUsageAuditSnapshot(MemberPtSessionUsage $usage, MemberPtPackage $package): array
+    {
+        return [
+            'id' => $usage->id,
+            'member_id' => $package->user_id,
+            'member_name' => $package->member?->name ?? 'Unknown Member',
+            'package_id' => $package->id,
+            'sessions_used' => $usage->sessions_used,
+            'remaining_sessions' => $package->remaining_sessions,
+            'used_at' => $usage->used_at?->toISOString(),
+            'coach_id' => $usage->coach_id,
+            'coach_name' => $usage->coach?->name,
         ];
     }
 

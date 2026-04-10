@@ -35,6 +35,9 @@ app.component("business-photos-page", BusinessPhotosPage);
 import BusinessSettingsPage from "./components/panel/BusinessSettingsPage.vue";
 app.component("business-settings-page", BusinessSettingsPage);
 
+import AuditHistoryPage from "./components/panel/AuditHistoryPage.vue";
+app.component("audit-history-page", AuditHistoryPage);
+
 import InventoryPage from "./components/panel/InventoryPage.vue";
 app.component("inventory-page", InventoryPage);
 

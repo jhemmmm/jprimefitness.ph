@@ -196,8 +196,46 @@ class InventoryPageTest extends TestCase
             ->deleteJson("/panel/inventory/{$itemId}")
             ->assertNoContent();
 
-        $this->assertDatabaseMissing('inventory_items', [
+        $this->assertSoftDeleted('inventory_items', [
             'id' => $itemId,
+        ]);
+    }
+
+    public function test_staff_can_reuse_sku_from_a_soft_deleted_inventory_item(): void
+    {
+        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $category = InventoryCategory::factory()->create(['name' => 'Equipment']);
+
+        $archivedItem = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Archived Yoga Mat',
+            'sku' => 'MAT-001',
+        ]);
+        $archivedItem->delete();
+
+        $this->actingAs($staff)
+            ->postJson('/panel/inventory', [
+                'inventory_category_id' => $category->id,
+                'name' => 'Yoga Mat',
+                'sku' => 'MAT-001',
+                'unit' => 'pcs',
+                'quantity' => 8,
+                'low_stock_threshold' => 3,
+                'cost_price' => 550,
+                'selling_price' => 899,
+                'status' => InventoryItem::STATUS_ACTIVE,
+                'notes' => 'Restocked',
+                'last_restocked_at' => '2026-03-20 10:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('sku', 'MAT-001');
+
+        $this->assertSoftDeleted('inventory_items', [
+            'id' => $archivedItem->id,
+        ]);
+        $this->assertDatabaseHas('inventory_items', [
+            'sku' => 'MAT-001',
+            'deleted_at' => null,
         ]);
     }
 

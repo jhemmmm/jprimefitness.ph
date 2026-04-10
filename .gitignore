@@ -29,3 +29,8 @@ boost.json
 /.codex
 /.github
 CLAUDE.md
+graphify-out/.graphify_python
+.graphify_detect.json
+.gitignore
+.graphify_python
+.graphify_python_runner

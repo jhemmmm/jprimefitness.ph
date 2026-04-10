@@ -295,6 +295,7 @@
                   <p class="mb-1">Are you sure you want to delete this cash ledger entry?</p>
                   <p class="fw-semibold mb-0">{{ deleteTarget.title }}</p>
                   <p class="text-muted small mb-0">{{ deleteTarget.entry_type_label }} · {{ deleteTarget.direction === "in" ? "+" : "-" }}&#8369;{{ $filters.formatMoney(deleteTarget.amount) }}</p>
+                  <p class="text-muted small mt-2 mb-0">You can restore this manual entry later from Audit History.</p>
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

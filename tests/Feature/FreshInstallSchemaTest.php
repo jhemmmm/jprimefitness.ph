@@ -13,6 +13,7 @@ class FreshInstallSchemaTest extends TestCase
 
     public function test_fresh_install_uses_canonical_single_location_schema(): void
     {
+        $this->assertTrue(Schema::hasTable('audit_events'));
         $this->assertTrue(Schema::hasTable('business_profiles'));
         $this->assertTrue(Schema::hasTable('cash_ledger_entries'));
         $this->assertTrue(Schema::hasTable('member_profiles'));
@@ -40,6 +41,7 @@ class FreshInstallSchemaTest extends TestCase
         $this->assertTableHasColumns('users', [
             'daily_rate',
             'pay_frequency',
+            'deleted_at',
         ]);
 
         $this->assertTableHasColumns('member_subscriptions', [
@@ -78,16 +80,36 @@ class FreshInstallSchemaTest extends TestCase
             'membership_commission_items',
         ]);
 
-        $this->assertTableHasColumns('cash_advances', [
-            'audit_data',
+        $this->assertTableHasColumns('audit_events', [
+            'subject_type',
+            'subject_id',
+            'subject_label',
+            'event',
+            'title',
+            'message',
+            'actor_user_id',
+            'actor_name',
+            'metadata',
+            'occurred_at',
         ]);
+        $this->assertFalse(Schema::hasColumn('cash_advances', 'audit_data'));
 
         $this->assertTableHasColumns('walk_ins', [
             'payment_method',
+            'deleted_at',
         ]);
 
         $this->assertTableHasColumns('inventory_items', [
             'stock_alert_state',
+            'deleted_at',
+        ]);
+
+        $this->assertTableHasColumns('attendances', [
+            'deleted_at',
+        ]);
+
+        $this->assertTableHasColumns('cash_advances', [
+            'deleted_at',
         ]);
 
         $this->assertSame(0, DB::table('inventory_categories')->count());

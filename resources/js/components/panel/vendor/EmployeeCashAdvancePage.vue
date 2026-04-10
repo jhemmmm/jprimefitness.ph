@@ -2,7 +2,6 @@
    <div class="p-3">
       <div class="alert alert-danger py-2 small" v-if="pageError">{{ pageError }}</div>
 
-      <!-- Stats -->
       <div class="row g-3 mb-4" v-if="loading">
          <div class="col-6 col-md-3" v-for="i in 4" :key="'sk-s-' + i">
             <div class="stat-card">
@@ -26,25 +25,21 @@
          </div>
       </div>
 
-      <!-- Actions bar -->
       <div class="d-flex justify-content-between align-items-center mb-3">
          <div class="text-muted small" v-if="!loading">{{ advances.length }} record{{ advances.length !== 1 ? "s" : "" }}</div>
          <div class="skeleton-box" v-else style="height: 14px; width: 80px; border-radius: 4px"></div>
          <button class="btn btn-danger btn-sm" @click="openCreate"><i class="bi bi-plus-lg me-1"></i>New Cash Advance</button>
       </div>
 
-      <!-- Loading -->
       <div v-if="loading">
          <div class="skeleton-box" v-for="i in 3" :key="i" style="height: 56px; border-radius: 6px; margin-bottom: 8px"></div>
       </div>
 
-      <!-- Empty -->
       <div v-else-if="advances.length === 0" class="text-center py-5 text-muted">
          <i class="bi bi-wallet2 fs-1 d-block mb-2 opacity-25"></i>
          <div>No cash advances recorded.</div>
       </div>
 
-      <!-- Desktop table -->
       <div class="d-none d-md-block" v-else>
          <table class="table table-striped table-hover align-middle mb-0">
             <thead class="table-light">
@@ -60,7 +55,7 @@
             </thead>
             <tbody>
                <template v-for="a in advances" :key="a.id">
-                  <tr role="button" @click="toggleAudit(a.id)">
+                  <tr role="button" @click="toggleAudit(a)">
                      <td class="small">{{ $filters.formatDate(a.requested_at) }}</td>
                      <td class="text-end small fw-semibold">₱{{ $filters.formatMoney(a.amount) }}</td>
                      <td class="text-end small text-success">{{ a.deducted_amount > 0 ? "₱" + $filters.formatMoney(a.deducted_amount) : "-" }}</td>
@@ -95,17 +90,12 @@
                   <tr v-if="expandedAdvanceId === a.id">
                      <td colspan="7" class="bg-light">
                         <div class="p-3">
-                           <div class="small fw-semibold mb-2">Audit History</div>
-                           <div class="d-flex flex-column gap-2">
-                              <div v-for="event in auditEvents(a)" :key="`${a.id}-${event.key}`" class="d-flex justify-content-between align-items-start border rounded px-3 py-2 bg-white">
-                                 <div>
-                                    <div class="small fw-semibold">{{ event.label }}</div>
-                                    <div class="small text-muted">{{ event.by_name || "-" }}</div>
-                                    <div v-if="event.details" class="small text-muted mt-1">{{ event.details }}</div>
-                                 </div>
-                                 <div class="small text-muted text-end">{{ $filters.formatDateTime(event.at) }}</div>
-                              </div>
+                           <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                              <div class="small fw-semibold mb-0">Audit History</div>
+                              <a class="btn btn-sm btn-outline-secondary" :href="auditHistoryUrl(a)" @click.stop>Open in Audit History</a>
                            </div>
+                           <div class="alert alert-danger py-2 small mb-2" v-if="auditError(a.id)">{{ auditError(a.id) }}</div>
+                           <audit-event-list :events="auditEntries(a.id)" :loading="isAuditLoading(a.id)" :show-subject="false" :show-action="false" empty-message="No audit history found for this cash advance." />
                         </div>
                      </td>
                   </tr>
@@ -114,9 +104,8 @@
          </table>
       </div>
 
-      <!-- Mobile cards -->
       <div class="d-md-none" v-if="!loading && advances.length">
-         <div class="member-card" v-for="a in advances" :key="'ca' + a.id" role="button" @click="toggleAudit(a.id)">
+         <div class="member-card" v-for="a in advances" :key="'ca' + a.id" role="button" @click="toggleAudit(a)">
             <div class="member-card-top">
                <div>
                   <div class="fw-semibold small">₱{{ $filters.formatMoney(a.amount) }}</div>
@@ -150,20 +139,16 @@
                <span class="small text-muted" v-if="a.notes"> · {{ a.notes }}</span>
             </div>
             <div v-if="expandedAdvanceId === a.id" class="mt-3 border-top pt-3">
-               <div class="small fw-semibold mb-2">Audit History</div>
-               <div class="d-flex flex-column gap-2">
-                  <div v-for="event in auditEvents(a)" :key="`mobile-${a.id}-${event.key}`" class="border rounded px-3 py-2 bg-light">
-                     <div class="small fw-semibold">{{ event.label }}</div>
-                     <div class="small text-muted">{{ event.by_name || "-" }}</div>
-                     <div v-if="event.details" class="small text-muted mt-1">{{ event.details }}</div>
-                     <div class="small text-muted mt-1">{{ $filters.formatDateTime(event.at) }}</div>
-                  </div>
+               <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                  <div class="small fw-semibold mb-0">Audit History</div>
+                  <a class="btn btn-sm btn-outline-secondary" :href="auditHistoryUrl(a)" @click.stop>Open in Audit History</a>
                </div>
+               <div class="alert alert-danger py-2 small mb-2" v-if="auditError(a.id)">{{ auditError(a.id) }}</div>
+               <audit-event-list :events="auditEntries(a.id)" :loading="isAuditLoading(a.id)" :show-subject="false" :show-action="false" empty-message="No audit history found for this cash advance." />
             </div>
          </div>
       </div>
 
-      <!-- Create / Edit Modal -->
       <div class="modal fade" tabindex="-1" ref="caModal">
          <div class="modal-dialog">
             <div class="modal-content">
@@ -204,8 +189,13 @@
 
 <script>
 import { Modal } from "bootstrap";
+import AuditEventList from "./AuditEventList.vue";
 
 export default {
+   components: {
+      AuditEventList,
+   },
+
    props: {
       employee: { type: Object, required: true },
    },
@@ -218,6 +208,9 @@ export default {
          expandedAdvanceId: null,
          advances: [],
          stats: { remaining_amount: 0, released_count: 0, partially_paid_count: 0, paid_count: 0 },
+         auditHistoryByAdvanceId: {},
+         auditErrorsByAdvanceId: {},
+         auditLoadingByAdvanceId: {},
          pageError: "",
          modalMode: "create",
          form: this.emptyForm(),
@@ -231,25 +224,24 @@ export default {
       this.caModalInst = new Modal(this.$refs.caModal);
       this.fetchAdvances();
    },
+
    methods: {
       fetchAdvances: function () {
          this.loading = true;
          this.pageError = "";
-         axios
+
+         return axios
             .get(`/panel/employees/${this.employee.id}/cash-advances`)
             .then((res) => {
                this.advances = res.data.advances;
                this.stats = res.data.stats;
             })
-            .catch((err) => (this.pageError = err.response?.data?.message || "Failed to load cash advances."))
-            .finally(() => (this.loading = false));
-      },
-
-      replaceAdvance: function (advance) {
-         const index = this.advances.findIndex((item) => item.id === advance.id);
-         if (index !== -1) {
-            this.advances.splice(index, 1, advance);
-         }
+            .catch((err) => {
+               this.pageError = err.response?.data?.message || "Failed to load cash advances.";
+            })
+            .finally(() => {
+               this.loading = false;
+            });
       },
 
       setAdvanceStatus: function (advance, status) {
@@ -258,72 +250,110 @@ export default {
 
          axios
             .put(`/panel/employees/${this.employee.id}/cash-advances/${advance.id}`, { status })
-            .then((res) => {
-               this.replaceAdvance(res.data);
-               this.fetchAdvances();
+            .then(() => {
+               this.clearAuditHistoryCache(advance.id);
+
+               return this.fetchAdvances().then(() => {
+                  if (this.expandedAdvanceId === advance.id) {
+                     return this.fetchAuditHistory(advance.id);
+                  }
+
+                  return null;
+               });
             })
             .catch((err) => {
                this.pageError = err.response?.data?.message || "Failed to update cash advance.";
             })
-            .finally(() => (this.actioning = ""));
+            .finally(() => {
+               this.actioning = "";
+            });
       },
 
-      toggleAudit: function (id) {
-         this.expandedAdvanceId = this.expandedAdvanceId === id ? null : id;
-      },
+      toggleAudit: function (advance) {
+         const shouldExpand = this.expandedAdvanceId !== advance.id;
 
-      auditEvents: function (advance) {
-         const auditData = Array.isArray(advance.audit_data)
-            ? advance.audit_data
-                 .filter((event) => event?.at)
-                 .map((event, index) => ({
-                    key: `${event.event || "event"}-${index}`,
-                    event: event.event,
-                    label: this.auditEventLabel(event.event),
-                    at: event.at,
-                    by_name: event.by_name,
-                    details: this.auditEventDetails(event),
-                 }))
-            : [];
+         this.expandedAdvanceId = shouldExpand ? advance.id : null;
 
-         const recordedEvents = new Set(auditData.map((event) => event.event));
-         const legacyEvents = [
-            { key: "requested", event: "requested", label: "Requested", at: advance.requested_at, by_name: this.employee.name },
-            { key: "approved", event: "approved", label: "Approved", at: advance.approved_at, by_name: advance.approved_by_name },
-            { key: "released", event: "released", label: "Released", at: advance.released_at, by_name: advance.released_by_name },
-            { key: "paid", event: "paid", label: "Paid", at: advance.paid_at, by_name: null },
-            { key: "cancelled", event: "cancelled", label: "Cancelled", at: advance.cancelled_at, by_name: advance.cancelled_by_name },
-         ].filter((event) => event.at && !recordedEvents.has(event.event));
-
-         return [...legacyEvents, ...auditData].sort((left, right) => new Date(left.at) - new Date(right.at));
-      },
-
-      auditEventLabel: function (event) {
-         return (
-            {
-               requested: "Requested",
-               approved: "Approved",
-               released: "Released",
-               partially_paid: "Partially Paid",
-               paid: "Paid",
-               cancelled: "Cancelled",
-            }[event] || "Updated"
-         );
-      },
-
-      auditEventDetails: function (event) {
-         const details = [];
-
-         if (event.deducted_amount !== undefined && event.deducted_amount !== null) {
-            const source = event.source === "payroll" && event.source_id ? ` via payroll #${event.source_id}` : "";
-            details.push(`Deducted ₱${this.$filters.formatMoney(event.deducted_amount)}${source}. Remaining: ₱${this.$filters.formatMoney(event.remaining_after ?? 0)}.`);
+         if (shouldExpand && this.auditHistoryByAdvanceId[advance.id] === undefined && !this.isAuditLoading(advance.id)) {
+            this.fetchAuditHistory(advance.id);
          }
+      },
 
-         if (event.notes) {
-            details.push(event.notes);
-         }
+      fetchAuditHistory: function (advanceId) {
+         this.auditLoadingByAdvanceId = {
+            ...this.auditLoadingByAdvanceId,
+            [advanceId]: true,
+         };
 
-         return details.join(" ");
+         const nextErrors = { ...this.auditErrorsByAdvanceId };
+         delete nextErrors[advanceId];
+         this.auditErrorsByAdvanceId = nextErrors;
+
+         return axios
+            .get("/panel/audit-history/list", {
+               params: {
+                  subject_type: "cash_advance",
+                  subject_id: advanceId,
+                  per_page: 100,
+               },
+            })
+            .then((response) => {
+               this.auditHistoryByAdvanceId = {
+                  ...this.auditHistoryByAdvanceId,
+                  [advanceId]: response.data.events?.data || [],
+               };
+            })
+            .catch((error) => {
+               this.auditErrorsByAdvanceId = {
+                  ...this.auditErrorsByAdvanceId,
+                  [advanceId]: error.response?.data?.message || "Failed to load audit history.",
+               };
+               this.auditHistoryByAdvanceId = {
+                  ...this.auditHistoryByAdvanceId,
+                  [advanceId]: [],
+               };
+            })
+            .finally(() => {
+               this.auditLoadingByAdvanceId = {
+                  ...this.auditLoadingByAdvanceId,
+                  [advanceId]: false,
+               };
+            });
+      },
+
+      clearAuditHistoryCache: function (advanceId) {
+         const auditHistoryByAdvanceId = { ...this.auditHistoryByAdvanceId };
+         const auditErrorsByAdvanceId = { ...this.auditErrorsByAdvanceId };
+         const auditLoadingByAdvanceId = { ...this.auditLoadingByAdvanceId };
+
+         delete auditHistoryByAdvanceId[advanceId];
+         delete auditErrorsByAdvanceId[advanceId];
+         delete auditLoadingByAdvanceId[advanceId];
+
+         this.auditHistoryByAdvanceId = auditHistoryByAdvanceId;
+         this.auditErrorsByAdvanceId = auditErrorsByAdvanceId;
+         this.auditLoadingByAdvanceId = auditLoadingByAdvanceId;
+      },
+
+      auditEntries: function (advanceId) {
+         return this.auditHistoryByAdvanceId[advanceId] || [];
+      },
+
+      isAuditLoading: function (advanceId) {
+         return Boolean(this.auditLoadingByAdvanceId[advanceId]);
+      },
+
+      auditError: function (advanceId) {
+         return this.auditErrorsByAdvanceId[advanceId] || "";
+      },
+
+      auditHistoryUrl: function (advance) {
+         const params = new URLSearchParams({
+            subject_type: "cash_advance",
+            subject_id: String(advance.id),
+         });
+
+         return `/panel/audit-history?${params.toString()}`;
       },
 
       openCreate: function () {
@@ -334,12 +364,12 @@ export default {
          this.caModalInst.show();
       },
 
-      openEdit: function (a) {
+      openEdit: function (advance) {
          this.modalMode = "edit";
          this.formError = "";
          this.formErrors = {};
-         const d = a.requested_at ? new Date(a.requested_at).toISOString().slice(0, 16) : "";
-         this.form = { id: a.id, amount: a.amount, notes: a.notes || "", requested_at: d };
+         const requestedAt = advance.requested_at ? new Date(advance.requested_at).toISOString().slice(0, 16) : "";
+         this.form = { id: advance.id, amount: advance.amount, notes: advance.notes || "", requested_at: requestedAt };
          this.caModalInst.show();
       },
 
@@ -348,35 +378,44 @@ export default {
          this.formError = "";
          this.formErrors = {};
 
-         const req = this.modalMode === "create" ? axios.post(`/panel/employees/${this.employee.id}/cash-advances`, this.form) : axios.put(`/panel/employees/${this.employee.id}/cash-advances/${this.form.id}`, this.form);
+         const request = this.modalMode === "create"
+            ? axios.post(`/panel/employees/${this.employee.id}/cash-advances`, this.form)
+            : axios.put(`/panel/employees/${this.employee.id}/cash-advances/${this.form.id}`, this.form);
 
-         req.then((res) => {
-            this.caModalInst.hide();
-            if (this.modalMode === "create") {
-               this.advances.unshift(res.data);
-            } else {
-               const idx = this.advances.findIndex((a) => a.id === res.data.id);
-               if (idx !== -1) this.advances.splice(idx, 1, res.data);
-            }
-            // Refresh stats
-            this.fetchAdvances();
-         })
+         request
+            .then((response) => {
+               const advanceId = response.data.id;
+
+               this.caModalInst.hide();
+               this.clearAuditHistoryCache(advanceId);
+
+               return this.fetchAdvances().then(() => {
+                  if (this.expandedAdvanceId === advanceId) {
+                     return this.fetchAuditHistory(advanceId);
+                  }
+
+                  return null;
+               });
+            })
             .catch((err) => {
                if (err.response?.status === 422) {
                   const errors = err.response.data.errors || {};
-                  this.formErrors = Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]));
+                  this.formErrors = Object.fromEntries(Object.entries(errors).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
                   this.formError = Object.keys(errors).length === 0 ? err.response?.data?.message || "Something went wrong." : "";
                } else {
                   this.formError = err.response?.data?.message || "Something went wrong.";
                }
             })
-            .finally(() => (this.submitting = false));
+            .finally(() => {
+               this.submitting = false;
+            });
       },
 
       emptyForm: function () {
-         const d = new Date();
-         d.setSeconds(0, 0);
-         return { amount: "", notes: "", requested_at: d.toISOString().slice(0, 16) };
+         const date = new Date();
+         date.setSeconds(0, 0);
+
+         return { amount: "", notes: "", requested_at: date.toISOString().slice(0, 16) };
       },
 
       hasAdvanceActions: function (status) {
@@ -403,6 +442,7 @@ export default {
          return this.actioning === `${id}:${status}`;
       },
    },
+
    computed: {
       statCards: function () {
          return [

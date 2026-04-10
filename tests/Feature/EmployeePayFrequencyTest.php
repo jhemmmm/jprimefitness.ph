@@ -105,6 +105,38 @@ class EmployeePayFrequencyTest extends TestCase
         ]);
     }
 
+    public function test_employee_creation_can_reuse_email_from_a_soft_deleted_employee(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $staffRole = Role::findByName('staff');
+
+        $archivedEmployee = $this->createUserWithRole('staff', 'Archived Coach');
+        $archivedEmployee->update(['email' => 'archived-coach@example.com']);
+        $archivedEmployee->delete();
+
+        $this->actingAs($manager)
+            ->postJson('/panel/employees', [
+                'name' => 'Coach Ben',
+                'email' => 'archived-coach@example.com',
+                'status' => User::STATUS_ACTIVE,
+                'role_ids' => [$staffRole->id],
+                'daily_rate' => 450,
+                'pay_frequency' => 'monthly',
+                'password' => 'password123',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('email', 'archived-coach@example.com');
+
+        $this->assertSoftDeleted('users', [
+            'id' => $archivedEmployee->id,
+        ]);
+        $this->assertDatabaseHas('users', [
+            'email' => 'archived-coach@example.com',
+            'deleted_at' => null,
+        ]);
+    }
+
     private function setBusinessProfile(string $name): BusinessProfile
     {
         return BusinessProfile::factory()->create([

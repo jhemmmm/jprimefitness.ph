@@ -159,7 +159,7 @@
                   <h5 class="modal-title fw-bold">Delete Record?</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                </div>
-               <div class="modal-body pt-1 text-muted small">This attendance record will be permanently deleted.</div>
+               <div class="modal-body pt-1 text-muted small">This attendance record can be restored later from Audit History.</div>
                <div class="modal-footer border-0 pt-0">
                   <button class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                   <button class="btn btn-danger btn-sm" :disabled="deleting" @click="doDelete"><span v-if="deleting" class="spinner-border spinner-border-sm me-1"></span>Delete</button>

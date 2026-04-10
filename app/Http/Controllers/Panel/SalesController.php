@@ -19,8 +19,7 @@ class SalesController extends Controller
 {
     public function __construct(
         private PosSaleService $posSaleService,
-    ) {
-    }
+    ) {}
 
     public function index(): View
     {
@@ -87,7 +86,7 @@ class SalesController extends Controller
 
     public function receipt(SaleTransaction $saleTransaction): Responsable
     {
-        $fileName = 'sale-receipt-' . $saleTransaction->id . '.pdf';
+        $fileName = 'sale-receipt-'.$saleTransaction->id.'.pdf';
 
         return Pdf::view('panel.sales.receipt', $this->receiptPayload($saleTransaction))
             ->driver('dompdf')
@@ -121,7 +120,7 @@ class SalesController extends Controller
             'member_mode' => ['nullable', Rule::in(['existing', 'new'])],
             'member_id' => ['nullable', 'integer', 'exists:users,id'],
             'customer_name' => ['nullable', 'string', 'max:255'],
-            'customer_email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')],
+            'customer_email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->withoutTrashed()],
             'customer_phone' => ['nullable', 'string', 'max:50'],
             'rate_plan_id' => ['nullable', 'integer', 'exists:rate_plans,id'],
             'pt_product_id' => ['nullable', 'integer', 'exists:pt_products,id'],
@@ -291,7 +290,7 @@ class SalesController extends Controller
 
         return [
             'saleTransaction' => $saleTransaction,
-            'businessProfile' => $this->businessProfileContext->profile(),
+            'businessProfile' => BusinessProfile::current(),
             'receiptNumber' => $saleTransaction->receiptNumber(),
             'lineItems' => $this->receiptLineItems($saleTransaction),
             'payment' => [

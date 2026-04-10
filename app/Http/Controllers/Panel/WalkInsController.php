@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditEvent;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\WalkIn;
+use App\Services\AuditHistoryService;
 use App\Services\CashLedgerService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -17,8 +19,8 @@ class WalkInsController extends Controller
 {
     public function __construct(
         private CashLedgerService $cashLedgerService,
-    ) {
-    }
+        private AuditHistoryService $auditHistoryService,
+    ) {}
 
     public function index(): View
     {
@@ -83,9 +85,21 @@ class WalkInsController extends Controller
         $data['visited_at'] = $data['visited_at'] ?? now();
 
         $walkIn = WalkIn::create($data);
-        $this->cashLedgerService->syncWalkIn($walkIn);
+        $this->cashLedgerService->syncWalkIn($walkIn, 'created');
+        $walkIn = $walkIn->fresh(['ratePlan']);
 
-        return response()->json($this->serializeWalkIn($walkIn->fresh(['ratePlan'])), 201);
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_WALK_IN,
+            $walkIn->id,
+            'created',
+            $this->walkInAuditSnapshot($walkIn),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            $walkIn->visited_at ?? now(),
+        );
+
+        return response()->json($this->serializeWalkIn($walkIn), 201);
     }
 
     public function show(WalkIn $walkIn): JsonResponse
@@ -107,15 +121,39 @@ class WalkInsController extends Controller
 
         $data['payment_method'] = $data['payment_method'] ?? $walkIn->payment_method ?? SaleTransaction::PAYMENT_METHOD_CASH;
         $walkIn->update($data);
-        $this->cashLedgerService->syncWalkIn($walkIn->fresh(['ratePlan']));
+        $walkIn = $walkIn->fresh(['ratePlan']);
+        $this->cashLedgerService->syncWalkIn($walkIn, 'updated');
 
-        return response()->json($this->serializeWalkIn($walkIn->fresh(['ratePlan'])));
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_WALK_IN,
+            $walkIn->id,
+            'updated',
+            $this->walkInAuditSnapshot($walkIn),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
+        return response()->json($this->serializeWalkIn($walkIn));
     }
 
     public function destroy(WalkIn $walkIn): JsonResponse
     {
+        $snapshot = $this->walkInAuditSnapshot($walkIn->loadMissing('ratePlan'));
         $this->cashLedgerService->deleteWalkIn($walkIn);
         $walkIn->delete();
+
+        $this->auditHistoryService->recordSubjectEvent(
+            AuditEvent::SUBJECT_WALK_IN,
+            $walkIn->id,
+            'deleted',
+            $snapshot,
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
 
         return response()->json(null, 204);
     }
@@ -136,6 +174,21 @@ class WalkInsController extends Controller
             'payment_method' => $walkIn->payment_method,
             'visited_at' => $walkIn->visited_at?->toISOString(),
             'notes' => $walkIn->notes,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function walkInAuditSnapshot(WalkIn $walkIn): array
+    {
+        return [
+            'id' => $walkIn->id,
+            'name' => $walkIn->name,
+            'rate_plan_name' => $walkIn->ratePlan?->name,
+            'amount_paid' => round((float) $walkIn->amount_paid, 2),
+            'payment_method' => $walkIn->payment_method,
+            'served_by' => $walkIn->served_by,
         ];
     }
 }

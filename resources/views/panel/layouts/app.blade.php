@@ -174,6 +174,14 @@
 
                 {{-- System --}}
                 <div class="sidebar-menu-heading">System</div>
+                @if (auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']))
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.audit-history') }}" @class(['active' => request()->routeIs('panel.audit-history*')])>
+                            <i class="bi bi-clock-history"></i>
+                            <span class="sidebar-nav-label">Audit History</span>
+                        </a>
+                    </div>
+                @endif
                 <div class="sidebar-nav-item">
                     <a href="{{ route('panel.settings') }}" @class(['active' => request()->routeIs('panel.settings')])>
                         <i class="bi bi-gear"></i>

@@ -118,9 +118,19 @@ class SidebarBranchSelectorUiTest extends TestCase
 
     public function test_business_and_notifications_pages_use_standard_panel_page_headers(): void
     {
+        $auditHistoryContents = file_get_contents(resource_path('js/components/panel/AuditHistoryPage.vue'));
         $notificationsContents = file_get_contents(resource_path('js/components/panel/NotificationsPage.vue'));
         $settingsContents = file_get_contents(resource_path('js/components/panel/BusinessSettingsPage.vue'));
         $galleryContents = file_get_contents(resource_path('js/components/panel/vendor/BusinessGalleryPage.vue'));
+
+        $this->assertNotFalse($auditHistoryContents);
+        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Audit History</h4>', $auditHistoryContents);
+        $this->assertStringContainsString('/panel/audit-history/list', $auditHistoryContents);
+        $this->assertStringContainsString('/panel/audit-history/${this.restoreTarget.id}/restore', $auditHistoryContents);
+        $this->assertStringContainsString('table table-hover table-striped align-middle mb-0 panel-table', $auditHistoryContents);
+        $this->assertStringContainsString('toggleSort', $auditHistoryContents);
+        $this->assertStringContainsString('Restore Record', $auditHistoryContents);
+        $this->assertStringContainsString('Not recoverable', $auditHistoryContents);
 
         $this->assertNotFalse($notificationsContents);
         $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Notifications</h4>', $notificationsContents);
@@ -148,8 +158,20 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString("route('panel.business.photos')", $contents);
         $this->assertStringContainsString('<span class="sidebar-nav-label">Photos</span>', $contents);
         $this->assertStringContainsString('<div class="sidebar-menu-heading">System</div>', $contents);
+        $this->assertStringContainsString("route('panel.audit-history')", $contents);
+        $this->assertStringContainsString('<span class="sidebar-nav-label">Audit History</span>', $contents);
         $this->assertStringContainsString("route('panel.settings')", $contents);
         $this->assertStringContainsString('<span class="sidebar-nav-label">Settings</span>', $contents);
+    }
+
+    public function test_cash_advance_page_uses_shared_audit_history_endpoint(): void
+    {
+        $contents = file_get_contents(resource_path('js/components/panel/vendor/EmployeeCashAdvancePage.vue'));
+
+        $this->assertNotFalse($contents);
+        $this->assertStringContainsString('/panel/audit-history/list', $contents);
+        $this->assertStringContainsString('Open in Audit History', $contents);
+        $this->assertStringNotContainsString('audit_data', $contents);
     }
 
     public function test_removed_branch_selector_files_are_gone(): void

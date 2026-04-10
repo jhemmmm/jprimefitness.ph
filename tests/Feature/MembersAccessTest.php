@@ -372,6 +372,36 @@ class MembersAccessTest extends TestCase
         $this->assertNotNull($member->currentMembership());
     }
 
+    public function test_manager_can_reuse_email_from_a_soft_deleted_member(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+        $plan = $this->createRatePlan('Monthly', 30);
+
+        $archivedMember = $this->createMember();
+        $archivedMember->update(['email' => 'archived-member@example.com']);
+        $archivedMember->delete();
+
+        $this->actingAs($manager)
+            ->postJson('/panel/members', [
+                'name' => 'New Member',
+                'email' => 'archived-member@example.com',
+                'password' => 'password123',
+                'status' => User::STATUS_ACTIVE,
+                'rate_plan_id' => $plan->id,
+                'start_date' => '2026-04-01',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('email', 'archived-member@example.com');
+
+        $this->assertSoftDeleted('users', [
+            'id' => $archivedMember->id,
+        ]);
+        $this->assertDatabaseHas('users', [
+            'email' => 'archived-member@example.com',
+            'deleted_at' => null,
+        ]);
+    }
+
     private function createRatePlan(string $name, int $durationDays): RatePlan
     {
         return RatePlan::create([
