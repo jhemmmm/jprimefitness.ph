@@ -39,6 +39,18 @@ class PricingPageTest extends TestCase
             ->assertSee('pricing-page', false);
     }
 
+    public function test_pricing_component_includes_mobile_rate_cards(): void
+    {
+        $contents = file_get_contents(resource_path('js/components/panel/PricingPage.vue'));
+
+        $this->assertNotFalse($contents);
+        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Pricing & Rates</h4>', $contents);
+        $this->assertStringContainsString("class=\"d-md-none\"", $contents);
+        $this->assertStringContainsString("class=\"member-card\" v-for=\"rate in pricing.membership_rates\"", $contents);
+        $this->assertStringContainsString("class=\"member-card\" v-for=\"rate in pricing.pt_rates\"", $contents);
+        $this->assertStringContainsString('dropdown-menu dropdown-menu-end', $contents);
+    }
+
     public function test_pricing_data_returns_global_configured_and_available_options(): void
     {
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
@@ -56,6 +68,8 @@ class PricingPageTest extends TestCase
             'effective_until' => '2026-04-30',
         ]);
         $availablePtProduct = $this->createPtProduct('24 Sessions', 24);
+        $configuredRatePlan = $configuredRatePlan->fresh();
+        $configuredPtProduct = $configuredPtProduct->fresh();
 
         $this->actingAs($staff)
             ->getJson('/panel/pricing/data')
@@ -67,14 +81,14 @@ class PricingPageTest extends TestCase
             ->assertJsonPath('membership_rates.0.id', $configuredRatePlan->id)
             ->assertJsonPath('membership_rates.0.price', 1499)
             ->assertJsonPath('membership_rates.0.manager_commission_rate', 12.5)
-            ->assertJsonPath('membership_rates.0.effective_from', '2026-04-01T00:00:00.000000Z')
-            ->assertJsonPath('membership_rates.0.effective_until', '2026-04-30T00:00:00.000000Z')
+            ->assertJsonPath('membership_rates.0.effective_from', $configuredRatePlan->effective_from?->toJSON())
+            ->assertJsonPath('membership_rates.0.effective_until', $configuredRatePlan->effective_until?->toJSON())
             ->assertJsonPath('available_membership_rate_plans.0.id', $availableRatePlan->id)
             ->assertJsonPath('pt_rates.0.id', $configuredPtProduct->id)
             ->assertJsonPath('pt_rates.0.price', 3600)
             ->assertJsonPath('pt_rates.0.coach_commission_rate', 40)
-            ->assertJsonPath('pt_rates.0.effective_from', '2026-04-01T00:00:00.000000Z')
-            ->assertJsonPath('pt_rates.0.effective_until', '2026-04-30T00:00:00.000000Z')
+            ->assertJsonPath('pt_rates.0.effective_from', $configuredPtProduct->effective_from?->toJSON())
+            ->assertJsonPath('pt_rates.0.effective_until', $configuredPtProduct->effective_until?->toJSON())
             ->assertJsonPath('available_pt_products.0.id', $availablePtProduct->id)
             ->assertJsonPath('stats.membership_configured', 1)
             ->assertJsonPath('stats.pt_configured', 1);

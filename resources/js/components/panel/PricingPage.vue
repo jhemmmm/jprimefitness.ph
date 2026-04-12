@@ -25,7 +25,7 @@
       </div>
 
       <div class="panel-card mb-4">
-         <div class="panel-card-header d-flex justify-content-between align-items-center">
+         <div class="panel-card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
             <span class="panel-card-title">Membership Rates</span>
             <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreateMembershipModal" :disabled="pricing.available_membership_rate_plans.length === 0">
                <i class="bi bi-plus-lg me-1"></i>
@@ -38,49 +38,93 @@
             <i class="bi bi-card-checklist empty-icon"></i>
             <p class="mt-2 mb-1">No membership rates configured yet.</p>
          </div>
-         <div v-else class="table-responsive">
-            <table class="table table-hover table-striped align-middle mb-0 panel-table">
-               <thead>
-                  <tr>
-                     <th>Plan</th>
-                     <th>Duration</th>
-                     <th>Price</th>
-                     <th>Manager Commission</th>
-                     <th>Status</th>
-                     <th>Effectivity</th>
-                     <th class="col-actions"></th>
-                  </tr>
-               </thead>
-               <tbody>
-                  <tr v-for="rate in pricing.membership_rates" :key="'membership-' + rate.id">
-                     <td>
-                        <div class="fw-semibold">{{ rate.name }}</div>
-                        <div class="text-muted small">{{ rate.description || "No description" }}</div>
-                     </td>
-                     <td class="small">{{ membershipDurationLabel(rate.duration_days) }}</td>
-                     <td class="fw-semibold">₱{{ $filters.formatMoney(rate.price) }}</td>
-                     <td class="small">{{ $filters.formatMoney(rate.manager_commission_rate) }}%</td>
-                     <td>
-                        <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
-                     </td>
-                     <td class="small text-muted">
-                        <div>From: {{ formatDate(rate.effective_from) }}</div>
-                        <div>Until: {{ formatDate(rate.effective_until) }}</div>
-                     </td>
-                     <td>
-                        <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
-                           <button class="btn btn-sm btn-outline-secondary" @click="openEditMembershipModal(rate)"><i class="bi bi-pencil tbl-icon"></i></button>
-                           <button class="btn btn-sm btn-outline-danger" @click="confirmDelete('membership', rate)"><i class="bi bi-trash tbl-icon"></i></button>
+         <div v-else>
+            <div class="d-none d-md-block table-responsive">
+               <table class="table table-hover table-striped align-middle mb-0 panel-table">
+                  <thead>
+                     <tr>
+                        <th>Plan</th>
+                        <th>Duration</th>
+                        <th>Price</th>
+                        <th>Manager Commission</th>
+                        <th>Status</th>
+                        <th>Effectivity</th>
+                        <th class="col-actions"></th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     <tr v-for="rate in pricing.membership_rates" :key="'membership-' + rate.id">
+                        <td>
+                           <div class="fw-semibold">{{ rate.name }}</div>
+                           <div class="text-muted small">{{ rate.description || "No description" }}</div>
+                        </td>
+                        <td class="small">{{ membershipDurationLabel(rate.duration_days) }}</td>
+                        <td class="fw-semibold">₱{{ $filters.formatMoney(rate.price) }}</td>
+                        <td class="small">{{ $filters.formatMoney(rate.manager_commission_rate) }}%</td>
+                        <td>
+                           <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
+                        </td>
+                        <td class="small text-muted">
+                           <div>From: {{ formatDate(rate.effective_from) }}</div>
+                           <div>Until: {{ formatDate(rate.effective_until) }}</div>
+                        </td>
+                        <td>
+                           <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
+                              <button class="btn btn-sm btn-outline-secondary" @click="openEditMembershipModal(rate)"><i class="bi bi-pencil tbl-icon"></i></button>
+                              <button class="btn btn-sm btn-outline-danger" @click="confirmDelete('membership', rate)"><i class="bi bi-trash tbl-icon"></i></button>
+                           </div>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+
+            <div class="d-md-none">
+               <div class="member-card" v-for="rate in pricing.membership_rates" :key="'membership-mobile-' + rate.id">
+                  <div class="member-card-top">
+                     <div class="member-card-identity">
+                        <div>
+                           <div class="member-card-name">{{ rate.name }}</div>
+                           <div class="member-card-sub">{{ rate.description || "No description" }}</div>
                         </div>
-                     </td>
-                  </tr>
-               </tbody>
-            </table>
+                     </div>
+                     <div class="dropdown" v-if="canManagePricing">
+                        <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
+                           <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                           <li>
+                              <a class="dropdown-item" href="#" @click.prevent="openEditMembershipModal(rate)"><i class="bi bi-pencil me-2"></i>Edit</a>
+                           </li>
+                           <li><hr class="dropdown-divider" /></li>
+                           <li>
+                              <a class="dropdown-item text-danger" href="#" @click.prevent="confirmDelete('membership', rate)"><i class="bi bi-trash me-2"></i>Delete</a>
+                           </li>
+                        </ul>
+                     </div>
+                  </div>
+
+                  <div class="member-card-tags ps-0">
+                     <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
+                     <span class="m-badge m-badge--plan">{{ membershipDurationLabel(rate.duration_days) }}</span>
+                  </div>
+
+                  <div class="small text-muted">Price: ₱{{ $filters.formatMoney(rate.price) }}</div>
+                  <div class="small text-muted mt-1">Manager Commission: {{ $filters.formatMoney(rate.manager_commission_rate) }}%</div>
+                  <div class="small text-muted mt-1">From: {{ formatDate(rate.effective_from) }}</div>
+                  <div class="small text-muted mt-1">Until: {{ formatDate(rate.effective_until) }}</div>
+
+                  <div class="member-card-footer mt-3">
+                     <span>Membership Rate</span>
+                     <span class="member-card-num">#{{ rate.id }}</span>
+                  </div>
+               </div>
+            </div>
          </div>
       </div>
 
       <div class="panel-card">
-         <div class="panel-card-header d-flex justify-content-between align-items-center">
+         <div class="panel-card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
             <span class="panel-card-title">PT Rates</span>
             <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreatePtModal" :disabled="pricing.available_pt_products.length === 0">
                <i class="bi bi-plus-lg me-1"></i>
@@ -93,44 +137,88 @@
             <i class="bi bi-person-badge-fill empty-icon"></i>
             <p class="mt-2 mb-1">No PT rates configured yet.</p>
          </div>
-         <div v-else class="table-responsive">
-            <table class="table table-hover table-striped align-middle mb-0 panel-table">
-               <thead>
-                  <tr>
-                     <th>Package</th>
-                     <th>Sessions</th>
-                     <th>Price</th>
-                     <th>Coach Commission</th>
-                     <th>Status</th>
-                     <th>Effectivity</th>
-                     <th class="col-actions"></th>
-                  </tr>
-               </thead>
-               <tbody>
-                  <tr v-for="rate in pricing.pt_rates" :key="'pt-' + rate.id">
-                     <td>
-                        <div class="fw-semibold">{{ rate.name }}</div>
-                        <div class="text-muted small">{{ rate.description || rate.category || "No description" }}</div>
-                     </td>
-                     <td class="small">{{ rate.session_count }} session{{ rate.session_count !== 1 ? "s" : "" }}</td>
-                     <td class="fw-semibold">₱{{ $filters.formatMoney(rate.price) }}</td>
-                     <td class="small">{{ $filters.formatMoney(rate.coach_commission_rate) }}%</td>
-                     <td>
-                        <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
-                     </td>
-                     <td class="small text-muted">
-                        <div>From: {{ formatDate(rate.effective_from) }}</div>
-                        <div>Until: {{ formatDate(rate.effective_until) }}</div>
-                     </td>
-                     <td>
-                        <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
-                           <button class="btn btn-sm btn-outline-secondary" @click="openEditPtModal(rate)"><i class="bi bi-pencil tbl-icon"></i></button>
-                           <button class="btn btn-sm btn-outline-danger" @click="confirmDelete('pt', rate)"><i class="bi bi-trash tbl-icon"></i></button>
+         <div v-else>
+            <div class="d-none d-md-block table-responsive">
+               <table class="table table-hover table-striped align-middle mb-0 panel-table">
+                  <thead>
+                     <tr>
+                        <th>Package</th>
+                        <th>Sessions</th>
+                        <th>Price</th>
+                        <th>Coach Commission</th>
+                        <th>Status</th>
+                        <th>Effectivity</th>
+                        <th class="col-actions"></th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     <tr v-for="rate in pricing.pt_rates" :key="'pt-' + rate.id">
+                        <td>
+                           <div class="fw-semibold">{{ rate.name }}</div>
+                           <div class="text-muted small">{{ rate.description || rate.category || "No description" }}</div>
+                        </td>
+                        <td class="small">{{ rate.session_count }} session{{ rate.session_count !== 1 ? "s" : "" }}</td>
+                        <td class="fw-semibold">₱{{ $filters.formatMoney(rate.price) }}</td>
+                        <td class="small">{{ $filters.formatMoney(rate.coach_commission_rate) }}%</td>
+                        <td>
+                           <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
+                        </td>
+                        <td class="small text-muted">
+                           <div>From: {{ formatDate(rate.effective_from) }}</div>
+                           <div>Until: {{ formatDate(rate.effective_until) }}</div>
+                        </td>
+                        <td>
+                           <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
+                              <button class="btn btn-sm btn-outline-secondary" @click="openEditPtModal(rate)"><i class="bi bi-pencil tbl-icon"></i></button>
+                              <button class="btn btn-sm btn-outline-danger" @click="confirmDelete('pt', rate)"><i class="bi bi-trash tbl-icon"></i></button>
+                           </div>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+
+            <div class="d-md-none">
+               <div class="member-card" v-for="rate in pricing.pt_rates" :key="'pt-mobile-' + rate.id">
+                  <div class="member-card-top">
+                     <div class="member-card-identity">
+                        <div>
+                           <div class="member-card-name">{{ rate.name }}</div>
+                           <div class="member-card-sub">{{ rate.description || rate.category || "No description" }}</div>
                         </div>
-                     </td>
-                  </tr>
-               </tbody>
-            </table>
+                     </div>
+                     <div class="dropdown" v-if="canManagePricing">
+                        <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
+                           <i class="bi bi-three-dots-vertical"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                           <li>
+                              <a class="dropdown-item" href="#" @click.prevent="openEditPtModal(rate)"><i class="bi bi-pencil me-2"></i>Edit</a>
+                           </li>
+                           <li><hr class="dropdown-divider" /></li>
+                           <li>
+                              <a class="dropdown-item text-danger" href="#" @click.prevent="confirmDelete('pt', rate)"><i class="bi bi-trash me-2"></i>Delete</a>
+                           </li>
+                        </ul>
+                     </div>
+                  </div>
+
+                  <div class="member-card-tags ps-0">
+                     <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
+                     <span class="m-badge m-badge--plan">{{ rate.session_count }} session{{ rate.session_count !== 1 ? "s" : "" }}</span>
+                  </div>
+
+                  <div class="small text-muted">Price: ₱{{ $filters.formatMoney(rate.price) }}</div>
+                  <div class="small text-muted mt-1">Coach Commission: {{ $filters.formatMoney(rate.coach_commission_rate) }}%</div>
+                  <div class="small text-muted mt-1">From: {{ formatDate(rate.effective_from) }}</div>
+                  <div class="small text-muted mt-1">Until: {{ formatDate(rate.effective_until) }}</div>
+
+                  <div class="member-card-footer mt-3">
+                     <span>PT Rate</span>
+                     <span class="member-card-num">#{{ rate.id }}</span>
+                  </div>
+               </div>
+            </div>
          </div>
       </div>
 

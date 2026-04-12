@@ -216,7 +216,7 @@
             <div class="d-md-none">
                <div class="member-card" v-for="member in members" :key="'mc' + member.id">
                   <div class="member-card-top">
-                     <a :href="`/panel/members/${member.id}`" class="member-card-identity text-decoration-none text-reset">
+                     <a :href="`/panel/members/${member.id}`" class="member-card-identity text-decoration-none">
                         <div class="member-avatar">{{ $filters.getNameInitials(member.name) }}</div>
                         <div>
                            <div class="member-card-name">{{ member.name }}</div>
@@ -229,9 +229,6 @@
                            <i class="bi bi-three-dots-vertical"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                           <li>
-                              <a class="dropdown-item" :href="`/panel/members/${member.id}`"><i class="bi bi-eye me-2"></i>View details</a>
-                           </li>
                            <li>
                               <a class="dropdown-item" href="#" @click.prevent="openEditModal(member)"><i class="bi bi-pencil me-2"></i>Edit</a>
                            </li>

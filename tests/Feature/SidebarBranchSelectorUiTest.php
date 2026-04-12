@@ -128,6 +128,15 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString('/panel/audit-history/list', $auditHistoryContents);
         $this->assertStringContainsString('/panel/audit-history/${this.restoreTarget.id}/restore', $auditHistoryContents);
         $this->assertStringContainsString('table table-hover table-striped align-middle mb-0 panel-table', $auditHistoryContents);
+        $this->assertStringContainsString("['m-badge', auditEventBadgeClass(event.event)]", $auditHistoryContents);
+        $this->assertStringNotContainsString('class="dropdown d-flex justify-content-end"', $auditHistoryContents);
+        $this->assertStringContainsString('bi bi-box-arrow-up-right tbl-icon', $auditHistoryContents);
+        $this->assertStringContainsString('bi bi-arrow-counterclockwise tbl-icon', $auditHistoryContents);
+        $this->assertStringContainsString('btn-icon-sm" data-bs-toggle="dropdown"', $auditHistoryContents);
+        $this->assertStringContainsString('dropdown-menu dropdown-menu-end', $auditHistoryContents);
+        $this->assertStringContainsString('hasEventActionMenu: function (event)', $auditHistoryContents);
+        $this->assertStringContainsString("class=\"d-md-none\"", $auditHistoryContents);
+        $this->assertStringContainsString("class=\"member-card\" v-for=\"event in events\"", $auditHistoryContents);
         $this->assertStringContainsString('toggleSort', $auditHistoryContents);
         $this->assertStringContainsString('Restore Record', $auditHistoryContents);
         $this->assertStringContainsString('Not recoverable', $auditHistoryContents);
@@ -143,6 +152,17 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Business Gallery</h4>', $galleryContents);
         $this->assertStringContainsString('v-if="pageError"', $galleryContents);
         $this->assertStringContainsString('panel-card-title', $galleryContents);
+    }
+
+    public function test_members_mobile_cards_keep_link_styling_and_remove_view_details_menu_action(): void
+    {
+        $contents = file_get_contents(resource_path('js/components/panel/MembersPage.vue'));
+
+        $this->assertNotFalse($contents);
+        $this->assertStringContainsString('class="member-card-identity text-decoration-none"', $contents);
+        $this->assertStringNotContainsString('text-decoration-none text-reset', $contents);
+        $this->assertStringNotContainsString('View details', $contents);
+        $this->assertStringContainsString('<i class="bi bi-pencil me-2"></i>Edit', $contents);
     }
 
     public function test_panel_sidebar_groups_business_and_system_navigation_items(): void

@@ -57,36 +57,61 @@
             <span class="text-muted small" v-if="!loading && pagination.total > 0">Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}</span>
          </div>
 
-         <div v-if="loading" class="table-responsive">
-            <table class="table table-striped align-middle mb-0 panel-table">
-               <thead>
-                  <tr>
-                     <th>Occurred At</th>
-                     <th>Event</th>
-                     <th>Subject</th>
-                     <th>Summary</th>
-                     <th>Actor</th>
-                     <th class="col-actions"></th>
-                  </tr>
-               </thead>
-               <tbody>
-                  <tr v-for="index in 6" :key="'audit-sk-' + index">
-                     <td><div class="skeleton-box" style="width: 132px; height: 12px; border-radius: 4px"></div></td>
-                     <td><div class="skeleton-box" style="width: 88px; height: 22px; border-radius: 999px"></div></td>
-                     <td>
-                        <div class="skeleton-box mb-1" style="width: 160px; height: 14px; border-radius: 4px"></div>
-                        <div class="skeleton-box" style="width: 84px; height: 11px; border-radius: 4px"></div>
-                     </td>
-                     <td>
-                        <div class="skeleton-box mb-1" style="width: 180px; height: 14px; border-radius: 4px"></div>
-                        <div class="skeleton-box mb-1" style="width: 240px; height: 11px; border-radius: 4px"></div>
-                        <div class="skeleton-box" style="width: 160px; height: 11px; border-radius: 4px"></div>
-                     </td>
-                     <td><div class="skeleton-box" style="width: 96px; height: 12px; border-radius: 4px"></div></td>
-                     <td><div class="skeleton-box ms-auto" style="width: 58px; height: 32px; border-radius: 6px"></div></td>
-                  </tr>
-               </tbody>
-            </table>
+         <div v-if="loading">
+            <div class="d-none d-md-block table-responsive">
+               <table class="table table-striped align-middle mb-0 panel-table">
+                  <thead>
+                     <tr>
+                        <th>Occurred At</th>
+                        <th>Event</th>
+                        <th>Subject</th>
+                        <th>Summary</th>
+                        <th>Actor</th>
+                        <th class="col-actions"></th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     <tr v-for="index in 6" :key="'audit-sk-' + index">
+                        <td><div class="skeleton-box" style="width: 132px; height: 12px; border-radius: 4px"></div></td>
+                        <td><div class="skeleton-box" style="width: 88px; height: 22px; border-radius: 999px"></div></td>
+                        <td>
+                           <div class="skeleton-box mb-1" style="width: 160px; height: 14px; border-radius: 4px"></div>
+                           <div class="skeleton-box" style="width: 84px; height: 11px; border-radius: 4px"></div>
+                        </td>
+                        <td>
+                           <div class="skeleton-box mb-1" style="width: 180px; height: 14px; border-radius: 4px"></div>
+                           <div class="skeleton-box mb-1" style="width: 240px; height: 11px; border-radius: 4px"></div>
+                           <div class="skeleton-box" style="width: 160px; height: 11px; border-radius: 4px"></div>
+                        </td>
+                        <td><div class="skeleton-box" style="width: 96px; height: 12px; border-radius: 4px"></div></td>
+                        <td><div class="skeleton-box ms-auto" style="width: 58px; height: 32px; border-radius: 6px"></div></td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+
+            <div class="d-md-none">
+               <div class="member-card" v-for="index in 4" :key="'audit-mobile-sk-' + index">
+                  <div class="member-card-top">
+                     <div>
+                        <div class="skeleton-box mb-1" style="width: 150px; height: 14px; border-radius: 4px"></div>
+                        <div class="skeleton-box" style="width: 118px; height: 11px; border-radius: 4px"></div>
+                     </div>
+                     <div class="skeleton-box" style="width: 90px; height: 22px; border-radius: 999px"></div>
+                  </div>
+                  <div class="member-card-tags mt-2">
+                     <div class="skeleton-box" style="width: 96px; height: 22px; border-radius: 999px"></div>
+                     <div class="skeleton-box" style="width: 112px; height: 22px; border-radius: 999px"></div>
+                  </div>
+                  <div class="skeleton-box mb-1" style="width: 170px; height: 12px; border-radius: 4px"></div>
+                  <div class="skeleton-box mb-1" style="width: 100%; height: 11px; border-radius: 4px"></div>
+                  <div class="skeleton-box" style="width: 78%; height: 11px; border-radius: 4px"></div>
+                  <div class="member-card-footer mt-3">
+                     <div class="skeleton-box" style="width: 90px; height: 12px; border-radius: 4px"></div>
+                     <div class="skeleton-box" style="width: 64px; height: 12px; border-radius: 4px"></div>
+                  </div>
+               </div>
+            </div>
          </div>
 
          <div v-else-if="events.length === 0" class="text-center py-5 text-muted">
@@ -95,79 +120,147 @@
             <p class="small mb-0">Try adjusting your filters</p>
          </div>
 
-         <div v-else class="table-responsive">
-            <table class="table table-hover table-striped align-middle mb-0 panel-table">
-               <thead>
-                  <tr>
-                     <th scope="col" :aria-sort="ariaSort('occurred_at')">
-                        <button type="button" :class="sortButtonClass('occurred_at')" @click="toggleSort('occurred_at')">
-                           <span>Occurred At</span>
-                           <i :class="sortIcon('occurred_at')"></i>
-                        </button>
-                     </th>
-                     <th scope="col" :aria-sort="ariaSort('event')">
-                        <button type="button" :class="sortButtonClass('event')" @click="toggleSort('event')">
-                           <span>Event</span>
-                           <i :class="sortIcon('event')"></i>
-                        </button>
-                     </th>
-                     <th scope="col" :aria-sort="ariaSort('subject_label')">
-                        <button type="button" :class="sortButtonClass('subject_label')" @click="toggleSort('subject_label')">
-                           <span>Subject</span>
-                           <i :class="sortIcon('subject_label')"></i>
-                        </button>
-                     </th>
-                     <th scope="col" :aria-sort="ariaSort('title')">
-                        <button type="button" :class="sortButtonClass('title')" @click="toggleSort('title')">
-                           <span>Summary</span>
-                           <i :class="sortIcon('title')"></i>
-                        </button>
-                     </th>
-                     <th scope="col" :aria-sort="ariaSort('actor_name')">
-                        <button type="button" :class="sortButtonClass('actor_name')" @click="toggleSort('actor_name')">
-                           <span>Actor</span>
-                           <i :class="sortIcon('actor_name')"></i>
-                        </button>
-                     </th>
-                     <th class="col-actions"></th>
-                  </tr>
-               </thead>
-               <tbody>
-                  <tr v-for="event in events" :key="event.id">
-                     <td class="text-muted small text-nowrap">{{ formatDateTime(event.occurred_at) }}</td>
-                     <td>
-                        <span class="badge rounded-pill text-bg-light border">{{ event.event_label }}</span>
-                     </td>
-                     <td>
-                        <div class="member-name">{{ event.subject_label || event.subject_type_label }}</div>
-                        <div class="text-muted small">#{{ event.subject_id }}</div>
-                     </td>
-                     <td>
-                        <div class="member-name">{{ event.title }}</div>
-                        <div class="text-muted small">{{ event.message }}</div>
-                        <div v-if="event.caused_by" class="text-muted small mt-1">
-                           Caused by {{ event.caused_by.subject_label || event.caused_by.subject_type }} · {{ event.caused_by.event_label }}
-                        </div>
-                     </td>
-                     <td class="text-muted small">{{ event.actor_name || "-" }}</td>
-                     <td class="col-actions">
-                        <div class="d-flex flex-column align-items-end gap-1">
-                           <button v-if="canRestoreEvent(event)" type="button" class="btn btn-sm btn-outline-success" @click="openRestoreModal(event)">
-                              {{ event.restore.label || "Restore" }}
+         <div v-else>
+            <div class="d-none d-md-block table-responsive">
+               <table class="table table-hover table-striped align-middle mb-0 panel-table">
+                  <thead>
+                     <tr>
+                        <th scope="col" :aria-sort="ariaSort('occurred_at')">
+                           <button type="button" :class="sortButtonClass('occurred_at')" @click="toggleSort('occurred_at')">
+                              <span>Occurred At</span>
+                              <i :class="sortIcon('occurred_at')"></i>
                            </button>
-                           <a v-if="event.action_url" class="btn btn-sm btn-outline-secondary" :href="event.action_url">
-                              Open
-                           </a>
-                           <template v-if="showUnavailableRestoreState(event)">
-                              <span class="text-muted small text-end">Not recoverable</span>
-                              <span class="text-muted small text-end">{{ event.restore.reason }}</span>
-                           </template>
-                           <span v-else-if="!event.action_url && !canRestoreEvent(event)" class="text-muted small">-</span>
+                        </th>
+                        <th scope="col" :aria-sort="ariaSort('event')">
+                           <button type="button" :class="sortButtonClass('event')" @click="toggleSort('event')">
+                              <span>Event</span>
+                              <i :class="sortIcon('event')"></i>
+                           </button>
+                        </th>
+                        <th scope="col" :aria-sort="ariaSort('subject_label')">
+                           <button type="button" :class="sortButtonClass('subject_label')" @click="toggleSort('subject_label')">
+                              <span>Subject</span>
+                              <i :class="sortIcon('subject_label')"></i>
+                           </button>
+                        </th>
+                        <th scope="col" :aria-sort="ariaSort('title')">
+                           <button type="button" :class="sortButtonClass('title')" @click="toggleSort('title')">
+                              <span>Summary</span>
+                              <i :class="sortIcon('title')"></i>
+                           </button>
+                        </th>
+                        <th scope="col" :aria-sort="ariaSort('actor_name')">
+                           <button type="button" :class="sortButtonClass('actor_name')" @click="toggleSort('actor_name')">
+                              <span>Actor</span>
+                              <i :class="sortIcon('actor_name')"></i>
+                           </button>
+                        </th>
+                        <th class="col-actions"></th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     <tr v-for="event in events" :key="event.id">
+                        <td class="text-muted small text-nowrap">{{ formatDateTime(event.occurred_at) }}</td>
+                        <td>
+                           <span :class="['m-badge', auditEventBadgeClass(event.event)]">{{ event.event_label }}</span>
+                        </td>
+                        <td>
+                           <div class="member-name">{{ event.subject_label || event.subject_type_label }}</div>
+                           <div class="text-muted small">#{{ event.subject_id }}</div>
+                        </td>
+                        <td>
+                           <div class="member-name">{{ event.title }}</div>
+                           <div class="text-muted small">{{ event.message }}</div>
+                           <div v-if="event.caused_by" class="text-muted small mt-1">
+                              Caused by {{ event.caused_by.subject_label || event.caused_by.subject_type }} · {{ event.caused_by.event_label }}
+                           </div>
+                        </td>
+                        <td class="text-muted small">{{ event.actor_name || "-" }}</td>
+                        <td class="col-actions">
+                           <div class="d-flex justify-content-end gap-1 flex-wrap">
+                              <button
+                                 v-if="canRestoreEvent(event)"
+                                 type="button"
+                                 class="btn btn-sm btn-outline-success"
+                                 :title="event.restore.label || 'Restore'"
+                                 :aria-label="event.restore.label || 'Restore'"
+                                 @click="openRestoreModal(event)"
+                              >
+                                 <i class="bi bi-arrow-counterclockwise tbl-icon"></i>
+                              </button>
+                              <a
+                                 v-if="event.action_url"
+                                 class="btn btn-sm btn-outline-secondary"
+                                 :href="event.action_url"
+                                 title="Open"
+                                 aria-label="Open"
+                              >
+                                 <i class="bi bi-box-arrow-up-right tbl-icon"></i>
+                              </a>
+                              <template v-if="showUnavailableRestoreState(event)">
+                                 <span class="text-muted small text-end">Not recoverable</span>
+                                 <span class="text-muted small text-end">{{ event.restore.reason }}</span>
+                              </template>
+                              <span v-else-if="!event.action_url && !canRestoreEvent(event)" class="text-muted small">-</span>
+                           </div>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+
+            <div class="d-md-none">
+               <div class="member-card" v-for="event in events" :key="'audit-mobile-' + event.id">
+                  <div class="member-card-top">
+                     <div>
+                        <div class="member-card-name">{{ event.title }}</div>
+                        <div class="member-card-sub">{{ formatDateTime(event.occurred_at) }}</div>
+                     </div>
+                     <div class="d-flex align-items-start gap-2">
+                        <span :class="['m-badge', auditEventBadgeClass(event.event)]">{{ event.event_label }}</span>
+                        <div v-if="hasEventActionMenu(event)" class="dropdown">
+                           <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
+                              <i class="bi bi-three-dots-vertical"></i>
+                           </button>
+                           <ul class="dropdown-menu dropdown-menu-end">
+                              <li v-if="event.action_url">
+                                 <a class="dropdown-item" :href="event.action_url"><i class="bi bi-box-arrow-up-right me-2"></i>Open</a>
+                              </li>
+                              <li v-if="event.action_url && canRestoreEvent(event)"><hr class="dropdown-divider" /></li>
+                              <li v-if="canRestoreEvent(event)">
+                                 <a class="dropdown-item text-success" href="#" @click.prevent="openRestoreModal(event)">
+                                    <i class="bi bi-arrow-counterclockwise me-2"></i>{{ event.restore.label || "Restore" }}
+                                 </a>
+                              </li>
+                           </ul>
                         </div>
-                     </td>
-                  </tr>
-               </tbody>
-            </table>
+                     </div>
+                  </div>
+
+                  <div class="member-card-tags">
+                     <span class="m-badge m-badge--plan">{{ event.subject_type_label }}</span>
+                     <span v-if="canRestoreEvent(event)" class="m-badge m-badge--active">{{ event.restore.label || "Restore" }} ready</span>
+                  </div>
+
+                  <div class="small text-muted">{{ event.subject_label || event.subject_type_label }} · #{{ event.subject_id }}</div>
+                  <div class="small text-muted mt-2">{{ event.message }}</div>
+                  <div v-if="event.caused_by" class="small text-muted mt-2">
+                     Caused by {{ event.caused_by.subject_label || event.caused_by.subject_type }} · {{ event.caused_by.event_label }}
+                  </div>
+
+                  <div class="member-card-footer flex-column align-items-start gap-2 mt-3">
+                     <div class="d-flex justify-content-between align-items-center gap-2 w-100">
+                        <span>{{ event.actor_name || "System" }}</span>
+                        <span class="member-card-num">#{{ event.subject_id }}</span>
+                     </div>
+
+                     <template v-if="showUnavailableRestoreState(event)">
+                        <span class="text-muted small">Not recoverable</span>
+                        <span class="text-muted small">{{ event.restore.reason }}</span>
+                     </template>
+                  </div>
+               </div>
+            </div>
          </div>
 
          <div v-if="!loading && pagination.lastPage > 1" class="d-flex justify-content-center py-3 border-top">
@@ -323,6 +416,40 @@ export default {
 
       canRestoreEvent: function (event) {
          return Boolean(event.restore && event.restore.available);
+      },
+
+      hasEventActionMenu: function (event) {
+         return Boolean(this.canRestoreEvent(event) || event.action_url);
+      },
+
+      auditEventBadgeClass: function (eventName) {
+         const normalizedEvent = String(eventName ?? "")
+            .trim()
+            .toLowerCase()
+            .replace(/[\s-]+/g, "_");
+
+         return (
+            {
+               created: "m-badge--active",
+               updated: "m-badge--approved",
+               deleted: "m-badge--suspended",
+               restored: "m-badge--active",
+               configured: "m-badge--approved",
+               removed: "m-badge--suspended",
+               photo_added: "m-badge--approved",
+               photo_removed: "m-badge--suspended",
+               plan_changed: "m-badge--approved",
+               status_updated: "m-badge--approved",
+               manager_assigned: "m-badge--approved",
+               assigned: "m-badge--approved",
+               recorded: "m-badge--open",
+               checked_in: "m-badge--active",
+               checked_out: "m-badge--inactive",
+               stock_deducted: "m-badge--partial",
+            }[normalizedEvent] ||
+            this.$filters.statusBadge(normalizedEvent) ||
+            "m-badge--draft"
+         );
       },
 
       showUnavailableRestoreState: function (event) {

@@ -1692,10 +1692,9 @@ body.auth-body {
 }
 
 .member-card-name {
-    font-size: 0.9rem;
-    font-weight: 700;
+    font-size: 0.875rem;
+    font-weight: 600;
     line-height: 1.3;
-    color: var(--bs-body-color);
 }
 
 .member-card-sub {
@@ -2022,7 +2021,7 @@ body.auth-body {
     background-color: rgba(25, 135, 84, 0.1) !important;
 }
 
-// ── Table helpers ────────────────────────────────────────────────────────────
+// Table helpers
 
 .member-name {
     font-size: 0.875rem;
