@@ -60,6 +60,7 @@
                   <th>Checked In</th>
                   <th>Checked Out</th>
                   <th>Status</th>
+                  <th>Source</th>
                   <th class="col-actions"></th>
                </tr>
             </thead>
@@ -74,6 +75,12 @@
                      <span :class="['m-badge', $filters.statusBadge(r.checked_out_at ? 'inactive' : 'active')]">
                         {{ r.checked_out_at ? "Out" : "In" }}
                      </span>
+                  </td>
+                  <td>
+                     <div>
+                        <span :class="['m-badge', sourceBadgeClass(r.source)]">{{ sourceLabel(r.source) }}</span>
+                     </div>
+                     <div v-if="r.source_device_serial" class="small text-muted mt-1">{{ r.source_device_serial }}</div>
                   </td>
                   <td>
                      <button class="btn btn-sm btn-outline-danger" title="Delete" @click="confirmDelete(r)">
@@ -96,11 +103,15 @@
                   {{ r.checked_out_at ? "Out" : "In" }}
                </span>
             </div>
+            <div class="member-card-tags">
+               <span :class="['m-badge', sourceBadgeClass(r.source)]">{{ sourceLabel(r.source) }}</span>
+            </div>
             <div class="member-card-footer">
                <span v-if="r.checked_out_at" class="text-muted small"><i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(r.checked_out_at) }}</span>
                <button v-if="!r.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-auto" @click="confirmDelete(r)"><i class="bi bi-trash"></i></button>
             </div>
+            <div v-if="r.source_device_serial" class="small text-muted mt-2 px-1">{{ r.source_device_serial }}</div>
          </div>
       </div>
 
@@ -308,6 +319,12 @@ export default {
             })
             .catch((err) => (this.pageError = err.response?.data?.message || "Failed to delete attendance record."))
             .finally(() => (this.deleting = false));
+      },
+      sourceLabel: function (source) {
+         return source === "hikvision" ? "Hikvision" : "Manual";
+      },
+      sourceBadgeClass: function (source) {
+         return source === "hikvision" ? "m-badge--open" : "m-badge--draft";
       },
    },
 };

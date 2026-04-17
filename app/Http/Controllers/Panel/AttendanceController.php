@@ -75,6 +75,8 @@ class AttendanceController extends Controller
             'checked_in_at' => $base['checked_in_at'] ?? now(),
             'checked_out_at' => $base['checked_out_at'] ?? null,
             'recorded_by' => Auth::id(),
+            'source' => Attendance::SOURCE_MANUAL,
+            'source_device_serial' => null,
         ]));
         $attendance = $attendance->fresh(['user', 'walkIn', 'recordedBy']);
 
@@ -196,6 +198,8 @@ class AttendanceController extends Controller
             'checked_in_at' => $attendance->checked_in_at?->toISOString(),
             'checked_out_at' => $attendance->checked_out_at?->toISOString(),
             'notes' => $attendance->notes,
+            'source' => $attendance->source,
+            'source_device_serial' => $attendance->source_device_serial,
         ];
     }
 
@@ -212,6 +216,8 @@ class AttendanceController extends Controller
             'attendee_type' => $attendance->attendee_type,
             'checked_in_at' => $attendance->checked_in_at?->toISOString(),
             'checked_out_at' => $attendance->checked_out_at?->toISOString(),
+            'source' => $attendance->source,
+            'source_device_serial' => $attendance->source_device_serial,
         ];
     }
 }

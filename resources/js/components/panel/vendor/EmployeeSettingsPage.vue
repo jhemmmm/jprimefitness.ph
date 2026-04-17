@@ -64,6 +64,45 @@
                   <input type="password" class="form-control" :class="{ 'is-invalid': errors.password }" v-model="form.password" autocomplete="new-password" />
                   <div class="invalid-feedback" v-if="errors.password">{{ errors.password[0] }}</div>
                </div>
+
+               <div class="col-12">
+                  <div class="border rounded-3 p-3">
+                     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                        <div>
+                           <div class="fw-semibold">Biometric Attendance</div>
+                           <div class="text-muted small">Enroll a fingerprint so this employee can scan for check-in and check-out.</div>
+                        </div>
+                        <span
+                           v-if="biometricDisplayStatus"
+                           :class="['m-badge', biometricStatusClass(biometricDisplayStatus)]"
+                        >
+                           {{ biometricStatusLabel(biometricDisplayStatus) }}
+                        </span>
+                     </div>
+
+                     <div class="small text-muted mt-3">
+                        <div v-if="employeeProfile?.hikvision_employee_no"><i class="bi bi-person-badge me-1"></i>{{ employeeProfile.hikvision_employee_no }}</div>
+                        <div v-if="employeeProfile?.biometric_enrolled_at" class="mt-1"><i class="bi bi-clock me-1"></i>Enrolled {{ formatShortDateTime(employeeProfile.biometric_enrolled_at) }}</div>
+                        <div v-if="employeeProfile?.biometric_last_error" class="mt-2 text-danger">{{ employeeProfile.biometric_last_error }}</div>
+                     </div>
+
+                     <div class="d-flex gap-2 flex-wrap mt-3">
+                        <button class="btn btn-danger btn-sm" @click="openBiometricModal" :disabled="biometricSubmitting || biometricRemoving">
+                           <span class="spinner-border spinner-border-sm me-1" v-if="biometricSubmitting"></span>
+                           {{ hasEnrolledFingerprint ? "Re-enroll Fingerprint" : "Enroll Fingerprint" }}
+                        </button>
+                        <button
+                           v-if="hasEnrolledFingerprint"
+                           class="btn btn-outline-secondary btn-sm"
+                           @click="removeFingerprint"
+                           :disabled="biometricSubmitting || biometricRemoving"
+                        >
+                           <span class="spinner-border spinner-border-sm me-1" v-if="biometricRemoving"></span>
+                           Remove Fingerprint
+                        </button>
+                     </div>
+                  </div>
+               </div>
             </div>
 
             <div class="mt-4 d-flex justify-content-end">
@@ -74,10 +113,67 @@
             </div>
          </div>
       </div>
+
+      <div class="modal fade" tabindex="-1" ref="biometricModal" data-bs-backdrop="static" data-bs-keyboard="false">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">Fingerprint Enrollment</h5>
+                  <button v-if="canCloseBiometricModal" type="button" class="btn-close" @click="closeBiometricModal"></button>
+               </div>
+               <div class="modal-body p-4">
+                  <div v-if="biometricError" class="alert alert-danger py-2 small mb-3">{{ biometricError }}</div>
+
+                  <div class="text-center mb-4">
+                     <div class="display-5 mb-3" :class="isBiometricBusy ? 'text-danger' : 'text-muted'">
+                        <i class="bi" :class="isBiometricBusy ? 'bi-fingerprint' : 'bi-shield-check'"></i>
+                     </div>
+                     <h5 class="fw-bold mb-1">{{ biometricHeadline }}</h5>
+                     <p class="text-muted small mb-0">{{ biometricDescription }}</p>
+                  </div>
+
+                  <div class="panel-card p-3">
+                     <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                        <div>
+                           <div class="small text-muted">Employee</div>
+                           <div class="fw-semibold">{{ employee.name }}</div>
+                        </div>
+                        <span
+                           v-if="biometricDisplayStatus"
+                           :class="['m-badge', biometricStatusClass(biometricDisplayStatus)]"
+                        >
+                           {{ biometricStatusLabel(biometricDisplayStatus) }}
+                        </span>
+                     </div>
+
+                     <div class="small text-muted mt-3">
+                        <div v-if="employeeProfile?.hikvision_employee_no"><i class="bi bi-person-badge me-1"></i>{{ employeeProfile.hikvision_employee_no }}</div>
+                        <div v-if="biometricSession?.error_message" class="text-danger mt-2">{{ biometricSession.error_message }}</div>
+                        <div v-else-if="employeeProfile?.biometric_last_error" class="text-danger mt-2">{{ employeeProfile.biometric_last_error }}</div>
+                     </div>
+                  </div>
+               </div>
+               <div class="modal-footer">
+                  <button
+                     v-if="showBiometricStartButton"
+                     type="button"
+                     class="btn btn-danger"
+                     @click="startBiometricEnrollment"
+                     :disabled="isBiometricBusy"
+                  >
+                     <span class="spinner-border spinner-border-sm me-1" v-if="biometricSubmitting"></span>
+                     {{ biometricActionLabel }}
+                  </button>
+                  <button v-if="canCloseBiometricModal" type="button" class="btn btn-outline-secondary" @click="closeBiometricModal">Close</button>
+               </div>
+            </div>
+         </div>
+      </div>
    </div>
 </template>
 
 <script>
+import { Modal } from "bootstrap";
 import MultiSelect from "./MultiSelect.vue";
 
 export default {
@@ -88,9 +184,7 @@ export default {
       employee: { type: Object, required: true },
       rolesData: { type: Array, default: () => [] },
    },
-
    emits: ["updated"],
-
    data: function () {
       return {
          saving: false,
@@ -98,15 +192,28 @@ export default {
          generalError: "",
          errors: {},
          form: this.getForm(this.employee),
+         biometricModalInst: null,
+         biometricSession: null,
+         biometricError: "",
+         biometricSubmitting: false,
+         biometricRemoving: false,
+         biometricPollHandle: null,
       };
    },
-
+   mounted: function () {
+      this.biometricModalInst = new Modal(this.$refs.biometricModal);
+      this.$refs.biometricModal?.addEventListener("hide.bs.modal", this.onBiometricModalHide);
+   },
+   beforeUnmount: function () {
+      this.clearBiometricPolling();
+      this.$refs.biometricModal?.removeEventListener("hide.bs.modal", this.onBiometricModalHide);
+      this.biometricModalInst?.dispose();
+   },
    watch: {
       employee: function (val) {
          this.form = this.getForm(val);
       },
    },
-
    computed: {
       allowedRoles: function () {
          const allowed = ["super admin", "admin", "manager", "staff", "coach", "employee"];
@@ -130,8 +237,103 @@ export default {
       currentLocationName: function () {
          return this.employee.location?.name || window.JPrime?.profile?.name || "Current location";
       },
-   },
+      employeeProfile: function () {
+         return this.employee.employee_profile || null;
+      },
+      hasEnrolledFingerprint: function () {
+         return this.employeeProfile?.biometric_fingerprint_id !== null;
+      },
+      biometricDisplayStatus: function () {
+         return this.biometricSession?.status || this.employeeProfile?.biometric_status || "";
+      },
+      hasActiveBiometricSession: function () {
+         return ["pending", "capturing", "uploading"].includes(this.biometricSession?.status || "");
+      },
+      isBiometricBusy: function () {
+         return this.biometricSubmitting || this.hasActiveBiometricSession;
+      },
+      canCloseBiometricModal: function () {
+         return !this.isBiometricBusy;
+      },
+      showBiometricStartButton: function () {
+         if (this.isBiometricBusy) {
+            return false;
+         }
 
+         if (!this.biometricSession) {
+            return true;
+         }
+
+         return ["failed", "expired", "cancelled"].includes(this.biometricSession.status || "");
+      },
+      biometricActionLabel: function () {
+         if (["failed", "expired", "cancelled"].includes(this.biometricSession?.status || "")) {
+            return "Start Collecting Again";
+         }
+
+         return "Start Collecting";
+      },
+      biometricHeadline: function () {
+         const status = this.biometricDisplayStatus;
+
+         if (this.biometricSubmitting && !this.biometricSession) {
+            return "Starting fingerprint collection";
+         }
+
+         if (this.hasActiveBiometricSession) {
+            return "Please press your fingerprint";
+         }
+
+         if (!this.biometricSession) {
+            return "Fingerprint enrollment";
+         }
+
+         if (status === "succeeded" || status === "enrolled") {
+            return "Fingerprint enrolled";
+         }
+
+         if (status === "failed") {
+            return "Fingerprint enrollment failed";
+         }
+
+         if (status === "expired") {
+            return "Fingerprint enrollment timed out";
+         }
+
+         if (status === "cancelled") {
+            return "Fingerprint enrollment cancelled";
+         }
+
+         return "Fingerprint enrollment";
+      },
+      biometricDescription: function () {
+         if (this.biometricSubmitting && !this.biometricSession) {
+            return "Please wait while fingerprint collection is being started.";
+         }
+
+         if (this.hasActiveBiometricSession) {
+            return "Please press your fingerprint on the Hikvision device.";
+         }
+
+         if (!this.biometricSession) {
+            return "Click Start Collecting when the employee is at the device.";
+         }
+
+         if (this.biometricSession?.error_message) {
+            return this.biometricSession.error_message;
+         }
+
+         if (this.employeeProfile?.biometric_last_error) {
+            return this.employeeProfile.biometric_last_error;
+         }
+
+         if (this.biometricDisplayStatus === "succeeded" || this.biometricDisplayStatus === "enrolled") {
+            return "This employee can now use the device for biometric attendance.";
+         }
+
+         return "Collection failed or timed out. Try again when the employee is ready at the device.";
+      },
+   },
    methods: {
       getForm: function (employee) {
          return {
@@ -150,10 +352,9 @@ export default {
          this.saved = false;
          this.generalError = "";
          this.errors = {};
-         const payload = { ...this.form, role_ids: this.form.role_ids };
 
          axios
-            .put(`/panel/employees/${this.employee.id}`, payload)
+            .put(`/panel/employees/${this.employee.id}`, { ...this.form, role_ids: this.form.role_ids })
             .then((res) => {
                this.saved = true;
                this.form.password = "";
@@ -170,6 +371,148 @@ export default {
             .finally(() => {
                this.saving = false;
             });
+      },
+      openBiometricModal: function () {
+         this.biometricError = "";
+         this.biometricSession = null;
+         this.clearBiometricPolling();
+         this.biometricModalInst.show();
+      },
+      closeBiometricModal: function () {
+         if (!this.canCloseBiometricModal) {
+            return;
+         }
+
+         this.clearBiometricPolling();
+         this.biometricModalInst.hide();
+         this.biometricSession = null;
+         this.biometricError = "";
+         this.biometricSubmitting = false;
+      },
+      onBiometricModalHide: function (event) {
+         if (this.isBiometricBusy) {
+            event.preventDefault();
+         }
+      },
+      startBiometricEnrollment: function () {
+         if (this.isBiometricBusy) {
+            return;
+         }
+
+         this.biometricSubmitting = true;
+         this.biometricError = "";
+
+         axios
+            .post(`/panel/employees/${this.employee.id}/biometric/enroll`)
+            .then((res) => {
+               this.applyBiometricPayload(res.data);
+            })
+            .catch((err) => {
+               this.biometricError = err.response?.data?.message || "Failed to start fingerprint enrollment.";
+            })
+            .finally(() => {
+               this.biometricSubmitting = false;
+
+               if (this.hasActiveBiometricSession) {
+                  this.pollBiometricSession();
+               }
+            });
+      },
+      pollBiometricSession: function () {
+         if (!this.biometricSession?.id || this.biometricSubmitting) {
+            return;
+         }
+
+         this.biometricPollHandle = window.setTimeout(() => {
+            axios
+               .get(`/panel/employees/${this.employee.id}/biometric/sessions/${this.biometricSession.id}`)
+               .then((res) => {
+                  this.applyBiometricPayload(res.data);
+               })
+               .catch((err) => {
+                  this.clearBiometricPolling();
+                  this.biometricSession = null;
+                  this.biometricError = err.response?.data?.message || "Failed to refresh fingerprint enrollment status.";
+               });
+         }, 1500);
+      },
+      removeFingerprint: function () {
+         this.biometricRemoving = true;
+         this.biometricError = "";
+         this.generalError = "";
+
+         axios
+            .delete(`/panel/employees/${this.employee.id}/biometric/fingerprint`)
+            .then((res) => {
+               this.syncEmployeeProfile(res.data.employee_profile || null);
+            })
+            .catch((err) => {
+               this.generalError = err.response?.data?.message || "Failed to remove fingerprint.";
+            })
+            .finally(() => {
+               this.biometricRemoving = false;
+            });
+      },
+      applyBiometricPayload: function (payload) {
+         this.biometricSession = payload.session || this.biometricSession;
+         this.syncEmployeeProfile(payload.employee_profile || null);
+         this.clearBiometricPolling();
+
+         if (this.hasActiveBiometricSession) {
+            this.pollBiometricSession();
+         }
+      },
+      syncEmployeeProfile: function (employeeProfile) {
+         this.$emit("updated", {
+            employee_profile: employeeProfile,
+         });
+      },
+      clearBiometricPolling: function () {
+         if (this.biometricPollHandle) {
+            window.clearTimeout(this.biometricPollHandle);
+            this.biometricPollHandle = null;
+         }
+      },
+      biometricStatusLabel: function (status) {
+         return {
+            not_enrolled: "Not Enrolled",
+            enrolling: "Enrolling",
+            pending: "Waiting For Scan",
+            capturing: "Capturing",
+            uploading: "Uploading",
+            enrolled: "Enrolled",
+            succeeded: "Enrolled",
+            failed: "Failed",
+            expired: "Timed Out",
+            cancelled: "Cancelled",
+         }[status] || this.$filters.capitalize(status || "unknown");
+      },
+      biometricStatusClass: function (status) {
+         return {
+            not_enrolled: "m-badge--draft",
+            enrolling: "m-badge--pending",
+            pending: "m-badge--pending",
+            capturing: "m-badge--pending",
+            uploading: "m-badge--pending",
+            enrolled: "m-badge--active",
+            succeeded: "m-badge--active",
+            failed: "m-badge--suspended",
+            expired: "m-badge--suspended",
+            cancelled: "m-badge--inactive",
+         }[status] || "m-badge--draft";
+      },
+      formatShortDateTime: function (value) {
+         if (!value) {
+            return "";
+         }
+
+         return new Date(value).toLocaleString("en-PH", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+         });
       },
    },
 };

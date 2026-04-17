@@ -16,6 +16,10 @@ class Attendance extends Model
 
     public const TYPE_EMPLOYEE = 'employee';
 
+    public const SOURCE_MANUAL = 'manual';
+
+    public const SOURCE_HIKVISION = 'hikvision';
+
     protected $fillable = [
         'attendee_type',
         'user_id',
@@ -25,6 +29,8 @@ class Attendance extends Model
         'checked_out_at',
         'notes',
         'recorded_by',
+        'source',
+        'source_device_serial',
     ];
 
     protected $casts = [

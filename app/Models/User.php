@@ -46,6 +46,11 @@ class User extends Authenticatable
         return $this->hasOne(MemberProfile::class);
     }
 
+    public function employeeProfile(): HasOne
+    {
+        return $this->hasOne(EmployeeProfile::class);
+    }
+
     public function ratePlans(): BelongsToMany
     {
         return $this->belongsToMany(RatePlan::class, 'member_subscriptions')
@@ -78,7 +83,7 @@ class User extends Authenticatable
 
     public function syncRatePlan(?int $ratePlanId, string $startDate, array $attributes = []): void
     {
-        if (!$ratePlanId) {
+        if (! $ratePlanId) {
             return;
         }
 
@@ -154,7 +159,7 @@ class User extends Authenticatable
     {
         $currentPlan = $this->currentMembership();
 
-        if (!$currentPlan) {
+        if (! $currentPlan) {
             return;
         }
 
@@ -172,7 +177,7 @@ class User extends Authenticatable
         }
 
         $excluded = ['super admin'];
-        if (!$this->hasRole('admin')) {
+        if (! $this->hasRole('admin')) {
             $excluded[] = 'admin';
         }
 

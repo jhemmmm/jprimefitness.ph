@@ -93,6 +93,10 @@ class PanelAuditEventFormatter
                 'created' => 'Employee created',
                 'deleted' => 'Employee deleted',
                 'restored' => 'Employee restored',
+                'biometric_enrollment_started' => 'Employee fingerprint enrollment started',
+                'biometric_enrolled' => 'Employee fingerprint enrolled',
+                'biometric_removed' => 'Employee fingerprint removed',
+                'biometric_failed' => 'Employee fingerprint enrollment failed',
                 default => 'Employee updated',
             },
             AuditEvent::SUBJECT_PAYROLL => match ($event) {
@@ -208,6 +212,9 @@ class PanelAuditEventFormatter
                 'role_names' => $snapshot['role_names'] ?? null,
                 'daily_rate' => $this->nullableMoney($snapshot['daily_rate'] ?? null),
                 'pay_frequency' => $snapshot['pay_frequency'] ?? null,
+                'biometric_status' => $snapshot['biometric_status'] ?? null,
+                'biometric_fingerprint_id' => $snapshot['biometric_fingerprint_id'] ?? null,
+                'biometric_enrolled_at' => $snapshot['biometric_enrolled_at'] ?? null,
             ],
             AuditEvent::SUBJECT_PAYROLL => [
                 'employee_id' => $snapshot['employee_id'] ?? null,
@@ -270,6 +277,8 @@ class PanelAuditEventFormatter
                 'attendee_type' => $snapshot['attendee_type'] ?? null,
                 'checked_in_at' => $snapshot['checked_in_at'] ?? null,
                 'checked_out_at' => $snapshot['checked_out_at'] ?? null,
+                'source' => $snapshot['source'] ?? null,
+                'source_device_serial' => $snapshot['source_device_serial'] ?? null,
             ],
             AuditEvent::SUBJECT_WALK_IN => [
                 'walk_in_name' => $snapshot['name'] ?? null,
@@ -357,6 +366,10 @@ class PanelAuditEventFormatter
             'created' => $name.' was added as an employee.'.$roleSuffix,
             'deleted' => $name.' was deleted from the employee list.',
             'restored' => $name.' was restored to the employee list.'.$roleSuffix,
+            'biometric_enrollment_started' => 'Fingerprint enrollment started for '.$name.'.',
+            'biometric_enrolled' => 'A fingerprint was enrolled for '.$name.'.',
+            'biometric_removed' => 'The enrolled fingerprint for '.$name.' was removed.',
+            'biometric_failed' => 'Fingerprint enrollment failed for '.$name.'.',
             default => $name.' was updated.'.$roleSuffix,
         };
     }

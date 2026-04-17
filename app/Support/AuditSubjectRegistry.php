@@ -61,6 +61,10 @@ class AuditSubjectRegistry
             'checked_in',
             'checked_out',
             'stock_deducted',
+            'biometric_enrollment_started',
+            'biometric_enrolled',
+            'biometric_removed',
+            'biometric_failed',
         ])
             ->map(fn (string $event): array => [
                 'value' => $event,

@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
 use App\Models\CashAdvance;
+use App\Models\EmployeeProfile;
 use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\User;
@@ -51,7 +52,7 @@ class EmployeeController extends Controller
     public function list(Request $request): JsonResponse
     {
         $employees = User::role(['employee', 'coach', 'manager', 'admin', 'staff'])
-            ->with('roles')
+            ->with(['roles', 'employeeProfile'])
             ->when(! empty($request->search), function ($query) use ($request) {
                 $search = trim((string) $request->search);
 
@@ -98,6 +99,8 @@ class EmployeeController extends Controller
 
         $employee->roles()->attach($data['role_ids']);
         $employee = $employee->fresh()->load('roles');
+        $this->ensureEmployeeProfile($employee);
+        $employee = $employee->fresh()->load(['roles', 'employeeProfile']);
 
         $this->auditHistoryService->recordSubjectEvent(
             AuditEvent::SUBJECT_EMPLOYEE,
@@ -140,7 +143,8 @@ class EmployeeController extends Controller
         ]);
 
         $employee->roles()->sync($data['role_ids']);
-        $employee = $employee->fresh()->load('roles');
+        $this->ensureEmployeeProfile($employee);
+        $employee = $employee->fresh()->load(['roles', 'employeeProfile']);
 
         $this->auditHistoryService->recordSubjectEvent(
             AuditEvent::SUBJECT_EMPLOYEE,
@@ -192,6 +196,8 @@ class EmployeeController extends Controller
                 'checked_in_at' => $attendance->checked_in_at?->toISOString(),
                 'checked_out_at' => $attendance->checked_out_at?->toISOString(),
                 'notes' => $attendance->notes,
+                'source' => $attendance->source,
+                'source_device_serial' => $attendance->source_device_serial,
             ]);
 
         $statsQuery = Attendance::query()->where('user_id', $employee->id);
@@ -921,7 +927,7 @@ class EmployeeController extends Controller
      */
     private function serializeEmployee(User $employee): array
     {
-        $employee->loadMissing('roles');
+        $employee->loadMissing(['roles', 'employeeProfile']);
 
         return [
             'id' => $employee->id,
@@ -938,8 +944,52 @@ class EmployeeController extends Controller
                 ])
                 ->values()
                 ->all(),
+            'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
             'location' => BusinessProfile::current()->locationSummary(),
         ];
+    }
+
+    private function ensureEmployeeProfile(User $employee): EmployeeProfile
+    {
+        $profile = EmployeeProfile::query()->firstOrCreate(
+            ['user_id' => $employee->id],
+            [
+                'hikvision_employee_no' => $this->defaultHikvisionEmployeeNo($employee->id),
+                'biometric_status' => EmployeeProfile::STATUS_NOT_ENROLLED,
+            ],
+        );
+
+        if (trim((string) $profile->hikvision_employee_no) === '' || $profile->hikvision_employee_no === 'EMP-'.$employee->id) {
+            $profile->update([
+                'hikvision_employee_no' => $this->defaultHikvisionEmployeeNo($employee->id),
+            ]);
+        }
+
+        return $profile->fresh();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function serializeEmployeeProfile(?EmployeeProfile $employeeProfile): ?array
+    {
+        if (! $employeeProfile) {
+            return null;
+        }
+
+        return [
+            'id' => $employeeProfile->id,
+            'hikvision_employee_no' => $employeeProfile->hikvision_employee_no,
+            'biometric_status' => $employeeProfile->biometric_status,
+            'biometric_fingerprint_id' => $employeeProfile->biometric_fingerprint_id,
+            'biometric_enrolled_at' => $employeeProfile->biometric_enrolled_at?->toISOString(),
+            'biometric_last_error' => $employeeProfile->biometric_last_error,
+        ];
+    }
+
+    private function defaultHikvisionEmployeeNo(int $employeeId): string
+    {
+        return str_pad((string) $employeeId, 8, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -1057,7 +1107,7 @@ class EmployeeController extends Controller
      */
     private function employeeAuditSnapshot(User $employee): array
     {
-        $employee->loadMissing('roles');
+        $employee->loadMissing(['roles', 'employeeProfile']);
 
         return [
             'id' => $employee->id,
@@ -1066,6 +1116,9 @@ class EmployeeController extends Controller
             'role_names' => $employee->roles->pluck('name')->values()->all(),
             'daily_rate' => $employee->daily_rate !== null ? round((float) $employee->daily_rate, 2) : null,
             'pay_frequency' => $employee->pay_frequency,
+            'biometric_status' => $employee->employeeProfile?->biometric_status,
+            'biometric_fingerprint_id' => $employee->employeeProfile?->biometric_fingerprint_id,
+            'biometric_enrolled_at' => $employee->employeeProfile?->biometric_enrolled_at?->toISOString(),
         ];
     }
 

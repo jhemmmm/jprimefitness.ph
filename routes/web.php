@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Controllers\HikvisionCallbackController;
 use App\Http\Controllers\Home\HomeController;
 use App\Http\Controllers\Panel\AttendanceController;
 use App\Http\Controllers\Panel\AttendanceReportsController;
 use App\Http\Controllers\Panel\AuditHistoryController;
 use App\Http\Controllers\Panel\DashboardController;
+use App\Http\Controllers\Panel\EmployeeBiometricController;
 use App\Http\Controllers\Panel\EmployeeController;
 use App\Http\Controllers\Panel\FinancialReportsController;
 use App\Http\Controllers\Panel\InventoryController;
@@ -17,10 +19,14 @@ use App\Http\Controllers\Panel\SalesReportsController;
 use App\Http\Controllers\Panel\SearchController;
 use App\Http\Controllers\Panel\SettingsController;
 use App\Http\Controllers\Panel\WalkInsController;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::post('/hikvision/callback', [HikvisionCallbackController::class, 'store'])
+    ->withoutMiddleware([ValidateCsrfToken::class])
+    ->name('hikvision.callback');
 
 Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -127,6 +133,9 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/employees/{employee}', [EmployeeController::class, 'show'])->name('employees.show')->whereNumber('employee')->withTrashed();
     Route::put('/employees/{employee}', [EmployeeController::class, 'update'])->name('employees.update')->whereNumber('employee');
     Route::delete('/employees/{employee}', [EmployeeController::class, 'destroy'])->name('employees.destroy')->whereNumber('employee');
+    Route::post('/employees/{employee}/biometric/enroll', [EmployeeBiometricController::class, 'store'])->name('employees.biometric.store')->whereNumber('employee');
+    Route::get('/employees/{employee}/biometric/sessions/{session}', [EmployeeBiometricController::class, 'show'])->name('employees.biometric.show')->whereNumber('employee')->whereNumber('session');
+    Route::delete('/employees/{employee}/biometric/fingerprint', [EmployeeBiometricController::class, 'destroy'])->name('employees.biometric.destroy')->whereNumber('employee');
     Route::post('/employees/{employee}/attendance', [EmployeeController::class, 'attendance'])->name('employees.attendance')->whereNumber('employee')->withTrashed();
     Route::get('/employees/{employee}/payrolls', [EmployeeController::class, 'payrolls'])->name('employees.payrolls.list')->whereNumber('employee')->withTrashed();
     Route::post('/employees/{employee}/payrolls', [EmployeeController::class, 'storePayroll'])->name('employees.payrolls.store')->whereNumber('employee');

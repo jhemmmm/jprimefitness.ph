@@ -171,9 +171,17 @@
                            </div>
                         </td>
                         <td>
-                           <span :class="['m-badge', $filters.roleBadge(r.attendee_type)]">
-                              {{ $filters.capitalize(r.attendee_type) }}
-                           </span>
+                           <div class="d-flex gap-2 flex-wrap">
+                              <span :class="['m-badge', $filters.roleBadge(r.attendee_type)]">
+                                 {{ $filters.capitalize(r.attendee_type) }}
+                              </span>
+                              <span :class="['m-badge', sourceBadgeClass(r.source)]">
+                                 {{ sourceLabel(r.source) }}
+                              </span>
+                           </div>
+                           <div v-if="r.source_device_serial" class="small text-muted mt-1">
+                              Device {{ r.source_device_serial }}
+                           </div>
                         </td>
                         <td class="text-muted small">{{ formatDateTime(r.checked_in_at) }}</td>
                         <td>
@@ -235,12 +243,16 @@
                   </div>
                   <div class="member-card-tags">
                      <span :class="['m-badge', $filters.roleBadge(r.attendee_type)]">{{ $filters.capitalize(r.attendee_type) }}</span>
+                     <span :class="['m-badge', sourceBadgeClass(r.source)]">{{ sourceLabel(r.source) }}</span>
                      <span :class="['m-badge', $filters.statusBadge('active')]" v-if="!r.checked_out_at">Currently In</span>
                   </div>
                   <div class="member-card-footer">
                      <span><i class="bi bi-box-arrow-in-right me-1"></i>{{ formatDateTime(r.checked_in_at) }}</span>
                      <span v-if="r.checked_out_at" class="text-muted small"> <i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(r.checked_out_at) }} </span>
                      <button v-if="!r.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+                  </div>
+                  <div v-if="r.source_device_serial" class="small text-muted mt-2 px-1">
+                     Device {{ r.source_device_serial }}
                   </div>
                </div>
             </div>
@@ -597,6 +609,12 @@ export default {
                }
             })
             .finally(() => (this.submitting = false));
+      },
+      sourceLabel: function (source) {
+         return source === "hikvision" ? "Hikvision" : "Manual";
+      },
+      sourceBadgeClass: function (source) {
+         return source === "hikvision" ? "m-badge--open" : "m-badge--draft";
       },
    },
 

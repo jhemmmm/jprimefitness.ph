@@ -15,6 +15,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: [
+            'hikvision/callback',
+        ]);
+
         $middleware->alias([
             'panel' => EnsurePanelAccess::class,
             'role' => RoleMiddleware::class,

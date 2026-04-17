@@ -44,6 +44,35 @@ class FreshInstallSchemaTest extends TestCase
             'deleted_at',
         ]);
 
+        $this->assertTableHasColumns('employee_profiles', [
+            'user_id',
+            'hikvision_employee_no',
+            'biometric_status',
+            'biometric_fingerprint_id',
+            'biometric_enrolled_at',
+            'biometric_last_error',
+        ]);
+
+        $this->assertTableHasColumns('employee_biometric_sessions', [
+            'uuid',
+            'employee_profile_id',
+            'status',
+            'fingerprint_id',
+            'started_by',
+            'completed_at',
+            'error_message',
+        ]);
+
+        $this->assertTableHasColumns('hikvision_event_logs', [
+            'device_serial',
+            'event_serial_no',
+            'event_type',
+            'employee_no',
+            'attendance_id',
+            'payload',
+            'processed_at',
+        ]);
+
         $this->assertTableHasColumns('member_subscriptions', [
             'sold_price',
             'manager_id',
@@ -106,6 +135,8 @@ class FreshInstallSchemaTest extends TestCase
 
         $this->assertTableHasColumns('attendances', [
             'deleted_at',
+            'source',
+            'source_device_serial',
         ]);
 
         $this->assertTableHasColumns('cash_advances', [
