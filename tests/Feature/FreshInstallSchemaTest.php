@@ -105,10 +105,18 @@ class FreshInstallSchemaTest extends TestCase
             'income_tax',
             'employee_contributions',
             'employer_contributions',
+            'regular_hours',
+            'regular_pay_amount',
+            'overwork_hours',
+            'overwork_pay_amount',
             'pt_commission_amount',
             'pt_commission_items',
             'membership_commission_amount',
             'membership_commission_items',
+        ]);
+
+        $this->assertTableHasColumns('business_profiles', [
+            'pay_overwork_hours',
         ]);
 
         $this->assertTableHasColumns('audit_events', [

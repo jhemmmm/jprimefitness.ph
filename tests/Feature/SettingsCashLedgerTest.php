@@ -120,6 +120,47 @@ class SettingsCashLedgerTest extends TestCase
             ->assertRedirect('/panel/business/settings');
     }
 
+    public function test_manager_can_enable_overwork_pay_in_business_settings(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Theo');
+        $profile = BusinessProfile::current();
+
+        $this->actingAs($manager)
+            ->putJson('/panel/business/settings', [
+                'name' => $profile->name,
+                'status' => $profile->status,
+                'country_code' => $profile->country_code,
+                'pay_overwork_hours' => true,
+                'city' => $profile->city,
+                'province' => $profile->province,
+                'address' => $profile->address,
+                'phone' => $profile->phone,
+                'email' => $profile->email,
+                'timezone' => $profile->timezone,
+                'amenities' => $profile->amenities ?? [],
+                'opening_time' => $profile->opening_time,
+                'closing_time' => $profile->closing_time,
+                'facebook_url' => $profile->facebook_url,
+                'messenger_url' => $profile->messenger_url,
+                'whatsapp_url' => $profile->whatsapp_url,
+                'map_url' => $profile->map_url,
+                'hero_badge' => $profile->hero_badge,
+                'hero_title' => $profile->hero_title,
+                'hero_highlight' => $profile->hero_highlight,
+                'hero_description' => $profile->hero_description,
+                'about_heading' => $profile->about_heading,
+                'about_description' => $profile->about_description,
+                'membership_note' => $profile->membership_note,
+            ])
+            ->assertOk()
+            ->assertJsonPath('pay_overwork_hours', true);
+
+        $this->assertDatabaseHas('business_profiles', [
+            'id' => $profile->id,
+            'pay_overwork_hours' => 1,
+        ]);
+    }
+
     public function test_cash_payouts_and_released_cash_advances_reduce_cash_balance(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');

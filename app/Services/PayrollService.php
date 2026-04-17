@@ -18,6 +18,10 @@ class PayrollService
 {
     private const PH_NON_TAXABLE_BONUS_CAP = 90000.0;
 
+    private const STANDARD_WORKDAY_HOURS = 8.0;
+
+    private const STANDARD_WORKDAY_MINUTES = 480;
+
     public function __construct(
         private AuditHistoryService $auditHistoryService,
         private CashLedgerService $cashLedgerService,
@@ -247,30 +251,94 @@ class PayrollService
 
     /**
      * Suggest gross amount and CA deduction based on attendance in a period.
-     * Counts distinct days worked × employee profile daily_rate.
+     *
+     * @return array{
+     *     daily_rate: float,
+     *     days_worked: int,
+     *     gross_amount: float,
+     *     open_attendance_count: int,
+     *     overwork_hours: float,
+     *     overwork_pay_amount: float,
+     *     regular_hours: float,
+     *     regular_pay_amount: float,
+     *     suggested_ca: float
+     * }
      */
-    public function suggestFromAttendance(User $employee, string $periodStart, string $periodEnd): array
-    {
+    public function suggestFromAttendance(
+        User $employee,
+        string $periodStart,
+        string $periodEnd,
+        bool $payOverworkHours = false
+    ): array {
         $employee->loadMissing('employeeProfile');
 
-        $daysWorked = Attendance::where('user_id', $employee->id)
+        $attendanceRecords = Attendance::query()
+            ->where('attendee_type', Attendance::TYPE_EMPLOYEE)
+            ->where('user_id', $employee->id)
             ->whereDate('checked_in_at', '>=', $periodStart)
             ->whereDate('checked_in_at', '<=', $periodEnd)
-            ->selectRaw('DATE(checked_in_at) as work_date')
-            ->distinct()
-            ->get()
-            ->count();
+            ->get(['checked_in_at', 'checked_out_at']);
+
+        $workedMinutesByDate = [];
+        $openAttendanceCount = 0;
+
+        foreach ($attendanceRecords as $attendance) {
+            if (! $attendance->checked_in_at || ! $attendance->checked_out_at) {
+                $openAttendanceCount++;
+
+                continue;
+            }
+
+            $workDate = $attendance->checked_in_at->toDateString();
+            $workedMinutesByDate[$workDate] = ($workedMinutesByDate[$workDate] ?? 0)
+                + max(0, $attendance->checked_in_at->diffInMinutes($attendance->checked_out_at));
+        }
+
+        $regularMinutes = 0;
+        $overworkMinutes = 0;
+
+        foreach ($workedMinutesByDate as $workedMinutes) {
+            $regularMinutes += min($workedMinutes, self::STANDARD_WORKDAY_MINUTES);
+
+            if ($payOverworkHours) {
+                $overworkMinutes += max(0, $workedMinutes - self::STANDARD_WORKDAY_MINUTES);
+            }
+        }
 
         $dailyRate = (float) ($employee->employeeProfile?->daily_rate ?? 0);
-        $gross = round($dailyRate * $daysWorked, 2);
+        $daysWorked = count($workedMinutesByDate);
+        $regularHours = round($regularMinutes / 60, 2);
+        $overworkHours = round($overworkMinutes / 60, 2);
+        $regularPayAmount = round(
+            $dailyRate * ($regularMinutes / self::STANDARD_WORKDAY_MINUTES),
+            2
+        );
+        $overworkPayAmount = round(
+            $dailyRate * ($overworkMinutes / self::STANDARD_WORKDAY_MINUTES),
+            2
+        );
+        $gross = round($regularPayAmount + $overworkPayAmount, 2);
         $suggestedCa = $this->pendingCaTotal($employee->id);
 
         return [
             'days_worked' => $daysWorked,
             'daily_rate' => $dailyRate,
+            'regular_hours' => $regularHours,
+            'regular_pay_amount' => $regularPayAmount,
+            'overwork_hours' => $overworkHours,
+            'overwork_pay_amount' => $overworkPayAmount,
+            'open_attendance_count' => $openAttendanceCount,
             'gross_amount' => $gross,
             'suggested_ca' => $suggestedCa,
         ];
+    }
+
+    public function manualGrossAdjustmentAmount(
+        float $grossAmount,
+        float $regularPayAmount,
+        float $overworkPayAmount
+    ): float {
+        return round($grossAmount - $regularPayAmount - $overworkPayAmount, 2);
     }
 
     /**

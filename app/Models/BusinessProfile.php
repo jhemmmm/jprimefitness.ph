@@ -22,6 +22,7 @@ class BusinessProfile extends Model
     protected $fillable = [
         'name',
         'country_code',
+        'pay_overwork_hours',
         'status',
         'city',
         'province',
@@ -48,6 +49,7 @@ class BusinessProfile extends Model
     ];
 
     protected $casts = [
+        'pay_overwork_hours' => 'boolean',
         'photos' => 'array',
         'amenities' => 'array',
         'operating_hours' => 'array',
@@ -61,6 +63,7 @@ class BusinessProfile extends Model
         return [
             'name' => 'JPrime Fitness',
             'country_code' => self::COUNTRY_PHILIPPINES,
+            'pay_overwork_hours' => false,
             'status' => self::STATUS_OPEN,
             'city' => 'Naga City',
             'province' => 'Camarines Sur',
@@ -114,6 +117,7 @@ class BusinessProfile extends Model
         return [
             ...$this->locationSummary(),
             'country_code' => $this->country_code,
+            'pay_overwork_hours' => (bool) $this->pay_overwork_hours,
         ];
     }
 }

@@ -260,7 +260,14 @@ class EmployeeController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $countryCode = BusinessProfile::current()->country_code;
+        $businessProfile = BusinessProfile::current();
+        $countryCode = $businessProfile->country_code;
+        $attendanceSuggestion = $this->payrollService->suggestFromAttendance(
+            $employee,
+            $data['period_start'],
+            $data['period_end'],
+            (bool) $businessProfile->pay_overwork_hours,
+        );
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
@@ -318,6 +325,10 @@ class EmployeeController extends Controller
             'pay_frequency' => $payFrequency,
             'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
+            'regular_hours' => $attendanceSuggestion['regular_hours'],
+            'regular_pay_amount' => $attendanceSuggestion['regular_pay_amount'],
+            'overwork_hours' => $attendanceSuggestion['overwork_hours'],
+            'overwork_pay_amount' => $attendanceSuggestion['overwork_pay_amount'],
             'gross_amount' => $gross,
             'bonus' => $bonus,
             'income_tax' => $payrollTotals['income_tax'],
@@ -369,7 +380,14 @@ class EmployeeController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $countryCode = BusinessProfile::current()->country_code;
+        $businessProfile = BusinessProfile::current();
+        $countryCode = $businessProfile->country_code;
+        $attendanceSuggestion = $this->payrollService->suggestFromAttendance(
+            $employee,
+            $data['period_start'],
+            $data['period_end'],
+            (bool) $businessProfile->pay_overwork_hours,
+        );
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
@@ -429,6 +447,10 @@ class EmployeeController extends Controller
             'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
             'pay_frequency' => $payFrequency,
+            'regular_hours' => $attendanceSuggestion['regular_hours'],
+            'regular_pay_amount' => $attendanceSuggestion['regular_pay_amount'],
+            'overwork_hours' => $attendanceSuggestion['overwork_hours'],
+            'overwork_pay_amount' => $attendanceSuggestion['overwork_pay_amount'],
             'gross_amount' => $gross,
             'bonus' => $bonus,
             'income_tax' => $payrollTotals['income_tax'],
@@ -553,7 +575,8 @@ class EmployeeController extends Controller
             }
         }
 
-        $countryCode = BusinessProfile::current()->country_code;
+        $businessProfile = BusinessProfile::current();
+        $countryCode = $businessProfile->country_code;
         $ptCommissionSummary = $this->payrollService->previewPtCommissions(
             $employee,
             $data['period_start'],
@@ -569,7 +592,8 @@ class EmployeeController extends Controller
         $attendanceSuggestion = $this->payrollService->suggestFromAttendance(
             $employee,
             $data['period_start'],
-            $data['period_end']
+            $data['period_end'],
+            (bool) $businessProfile->pay_overwork_hours,
         );
         $payFrequency = $payroll?->pay_frequency ?? $this->employeePayFrequency($employee);
         $grossAmount = (float) ($data['gross_amount'] ?? $attendanceSuggestion['gross_amount']);
@@ -625,6 +649,11 @@ class EmployeeController extends Controller
                 'max_cash_advance_deduction' => $maxCashAdvanceDeduction,
                 'pending_ca_total' => $attendanceSuggestion['suggested_ca'],
                 'suggested_ca' => min($attendanceSuggestion['suggested_ca'], $maxCashAdvanceDeduction),
+                'manual_gross_adjustment_amount' => $this->payrollService->manualGrossAdjustmentAmount(
+                    $grossAmount,
+                    $attendanceSuggestion['regular_pay_amount'],
+                    $attendanceSuggestion['overwork_pay_amount'],
+                ),
             ]
         ));
     }
@@ -1025,11 +1054,23 @@ class EmployeeController extends Controller
     {
         $payroll->loadMissing(['payouts', 'approvedBy:id,name']);
         $totalPaid = (float) $payroll->payouts->sum('amount');
+        $manualGrossAdjustmentAmount = $payroll->hasAttendanceBreakdownSnapshot()
+            ? $this->payrollService->manualGrossAdjustmentAmount(
+                (float) $payroll->gross_amount,
+                (float) $payroll->regular_pay_amount,
+                (float) $payroll->overwork_pay_amount,
+            )
+            : null;
 
         return [
             'id' => $payroll->id,
             'period_start' => $payroll->period_start->format('Y-m-d'),
             'period_end' => $payroll->period_end->format('Y-m-d'),
+            'regular_hours' => $payroll->regular_hours !== null ? (float) $payroll->regular_hours : null,
+            'regular_pay_amount' => $payroll->regular_pay_amount !== null ? (float) $payroll->regular_pay_amount : null,
+            'overwork_hours' => $payroll->overwork_hours !== null ? (float) $payroll->overwork_hours : null,
+            'overwork_pay_amount' => $payroll->overwork_pay_amount !== null ? (float) $payroll->overwork_pay_amount : null,
+            'manual_gross_adjustment_amount' => $manualGrossAdjustmentAmount,
             'gross_amount' => (float) $payroll->gross_amount,
             'bonus' => (float) $payroll->bonus,
             'pay_frequency' => $payroll->pay_frequency,
@@ -1159,6 +1200,10 @@ class EmployeeController extends Controller
             'employee_name' => $employee->name,
             'period_start' => $payroll->period_start?->format('Y-m-d'),
             'period_end' => $payroll->period_end?->format('Y-m-d'),
+            'regular_hours' => round((float) $payroll->regular_hours, 2),
+            'regular_pay_amount' => round((float) $payroll->regular_pay_amount, 2),
+            'overwork_hours' => round((float) $payroll->overwork_hours, 2),
+            'overwork_pay_amount' => round((float) $payroll->overwork_pay_amount, 2),
             'net_amount' => round((float) $payroll->net_amount, 2),
             'status' => $payroll->status,
         ];

@@ -292,6 +292,10 @@
     $totalPaid = $payroll->totalPaid();
     $remainingBalance = $payroll->remainingBalance();
     $totalEarnings = $payroll->totalEarnings();
+    $hasAttendanceBreakdownSnapshot = $payroll->hasAttendanceBreakdownSnapshot();
+    $showOverworkBreakdown = $hasAttendanceBreakdownSnapshot
+        && (float) $payroll->overwork_pay_amount > 0;
+    $manualGrossAdjustmentAmount = $payroll->manualGrossAdjustmentAmount();
     $locationName = $businessProfile->name ?? null;
     $roleNames = $employee->roles->pluck('name')->map(fn($role) => ucfirst($role))->join(', ');
     $statusClass = 'status-pill--' . $payroll->status;
@@ -426,6 +430,32 @@
                         <div class="box">
                             <div class="box-heading">Compensation Breakdown</div>
                             <table class="breakdown-table">
+                                @if ($hasAttendanceBreakdownSnapshot)
+                                    <tr>
+                                        <td class="breakdown-label">Regular pay</td>
+                                        <td class="breakdown-amount">
+                                            {{ (float) $payroll->regular_pay_amount > 0 ? 'PHP ' . number_format((float) $payroll->regular_pay_amount, 2) . ' (' . number_format((float) $payroll->regular_hours, 2) . ' hrs)' : '-' }}
+                                        </td>
+                                    </tr>
+                                    @if ($showOverworkBreakdown)
+                                        <tr>
+                                            <td class="breakdown-label">Overwork pay</td>
+                                            <td class="breakdown-amount amount-positive">
+                                                + PHP {{ number_format((float) $payroll->overwork_pay_amount, 2) }}
+                                                ({{ number_format((float) $payroll->overwork_hours, 2) }} hrs)
+                                            </td>
+                                        </tr>
+                                    @endif
+                                    @if ($manualGrossAdjustmentAmount !== null && abs($manualGrossAdjustmentAmount) >= 0.01)
+                                        <tr>
+                                            <td class="breakdown-label">Manual gross adjustment</td>
+                                            <td
+                                                class="breakdown-amount {{ $manualGrossAdjustmentAmount > 0 ? 'amount-positive' : 'amount-negative' }}">
+                                                {{ $manualGrossAdjustmentAmount > 0 ? '+ PHP ' : '- PHP ' }}{{ number_format(abs($manualGrossAdjustmentAmount), 2) }}
+                                            </td>
+                                        </tr>
+                                    @endif
+                                @endif
                                 <tr>
                                     <td class="breakdown-label">Gross amount</td>
                                     <td class="breakdown-amount">PHP

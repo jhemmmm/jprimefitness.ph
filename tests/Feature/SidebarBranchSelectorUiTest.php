@@ -135,8 +135,8 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString('btn-icon-sm" data-bs-toggle="dropdown"', $auditHistoryContents);
         $this->assertStringContainsString('dropdown-menu dropdown-menu-end', $auditHistoryContents);
         $this->assertStringContainsString('hasEventActionMenu: function (event)', $auditHistoryContents);
-        $this->assertStringContainsString("class=\"d-md-none\"", $auditHistoryContents);
-        $this->assertStringContainsString("class=\"member-card\" v-for=\"event in events\"", $auditHistoryContents);
+        $this->assertStringContainsString('class="d-md-none"', $auditHistoryContents);
+        $this->assertStringContainsString('class="member-card" v-for="event in events"', $auditHistoryContents);
         $this->assertStringContainsString('toggleSort', $auditHistoryContents);
         $this->assertStringContainsString('Restore Record', $auditHistoryContents);
         $this->assertStringContainsString('Not recoverable', $auditHistoryContents);
@@ -163,6 +163,26 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringNotContainsString('text-decoration-none text-reset', $contents);
         $this->assertStringNotContainsString('View details', $contents);
         $this->assertStringContainsString('<i class="bi bi-pencil me-2"></i>Edit', $contents);
+    }
+
+    public function test_business_settings_form_groups_related_fields_into_sections(): void
+    {
+        $contents = file_get_contents(resource_path('js/components/panel/vendor/BusinessSettingsForm.vue'));
+        $styles = file_get_contents(resource_path('sass/panel.scss'));
+
+        $this->assertNotFalse($contents);
+        $this->assertStringContainsString('Business identity', $contents);
+        $this->assertStringContainsString('Location & hours', $contents);
+        $this->assertStringContainsString('Contact & social', $contents);
+        $this->assertStringContainsString('Amenities & media', $contents);
+        $this->assertStringContainsString('Website copy', $contents);
+        $this->assertStringContainsString('Manage Photos', $contents);
+        $this->assertStringContainsString('business-settings-shortcut', $contents);
+        $this->assertStringNotContainsString('Current Gallery Size', $contents);
+
+        $this->assertNotFalse($styles);
+        $this->assertStringContainsString('.business-settings-sidebar-sticky', $styles);
+        $this->assertStringContainsString('.business-settings-shortcut', $styles);
     }
 
     public function test_panel_sidebar_groups_business_and_system_navigation_items(): void
@@ -192,6 +212,17 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString('/panel/audit-history/list', $contents);
         $this->assertStringContainsString('Open in Audit History', $contents);
         $this->assertStringNotContainsString('audit_data', $contents);
+    }
+
+    public function test_employee_payroll_page_relies_on_automatic_cash_advance_suggestions(): void
+    {
+        $contents = file_get_contents(resource_path('js/components/panel/vendor/EmployeePayrollPage.vue'));
+
+        $this->assertNotFalse($contents);
+        $this->assertStringContainsString('Cash Advance Deduction (₱)', $contents);
+        $this->assertStringNotContainsString('Auto-fill', $contents);
+        $this->assertStringNotContainsString('loadSuggestedCa', $contents);
+        $this->assertStringNotContainsString('loadingCa', $contents);
     }
 
     public function test_removed_branch_selector_files_are_gone(): void

@@ -8,12 +8,16 @@
       </div>
 
       <div class="panel-card mb-4">
+         <div class="panel-card-header">
+            <div>
+               <div class="panel-card-title">Current Profile Snapshot</div>
+               <div class="panel-card-sub">Review the live business information before updating anything below.</div>
+            </div>
+         </div>
          <business-information-page :profile="localProfile" />
       </div>
 
-      <div class="panel-card">
-         <business-settings-form :profile="localProfile" @updated="onProfileUpdated" />
-      </div>
+      <business-settings-form :profile="localProfile" @updated="onProfileUpdated" />
    </div>
 </template>
 
@@ -46,6 +50,11 @@ export default {
    methods: {
       onProfileUpdated: function (updatedProfile) {
          this.localProfile = { ...this.localProfile, ...updatedProfile };
+         globalThis.JPrime = globalThis.JPrime || {};
+         globalThis.JPrime.profile = {
+            ...(globalThis.JPrime.profile || {}),
+            ...updatedProfile,
+         };
       },
    },
 };

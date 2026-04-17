@@ -58,6 +58,7 @@ class SettingsController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'status' => ['required', 'in:open,closed,coming_soon'],
             'country_code' => ['required', 'string', 'size:2'],
+            'pay_overwork_hours' => ['sometimes', 'boolean'],
             'city' => ['required', 'string', 'max:255'],
             'province' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
@@ -266,6 +267,7 @@ class SettingsController extends Controller
         return [
             'id' => $profile->id,
             'name' => $profile->name,
+            'pay_overwork_hours' => (bool) $profile->pay_overwork_hours,
             'status' => $profile->status,
         ];
     }

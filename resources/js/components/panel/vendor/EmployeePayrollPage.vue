@@ -70,6 +70,16 @@
                      <td class="small">
                         <div class="fw-semibold">{{ formatDate(p.period_start) }} – {{ formatDate(p.period_end) }}</div>
                         <div class="text-muted" style="font-size: 0.75rem">{{ p.notes }}</div>
+                        <div class="text-muted" style="font-size: 0.75rem" v-if="p.regular_hours > 0">
+                           Regular: {{ formatHours(p.regular_hours) }}h · ₱{{ $filters.formatMoney(p.regular_pay_amount) }}
+                        </div>
+                        <div class="text-muted" style="font-size: 0.75rem" v-if="p.overwork_hours > 0">
+                           Overwork: {{ formatHours(p.overwork_hours) }}h · ₱{{ $filters.formatMoney(p.overwork_pay_amount) }}
+                        </div>
+                        <div class="text-muted" style="font-size: 0.75rem" v-if="hasManualGrossAdjustment(p.manual_gross_adjustment_amount)">
+                           Manual gross adj.:
+                           {{ p.manual_gross_adjustment_amount > 0 ? "+" : "-" }}₱{{ $filters.formatMoney(Math.abs(Number(p.manual_gross_adjustment_amount || 0))) }}
+                        </div>
                      </td>
                      <td class="text-end small">₱{{ $filters.formatMoney(p.gross_amount) }}</td>
                      <td class="text-end small text-success">{{ p.bonus > 0 ? "+₱" + $filters.formatMoney(p.bonus) : "-" }}</td>
@@ -146,6 +156,12 @@
                </div>
                <div class="member-card-tags ps-0 mt-1">
                   <span class="small text-muted">Gross: ₱{{ $filters.formatMoney(p.gross_amount) }}</span>
+                  <span class="small text-muted" v-if="p.regular_hours > 0"> · Regular: {{ formatHours(p.regular_hours) }}h</span>
+                  <span class="small text-muted" v-if="p.overwork_hours > 0"> · Overwork: {{ formatHours(p.overwork_hours) }}h</span>
+                  <span class="small text-muted" v-if="hasManualGrossAdjustment(p.manual_gross_adjustment_amount)">
+                     · Adj:
+                     {{ p.manual_gross_adjustment_amount > 0 ? "+" : "-" }}₱{{ $filters.formatMoney(Math.abs(Number(p.manual_gross_adjustment_amount || 0))) }}
+                  </span>
                   <span class="small text-success" v-if="p.pt_commission_amount > 0"> · PT: +₱{{ $filters.formatMoney(p.pt_commission_amount) }}</span>
                   <span class="small text-success" v-if="p.membership_commission_amount > 0"> · Membership: +₱{{ $filters.formatMoney(p.membership_commission_amount) }}</span>
                   <span class="small text-danger" v-if="p.remaining_balance > 0"> · Balance: ₱{{ $filters.formatMoney(p.remaining_balance) }}</span>
@@ -176,7 +192,9 @@
                         <i class="bi bi-calendar-check me-1"></i>
                         <strong>{{ suggestion.days_worked }} day{{ suggestion.days_worked !== 1 ? "s" : "" }} worked</strong>
                         <template v-if="suggestion.daily_rate > 0">
-                           &times; ₱{{ $filters.formatMoney(suggestion.daily_rate) }} daily rate = <strong>₱{{ $filters.formatMoney(suggestion.gross_amount) }}</strong> gross.
+                           &nbsp;· Regular: {{ formatHours(suggestion.regular_hours) }}h = <strong>₱{{ $filters.formatMoney(suggestion.regular_pay_amount) }}</strong>
+                           <span v-if="payOverworkHours"> &nbsp;· Overwork: {{ formatHours(suggestion.overwork_hours) }}h = <strong>₱{{ $filters.formatMoney(suggestion.overwork_pay_amount) }}</strong> </span>
+                           &nbsp;· Suggested gross: <strong>₱{{ $filters.formatMoney(suggestion.gross_amount) }}</strong>
                         </template>
                         <template v-else> &mdash; <span class="text-warning fw-semibold">No daily rate set.</span> Set it on the employee profile to auto-compute gross. </template>
                         <span v-if="suggestion.pending_ca_total > 0"> &nbsp;· Pending CA: ₱{{ $filters.formatMoney(suggestion.pending_ca_total) }}</span>
@@ -186,6 +204,7 @@
                         <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_non_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-gift me-1"></i>PH exempt bonus applied this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }} </span>
                         <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-calculator me-1"></i>Taxable bonus excess this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }} </span>
                         <span v-if="suggestion.days_worked === 0" class="d-block text-muted mt-1"><i class="bi bi-info-circle me-1"></i>No attendance records found for this period.</span>
+                        <span v-if="suggestion.open_attendance_count > 0" class="d-block text-muted mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ suggestion.open_attendance_count }} open attendance record{{ suggestion.open_attendance_count !== 1 ? "s are" : " is" }} excluded until checkout.</span>
                         <span v-if="suggestion.pt_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-stopwatch me-1"></i>{{ suggestion.pt_commission_items.length }} completed PT package{{ suggestion.pt_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
                         <span v-if="suggestion.membership_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-person-check me-1"></i>{{ suggestion.membership_commission_items.length }} membership sale commission{{ suggestion.membership_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
                      </div>
@@ -207,6 +226,26 @@
                         <label class="form-label form-label-sm">Gross Amount (₱) <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" v-model="form.gross_amount" min="0" step="0.01" :class="{ 'is-invalid': formErrors.gross_amount }" />
                         <div class="invalid-feedback">{{ formErrors.gross_amount }}</div>
+                        <div class="form-text" v-if="hasManualGrossAdjustment(suggestion?.manual_gross_adjustment_amount)">
+                           Manual gross adjustment:
+                           {{ suggestion.manual_gross_adjustment_amount > 0 ? "+" : "-" }}₱{{ $filters.formatMoney(Math.abs(Number(suggestion.manual_gross_adjustment_amount || 0))) }}
+                        </div>
+                     </div>
+                     <div class="col-md-3">
+                        <label class="form-label form-label-sm">Regular Hours</label>
+                        <input type="number" class="form-control" :value="form.regular_hours" readonly />
+                     </div>
+                     <div class="col-md-3">
+                        <label class="form-label form-label-sm">Regular Pay (₱)</label>
+                        <input type="number" class="form-control" :value="form.regular_pay_amount" readonly />
+                     </div>
+                     <div class="col-md-3" v-if="payOverworkHours">
+                        <label class="form-label form-label-sm">Overwork Hours</label>
+                        <input type="number" class="form-control" :value="form.overwork_hours" readonly />
+                     </div>
+                     <div class="col-md-3" v-if="payOverworkHours">
+                        <label class="form-label form-label-sm">Overwork Pay (₱)</label>
+                        <input type="number" class="form-control" :value="form.overwork_pay_amount" readonly />
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Bonus (₱)</label>
@@ -248,13 +287,7 @@
                         <input type="number" class="form-control" v-model="form.manual_deductions" min="0" step="0.01" />
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm d-flex justify-content-between">
-                           <span>Cash Advance Deduction (₱)</span>
-                           <button type="button" class="btn btn-link btn-sm py-0 px-0" @click="loadSuggestedCa" :disabled="loadingCa">
-                              <span v-if="loadingCa" class="spinner-border spinner-border-sm"></span>
-                              <span v-else><i class="bi bi-magic me-1"></i>Auto-fill</span>
-                           </button>
-                        </label>
+                        <label class="form-label form-label-sm">Cash Advance Deduction (₱)</label>
                         <input type="number" class="form-control" v-model="form.cash_advance_deduction" min="0" step="0.01" :class="{ 'is-invalid': formErrors.cash_advance_deduction }" />
                         <div class="invalid-feedback">{{ formErrors.cash_advance_deduction }}</div>
                         <div class="form-text text-warning" v-if="suggestion?.pending_ca_total > 0 && modalMode === 'create'">
@@ -385,7 +418,6 @@ export default {
          approving: null,
          canceling: false,
          payoutSubmitting: false,
-         loadingCa: false,
          loadingPayouts: false,
          loadingSuggestion: false,
          suggestion: null,
@@ -441,6 +473,9 @@ export default {
       payrollCountryCode: function () {
          return globalThis.JPrime?.profile?.country_code || "PH";
       },
+      payOverworkHours: function () {
+         return Boolean(globalThis.JPrime?.profile?.pay_overwork_hours);
+      },
       netPreview: function () {
          return Number(this.suggestion?.net_amount_preview || 0);
       },
@@ -460,10 +495,20 @@ export default {
 
    methods: {
       formatDate,
+      formatHours: function (value) {
+         return Number(value || 0).toFixed(2);
+      },
+      hasManualGrossAdjustment: function (value) {
+         return Math.abs(Number(value || 0)) >= 0.01;
+      },
       queueSuggestionFetch: function () {
          if (!this.form.period_start || !this.form.period_end) {
             this.suggestion = null;
             this.form.income_tax = 0;
+            this.form.regular_hours = 0;
+            this.form.regular_pay_amount = 0;
+            this.form.overwork_hours = 0;
+            this.form.overwork_pay_amount = 0;
             return;
          }
 
@@ -505,6 +550,10 @@ export default {
             id: p.id,
             period_start: p.period_start,
             period_end: p.period_end,
+            regular_hours: p.regular_hours,
+            regular_pay_amount: p.regular_pay_amount,
+            overwork_hours: p.overwork_hours,
+            overwork_pay_amount: p.overwork_pay_amount,
             gross_amount: p.gross_amount,
             bonus: p.bonus,
             income_tax: p.income_tax,
@@ -520,17 +569,6 @@ export default {
          this.shouldAutofillSuggestedAmounts = false;
          this.payrollModalInst.show();
          this.queueSuggestionFetch();
-      },
-
-      loadSuggestedCa: function () {
-         if (!this.form.period_start || !this.form.period_end) return;
-
-         this.loadingCa = true;
-         this.fetchSuggestion()
-            .then(() => {
-               this.form.cash_advance_deduction = this.suggestion?.suggested_ca || 0;
-            })
-            .finally(() => (this.loadingCa = false));
       },
 
       fetchSuggestion: function () {
@@ -551,6 +589,10 @@ export default {
             })
             .then((res) => {
                this.suggestion = res.data;
+               this.form.regular_hours = res.data.regular_hours || 0;
+               this.form.regular_pay_amount = res.data.regular_pay_amount || 0;
+               this.form.overwork_hours = res.data.overwork_hours || 0;
+               this.form.overwork_pay_amount = res.data.overwork_pay_amount || 0;
                this.form.income_tax = res.data.income_tax || 0;
                this.form.pt_commission_amount = res.data.pt_commission_amount || 0;
                this.form.pt_commission_items = res.data.pt_commission_items || [];
@@ -678,6 +720,10 @@ export default {
          return {
             period_start: "",
             period_end: "",
+            regular_hours: 0,
+            regular_pay_amount: 0,
+            overwork_hours: 0,
+            overwork_pay_amount: 0,
             gross_amount: "",
             bonus: 0,
             income_tax: 0,
