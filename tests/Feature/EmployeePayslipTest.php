@@ -116,11 +116,12 @@ class EmployeePayslipTest extends TestCase
 
     private function createEmployeeWithRole(string $role, string $name): User
     {
-        $user = User::factory()->create([
-            'name' => $name,
-            'status' => User::STATUS_ACTIVE,
+        $user = User::factory()->withEmployeeProfile([
             'daily_rate' => 500,
             'pay_frequency' => 'semi_monthly',
+        ])->create([
+            'name' => $name,
+            'status' => User::STATUS_ACTIVE,
         ]);
 
         $user->assignRole($role);

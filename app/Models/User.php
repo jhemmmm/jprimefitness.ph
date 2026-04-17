@@ -26,8 +26,6 @@ use Spatie\Permission\Traits\HasRoles;
     'phone',
     'photo_url',
     'address',
-    'daily_rate',
-    'pay_frequency',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable

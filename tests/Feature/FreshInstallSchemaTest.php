@@ -39,10 +39,10 @@ class FreshInstallSchemaTest extends TestCase
         ]);
 
         $this->assertTableHasColumns('users', [
-            'daily_rate',
-            'pay_frequency',
             'deleted_at',
         ]);
+        $this->assertFalse(Schema::hasColumn('users', 'daily_rate'));
+        $this->assertFalse(Schema::hasColumn('users', 'pay_frequency'));
 
         $this->assertTableHasColumns('employee_profiles', [
             'user_id',
@@ -51,6 +51,8 @@ class FreshInstallSchemaTest extends TestCase
             'biometric_fingerprint_id',
             'biometric_enrolled_at',
             'biometric_last_error',
+            'daily_rate',
+            'pay_frequency',
         ]);
 
         $this->assertTableHasColumns('employee_biometric_sessions', [

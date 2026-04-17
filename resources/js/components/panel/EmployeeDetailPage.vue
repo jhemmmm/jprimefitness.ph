@@ -24,8 +24,12 @@
                   <span v-if="localEmployee.email"><i class="bi bi-envelope me-1"></i>{{ localEmployee.email }}</span>
                   <span v-if="localEmployee.phone"><i class="bi bi-telephone me-1"></i>{{ localEmployee.phone }}</span>
                   <span v-if="localEmployee.address"><i class="bi bi-house me-1"></i>{{ localEmployee.address }}</span>
-                  <span v-if="localEmployee.daily_rate > 0"><i class="bi bi-currency-exchange me-1"></i>₱{{ $filters.formatMoney(localEmployee.daily_rate) }}/day</span>
-                  <span><i class="bi bi-calendar2-week me-1"></i>{{ $filters.capitalize(localEmployee.pay_frequency) }}</span>
+                  <span v-if="localEmployee.employee_profile?.daily_rate > 0">
+                     <i class="bi bi-currency-exchange me-1"></i>₱{{ $filters.formatMoney(localEmployee.employee_profile.daily_rate) }}/day
+                  </span>
+                  <span v-if="localEmployee.employee_profile?.pay_frequency">
+                     <i class="bi bi-calendar2-week me-1"></i>{{ $filters.capitalize(localEmployee.employee_profile.pay_frequency) }}
+                  </span>
                </div>
             </div>
          </div>

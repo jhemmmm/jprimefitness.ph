@@ -247,10 +247,12 @@ class PayrollService
 
     /**
      * Suggest gross amount and CA deduction based on attendance in a period.
-     * Counts distinct days worked × employee daily_rate.
+     * Counts distinct days worked × employee profile daily_rate.
      */
     public function suggestFromAttendance(User $employee, string $periodStart, string $periodEnd): array
     {
+        $employee->loadMissing('employeeProfile');
+
         $daysWorked = Attendance::where('user_id', $employee->id)
             ->whereDate('checked_in_at', '>=', $periodStart)
             ->whereDate('checked_in_at', '<=', $periodEnd)
@@ -259,7 +261,7 @@ class PayrollService
             ->get()
             ->count();
 
-        $dailyRate = (float) ($employee->daily_rate ?? 0);
+        $dailyRate = (float) ($employee->employeeProfile?->daily_rate ?? 0);
         $gross = round($dailyRate * $daysWorked, 2);
         $suggestedCa = $this->pendingCaTotal($employee->id);
 

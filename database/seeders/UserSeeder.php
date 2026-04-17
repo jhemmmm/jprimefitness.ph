@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -63,12 +64,23 @@ class UserSeeder extends Seeder
                     'password' => Hash::make('password'),
                     'phone' => fake()->phoneNumber(),
                     'status' => User::STATUS_ACTIVE,
-                    'daily_rate' => $spec['daily_rate'],
-                    'pay_frequency' => $spec['pay_frequency'],
                 ]
             );
 
             $user->syncRoles([$spec['role']]);
+
+            $profile = EmployeeProfile::query()->firstOrCreate(
+                ['user_id' => $user->id],
+                [
+                    'hikvision_employee_no' => str_pad((string) $user->id, 8, '0', STR_PAD_LEFT),
+                    'biometric_status' => EmployeeProfile::STATUS_NOT_ENROLLED,
+                ],
+            );
+
+            $profile->update([
+                'daily_rate' => $spec['daily_rate'],
+                'pay_frequency' => $spec['pay_frequency'],
+            ]);
         }
     }
 }

@@ -287,6 +287,8 @@ class HikvisionBiometricService
 
         return [
             'id' => $profile->id,
+            'daily_rate' => round((float) ($profile->daily_rate ?? 0), 2),
+            'pay_frequency' => $profile->pay_frequency,
             'hikvision_employee_no' => $profile->hikvision_employee_no,
             'biometric_status' => $profile->biometric_status,
             'biometric_fingerprint_id' => $profile->biometric_fingerprint_id,
@@ -352,17 +354,18 @@ class HikvisionBiometricService
     private function employeeSnapshot(User $employee): array
     {
         $employee->loadMissing('roles', 'employeeProfile');
+        $employeeProfile = $employee->employeeProfile;
 
         return [
             'id' => $employee->id,
             'name' => $employee->name,
             'status' => $employee->status,
             'role_names' => $employee->roles->pluck('name')->values()->all(),
-            'daily_rate' => $employee->daily_rate !== null ? round((float) $employee->daily_rate, 2) : null,
-            'pay_frequency' => $employee->pay_frequency,
-            'biometric_status' => $employee->employeeProfile?->biometric_status,
-            'biometric_fingerprint_id' => $employee->employeeProfile?->biometric_fingerprint_id,
-            'biometric_enrolled_at' => $employee->employeeProfile?->biometric_enrolled_at?->toISOString(),
+            'daily_rate' => round((float) ($employeeProfile?->daily_rate ?? 0), 2),
+            'pay_frequency' => $employeeProfile?->pay_frequency,
+            'biometric_status' => $employeeProfile?->biometric_status,
+            'biometric_fingerprint_id' => $employeeProfile?->biometric_fingerprint_id,
+            'biometric_enrolled_at' => $employeeProfile?->biometric_enrolled_at?->toISOString(),
         ];
     }
 }

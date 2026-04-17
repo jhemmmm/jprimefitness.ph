@@ -28,11 +28,18 @@ class EmployeeProfile extends Model
         'biometric_fingerprint_id',
         'biometric_enrolled_at',
         'biometric_last_error',
+        'daily_rate',
+        'pay_frequency',
     ];
 
-    protected $casts = [
-        'biometric_enrolled_at' => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'biometric_enrolled_at' => 'datetime',
+            'daily_rate' => 'decimal:2',
+            'pay_frequency' => 'string',
+        ];
+    }
 
     public function user(): BelongsTo
     {

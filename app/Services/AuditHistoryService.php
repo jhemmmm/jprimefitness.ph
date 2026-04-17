@@ -345,7 +345,8 @@ class AuditHistoryService
         }
 
         $employee->restore();
-        $employee->refresh()->load('roles');
+        $employee->refresh()->load(['roles', 'employeeProfile']);
+        $employeeProfile = $employee->employeeProfile;
 
         $this->recordSubjectEvent(
             AuditEvent::SUBJECT_EMPLOYEE,
@@ -356,8 +357,8 @@ class AuditHistoryService
                 'name' => $employee->name,
                 'status' => $employee->status,
                 'role_names' => $employee->roles->pluck('name')->values()->all(),
-                'daily_rate' => $employee->daily_rate !== null ? round((float) $employee->daily_rate, 2) : null,
-                'pay_frequency' => $employee->pay_frequency,
+                'daily_rate' => round((float) ($employeeProfile?->daily_rate ?? 0), 2),
+                'pay_frequency' => $employeeProfile?->pay_frequency,
             ],
             [],
             $this->actorId($actor),

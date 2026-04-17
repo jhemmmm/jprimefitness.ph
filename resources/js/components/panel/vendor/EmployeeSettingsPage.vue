@@ -39,20 +39,32 @@
                   <label class="form-label form-label-sm fw-semibold">Location</label>
                   <input type="text" class="form-control" :value="currentLocationName" disabled />
                </div>
-               <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Daily Rate (₱)</label>
-                  <input type="number" class="form-control" :class="{ 'is-invalid': errors.daily_rate }" v-model="form.daily_rate" min="0" step="0.01" placeholder="0.00" />
-                  <div class="invalid-feedback" v-if="errors.daily_rate">{{ errors.daily_rate[0] }}</div>
-               </div>
-               <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Pay Frequency</label>
-                  <select class="form-select" :class="{ 'is-invalid': errors.pay_frequency }" v-model="form.pay_frequency">
-                     <option value="semi_monthly">Semi-Monthly</option>
-                     <option value="monthly">Monthly</option>
-                  </select>
-                  <div class="form-text small">Set the payroll schedule directly on the employee contract.</div>
-                  <div class="invalid-feedback" v-if="errors.pay_frequency">{{ errors.pay_frequency[0] }}</div>
-               </div>
+                <div class="col-md-6">
+                   <label class="form-label form-label-sm fw-semibold">Daily Rate (₱)</label>
+                   <input
+                      type="number"
+                      class="form-control"
+                      :class="{ 'is-invalid': errors['employee_profile.daily_rate'] }"
+                      v-model="form.employee_profile.daily_rate"
+                      min="0"
+                      step="0.01"
+                      placeholder="0.00"
+                   />
+                   <div class="invalid-feedback" v-if="errors['employee_profile.daily_rate']">{{ errors["employee_profile.daily_rate"][0] }}</div>
+                </div>
+                <div class="col-md-6">
+                   <label class="form-label form-label-sm fw-semibold">Pay Frequency</label>
+                   <select
+                      class="form-select"
+                      :class="{ 'is-invalid': errors['employee_profile.pay_frequency'] }"
+                      v-model="form.employee_profile.pay_frequency"
+                   >
+                      <option value="semi_monthly">Semi-Monthly</option>
+                      <option value="monthly">Monthly</option>
+                   </select>
+                   <div class="form-text small">Set the payroll schedule directly on the employee contract.</div>
+                   <div class="invalid-feedback" v-if="errors['employee_profile.pay_frequency']">{{ errors["employee_profile.pay_frequency"][0] }}</div>
+                </div>
 
                <div class="col-12"><hr class="my-1" /></div>
 
@@ -336,17 +348,19 @@ export default {
    },
    methods: {
       getForm: function (employee) {
-         return {
-            name: employee.name || "",
-            email: employee.email,
-            phone: employee.phone || "",
-            status: employee.status,
-            role_ids: employee.roles ? employee.roles.map((r) => r.id) : [],
-            daily_rate: employee.daily_rate || "",
-            pay_frequency: employee.pay_frequency,
-            password: "",
-         };
-      },
+          return {
+             name: employee.name || "",
+             email: employee.email,
+             phone: employee.phone || "",
+             status: employee.status,
+             role_ids: employee.roles ? employee.roles.map((r) => r.id) : [],
+             employee_profile: {
+                daily_rate: employee.employee_profile?.daily_rate || "",
+                pay_frequency: employee.employee_profile?.pay_frequency || "semi_monthly",
+             },
+             password: "",
+          };
+       },
       save: function () {
          this.saving = true;
          this.saved = false;

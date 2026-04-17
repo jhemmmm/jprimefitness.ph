@@ -145,17 +145,29 @@
                      </div>
                      <div class="col-md-6">
                         <label class="form-label fw-semibold">Daily Rate (₱)</label>
-                        <input type="number" class="form-control" :class="{ 'is-invalid': formErrors.daily_rate }" v-model="form.daily_rate" min="0" step="0.01" placeholder="0.00" />
-                        <div class="invalid-feedback" v-if="formErrors.daily_rate">{{ formErrors.daily_rate[0] }}</div>
+                        <input
+                           type="number"
+                           class="form-control"
+                           :class="{ 'is-invalid': formErrors['employee_profile.daily_rate'] }"
+                           v-model="form.employee_profile.daily_rate"
+                           min="0"
+                           step="0.01"
+                           placeholder="0.00"
+                        />
+                        <div class="invalid-feedback" v-if="formErrors['employee_profile.daily_rate']">{{ formErrors["employee_profile.daily_rate"][0] }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label fw-semibold">Pay Frequency</label>
-                        <select class="form-select" :class="{ 'is-invalid': formErrors.pay_frequency }" v-model="form.pay_frequency">
+                        <select
+                           class="form-select"
+                           :class="{ 'is-invalid': formErrors['employee_profile.pay_frequency'] }"
+                           v-model="form.employee_profile.pay_frequency"
+                        >
                            <option value="semi_monthly">Semi-Monthly</option>
                            <option value="monthly">Monthly</option>
                         </select>
                         <div class="form-text small">Set the payroll schedule directly on the employee contract.</div>
-                        <div class="invalid-feedback" v-if="formErrors.pay_frequency">{{ formErrors.pay_frequency[0] }}</div>
+                        <div class="invalid-feedback" v-if="formErrors['employee_profile.pay_frequency']">{{ formErrors["employee_profile.pay_frequency"][0] }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label fw-semibold">
@@ -447,8 +459,10 @@ export default {
             phone: "",
             status: "active",
             role_ids: [],
-            daily_rate: "",
-            pay_frequency: "semi_monthly",
+            employee_profile: {
+               daily_rate: "",
+               pay_frequency: "semi_monthly",
+            },
             password: "",
             enroll_fingerprint: false,
          };
@@ -494,8 +508,10 @@ export default {
             phone: emp.phone || "",
             role_ids: emp.roles ? emp.roles.map((r) => r.id) : [],
             status: emp.status,
-            daily_rate: emp.daily_rate || "",
-            pay_frequency: emp.pay_frequency,
+            employee_profile: {
+               daily_rate: emp.employee_profile?.daily_rate || "",
+               pay_frequency: emp.employee_profile?.pay_frequency || "semi_monthly",
+            },
             password: "",
             enroll_fingerprint: false,
          };

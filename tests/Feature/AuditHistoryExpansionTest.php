@@ -1043,12 +1043,13 @@ class AuditHistoryExpansionTest extends TestCase
 
     private function createUserWithRole(string $role, string $name): User
     {
-        $user = User::factory()->create([
+        $user = User::factory()->withEmployeeProfile([
+            'daily_rate' => 500,
+            'pay_frequency' => 'semi_monthly',
+        ])->create([
             'name' => $name,
             'email' => strtolower(str_replace(' ', '.', $name)).'.'.uniqid().'@example.com',
             'status' => User::STATUS_ACTIVE,
-            'daily_rate' => 500,
-            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);

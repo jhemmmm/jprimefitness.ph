@@ -25,6 +25,8 @@ class EmployeeProfileFactory extends Factory
             'biometric_fingerprint_id' => null,
             'biometric_enrolled_at' => null,
             'biometric_last_error' => null,
+            'daily_rate' => 0,
+            'pay_frequency' => null,
         ];
     }
 }

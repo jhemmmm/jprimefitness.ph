@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\EmployeeProfile;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -41,5 +42,17 @@ class UserFactory extends Factory
         return $this->state(fn(array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function withEmployeeProfile(array $attributes = []): static
+    {
+        return $this->afterCreating(function (User $user) use ($attributes): void {
+            EmployeeProfile::factory()
+                ->for($user)
+                ->create($attributes);
+        });
     }
 }

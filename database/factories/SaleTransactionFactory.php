@@ -25,7 +25,6 @@ class SaleTransactionFactory extends Factory
             'email' => 'factory-user@example.com',
             'status' => User::STATUS_ACTIVE,
             'password' => Hash::make(Str::random(24)),
-            'pay_frequency' => 'semi_monthly',
         ]);
 
         return [

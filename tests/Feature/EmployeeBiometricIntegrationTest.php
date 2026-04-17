@@ -57,12 +57,18 @@ class EmployeeBiometricIntegrationTest extends TestCase
                 'phone' => '09170000001',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
-                'daily_rate' => 650,
-                'pay_frequency' => 'semi_monthly',
+                'employee_profile' => [
+                    'daily_rate' => 650,
+                    'pay_frequency' => 'semi_monthly',
+                ],
                 'password' => 'password123',
             ])
             ->assertCreated()
-            ->assertJsonPath('employee_profile.biometric_status', EmployeeProfile::STATUS_NOT_ENROLLED);
+            ->assertJsonPath('employee_profile.biometric_status', EmployeeProfile::STATUS_NOT_ENROLLED)
+            ->assertJsonPath('employee_profile.daily_rate', 650)
+            ->assertJsonPath('employee_profile.pay_frequency', 'semi_monthly')
+            ->assertJsonMissingPath('daily_rate')
+            ->assertJsonMissingPath('pay_frequency');
 
         $employeeId = $response->json('id');
 
@@ -70,6 +76,8 @@ class EmployeeBiometricIntegrationTest extends TestCase
             'user_id' => $employeeId,
             'hikvision_employee_no' => $this->hikvisionEmployeeNo($employeeId),
             'biometric_status' => EmployeeProfile::STATUS_NOT_ENROLLED,
+            'daily_rate' => '650.00',
+            'pay_frequency' => 'semi_monthly',
         ]);
     }
 
@@ -92,16 +100,24 @@ class EmployeeBiometricIntegrationTest extends TestCase
                 'phone' => '09179990000',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
-                'daily_rate' => 700,
-                'pay_frequency' => 'monthly',
+                'employee_profile' => [
+                    'daily_rate' => 700,
+                    'pay_frequency' => 'monthly',
+                ],
                 'password' => '',
             ])
             ->assertOk()
-            ->assertJsonPath('employee_profile.hikvision_employee_no', $this->hikvisionEmployeeNo($employee->id));
+            ->assertJsonPath('employee_profile.hikvision_employee_no', $this->hikvisionEmployeeNo($employee->id))
+            ->assertJsonPath('employee_profile.daily_rate', 700)
+            ->assertJsonPath('employee_profile.pay_frequency', 'monthly')
+            ->assertJsonMissingPath('daily_rate')
+            ->assertJsonMissingPath('pay_frequency');
 
         $this->assertDatabaseHas('employee_profiles', [
             'user_id' => $employee->id,
             'hikvision_employee_no' => $this->hikvisionEmployeeNo($employee->id),
+            'daily_rate' => '700.00',
+            'pay_frequency' => 'monthly',
         ]);
     }
 
@@ -486,11 +502,12 @@ class EmployeeBiometricIntegrationTest extends TestCase
 
     private function createUserWithRole(string $role, string $name): User
     {
-        $user = User::factory()->create([
-            'name' => $name,
-            'status' => User::STATUS_ACTIVE,
+        $user = User::factory()->withEmployeeProfile([
             'daily_rate' => 500,
             'pay_frequency' => 'semi_monthly',
+        ])->create([
+            'name' => $name,
+            'status' => User::STATUS_ACTIVE,
         ]);
 
         $user->assignRole($role);

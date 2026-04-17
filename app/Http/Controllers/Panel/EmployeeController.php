@@ -82,8 +82,9 @@ class EmployeeController extends Controller
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'role_ids' => ['required', 'array', 'min:1'],
             'role_ids.*' => ['integer', Rule::in(auth()->user()->allowedEmployeesRoles())],
-            'daily_rate' => ['required', 'numeric', 'min:0'],
-            'pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
+            'employee_profile' => ['required', 'array'],
+            'employee_profile.daily_rate' => ['required', 'numeric', 'min:0'],
+            'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
             'password' => ['required', 'string', 'min:8'],
         ]);
 
@@ -92,14 +93,12 @@ class EmployeeController extends Controller
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
             'status' => $data['status'],
-            'daily_rate' => $data['daily_rate'],
-            'pay_frequency' => $data['pay_frequency'],
             'password' => Hash::make($data['password']),
         ]);
 
         $employee->roles()->attach($data['role_ids']);
         $employee = $employee->fresh()->load('roles');
-        $this->ensureEmployeeProfile($employee);
+        $this->ensureEmployeeProfile($employee, $data['employee_profile']);
         $employee = $employee->fresh()->load(['roles', 'employeeProfile']);
 
         $this->auditHistoryService->recordSubjectEvent(
@@ -125,8 +124,9 @@ class EmployeeController extends Controller
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'role_ids' => ['required', 'array', 'min:1'],
             'role_ids.*' => ['integer', Rule::in(auth()->user()->allowedEmployeesRoles())],
-            'daily_rate' => ['required', 'numeric', 'min:0'],
-            'pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
+            'employee_profile' => ['required', 'array'],
+            'employee_profile.daily_rate' => ['required', 'numeric', 'min:0'],
+            'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
             'password' => ['nullable', 'string', 'min:8'],
         ]);
 
@@ -135,15 +135,13 @@ class EmployeeController extends Controller
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
             'status' => $data['status'],
-            'daily_rate' => $data['daily_rate'],
-            'pay_frequency' => $data['pay_frequency'],
             'password' => isset($data['password']) && $data['password'] !== ''
                 ? Hash::make($data['password'])
                 : $employee->password,
         ]);
 
         $employee->roles()->sync($data['role_ids']);
-        $this->ensureEmployeeProfile($employee);
+        $this->ensureEmployeeProfile($employee, $data['employee_profile']);
         $employee = $employee->fresh()->load(['roles', 'employeeProfile']);
 
         $this->auditHistoryService->recordSubjectEvent(
@@ -267,7 +265,7 @@ class EmployeeController extends Controller
         $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
-        $payFrequency = $employee->pay_frequency;
+        $payFrequency = $this->employeePayFrequency($employee);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
             'period_end' => $data['period_end'],
@@ -376,7 +374,7 @@ class EmployeeController extends Controller
         $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
-        $payFrequency = $employee->pay_frequency;
+        $payFrequency = $this->employeePayFrequency($employee);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
             'exclude_payroll_id' => $payroll->id,
@@ -573,7 +571,7 @@ class EmployeeController extends Controller
             $data['period_start'],
             $data['period_end']
         );
-        $payFrequency = $payroll?->pay_frequency ?? $employee->pay_frequency;
+        $payFrequency = $payroll?->pay_frequency ?? $this->employeePayFrequency($employee);
         $grossAmount = (float) ($data['gross_amount'] ?? $attendanceSuggestion['gross_amount']);
         $bonusAmount = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
@@ -935,8 +933,6 @@ class EmployeeController extends Controller
             'email' => $employee->email,
             'phone' => $employee->phone,
             'status' => $employee->status,
-            'daily_rate' => $employee->daily_rate !== null ? round((float) $employee->daily_rate, 2) : null,
-            'pay_frequency' => $employee->pay_frequency,
             'roles' => $employee->roles
                 ->map(fn ($role) => [
                     'id' => $role->id,
@@ -949,7 +945,10 @@ class EmployeeController extends Controller
         ];
     }
 
-    private function ensureEmployeeProfile(User $employee): EmployeeProfile
+    /**
+     * @param  array{daily_rate?: float|int|string|null, pay_frequency?: string|null}  $attributes
+     */
+    private function ensureEmployeeProfile(User $employee, array $attributes = []): EmployeeProfile
     {
         $profile = EmployeeProfile::query()->firstOrCreate(
             ['user_id' => $employee->id],
@@ -963,6 +962,17 @@ class EmployeeController extends Controller
             $profile->update([
                 'hikvision_employee_no' => $this->defaultHikvisionEmployeeNo($employee->id),
             ]);
+        }
+
+        if ($attributes !== []) {
+            $profile->fill([
+                'daily_rate' => $attributes['daily_rate'] ?? $profile->daily_rate,
+                'pay_frequency' => $attributes['pay_frequency'] ?? $profile->pay_frequency,
+            ]);
+
+            if ($profile->isDirty(['daily_rate', 'pay_frequency'])) {
+                $profile->save();
+            }
         }
 
         return $profile->fresh();
@@ -979,6 +989,8 @@ class EmployeeController extends Controller
 
         return [
             'id' => $employeeProfile->id,
+            'daily_rate' => round((float) ($employeeProfile->daily_rate ?? 0), 2),
+            'pay_frequency' => $employeeProfile->pay_frequency,
             'hikvision_employee_no' => $employeeProfile->hikvision_employee_no,
             'biometric_status' => $employeeProfile->biometric_status,
             'biometric_fingerprint_id' => $employeeProfile->biometric_fingerprint_id,
@@ -990,6 +1002,20 @@ class EmployeeController extends Controller
     private function defaultHikvisionEmployeeNo(int $employeeId): string
     {
         return str_pad((string) $employeeId, 8, '0', STR_PAD_LEFT);
+    }
+
+    private function employeeDailyRate(User $employee): float
+    {
+        $employee->loadMissing('employeeProfile');
+
+        return round((float) ($employee->employeeProfile?->daily_rate ?? 0), 2);
+    }
+
+    private function employeePayFrequency(User $employee): ?string
+    {
+        $employee->loadMissing('employeeProfile');
+
+        return $employee->employeeProfile?->pay_frequency;
     }
 
     /**
@@ -1114,8 +1140,8 @@ class EmployeeController extends Controller
             'name' => $employee->name,
             'status' => $employee->status,
             'role_names' => $employee->roles->pluck('name')->values()->all(),
-            'daily_rate' => $employee->daily_rate !== null ? round((float) $employee->daily_rate, 2) : null,
-            'pay_frequency' => $employee->pay_frequency,
+            'daily_rate' => $this->employeeDailyRate($employee),
+            'pay_frequency' => $this->employeePayFrequency($employee),
             'biometric_status' => $employee->employeeProfile?->biometric_status,
             'biometric_fingerprint_id' => $employee->employeeProfile?->biometric_fingerprint_id,
             'biometric_enrolled_at' => $employee->employeeProfile?->biometric_enrolled_at?->toISOString(),

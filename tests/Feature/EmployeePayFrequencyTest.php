@@ -40,11 +40,13 @@ class EmployeePayFrequencyTest extends TestCase
                 'email' => 'coach-ben@example.com',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
-                'daily_rate' => 450,
+                'employee_profile' => [
+                    'daily_rate' => 450,
+                ],
                 'password' => 'password123',
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['pay_frequency']);
+            ->assertJsonValidationErrors(['employee_profile.pay_frequency']);
     }
 
     public function test_manager_can_view_employee_details(): void
@@ -72,18 +74,22 @@ class EmployeePayFrequencyTest extends TestCase
                 'email' => 'coach-ben@example.com',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
-                'daily_rate' => 450,
-                'pay_frequency' => 'monthly',
+                'employee_profile' => [
+                    'daily_rate' => 450,
+                    'pay_frequency' => 'monthly',
+                ],
                 'password' => 'password123',
             ])
             ->assertCreated()
-            ->assertJsonPath('pay_frequency', 'monthly');
+            ->assertJsonPath('employee_profile.pay_frequency', 'monthly')
+            ->assertJsonMissingPath('pay_frequency');
 
         $employeeId = $createResponse->json('id');
 
-        $this->assertDatabaseHas('users', [
-            'id' => $employeeId,
+        $this->assertDatabaseHas('employee_profiles', [
+            'user_id' => $employeeId,
             'pay_frequency' => 'monthly',
+            'daily_rate' => '450.00',
         ]);
 
         $this->actingAs($manager)
@@ -92,15 +98,18 @@ class EmployeePayFrequencyTest extends TestCase
                 'email' => 'coach-ben@example.com',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
-                'daily_rate' => 450,
-                'pay_frequency' => 'semi_monthly',
+                'employee_profile' => [
+                    'daily_rate' => 450,
+                    'pay_frequency' => 'semi_monthly',
+                ],
                 'password' => '',
             ])
             ->assertOk()
-            ->assertJsonPath('pay_frequency', 'semi_monthly');
+            ->assertJsonPath('employee_profile.pay_frequency', 'semi_monthly')
+            ->assertJsonMissingPath('pay_frequency');
 
-        $this->assertDatabaseHas('users', [
-            'id' => $employeeId,
+        $this->assertDatabaseHas('employee_profiles', [
+            'user_id' => $employeeId,
             'pay_frequency' => 'semi_monthly',
         ]);
     }
@@ -121,8 +130,10 @@ class EmployeePayFrequencyTest extends TestCase
                 'email' => 'archived-coach@example.com',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
-                'daily_rate' => 450,
-                'pay_frequency' => 'monthly',
+                'employee_profile' => [
+                    'daily_rate' => 450,
+                    'pay_frequency' => 'monthly',
+                ],
                 'password' => 'password123',
             ])
             ->assertCreated()
@@ -149,11 +160,12 @@ class EmployeePayFrequencyTest extends TestCase
 
     private function createUserWithRole(string $role, string $name): User
     {
-        $user = User::factory()->create([
-            'name' => $name,
-            'status' => User::STATUS_ACTIVE,
+        $user = User::factory()->withEmployeeProfile([
             'daily_rate' => 500,
             'pay_frequency' => 'semi_monthly',
+        ])->create([
+            'name' => $name,
+            'status' => User::STATUS_ACTIVE,
         ]);
 
         $user->assignRole($role);

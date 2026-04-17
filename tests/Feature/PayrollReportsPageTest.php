@@ -221,12 +221,13 @@ class PayrollReportsPageTest extends TestCase
 
     private function createUserWithRole(string $role, string $name, ?string $payFrequency = null): User
     {
-        $user = User::factory()->create([
+        $user = User::factory()->withEmployeeProfile([
+            'daily_rate' => 500,
+            'pay_frequency' => $payFrequency ?? 'semi_monthly',
+        ])->create([
             'name' => $name,
             'email' => str($name)->slug('-').'@example.com',
             'status' => User::STATUS_ACTIVE,
-            'daily_rate' => 500,
-            'pay_frequency' => $payFrequency ?? 'semi_monthly',
         ]);
 
         $user->assignRole($role);

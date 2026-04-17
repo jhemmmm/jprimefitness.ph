@@ -140,13 +140,14 @@ class PanelGlobalSearchTest extends TestCase
 
     private function createUserWithRole(string $role, string $name, ?string $email = null, ?string $phone = null): User
     {
-        $user = User::factory()->create([
+        $user = User::factory()->withEmployeeProfile([
+            'daily_rate' => 500,
+            'pay_frequency' => 'semi_monthly',
+        ])->create([
             'name' => $name,
             'email' => $email ?? Str::slug($role.' '.$name, '.').'@example.test',
             'phone' => $phone ?? fake()->unique()->numerify('09#########'),
             'status' => User::STATUS_ACTIVE,
-            'daily_rate' => 500,
-            'pay_frequency' => 'semi_monthly',
         ]);
 
         $user->assignRole($role);
