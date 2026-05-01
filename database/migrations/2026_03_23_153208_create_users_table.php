@@ -17,8 +17,6 @@ return new class extends Migration {
             $table->string('email')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('phone')->nullable();
-            $table->decimal('daily_rate', 10, 2)->default(0);
-            $table->string('pay_frequency', 20)->nullable();
             $table->string('photo_url')->nullable();
             $table->string('address')->nullable();
             $table->enum('status', [User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])->default(User::STATUS_ACTIVE);

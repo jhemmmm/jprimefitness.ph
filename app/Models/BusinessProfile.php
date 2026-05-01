@@ -23,6 +23,8 @@ class BusinessProfile extends Model
         'name',
         'country_code',
         'pay_overwork_hours',
+        'payroll_income_tax_enabled',
+        'payroll_government_contributions_enabled',
         'status',
         'city',
         'province',
@@ -50,6 +52,8 @@ class BusinessProfile extends Model
 
     protected $casts = [
         'pay_overwork_hours' => 'boolean',
+        'payroll_income_tax_enabled' => 'boolean',
+        'payroll_government_contributions_enabled' => 'boolean',
         'photos' => 'array',
         'amenities' => 'array',
         'operating_hours' => 'array',
@@ -64,6 +68,8 @@ class BusinessProfile extends Model
             'name' => 'JPrime Fitness',
             'country_code' => self::COUNTRY_PHILIPPINES,
             'pay_overwork_hours' => false,
+            'payroll_income_tax_enabled' => false,
+            'payroll_government_contributions_enabled' => false,
             'status' => self::STATUS_OPEN,
             'city' => 'Naga City',
             'province' => 'Camarines Sur',
@@ -110,7 +116,7 @@ class BusinessProfile extends Model
     }
 
     /**
-     * @return array{id:int, name:string, city:?string, province:?string, status:?string, country_code:?string}
+     * @return array{id:int, name:string, city:?string, province:?string, status:?string, country_code:?string, pay_overwork_hours:bool, payroll_income_tax_enabled:bool, payroll_government_contributions_enabled:bool}
      */
     public function panelShellPayload(): array
     {
@@ -118,6 +124,8 @@ class BusinessProfile extends Model
             ...$this->locationSummary(),
             'country_code' => $this->country_code,
             'pay_overwork_hours' => (bool) $this->pay_overwork_hours,
+            'payroll_income_tax_enabled' => (bool) $this->payroll_income_tax_enabled,
+            'payroll_government_contributions_enabled' => (bool) $this->payroll_government_contributions_enabled,
         ];
     }
 }

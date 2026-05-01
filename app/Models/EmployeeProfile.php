@@ -30,6 +30,12 @@ class EmployeeProfile extends Model
         'biometric_last_error',
         'daily_rate',
         'pay_frequency',
+        'sss_covered',
+        'sss_monthly_compensation',
+        'philhealth_covered',
+        'philhealth_monthly_basic_salary',
+        'pagibig_covered',
+        'pagibig_monthly_compensation',
     ];
 
     protected function casts(): array
@@ -38,6 +44,12 @@ class EmployeeProfile extends Model
             'biometric_enrolled_at' => 'datetime',
             'daily_rate' => 'decimal:2',
             'pay_frequency' => 'string',
+            'sss_covered' => 'boolean',
+            'sss_monthly_compensation' => 'decimal:2',
+            'philhealth_covered' => 'boolean',
+            'philhealth_monthly_basic_salary' => 'decimal:2',
+            'pagibig_covered' => 'boolean',
+            'pagibig_monthly_compensation' => 'decimal:2',
         ];
     }
 

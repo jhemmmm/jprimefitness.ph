@@ -2023,6 +2023,34 @@ body.auth-body {
     line-height: 1.4;
 }
 
+.form-control:disabled,
+.form-control[readonly] {
+    background-color: #eef2f7;
+    border-color: #cbd5e1;
+    color: #475569;
+    -webkit-text-fill-color: #475569;
+    cursor: default;
+    opacity: 1;
+
+    [data-bs-theme="dark"] & {
+        background-color: #1f2937;
+        border-color: #475569;
+        color: #cbd5e1;
+        -webkit-text-fill-color: #cbd5e1;
+    }
+}
+
+.form-control[readonly]:focus {
+    background-color: #eef2f7;
+    border-color: #cbd5e1;
+    box-shadow: none;
+
+    [data-bs-theme="dark"] & {
+        background-color: #1f2937;
+        border-color: #475569;
+    }
+}
+
 .empty-icon {
     font-size: 2.5rem;
     opacity: 0.35;

@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
 use App\Models\CashAdvance;
+use App\Models\EmployeeProfile;
 use App\Models\MemberPtPackage;
 use App\Models\MemberSubscription;
 use App\Models\Payroll;
@@ -37,7 +38,8 @@ class PayrollService
         float $manualDed,
         float $caDed,
         float $membershipCommission = 0,
-        float $incomeTax = 0
+        float $incomeTax = 0,
+        float $employeeContributionTotal = 0
     ): float {
         return round(
             max(
@@ -48,16 +50,29 @@ class PayrollService
                     $ptCommission,
                     $membershipCommission
                 )
-                - $this->totalEmployeeDeductionsBeforeCashAdvance($incomeTax, $manualDed)
+                - $this->totalEmployeeDeductionsBeforeCashAdvance(
+                    $incomeTax,
+                    $manualDed,
+                    $employeeContributionTotal
+                )
                 - $caDed
             ),
             2
         );
     }
 
-    public function totalEmployeeDeductionsBeforeCashAdvance(float $incomeTax, float $manualDed): float
+    public function totalEmployeeDeductionsBeforeCashAdvance(
+        float $incomeTax,
+        float $manualDed,
+        float $employeeContributionTotal = 0
+    ): float
     {
-        return round(max(0, $incomeTax) + max(0, $manualDed), 2);
+        return round(
+            max(0, $incomeTax)
+            + max(0, $manualDed)
+            + max(0, $employeeContributionTotal),
+            2
+        );
     }
 
     public function totalEarnings(
@@ -99,10 +114,15 @@ class PayrollService
     /**
      * Calculate the final payroll figures after applying the country tax profile.
      *
+     * @param  array<string, mixed>  $contextOverrides
      * @return array{
      *     bonus_non_taxable_amount: float,
      *     bonus_taxable_amount: float,
+     *     employee_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
+     *     employee_contributions_total: float,
      *     employee_deductions_total: float,
+     *     employer_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
+     *     employer_contributions_total: float,
      *     income_tax: float,
      *     net_amount: float,
      *     remaining_bonus_exemption: float,
@@ -121,18 +141,40 @@ class PayrollService
         array $context = []
     ): array {
         $bonusBreakdown = $this->bonusTaxBreakdown($countryCode, $bonus, $context);
+        $taxProfile = $this->resolveTaxProfile($countryCode);
+        $payrollCalculationSettings = $this->payrollCalculationSettings($context);
         $taxableEarnings = $this->taxableEarnings(
             $gross,
             $bonusBreakdown['bonus_taxable_amount'],
             $ptCommission,
             $membershipCommission
         );
-        $incomeTax = $this->resolveTaxProfile($countryCode)->calculateIncomeTax($payFrequency, $taxableEarnings);
-        $employeeDeductionsTotal = $this->totalEmployeeDeductionsBeforeCashAdvance($incomeTax, $manualDed);
+        $governmentContributions = $payrollCalculationSettings['payroll_government_contributions_enabled']
+            ? $taxProfile->calculateGovernmentContributions(
+                $payFrequency,
+                $this->governmentContributionInputs($countryCode, $payFrequency, $context)
+            )
+            : $this->emptyGovernmentContributions();
+        $taxableEarnings = round(
+            max(0, $taxableEarnings - $governmentContributions['employee_contributions_total']),
+            2
+        );
+        $incomeTax = $payrollCalculationSettings['payroll_income_tax_enabled']
+            ? $taxProfile->calculateIncomeTax($payFrequency, $taxableEarnings)
+            : 0.0;
+        $employeeDeductionsTotal = $this->totalEmployeeDeductionsBeforeCashAdvance(
+            $incomeTax,
+            $manualDed,
+            $governmentContributions['employee_contributions_total']
+        );
 
         return [
             'bonus_non_taxable_amount' => $bonusBreakdown['bonus_non_taxable_amount'],
             'bonus_taxable_amount' => $bonusBreakdown['bonus_taxable_amount'],
+            'employee_contributions' => $governmentContributions['employee_contributions'],
+            'employee_contributions_total' => $governmentContributions['employee_contributions_total'],
+            'employer_contributions' => $governmentContributions['employer_contributions'],
+            'employer_contributions_total' => $governmentContributions['employer_contributions_total'],
             'taxable_earnings' => $taxableEarnings,
             'income_tax' => $incomeTax,
             'employee_deductions_total' => $employeeDeductionsTotal,
@@ -144,7 +186,8 @@ class PayrollService
                 $manualDed,
                 $caDed,
                 $membershipCommission,
-                $incomeTax
+                $incomeTax,
+                $governmentContributions['employee_contributions_total']
             ),
         ];
     }
@@ -155,15 +198,31 @@ class PayrollService
      * @return array{
      *     bonus_non_taxable_amount: float,
      *     bonus_taxable_amount: float,
+     *     employee_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
+     *     employee_contributions_total: float,
      *     employee_deductions_total: float,
+     *     employer_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
+     *     employer_contributions_total: float,
      *     income_tax: float,
      *     net_amount: float,
      *     remaining_bonus_exemption: float,
      *     taxable_earnings: float
      * }
      */
-    public function syncCalculatedAmounts(Payroll $payroll): array
+    public function syncCalculatedAmounts(Payroll $payroll, array $contextOverrides = []): array
     {
+        $payroll->loadMissing('employee.employeeProfile');
+
+        $context = array_merge([
+            'employee_id' => $payroll->employee_id,
+            'employee_profile' => $this->employeeContributionProfile($payroll->employee?->employeeProfile),
+            'business_profile' => $this->businessProfilePayrollSettings(BusinessProfile::current()),
+            'payroll_id' => $payroll->id,
+            'exclude_payroll_id' => $payroll->id,
+            'period_start' => $payroll->period_start?->toDateString(),
+            'period_end' => $payroll->period_end?->toDateString(),
+        ], $contextOverrides);
+
         $totals = $this->calculatePayrollTotals(
             BusinessProfile::current()->country_code,
             $payroll->pay_frequency,
@@ -173,14 +232,12 @@ class PayrollService
             (float) $payroll->manual_deductions,
             (float) $payroll->cash_advance_deduction,
             (float) $payroll->membership_commission_amount,
-            [
-                'employee_id' => $payroll->employee_id,
-                'exclude_payroll_id' => $payroll->id,
-                'period_end' => $payroll->period_end?->toDateString(),
-            ]
+            $context
         );
 
         $payroll->income_tax = $totals['income_tax'];
+        $payroll->employee_contributions = $totals['employee_contributions'];
+        $payroll->employer_contributions = $totals['employer_contributions'];
         $payroll->net_amount = $totals['net_amount'];
         $payroll->save();
 
@@ -534,6 +591,49 @@ class PayrollService
         $this->syncCalculatedAmounts($payroll);
     }
 
+    public function syncMonthlyGovernmentContributionAllocation(Payroll $payroll): void
+    {
+        if ($payroll->pay_frequency !== 'semi_monthly' || ! $payroll->period_end) {
+            return;
+        }
+
+        $periodEnd = $payroll->period_end->copy();
+        $periodStartDate = $periodEnd->copy()->startOfMonth()->toDateString();
+        $periodEndDate = $periodEnd->copy()->endOfMonth()->toDateString();
+
+        $latestPayroll = Payroll::query()
+            ->where('employee_id', $payroll->employee_id)
+            ->where('pay_frequency', 'semi_monthly')
+            ->where('status', '!=', Payroll::STATUS_CANCELED)
+            ->whereDate('period_end', '>=', $periodStartDate)
+            ->whereDate('period_end', '<=', $periodEndDate)
+            ->orderByDesc('period_end')
+            ->orderByDesc('id')
+            ->first(['id', 'status', 'period_end']);
+
+        $allowFirstHalfFallback = $payroll->status === Payroll::STATUS_CANCELED;
+
+        Payroll::query()
+            ->where('employee_id', $payroll->employee_id)
+            ->where('pay_frequency', 'semi_monthly')
+            ->where('status', Payroll::STATUS_DRAFT)
+            ->whereDate('period_end', '>=', $periodStartDate)
+            ->whereDate('period_end', '<=', $periodEndDate)
+            ->with('employee.employeeProfile')
+            ->orderBy('period_end')
+            ->orderBy('id')
+            ->get()
+            ->each(function (Payroll $monthlyPayroll) use ($allowFirstHalfFallback, $latestPayroll): void {
+                $forceGovernmentContributions = $allowFirstHalfFallback
+                    && $latestPayroll?->status === Payroll::STATUS_DRAFT
+                    && $monthlyPayroll->is($latestPayroll);
+
+                $this->syncCalculatedAmounts($monthlyPayroll, [
+                    'force_government_contributions' => $forceGovernmentContributions,
+                ]);
+            });
+    }
+
     public function releasePtCommissions(Payroll $payroll): void
     {
         MemberPtPackage::query()
@@ -674,6 +774,242 @@ class PayrollService
             'sold_price' => round((float) $subscription->sold_price, 2),
             'commission_rate' => round((float) $subscription->manager_commission_rate, 2),
             'commission_amount' => round((float) $subscription->manager_commission_amount, 2),
+        ];
+    }
+
+    /**
+     * @param  array{
+     *     employee_id?: int,
+     *     employee_profile?: array{
+     *         sss_covered?: bool,
+     *         sss_monthly_compensation?: float|int|string|null,
+     *         philhealth_covered?: bool,
+     *         philhealth_monthly_basic_salary?: float|int|string|null,
+     *         pagibig_covered?: bool,
+     *         pagibig_monthly_compensation?: float|int|string|null
+     *     }|null,
+     *     payroll_id?: int,
+     *     exclude_payroll_id?: int,
+     *     force_government_contributions?: bool,
+     *     period_start?: string|null,
+     *     period_end?: string|null
+     * }  $context
+     * @return array{
+     *     apply: bool,
+     *     sss_covered: bool,
+     *     sss_monthly_compensation: float,
+     *     philhealth_covered: bool,
+     *     philhealth_monthly_basic_salary: float,
+     *     pagibig_covered: bool,
+     *     pagibig_monthly_compensation: float
+     * }
+     */
+    private function governmentContributionInputs(?string $countryCode, ?string $payFrequency, array $context = []): array
+    {
+        $employeeProfile = $context['employee_profile'] ?? $this->employeeContributionProfile(
+            EmployeeProfile::query()
+                ->where('user_id', $context['employee_id'] ?? 0)
+                ->first()
+        );
+
+        return [
+            'apply' => $this->shouldApplyGovernmentContributions($countryCode, $payFrequency, $context),
+            'sss_covered' => (bool) ($employeeProfile['sss_covered'] ?? false),
+            'sss_monthly_compensation' => round((float) ($employeeProfile['sss_monthly_compensation'] ?? 0), 2),
+            'philhealth_covered' => (bool) ($employeeProfile['philhealth_covered'] ?? false),
+            'philhealth_monthly_basic_salary' => round((float) ($employeeProfile['philhealth_monthly_basic_salary'] ?? 0), 2),
+            'pagibig_covered' => (bool) ($employeeProfile['pagibig_covered'] ?? false),
+            'pagibig_monthly_compensation' => round((float) ($employeeProfile['pagibig_monthly_compensation'] ?? 0), 2),
+        ];
+    }
+
+    /**
+     * @param  array{
+     *     business_profile?: array{payroll_income_tax_enabled?: bool, payroll_government_contributions_enabled?: bool}|BusinessProfile|null
+     * }  $context
+     * @return array{payroll_income_tax_enabled: bool, payroll_government_contributions_enabled: bool}
+     */
+    private function payrollCalculationSettings(array $context = []): array
+    {
+        $businessProfile = $context['business_profile'] ?? null;
+
+        if ($businessProfile instanceof BusinessProfile) {
+            return $this->businessProfilePayrollSettings($businessProfile);
+        }
+
+        if (! is_array($businessProfile)) {
+            return $this->businessProfilePayrollSettings(BusinessProfile::current());
+        }
+
+        return [
+            'payroll_income_tax_enabled' => (bool) ($businessProfile['payroll_income_tax_enabled'] ?? false),
+            'payroll_government_contributions_enabled' => (bool) ($businessProfile['payroll_government_contributions_enabled'] ?? false),
+        ];
+    }
+
+    /**
+     * @return array{payroll_income_tax_enabled: bool, payroll_government_contributions_enabled: bool}
+     */
+    private function businessProfilePayrollSettings(?BusinessProfile $businessProfile): array
+    {
+        $profile = $businessProfile ?? BusinessProfile::current();
+
+        return [
+            'payroll_income_tax_enabled' => (bool) $profile->payroll_income_tax_enabled,
+            'payroll_government_contributions_enabled' => (bool) $profile->payroll_government_contributions_enabled,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     employee_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
+     *     employer_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
+     *     employee_contributions_total: float,
+     *     employer_contributions_total: float
+     * }
+     */
+    private function emptyGovernmentContributions(): array
+    {
+        return [
+            'employee_contributions' => [],
+            'employer_contributions' => [],
+            'employee_contributions_total' => 0.0,
+            'employer_contributions_total' => 0.0,
+        ];
+    }
+
+    /**
+     * @param  array{employee_id?: int, payroll_id?: int, exclude_payroll_id?: int, force_government_contributions?: bool, period_start?: string|null, period_end?: string|null}  $context
+     */
+    private function shouldApplyGovernmentContributions(?string $countryCode, ?string $payFrequency, array $context = []): bool
+    {
+        if (strtoupper((string) $countryCode) !== BusinessProfile::COUNTRY_PHILIPPINES) {
+            return true;
+        }
+
+        if ($payFrequency !== 'semi_monthly') {
+            return true;
+        }
+
+        if (empty($context['employee_id']) || empty($context['period_end'])) {
+            return false;
+        }
+
+        $periodEnd = Carbon::parse((string) $context['period_end']);
+
+        if ((bool) ($context['force_government_contributions'] ?? false)) {
+            return true;
+        }
+
+        $employeeId = (int) $context['employee_id'];
+        $excludePayrollId = $context['payroll_id'] ?? $context['exclude_payroll_id'] ?? null;
+
+        if ($periodEnd->day < 16) {
+            return $this->shouldApplyFirstHalfGovernmentContributionFallback(
+                $employeeId,
+                $periodEnd,
+                $excludePayrollId
+            );
+        }
+
+        if ($this->hasFinalizedGovernmentContributionPayrollInMonth($employeeId, $periodEnd, $excludePayrollId)) {
+            return false;
+        }
+
+        return ! $this->hasLaterSemiMonthlyPayrollInMonth(
+            $employeeId,
+            $periodEnd,
+            $excludePayrollId
+        );
+    }
+
+    private function shouldApplyFirstHalfGovernmentContributionFallback(
+        int $employeeId,
+        Carbon $periodEnd,
+        ?int $excludePayrollId = null
+    ): bool {
+        if ($this->hasLaterSemiMonthlyPayrollInMonth($employeeId, $periodEnd, $excludePayrollId)) {
+            return false;
+        }
+
+        return Payroll::query()
+            ->where('employee_id', $employeeId)
+            ->where('pay_frequency', 'semi_monthly')
+            ->where('status', Payroll::STATUS_CANCELED)
+            ->whereDate('period_end', '>', $periodEnd->toDateString())
+            ->whereDate('period_end', '<=', $periodEnd->copy()->endOfMonth()->toDateString())
+            ->exists();
+    }
+
+    private function hasFinalizedGovernmentContributionPayrollInMonth(
+        int $employeeId,
+        Carbon $periodEnd,
+        ?int $excludePayrollId = null
+    ): bool {
+        return Payroll::query()
+            ->where('employee_id', $employeeId)
+            ->where('pay_frequency', 'semi_monthly')
+            ->whereNotIn('status', [Payroll::STATUS_DRAFT, Payroll::STATUS_CANCELED])
+            ->when($excludePayrollId, fn ($query) => $query->whereKeyNot($excludePayrollId))
+            ->whereDate('period_end', '>=', $periodEnd->copy()->startOfMonth()->toDateString())
+            ->whereDate('period_end', '<=', $periodEnd->copy()->endOfMonth()->toDateString())
+            ->get(['id', 'employee_contributions'])
+            ->contains(fn (Payroll $payroll): bool => $payroll->employeeContributionsTotal() > 0);
+    }
+
+    private function hasLaterSemiMonthlyPayrollInMonth(
+        int $employeeId,
+        Carbon $periodEnd,
+        ?int $excludePayrollId = null
+    ): bool {
+        return Payroll::query()
+            ->where('employee_id', $employeeId)
+            ->where('pay_frequency', 'semi_monthly')
+            ->where('status', '!=', Payroll::STATUS_CANCELED)
+            ->when($excludePayrollId, fn ($query) => $query->whereKeyNot($excludePayrollId))
+            ->whereDate('period_end', '>=', $periodEnd->copy()->startOfMonth()->toDateString())
+            ->whereDate('period_end', '<=', $periodEnd->copy()->endOfMonth()->toDateString())
+            ->where(function ($query) use ($periodEnd, $excludePayrollId): void {
+                $query->whereDate('period_end', '>', $periodEnd->toDateString())
+                    ->orWhere(function ($sameDateQuery) use ($periodEnd, $excludePayrollId): void {
+                        $sameDateQuery->whereDate('period_end', '=', $periodEnd->toDateString());
+
+                        if ($excludePayrollId) {
+                            $sameDateQuery->where(function ($tieQuery) use ($excludePayrollId): void {
+                                $tieQuery->where('status', '!=', Payroll::STATUS_DRAFT);
+                                $tieQuery->orWhere('id', '>', $excludePayrollId);
+                            });
+                        } else {
+                            $sameDateQuery->where('status', '!=', Payroll::STATUS_DRAFT);
+                        }
+                    });
+            })
+            ->exists();
+    }
+
+    /**
+     * @return array{
+     *     sss_covered: bool,
+     *     sss_monthly_compensation: float,
+     *     philhealth_covered: bool,
+     *     philhealth_monthly_basic_salary: float,
+     *     pagibig_covered: bool,
+     *     pagibig_monthly_compensation: float
+     * }|null
+     */
+    private function employeeContributionProfile(?EmployeeProfile $employeeProfile): ?array
+    {
+        if (! $employeeProfile) {
+            return null;
+        }
+
+        return [
+            'sss_covered' => (bool) $employeeProfile->sss_covered,
+            'sss_monthly_compensation' => round((float) ($employeeProfile->sss_monthly_compensation ?? 0), 2),
+            'philhealth_covered' => (bool) $employeeProfile->philhealth_covered,
+            'philhealth_monthly_basic_salary' => round((float) ($employeeProfile->philhealth_monthly_basic_salary ?? 0), 2),
+            'pagibig_covered' => (bool) $employeeProfile->pagibig_covered,
+            'pagibig_monthly_compensation' => round((float) ($employeeProfile->pagibig_monthly_compensation ?? 0), 2),
         ];
     }
 

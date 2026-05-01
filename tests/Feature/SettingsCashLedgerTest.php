@@ -120,7 +120,7 @@ class SettingsCashLedgerTest extends TestCase
             ->assertRedirect('/panel/business/settings');
     }
 
-    public function test_manager_can_enable_overwork_pay_in_business_settings(): void
+    public function test_manager_can_update_payroll_toggles_in_business_settings(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Theo');
         $profile = BusinessProfile::current();
@@ -131,6 +131,8 @@ class SettingsCashLedgerTest extends TestCase
                 'status' => $profile->status,
                 'country_code' => $profile->country_code,
                 'pay_overwork_hours' => true,
+                'payroll_income_tax_enabled' => true,
+                'payroll_government_contributions_enabled' => true,
                 'city' => $profile->city,
                 'province' => $profile->province,
                 'address' => $profile->address,
@@ -153,11 +155,15 @@ class SettingsCashLedgerTest extends TestCase
                 'membership_note' => $profile->membership_note,
             ])
             ->assertOk()
-            ->assertJsonPath('pay_overwork_hours', true);
+            ->assertJsonPath('pay_overwork_hours', true)
+            ->assertJsonPath('payroll_income_tax_enabled', true)
+            ->assertJsonPath('payroll_government_contributions_enabled', true);
 
         $this->assertDatabaseHas('business_profiles', [
             'id' => $profile->id,
             'pay_overwork_hours' => 1,
+            'payroll_income_tax_enabled' => 1,
+            'payroll_government_contributions_enabled' => 1,
         ]);
     }
 

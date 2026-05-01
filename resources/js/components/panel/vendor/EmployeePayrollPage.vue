@@ -80,6 +80,12 @@
                            Manual gross adj.:
                            {{ p.manual_gross_adjustment_amount > 0 ? "+" : "-" }}₱{{ $filters.formatMoney(Math.abs(Number(p.manual_gross_adjustment_amount || 0))) }}
                         </div>
+                        <div class="text-muted" style="font-size: 0.75rem" v-if="p.employee_contributions_total > 0">
+                           Employee contrib.: {{ formatContributionSummary(p.employee_contributions) }}
+                        </div>
+                        <div class="text-muted" style="font-size: 0.75rem" v-if="p.employer_contributions_total > 0">
+                           Employer share: {{ formatContributionSummary(p.employer_contributions) }}
+                        </div>
                      </td>
                      <td class="text-end small">₱{{ $filters.formatMoney(p.gross_amount) }}</td>
                      <td class="text-end small text-success">{{ p.bonus > 0 ? "+₱" + $filters.formatMoney(p.bonus) : "-" }}</td>
@@ -164,6 +170,8 @@
                   </span>
                   <span class="small text-success" v-if="p.pt_commission_amount > 0"> · PT: +₱{{ $filters.formatMoney(p.pt_commission_amount) }}</span>
                   <span class="small text-success" v-if="p.membership_commission_amount > 0"> · Membership: +₱{{ $filters.formatMoney(p.membership_commission_amount) }}</span>
+                  <span class="small text-danger" v-if="p.employee_contributions_total > 0"> · Gov't ded.: ₱{{ $filters.formatMoney(p.employee_contributions_total) }}</span>
+                  <span class="small text-muted" v-if="p.employer_contributions_total > 0"> · Employer share: ₱{{ $filters.formatMoney(p.employer_contributions_total) }}</span>
                   <span class="small text-danger" v-if="p.remaining_balance > 0"> · Balance: ₱{{ $filters.formatMoney(p.remaining_balance) }}</span>
                   <span class="small text-success" v-else> · Fully Paid</span>
                </div>
@@ -203,6 +211,14 @@
                         <span v-if="suggestion.membership_commission_amount > 0"> &nbsp;· Membership commissions: ₱{{ $filters.formatMoney(suggestion.membership_commission_amount) }}</span>
                         <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_non_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-gift me-1"></i>PH exempt bonus applied this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }} </span>
                         <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-calculator me-1"></i>Taxable bonus excess this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }} </span>
+                        <span v-if="!payrollIncomeTaxEnabled" class="d-block text-muted mt-1"><i class="bi bi-slash-circle me-1"></i>Payroll wage tax is disabled in Business Settings.</span>
+                        <span v-if="suggestion.employee_contributions_total > 0" class="d-block text-muted mt-1">
+                           <i class="bi bi-shield-check me-1"></i>Employee government contributions: ₱{{ $filters.formatMoney(suggestion.employee_contributions_total) }} · {{ formatContributionSummary(suggestion.employee_contributions) }}
+                        </span>
+                        <span v-if="suggestion.employer_contributions_total > 0" class="d-block text-muted mt-1">
+                           <i class="bi bi-building me-1"></i>Employer contribution share: ₱{{ $filters.formatMoney(suggestion.employer_contributions_total) }} · {{ formatContributionSummary(suggestion.employer_contributions) }}
+                        </span>
+                        <span v-if="!payrollGovernmentContributionsEnabled" class="d-block text-muted mt-1"><i class="bi bi-slash-circle me-1"></i>Government contributions are disabled in Business Settings.</span>
                         <span v-if="suggestion.days_worked === 0" class="d-block text-muted mt-1"><i class="bi bi-info-circle me-1"></i>No attendance records found for this period.</span>
                         <span v-if="suggestion.open_attendance_count > 0" class="d-block text-muted mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ suggestion.open_attendance_count }} open attendance record{{ suggestion.open_attendance_count !== 1 ? "s are" : " is" }} excluded until checkout.</span>
                         <span v-if="suggestion.pt_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-stopwatch me-1"></i>{{ suggestion.pt_commission_items.length }} completed PT package{{ suggestion.pt_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
@@ -276,7 +292,8 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Income Tax (₱)</label>
                         <input type="number" class="form-control" :value="form.income_tax" readonly />
-                        <div class="form-text" v-if="suggestion && suggestion.taxable_earnings > 0">
+                        <div class="form-text" v-if="!payrollIncomeTaxEnabled">Payroll wage tax is disabled in Business Settings.</div>
+                        <div class="form-text" v-else-if="suggestion && suggestion.taxable_earnings > 0">
                            Calculated from ₱{{ $filters.formatMoney(suggestion.taxable_earnings) }} taxable earnings.
                            <span v-if="suggestion.bonus_taxable_amount > 0">Taxable bonus portion: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}.</span>
                         </div>
@@ -296,13 +313,65 @@
                         </div>
                      </div>
                      <div class="col-12">
+                        <label class="form-label form-label-sm">Employee Government Contributions</label>
+                        <div class="border rounded-3 p-3 bg-light">
+                           <template v-if="contributionPrograms(form.employee_contributions).length">
+                              <div v-for="program in contributionPrograms(form.employee_contributions)" :key="'employee-program-' + program.key" class="mb-3">
+                                 <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-semibold">{{ program.label }}</span>
+                                    <span class="fw-semibold text-danger">₱{{ $filters.formatMoney(program.total) }}</span>
+                                 </div>
+                                 <div v-for="line in program.lines" :key="'employee-line-' + program.key + '-' + line.key" class="d-flex justify-content-between small text-muted mt-1">
+                                    <span>{{ line.label }}</span>
+                                    <span>₱{{ $filters.formatMoney(line.amount) }}</span>
+                                 </div>
+                              </div>
+                              <div class="d-flex justify-content-between align-items-center border-top pt-2 fw-semibold">
+                                 <span>Total employee contributions</span>
+                                 <span class="text-danger">₱{{ $filters.formatMoney(form.employee_contributions_total) }}</span>
+                              </div>
+                           </template>
+                           <div v-else class="small text-muted">
+                              {{ payrollGovernmentContributionsEnabled ? "No employee government contributions apply to this payroll snapshot." : "Government contributions are disabled in Business Settings." }}
+                           </div>
+                        </div>
+                     </div>
+                     <div class="col-12">
+                        <label class="form-label form-label-sm">Employer Government Contributions</label>
+                        <div class="border rounded-3 p-3 bg-light">
+                           <template v-if="contributionPrograms(form.employer_contributions).length">
+                              <div v-for="program in contributionPrograms(form.employer_contributions)" :key="'employer-program-' + program.key" class="mb-3">
+                                 <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-semibold">{{ program.label }}</span>
+                                    <span class="fw-semibold">₱{{ $filters.formatMoney(program.total) }}</span>
+                                 </div>
+                                 <div v-for="line in program.lines" :key="'employer-line-' + program.key + '-' + line.key" class="d-flex justify-content-between small text-muted mt-1">
+                                    <span>{{ line.label }}</span>
+                                    <span>₱{{ $filters.formatMoney(line.amount) }}</span>
+                                 </div>
+                              </div>
+                              <div class="d-flex justify-content-between align-items-center border-top pt-2 fw-semibold">
+                                 <span>Total employer contributions</span>
+                                 <span>₱{{ $filters.formatMoney(form.employer_contributions_total) }}</span>
+                              </div>
+                           </template>
+                           <div v-else class="small text-muted">
+                              {{ payrollGovernmentContributionsEnabled ? "No employer contribution snapshot is stored for this payroll." : "Government contributions are disabled in Business Settings." }}
+                           </div>
+                           <div class="form-text mt-2">Shown for reference only. Employer shares do not reduce employee net pay.</div>
+                        </div>
+                     </div>
+                     <div class="col-12">
                         <label class="form-label form-label-sm">Notes</label>
                         <textarea class="form-control" rows="2" v-model="form.notes" placeholder="Optional"></textarea>
                      </div>
                      <!-- Net preview -->
                      <div class="col-12">
-                        <div class="p-3 rounded bg-light border d-flex justify-content-between align-items-center">
-                           <span class="text-muted">Net Amount Preview:</span>
+                        <div class="p-3 rounded bg-light border d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                           <div>
+                              <div class="text-muted">Net Amount Preview</div>
+                              <div class="small text-muted" v-if="suggestion">Employee deductions before CA: ₱{{ $filters.formatMoney(suggestion.employee_deductions_total || 0) }}</div>
+                           </div>
                            <span class="fw-bold fs-5">₱{{ $filters.formatMoney(netPreview) }}</span>
                         </div>
                      </div>
@@ -476,6 +545,12 @@ export default {
       payOverworkHours: function () {
          return Boolean(globalThis.JPrime?.profile?.pay_overwork_hours);
       },
+      payrollIncomeTaxEnabled: function () {
+         return Boolean(globalThis.JPrime?.profile?.payroll_income_tax_enabled);
+      },
+      payrollGovernmentContributionsEnabled: function () {
+         return Boolean(globalThis.JPrime?.profile?.payroll_government_contributions_enabled);
+      },
       netPreview: function () {
          return Number(this.suggestion?.net_amount_preview || 0);
       },
@@ -501,6 +576,40 @@ export default {
       hasManualGrossAdjustment: function (value) {
          return Math.abs(Number(value || 0)) >= 0.01;
       },
+      contributionPrograms: function (contributions) {
+         return Object.entries(contributions || {})
+            .map(([programKey, program]) => ({
+               key: programKey,
+               label: program?.label || this.humanizeContributionKey(programKey),
+               total: Number(program?.total || 0),
+               lines: Object.entries(program?.lines || {})
+                  .map(([lineKey, line]) => ({
+                     key: lineKey,
+                     label: line?.label || this.humanizeContributionKey(lineKey),
+                     amount: Number(line?.amount || 0),
+                  }))
+                  .filter((line) => line.amount > 0),
+            }))
+            .filter((program) => program.total > 0 || program.lines.length > 0);
+      },
+      formatContributionSummary: function (contributions) {
+         return this.contributionPrograms(contributions)
+            .map((program) => `${program.label} ₱${this.$filters.formatMoney(program.total)}`)
+            .join(" · ");
+      },
+      humanizeContributionKey: function (value) {
+         return String(value || "")
+            .split("_")
+            .filter(Boolean)
+            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+            .join(" ");
+      },
+      applyContributionState: function (payload) {
+         this.form.employee_contributions = payload.employee_contributions || {};
+         this.form.employee_contributions_total = Number(payload.employee_contributions_total || 0);
+         this.form.employer_contributions = payload.employer_contributions || {};
+         this.form.employer_contributions_total = Number(payload.employer_contributions_total || 0);
+      },
       queueSuggestionFetch: function () {
          if (!this.form.period_start || !this.form.period_end) {
             this.suggestion = null;
@@ -509,6 +618,7 @@ export default {
             this.form.regular_pay_amount = 0;
             this.form.overwork_hours = 0;
             this.form.overwork_pay_amount = 0;
+            this.applyContributionState({});
             return;
          }
 
@@ -563,6 +673,10 @@ export default {
             membership_commission_items: p.membership_commission_items || [],
             manual_deductions: p.manual_deductions,
             cash_advance_deduction: p.cash_advance_deduction,
+            employee_contributions: p.employee_contributions || {},
+            employee_contributions_total: Number(p.employee_contributions_total || 0),
+            employer_contributions: p.employer_contributions || {},
+            employer_contributions_total: Number(p.employer_contributions_total || 0),
             notes: p.notes || "",
          };
          this.suggestion = null;
@@ -598,6 +712,7 @@ export default {
                this.form.pt_commission_items = res.data.pt_commission_items || [];
                this.form.membership_commission_amount = res.data.membership_commission_amount || 0;
                this.form.membership_commission_items = res.data.membership_commission_items || [];
+               this.applyContributionState(res.data);
 
                if (this.shouldAutofillSuggestedAmounts) {
                   if (this.form.gross_amount === "" && res.data.gross_amount > 0) this.form.gross_amount = res.data.gross_amount;
@@ -733,6 +848,10 @@ export default {
             membership_commission_items: [],
             manual_deductions: 0,
             cash_advance_deduction: 0,
+            employee_contributions: {},
+            employee_contributions_total: 0,
+            employer_contributions: {},
+            employer_contributions_total: 0,
             notes: "",
          };
       },

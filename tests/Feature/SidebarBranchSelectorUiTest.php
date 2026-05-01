@@ -165,6 +165,20 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString('<i class="bi bi-pencil me-2"></i>Edit', $contents);
     }
 
+    public function test_panel_styles_make_readonly_and_disabled_text_inputs_visually_distinct(): void
+    {
+        $styles = file_get_contents(resource_path('sass/panel.scss'));
+
+        $this->assertNotFalse($styles);
+        $this->assertStringContainsString('.form-control:disabled,', $styles);
+        $this->assertStringContainsString('.form-control[readonly]', $styles);
+        $this->assertStringContainsString('background-color: #eef2f7;', $styles);
+        $this->assertStringContainsString('-webkit-text-fill-color: #475569;', $styles);
+        $this->assertStringContainsString('.form-control[readonly]:focus', $styles);
+        $this->assertStringContainsString('box-shadow: none;', $styles);
+        $this->assertStringContainsString('background-color: #1f2937;', $styles);
+    }
+
     public function test_business_settings_form_groups_related_fields_into_sections(): void
     {
         $contents = file_get_contents(resource_path('js/components/panel/vendor/BusinessSettingsForm.vue'));
@@ -177,7 +191,11 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString('Amenities & media', $contents);
         $this->assertStringContainsString('Website copy', $contents);
         $this->assertStringContainsString('Manage Photos', $contents);
+        $this->assertStringContainsString('Payroll wage tax', $contents);
+        $this->assertStringContainsString('Government contributions', $contents);
         $this->assertStringContainsString('business-settings-shortcut', $contents);
+        $this->assertStringContainsString('payroll_income_tax_enabled', $contents);
+        $this->assertStringContainsString('payroll_government_contributions_enabled', $contents);
         $this->assertStringNotContainsString('Current Gallery Size', $contents);
 
         $this->assertNotFalse($styles);

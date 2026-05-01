@@ -59,6 +59,8 @@ class SettingsController extends Controller
             'status' => ['required', 'in:open,closed,coming_soon'],
             'country_code' => ['required', 'string', 'size:2'],
             'pay_overwork_hours' => ['sometimes', 'boolean'],
+            'payroll_income_tax_enabled' => ['sometimes', 'boolean'],
+            'payroll_government_contributions_enabled' => ['sometimes', 'boolean'],
             'city' => ['required', 'string', 'max:255'],
             'province' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
@@ -268,6 +270,8 @@ class SettingsController extends Controller
             'id' => $profile->id,
             'name' => $profile->name,
             'pay_overwork_hours' => (bool) $profile->pay_overwork_hours,
+            'payroll_income_tax_enabled' => (bool) $profile->payroll_income_tax_enabled,
+            'payroll_government_contributions_enabled' => (bool) $profile->payroll_government_contributions_enabled,
             'status' => $profile->status,
         ];
     }

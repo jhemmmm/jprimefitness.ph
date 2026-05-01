@@ -23,6 +23,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Spatie\LaravelPdf\Facades\Pdf;
 
 class EmployeeController extends Controller
@@ -75,6 +76,9 @@ class EmployeeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $businessProfile = BusinessProfile::current();
+        $isPhilippinesBusiness = $this->isPhilippinesPayrollBusiness($businessProfile);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
@@ -85,8 +89,18 @@ class EmployeeController extends Controller
             'employee_profile' => ['required', 'array'],
             'employee_profile.daily_rate' => ['required', 'numeric', 'min:0'],
             'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
+            'employee_profile.sss_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
+            'employee_profile.sss_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
+            'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
+            'employee_profile.philhealth_monthly_basic_salary' => ['nullable', 'numeric', 'min:0'],
+            'employee_profile.pagibig_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
+            'employee_profile.pagibig_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
             'password' => ['required', 'string', 'min:8'],
         ]);
+        $data['employee_profile'] = $this->normalizeEmployeeProfileAttributes(
+            $data['employee_profile'] ?? [],
+            $isPhilippinesBusiness
+        );
 
         $employee = User::create([
             'name' => $data['name'],
@@ -117,6 +131,9 @@ class EmployeeController extends Controller
 
     public function update(Request $request, User $employee): JsonResponse
     {
+        $businessProfile = BusinessProfile::current();
+        $isPhilippinesBusiness = $this->isPhilippinesPayrollBusiness($businessProfile);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($employee->id)->withoutTrashed()],
@@ -127,8 +144,18 @@ class EmployeeController extends Controller
             'employee_profile' => ['required', 'array'],
             'employee_profile.daily_rate' => ['required', 'numeric', 'min:0'],
             'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
+            'employee_profile.sss_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
+            'employee_profile.sss_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
+            'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
+            'employee_profile.philhealth_monthly_basic_salary' => ['nullable', 'numeric', 'min:0'],
+            'employee_profile.pagibig_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
+            'employee_profile.pagibig_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
             'password' => ['nullable', 'string', 'min:8'],
         ]);
+        $data['employee_profile'] = $this->normalizeEmployeeProfileAttributes(
+            $data['employee_profile'] ?? [],
+            $isPhilippinesBusiness
+        );
 
         $employee->update([
             'name' => $data['name'],
@@ -250,6 +277,8 @@ class EmployeeController extends Controller
 
     public function storePayroll(Request $request, User $employee): JsonResponse
     {
+        $employee->loadMissing('employeeProfile');
+
         $data = $request->validate([
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
@@ -275,6 +304,9 @@ class EmployeeController extends Controller
         $payFrequency = $this->employeePayFrequency($employee);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
+            'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
+            'business_profile' => $this->serializeBusinessProfilePayrollSettings($businessProfile),
+            'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
         ];
 
@@ -332,6 +364,8 @@ class EmployeeController extends Controller
             'gross_amount' => $gross,
             'bonus' => $bonus,
             'income_tax' => $payrollTotals['income_tax'],
+            'employee_contributions' => $payrollTotals['employee_contributions'],
+            'employer_contributions' => $payrollTotals['employer_contributions'],
             'pt_commission_amount' => $ptCommissionSummary['amount'],
             'pt_commission_items' => $ptCommissionSummary['items'],
             'membership_commission_amount' => $membershipCommissionSummary['amount'],
@@ -346,6 +380,7 @@ class EmployeeController extends Controller
 
         $this->payrollService->syncPtCommissions($payroll);
         $this->payrollService->syncMembershipCommissions($payroll);
+        $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
         $this->auditHistoryService->recordSubjectEvent(
@@ -365,6 +400,7 @@ class EmployeeController extends Controller
     public function updatePayroll(Request $request, User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
+        $employee->loadMissing('employeeProfile');
 
         if ($payroll->status !== Payroll::STATUS_DRAFT) {
             return response()->json(['message' => 'Only draft payrolls can be edited.'], 422);
@@ -395,7 +431,11 @@ class EmployeeController extends Controller
         $payFrequency = $this->employeePayFrequency($employee);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
+            'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
+            'business_profile' => $this->serializeBusinessProfilePayrollSettings($businessProfile),
+            'payroll_id' => $payroll->id,
             'exclude_payroll_id' => $payroll->id,
+            'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
         ];
 
@@ -454,6 +494,8 @@ class EmployeeController extends Controller
             'gross_amount' => $gross,
             'bonus' => $bonus,
             'income_tax' => $payrollTotals['income_tax'],
+            'employee_contributions' => $payrollTotals['employee_contributions'],
+            'employer_contributions' => $payrollTotals['employer_contributions'],
             'pt_commission_amount' => $ptCommissionSummary['amount'],
             'pt_commission_items' => $ptCommissionSummary['items'],
             'membership_commission_amount' => $membershipCommissionSummary['amount'],
@@ -466,6 +508,7 @@ class EmployeeController extends Controller
 
         $this->payrollService->syncPtCommissions($payroll);
         $this->payrollService->syncMembershipCommissions($payroll);
+        $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
         $this->auditHistoryService->recordSubjectEvent(
@@ -530,6 +573,7 @@ class EmployeeController extends Controller
         $this->payrollService->releaseMembershipCommissions($payroll);
         $payroll->status = Payroll::STATUS_CANCELED;
         $payroll->save();
+        $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
         $this->auditHistoryService->recordSubjectEvent(
@@ -555,6 +599,8 @@ class EmployeeController extends Controller
 
     public function payrollSuggest(Request $request, User $employee): JsonResponse
     {
+        $employee->loadMissing('employeeProfile');
+
         $data = $request->validate([
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
@@ -602,10 +648,14 @@ class EmployeeController extends Controller
         $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
+            'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
+            'business_profile' => $this->serializeBusinessProfilePayrollSettings($businessProfile),
+            'period_start' => $data['period_start'],
             'period_end' => $data['period_end'],
         ];
 
         if ($payroll) {
+            $payrollTaxContext['payroll_id'] = $payroll->id;
             $payrollTaxContext['exclude_payroll_id'] = $payroll->id;
         }
 
@@ -641,6 +691,10 @@ class EmployeeController extends Controller
                 'membership_commission_items' => $membershipCommissionSummary['items'],
                 'bonus_non_taxable_amount' => $payrollTotals['bonus_non_taxable_amount'],
                 'bonus_taxable_amount' => $payrollTotals['bonus_taxable_amount'],
+                'employee_contributions' => $payrollTotals['employee_contributions'],
+                'employee_contributions_total' => $payrollTotals['employee_contributions_total'],
+                'employer_contributions' => $payrollTotals['employer_contributions'],
+                'employer_contributions_total' => $payrollTotals['employer_contributions_total'],
                 'income_tax' => $payrollTotals['income_tax'],
                 'taxable_earnings' => $payrollTotals['taxable_earnings'],
                 'employee_deductions_total' => $payrollTotals['employee_deductions_total'],
@@ -975,7 +1029,16 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @param  array{daily_rate?: float|int|string|null, pay_frequency?: string|null}  $attributes
+     * @param  array{
+     *     daily_rate?: float|int|string|null,
+     *     pay_frequency?: string|null,
+     *     sss_covered?: bool,
+     *     sss_monthly_compensation?: float|int|string|null,
+     *     philhealth_covered?: bool,
+     *     philhealth_monthly_basic_salary?: float|int|string|null,
+     *     pagibig_covered?: bool,
+     *     pagibig_monthly_compensation?: float|int|string|null
+     * }  $attributes
      */
     private function ensureEmployeeProfile(User $employee, array $attributes = []): EmployeeProfile
     {
@@ -997,9 +1060,30 @@ class EmployeeController extends Controller
             $profile->fill([
                 'daily_rate' => $attributes['daily_rate'] ?? $profile->daily_rate,
                 'pay_frequency' => $attributes['pay_frequency'] ?? $profile->pay_frequency,
+                'sss_covered' => $attributes['sss_covered'] ?? $profile->sss_covered,
+                'sss_monthly_compensation' => array_key_exists('sss_monthly_compensation', $attributes)
+                    ? $attributes['sss_monthly_compensation']
+                    : $profile->sss_monthly_compensation,
+                'philhealth_covered' => $attributes['philhealth_covered'] ?? $profile->philhealth_covered,
+                'philhealth_monthly_basic_salary' => array_key_exists('philhealth_monthly_basic_salary', $attributes)
+                    ? $attributes['philhealth_monthly_basic_salary']
+                    : $profile->philhealth_monthly_basic_salary,
+                'pagibig_covered' => $attributes['pagibig_covered'] ?? $profile->pagibig_covered,
+                'pagibig_monthly_compensation' => array_key_exists('pagibig_monthly_compensation', $attributes)
+                    ? $attributes['pagibig_monthly_compensation']
+                    : $profile->pagibig_monthly_compensation,
             ]);
 
-            if ($profile->isDirty(['daily_rate', 'pay_frequency'])) {
+            if ($profile->isDirty([
+                'daily_rate',
+                'pay_frequency',
+                'sss_covered',
+                'sss_monthly_compensation',
+                'philhealth_covered',
+                'philhealth_monthly_basic_salary',
+                'pagibig_covered',
+                'pagibig_monthly_compensation',
+            ])) {
                 $profile->save();
             }
         }
@@ -1020,12 +1104,103 @@ class EmployeeController extends Controller
             'id' => $employeeProfile->id,
             'daily_rate' => round((float) ($employeeProfile->daily_rate ?? 0), 2),
             'pay_frequency' => $employeeProfile->pay_frequency,
+            'sss_covered' => (bool) $employeeProfile->sss_covered,
+            'sss_monthly_compensation' => $employeeProfile->sss_monthly_compensation !== null
+                ? round((float) $employeeProfile->sss_monthly_compensation, 2)
+                : null,
+            'philhealth_covered' => (bool) $employeeProfile->philhealth_covered,
+            'philhealth_monthly_basic_salary' => $employeeProfile->philhealth_monthly_basic_salary !== null
+                ? round((float) $employeeProfile->philhealth_monthly_basic_salary, 2)
+                : null,
+            'pagibig_covered' => (bool) $employeeProfile->pagibig_covered,
+            'pagibig_monthly_compensation' => $employeeProfile->pagibig_monthly_compensation !== null
+                ? round((float) $employeeProfile->pagibig_monthly_compensation, 2)
+                : null,
             'hikvision_employee_no' => $employeeProfile->hikvision_employee_no,
             'biometric_status' => $employeeProfile->biometric_status,
             'biometric_fingerprint_id' => $employeeProfile->biometric_fingerprint_id,
             'biometric_enrolled_at' => $employeeProfile->biometric_enrolled_at?->toISOString(),
             'biometric_last_error' => $employeeProfile->biometric_last_error,
         ];
+    }
+
+    /**
+     * @return array{payroll_income_tax_enabled: bool, payroll_government_contributions_enabled: bool}
+     */
+    private function serializeBusinessProfilePayrollSettings(BusinessProfile $businessProfile): array
+    {
+        return [
+            'payroll_income_tax_enabled' => (bool) $businessProfile->payroll_income_tax_enabled,
+            'payroll_government_contributions_enabled' => (bool) $businessProfile->payroll_government_contributions_enabled,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @return array<string, mixed>
+     */
+    private function normalizeEmployeeProfileAttributes(array $attributes, bool $isPhilippinesBusiness): array
+    {
+        $normalized = [
+            'daily_rate' => round((float) ($attributes['daily_rate'] ?? 0), 2),
+            'pay_frequency' => $attributes['pay_frequency'] ?? null,
+            'sss_covered' => $isPhilippinesBusiness ? (bool) ($attributes['sss_covered'] ?? false) : false,
+            'sss_monthly_compensation' => $isPhilippinesBusiness
+                ? $this->normalizeNullableMoney($attributes['sss_monthly_compensation'] ?? null)
+                : null,
+            'philhealth_covered' => $isPhilippinesBusiness ? (bool) ($attributes['philhealth_covered'] ?? false) : false,
+            'philhealth_monthly_basic_salary' => $isPhilippinesBusiness
+                ? $this->normalizeNullableMoney($attributes['philhealth_monthly_basic_salary'] ?? null)
+                : null,
+            'pagibig_covered' => $isPhilippinesBusiness ? (bool) ($attributes['pagibig_covered'] ?? false) : false,
+            'pagibig_monthly_compensation' => $isPhilippinesBusiness
+                ? $this->normalizeNullableMoney($attributes['pagibig_monthly_compensation'] ?? null)
+                : null,
+        ];
+
+        if (! $isPhilippinesBusiness) {
+            return $normalized;
+        }
+
+        $validationErrors = [];
+
+        if ($normalized['sss_covered'] && ! $normalized['sss_monthly_compensation']) {
+            $validationErrors['employee_profile.sss_monthly_compensation'] = [
+                'SSS monthly compensation is required when SSS coverage is enabled.',
+            ];
+        }
+
+        if ($normalized['philhealth_covered'] && ! $normalized['philhealth_monthly_basic_salary']) {
+            $validationErrors['employee_profile.philhealth_monthly_basic_salary'] = [
+                'PhilHealth monthly basic salary is required when PhilHealth coverage is enabled.',
+            ];
+        }
+
+        if ($normalized['pagibig_covered'] && ! $normalized['pagibig_monthly_compensation']) {
+            $validationErrors['employee_profile.pagibig_monthly_compensation'] = [
+                'Pag-IBIG monthly compensation is required when Pag-IBIG coverage is enabled.',
+            ];
+        }
+
+        if ($validationErrors !== []) {
+            throw ValidationException::withMessages($validationErrors);
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeNullableMoney(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return round((float) $value, 2);
+    }
+
+    private function isPhilippinesPayrollBusiness(?BusinessProfile $businessProfile = null): bool
+    {
+        return ($businessProfile ?? BusinessProfile::current())->country_code === BusinessProfile::COUNTRY_PHILIPPINES;
     }
 
     private function defaultHikvisionEmployeeNo(int $employeeId): string
@@ -1078,7 +1253,11 @@ class EmployeeController extends Controller
             'pt_commission_items' => $payroll->pt_commission_items ?? [],
             'membership_commission_amount' => (float) $payroll->membership_commission_amount,
             'membership_commission_items' => $payroll->membership_commission_items ?? [],
+            'employee_contributions' => $payroll->employee_contributions ?? [],
+            'employee_contributions_total' => $payroll->employeeContributionsTotal(),
             'employee_deductions_total' => $payroll->employeeDeductionsTotal(),
+            'employer_contributions' => $payroll->employer_contributions ?? [],
+            'employer_contributions_total' => $payroll->employerContributionsTotal(),
             'total_earnings' => $payroll->totalEarnings(),
             'income_tax' => (float) $payroll->income_tax,
             'manual_deductions' => (float) $payroll->manual_deductions,
@@ -1183,6 +1362,12 @@ class EmployeeController extends Controller
             'role_names' => $employee->roles->pluck('name')->values()->all(),
             'daily_rate' => $this->employeeDailyRate($employee),
             'pay_frequency' => $this->employeePayFrequency($employee),
+            'sss_covered' => (bool) $employee->employeeProfile?->sss_covered,
+            'sss_monthly_compensation' => round((float) ($employee->employeeProfile?->sss_monthly_compensation ?? 0), 2),
+            'philhealth_covered' => (bool) $employee->employeeProfile?->philhealth_covered,
+            'philhealth_monthly_basic_salary' => round((float) ($employee->employeeProfile?->philhealth_monthly_basic_salary ?? 0), 2),
+            'pagibig_covered' => (bool) $employee->employeeProfile?->pagibig_covered,
+            'pagibig_monthly_compensation' => round((float) ($employee->employeeProfile?->pagibig_monthly_compensation ?? 0), 2),
             'biometric_status' => $employee->employeeProfile?->biometric_status,
             'biometric_fingerprint_id' => $employee->employeeProfile?->biometric_fingerprint_id,
             'biometric_enrolled_at' => $employee->employeeProfile?->biometric_enrolled_at?->toISOString(),
@@ -1204,6 +1389,11 @@ class EmployeeController extends Controller
             'regular_pay_amount' => round((float) $payroll->regular_pay_amount, 2),
             'overwork_hours' => round((float) $payroll->overwork_hours, 2),
             'overwork_pay_amount' => round((float) $payroll->overwork_pay_amount, 2),
+            'income_tax' => round((float) $payroll->income_tax, 2),
+            'employee_contributions' => $payroll->employee_contributions ?? [],
+            'employee_contributions_total' => $payroll->employeeContributionsTotal(),
+            'employer_contributions' => $payroll->employer_contributions ?? [],
+            'employer_contributions_total' => $payroll->employerContributionsTotal(),
             'net_amount' => round((float) $payroll->net_amount, 2),
             'status' => $payroll->status,
         ];

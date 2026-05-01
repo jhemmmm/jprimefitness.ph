@@ -53,6 +53,12 @@ class FreshInstallSchemaTest extends TestCase
             'biometric_last_error',
             'daily_rate',
             'pay_frequency',
+            'sss_covered',
+            'sss_monthly_compensation',
+            'philhealth_covered',
+            'philhealth_monthly_basic_salary',
+            'pagibig_covered',
+            'pagibig_monthly_compensation',
         ]);
 
         $this->assertTableHasColumns('employee_biometric_sessions', [
@@ -117,6 +123,8 @@ class FreshInstallSchemaTest extends TestCase
 
         $this->assertTableHasColumns('business_profiles', [
             'pay_overwork_hours',
+            'payroll_income_tax_enabled',
+            'payroll_government_contributions_enabled',
         ]);
 
         $this->assertTableHasColumns('audit_events', [

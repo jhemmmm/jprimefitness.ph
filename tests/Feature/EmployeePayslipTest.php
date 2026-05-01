@@ -55,7 +55,83 @@ class EmployeePayslipTest extends TestCase
             'overwork_pay_amount' => 2500,
             'gross_amount' => 20000,
             'bonus' => 500,
-            'income_tax' => 1604.10,
+            'income_tax' => 1323.10,
+            'employee_contributions' => [
+                'sss' => [
+                    'label' => 'SSS',
+                    'total' => 1025,
+                    'lines' => [
+                        'regular_ss' => [
+                            'label' => 'Regular SS',
+                            'amount' => 1000,
+                        ],
+                        'mpf' => [
+                            'label' => 'MPF',
+                            'amount' => 25,
+                        ],
+                    ],
+                ],
+                'philhealth' => [
+                    'label' => 'PhilHealth',
+                    'total' => 500,
+                    'lines' => [
+                        'premium' => [
+                            'label' => 'Premium',
+                            'amount' => 500,
+                        ],
+                    ],
+                ],
+                'pagibig' => [
+                    'label' => 'Pag-IBIG',
+                    'total' => 200,
+                    'lines' => [
+                        'premium' => [
+                            'label' => 'Premium',
+                            'amount' => 200,
+                        ],
+                    ],
+                ],
+            ],
+            'employer_contributions' => [
+                'sss' => [
+                    'label' => 'SSS',
+                    'total' => 2080,
+                    'lines' => [
+                        'regular_ss' => [
+                            'label' => 'Regular SS',
+                            'amount' => 2000,
+                        ],
+                        'mpf' => [
+                            'label' => 'MPF',
+                            'amount' => 50,
+                        ],
+                        'ec' => [
+                            'label' => "Employees' Compensation",
+                            'amount' => 30,
+                        ],
+                    ],
+                ],
+                'philhealth' => [
+                    'label' => 'PhilHealth',
+                    'total' => 500,
+                    'lines' => [
+                        'premium' => [
+                            'label' => 'Premium',
+                            'amount' => 500,
+                        ],
+                    ],
+                ],
+                'pagibig' => [
+                    'label' => 'Pag-IBIG',
+                    'total' => 200,
+                    'lines' => [
+                        'premium' => [
+                            'label' => 'Premium',
+                            'amount' => 200,
+                        ],
+                    ],
+                ],
+            ],
             'pt_commission_amount' => 320,
             'pt_commission_items' => [
                 [
@@ -67,7 +143,7 @@ class EmployeePayslipTest extends TestCase
             ],
             'manual_deductions' => 100,
             'cash_advance_deduction' => 200,
-            'net_amount' => 18915.90,
+            'net_amount' => 17471.90,
             'status' => Payroll::STATUS_APPROVED,
             'notes' => 'Includes holiday bonus.',
             'generated_by' => $manager->id,
@@ -105,7 +181,12 @@ class EmployeePayslipTest extends TestCase
         $this->assertStringContainsString('Overwork pay', $html);
         $this->assertStringContainsString('Manual gross adjustment', $html);
         $this->assertStringContainsString('Income tax', $html);
-        $this->assertStringContainsString('1,604.10', $html);
+        $this->assertStringContainsString('Employee government contributions', $html);
+        $this->assertStringContainsString('SSS - Regular SS', $html);
+        $this->assertStringContainsString('Employer Contributions', $html);
+        $this->assertStringContainsString('Total employer contributions', $html);
+        $this->assertStringContainsString('1,323.10', $html);
+        $this->assertStringContainsString('2,780.00', $html);
         $this->assertStringContainsString('JPrime Fitness Naga', $html);
 
         Pdf::assertRespondedWithPdf(function ($pdf) use ($employee, $payroll) {
@@ -113,9 +194,11 @@ class EmployeePayslipTest extends TestCase
             $this->assertSame("payslip-employee-{$employee->id}-payroll-{$payroll->id}.pdf", $pdf->downloadName);
             $this->assertSame('Juan Dela Cruz', $pdf->viewData['employee']->name);
             $this->assertSame('Includes holiday bonus.', $pdf->viewData['payroll']->notes);
-            $this->assertSame(1604.1, (float) $pdf->viewData['payroll']->income_tax);
-            $this->assertSame(18915.9, (float) $pdf->viewData['payroll']->net_amount);
+            $this->assertSame(1323.1, (float) $pdf->viewData['payroll']->income_tax);
+            $this->assertSame(17471.9, (float) $pdf->viewData['payroll']->net_amount);
             $this->assertSame(320.0, (float) $pdf->viewData['payroll']->pt_commission_amount);
+            $this->assertSame(1725.0, $pdf->viewData['payroll']->employeeContributionsTotal());
+            $this->assertSame(2780.0, $pdf->viewData['payroll']->employerContributionsTotal());
             $this->assertSame('Payroll Manager', $pdf->viewData['payroll']->generatedBy?->name);
 
             return true;

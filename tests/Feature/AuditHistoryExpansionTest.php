@@ -215,8 +215,16 @@ class AuditHistoryExpansionTest extends TestCase
                 'phone' => '09170000001',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$coachRoleId],
-                'daily_rate' => 800,
-                'pay_frequency' => 'semi_monthly',
+                'employee_profile' => [
+                    'daily_rate' => 800,
+                    'pay_frequency' => 'semi_monthly',
+                    'sss_covered' => true,
+                    'sss_monthly_compensation' => 20250,
+                    'philhealth_covered' => true,
+                    'philhealth_monthly_basic_salary' => 20000,
+                    'pagibig_covered' => true,
+                    'pagibig_monthly_compensation' => 20000,
+                ],
                 'password' => 'password123',
             ])
             ->assertCreated()
@@ -231,8 +239,16 @@ class AuditHistoryExpansionTest extends TestCase
                 'phone' => '09170000002',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$coachRoleId],
-                'daily_rate' => 850,
-                'pay_frequency' => 'monthly',
+                'employee_profile' => [
+                    'daily_rate' => 850,
+                    'pay_frequency' => 'monthly',
+                    'sss_covered' => true,
+                    'sss_monthly_compensation' => 20250,
+                    'philhealth_covered' => true,
+                    'philhealth_monthly_basic_salary' => 20000,
+                    'pagibig_covered' => true,
+                    'pagibig_monthly_compensation' => 20000,
+                ],
                 'password' => '',
             ])
             ->assertOk();
@@ -244,8 +260,16 @@ class AuditHistoryExpansionTest extends TestCase
                 'phone' => '09170000003',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRoleId],
-                'daily_rate' => 500,
-                'pay_frequency' => 'semi_monthly',
+                'employee_profile' => [
+                    'daily_rate' => 500,
+                    'pay_frequency' => 'semi_monthly',
+                    'sss_covered' => false,
+                    'sss_monthly_compensation' => null,
+                    'philhealth_covered' => false,
+                    'philhealth_monthly_basic_salary' => null,
+                    'pagibig_covered' => false,
+                    'pagibig_monthly_compensation' => null,
+                ],
                 'password' => 'password123',
             ])
             ->assertCreated()
@@ -338,6 +362,19 @@ class AuditHistoryExpansionTest extends TestCase
                 ->pluck('event')
                 ->all()
         );
+
+        $payrollAuditEvents = AuditEvent::query()
+            ->where('subject_type', AuditEvent::SUBJECT_PAYROLL)
+            ->where('subject_id', $payrollId)
+            ->orderBy('id')
+            ->get();
+
+        $this->assertSame(1725.0, (float) $payrollAuditEvents[0]->metadata['employee_contributions_total']);
+        $this->assertSame(2780.0, (float) $payrollAuditEvents[0]->metadata['employer_contributions_total']);
+        $this->assertSame(1000.0, (float) data_get($payrollAuditEvents[0]->metadata, 'employee_contributions.sss.lines.regular_ss.amount'));
+        $this->assertSame(30.0, (float) data_get($payrollAuditEvents[0]->metadata, 'employer_contributions.sss.lines.ec.amount'));
+        $this->assertArrayHasKey('employee_contributions', $payrollAuditEvents[1]->metadata);
+        $this->assertArrayHasKey('employer_contributions', $payrollAuditEvents[2]->metadata);
 
         $this->assertSame(
             ['created', 'cancelled'],

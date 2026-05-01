@@ -169,6 +169,72 @@
                         <div class="form-text small">Set the payroll schedule directly on the employee contract.</div>
                         <div class="invalid-feedback" v-if="formErrors['employee_profile.pay_frequency']">{{ formErrors["employee_profile.pay_frequency"][0] }}</div>
                      </div>
+                     <div class="col-12" v-if="isPhilippinesPayroll">
+                        <div class="border rounded-3 p-3 bg-light">
+                           <div class="fw-semibold mb-1">Philippine Government Contributions</div>
+                           <div class="text-muted small mb-3">These monthly statutory bases are saved on the employee and snapped into future payrolls.</div>
+
+                           <div class="row g-3">
+                              <div class="col-md-4">
+                                 <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="employee-create-sss-covered" v-model="form.employee_profile.sss_covered" />
+                                    <label class="form-check-label fw-semibold" for="employee-create-sss-covered">SSS Covered</label>
+                                 </div>
+                                 <label class="form-label form-label-sm fw-semibold">SSS Monthly Compensation (₱)</label>
+                                 <input
+                                    type="number"
+                                    class="form-control"
+                                    :class="{ 'is-invalid': formErrors['employee_profile.sss_monthly_compensation'] }"
+                                    v-model="form.employee_profile.sss_monthly_compensation"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    :disabled="!form.employee_profile.sss_covered"
+                                 />
+                                 <div class="form-text small">Required when SSS coverage is enabled.</div>
+                                 <div class="invalid-feedback" v-if="formErrors['employee_profile.sss_monthly_compensation']">{{ formErrors["employee_profile.sss_monthly_compensation"][0] }}</div>
+                              </div>
+                              <div class="col-md-4">
+                                 <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="employee-create-philhealth-covered" v-model="form.employee_profile.philhealth_covered" />
+                                    <label class="form-check-label fw-semibold" for="employee-create-philhealth-covered">PhilHealth Covered</label>
+                                 </div>
+                                 <label class="form-label form-label-sm fw-semibold">PhilHealth Monthly Basic Salary (₱)</label>
+                                 <input
+                                    type="number"
+                                    class="form-control"
+                                    :class="{ 'is-invalid': formErrors['employee_profile.philhealth_monthly_basic_salary'] }"
+                                    v-model="form.employee_profile.philhealth_monthly_basic_salary"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    :disabled="!form.employee_profile.philhealth_covered"
+                                 />
+                                 <div class="form-text small">Required when PhilHealth coverage is enabled.</div>
+                                 <div class="invalid-feedback" v-if="formErrors['employee_profile.philhealth_monthly_basic_salary']">{{ formErrors["employee_profile.philhealth_monthly_basic_salary"][0] }}</div>
+                              </div>
+                              <div class="col-md-4">
+                                 <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="employee-create-pagibig-covered" v-model="form.employee_profile.pagibig_covered" />
+                                    <label class="form-check-label fw-semibold" for="employee-create-pagibig-covered">Pag-IBIG Covered</label>
+                                 </div>
+                                 <label class="form-label form-label-sm fw-semibold">Pag-IBIG Monthly Compensation (₱)</label>
+                                 <input
+                                    type="number"
+                                    class="form-control"
+                                    :class="{ 'is-invalid': formErrors['employee_profile.pagibig_monthly_compensation'] }"
+                                    v-model="form.employee_profile.pagibig_monthly_compensation"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    :disabled="!form.employee_profile.pagibig_covered"
+                                 />
+                                 <div class="form-text small">Required when Pag-IBIG coverage is enabled.</div>
+                                 <div class="invalid-feedback" v-if="formErrors['employee_profile.pagibig_monthly_compensation']">{{ formErrors["employee_profile.pagibig_monthly_compensation"][0] }}</div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
                      <div class="col-md-6">
                         <label class="form-label fw-semibold">
                            Password
@@ -450,8 +516,23 @@ export default {
 
          return "Collection failed or timed out. Try again when the employee is ready at the device.";
       },
+      isPhilippinesPayroll: function () {
+         return (window.JPrime?.profile?.country_code || "PH") === "PH";
+      },
    },
    methods: {
+      employeeProfileForm: function (profile) {
+         return {
+            daily_rate: profile?.daily_rate ?? "",
+            pay_frequency: profile?.pay_frequency || "semi_monthly",
+            sss_covered: profile ? Boolean(profile.sss_covered) : this.isPhilippinesPayroll,
+            sss_monthly_compensation: profile?.sss_monthly_compensation ?? "",
+            philhealth_covered: profile ? Boolean(profile.philhealth_covered) : this.isPhilippinesPayroll,
+            philhealth_monthly_basic_salary: profile?.philhealth_monthly_basic_salary ?? "",
+            pagibig_covered: profile ? Boolean(profile.pagibig_covered) : this.isPhilippinesPayroll,
+            pagibig_monthly_compensation: profile?.pagibig_monthly_compensation ?? "",
+         };
+      },
       emptyForm: function () {
          return {
             name: "",
@@ -459,10 +540,7 @@ export default {
             phone: "",
             status: "active",
             role_ids: [],
-            employee_profile: {
-               daily_rate: "",
-               pay_frequency: "semi_monthly",
-            },
+            employee_profile: this.employeeProfileForm(null),
             password: "",
             enroll_fingerprint: false,
          };
@@ -508,10 +586,7 @@ export default {
             phone: emp.phone || "",
             role_ids: emp.roles ? emp.roles.map((r) => r.id) : [],
             status: emp.status,
-            employee_profile: {
-               daily_rate: emp.employee_profile?.daily_rate || "",
-               pay_frequency: emp.employee_profile?.pay_frequency || "semi_monthly",
-            },
+            employee_profile: this.employeeProfileForm(emp.employee_profile || null),
             password: "",
             enroll_fingerprint: false,
          };

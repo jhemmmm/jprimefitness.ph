@@ -49,6 +49,29 @@ class EmployeePayFrequencyTest extends TestCase
             ->assertJsonValidationErrors(['employee_profile.pay_frequency']);
     }
 
+    public function test_employee_creation_rejects_root_level_compensation_payload(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $staffRole = Role::findByName('staff');
+
+        $this->actingAs($manager)
+            ->postJson('/panel/employees', [
+                'name' => 'Coach Ben',
+                'email' => 'coach-ben-root@example.com',
+                'status' => User::STATUS_ACTIVE,
+                'role_ids' => [$staffRole->id],
+                'daily_rate' => 450,
+                'pay_frequency' => 'monthly',
+                'sss_covered' => false,
+                'philhealth_covered' => false,
+                'pagibig_covered' => false,
+                'password' => 'password123',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['employee_profile']);
+    }
+
     public function test_manager_can_view_employee_details(): void
     {
         $this->setBusinessProfile('Naga');
@@ -77,11 +100,21 @@ class EmployeePayFrequencyTest extends TestCase
                 'employee_profile' => [
                     'daily_rate' => 450,
                     'pay_frequency' => 'monthly',
+                    'sss_covered' => true,
+                    'sss_monthly_compensation' => 18000,
+                    'philhealth_covered' => true,
+                    'philhealth_monthly_basic_salary' => 18000,
+                    'pagibig_covered' => true,
+                    'pagibig_monthly_compensation' => 18000,
                 ],
                 'password' => 'password123',
             ])
             ->assertCreated()
             ->assertJsonPath('employee_profile.pay_frequency', 'monthly')
+            ->assertJsonPath('employee_profile.sss_covered', true)
+            ->assertJsonPath('employee_profile.sss_monthly_compensation', 18000)
+            ->assertJsonPath('employee_profile.philhealth_monthly_basic_salary', 18000)
+            ->assertJsonPath('employee_profile.pagibig_monthly_compensation', 18000)
             ->assertJsonMissingPath('pay_frequency');
 
         $employeeId = $createResponse->json('id');
@@ -90,6 +123,12 @@ class EmployeePayFrequencyTest extends TestCase
             'user_id' => $employeeId,
             'pay_frequency' => 'monthly',
             'daily_rate' => '450.00',
+            'sss_covered' => 1,
+            'sss_monthly_compensation' => '18000.00',
+            'philhealth_covered' => 1,
+            'philhealth_monthly_basic_salary' => '18000.00',
+            'pagibig_covered' => 1,
+            'pagibig_monthly_compensation' => '18000.00',
         ]);
 
         $this->actingAs($manager)
@@ -101,16 +140,92 @@ class EmployeePayFrequencyTest extends TestCase
                 'employee_profile' => [
                     'daily_rate' => 450,
                     'pay_frequency' => 'semi_monthly',
+                    'sss_covered' => true,
+                    'sss_monthly_compensation' => 20000,
+                    'philhealth_covered' => true,
+                    'philhealth_monthly_basic_salary' => 22000,
+                    'pagibig_covered' => false,
+                    'pagibig_monthly_compensation' => null,
                 ],
                 'password' => '',
             ])
             ->assertOk()
             ->assertJsonPath('employee_profile.pay_frequency', 'semi_monthly')
+            ->assertJsonPath('employee_profile.sss_monthly_compensation', 20000)
+            ->assertJsonPath('employee_profile.philhealth_monthly_basic_salary', 22000)
+            ->assertJsonPath('employee_profile.pagibig_covered', false)
+            ->assertJsonPath('employee_profile.pagibig_monthly_compensation', null)
             ->assertJsonMissingPath('pay_frequency');
 
         $this->assertDatabaseHas('employee_profiles', [
             'user_id' => $employeeId,
             'pay_frequency' => 'semi_monthly',
+            'sss_monthly_compensation' => '20000.00',
+            'philhealth_monthly_basic_salary' => '22000.00',
+            'pagibig_covered' => 0,
+        ]);
+    }
+
+    public function test_philippines_employee_creation_requires_monthly_bases_for_enabled_government_contributions(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $staffRole = Role::findByName('staff');
+
+        $this->actingAs($manager)
+            ->postJson('/panel/employees', [
+                'name' => 'Coach Ben',
+                'email' => 'coach-ben-ph@example.com',
+                'status' => User::STATUS_ACTIVE,
+                'role_ids' => [$staffRole->id],
+                'employee_profile' => [
+                    'daily_rate' => 450,
+                    'pay_frequency' => 'monthly',
+                    'sss_covered' => true,
+                    'philhealth_covered' => true,
+                    'pagibig_covered' => true,
+                ],
+                'password' => 'password123',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors([
+                'employee_profile.sss_monthly_compensation',
+                'employee_profile.philhealth_monthly_basic_salary',
+                'employee_profile.pagibig_monthly_compensation',
+            ]);
+    }
+
+    public function test_non_ph_employee_creation_ignores_ph_government_contribution_validation(): void
+    {
+        $this->setBusinessProfile('Singapore', 'SG');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $staffRole = Role::findByName('staff');
+
+        $response = $this->actingAs($manager)
+            ->postJson('/panel/employees', [
+                'name' => 'Coach Ben',
+                'email' => 'coach-ben-sg@example.com',
+                'status' => User::STATUS_ACTIVE,
+                'role_ids' => [$staffRole->id],
+                'employee_profile' => [
+                    'daily_rate' => 450,
+                    'pay_frequency' => 'monthly',
+                    'sss_covered' => true,
+                    'philhealth_covered' => true,
+                    'pagibig_covered' => true,
+                ],
+                'password' => 'password123',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('employee_profile.sss_covered', false)
+            ->assertJsonPath('employee_profile.philhealth_covered', false)
+            ->assertJsonPath('employee_profile.pagibig_covered', false);
+
+        $this->assertDatabaseHas('employee_profiles', [
+            'user_id' => $response->json('id'),
+            'sss_covered' => 0,
+            'philhealth_covered' => 0,
+            'pagibig_covered' => 0,
         ]);
     }
 
@@ -133,6 +248,12 @@ class EmployeePayFrequencyTest extends TestCase
                 'employee_profile' => [
                     'daily_rate' => 450,
                     'pay_frequency' => 'monthly',
+                    'sss_covered' => false,
+                    'sss_monthly_compensation' => null,
+                    'philhealth_covered' => false,
+                    'philhealth_monthly_basic_salary' => null,
+                    'pagibig_covered' => false,
+                    'pagibig_monthly_compensation' => null,
                 ],
                 'password' => 'password123',
             ])
@@ -148,10 +269,11 @@ class EmployeePayFrequencyTest extends TestCase
         ]);
     }
 
-    private function setBusinessProfile(string $name): BusinessProfile
+    private function setBusinessProfile(string $name, string $countryCode = BusinessProfile::COUNTRY_PHILIPPINES): BusinessProfile
     {
         return BusinessProfile::factory()->create([
             'name' => $name,
+            'country_code' => $countryCode,
             'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
             'province' => 'Camarines Sur',

@@ -27,6 +27,12 @@ class EmployeeProfileFactory extends Factory
             'biometric_last_error' => null,
             'daily_rate' => 0,
             'pay_frequency' => null,
+            'sss_covered' => false,
+            'sss_monthly_compensation' => null,
+            'philhealth_covered' => false,
+            'philhealth_monthly_basic_salary' => null,
+            'pagibig_covered' => false,
+            'pagibig_monthly_compensation' => null,
         ];
     }
 }

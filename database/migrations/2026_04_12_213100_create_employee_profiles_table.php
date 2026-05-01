@@ -19,6 +19,14 @@ return new class extends Migration
             $table->unsignedTinyInteger('biometric_fingerprint_id')->nullable();
             $table->timestamp('biometric_enrolled_at')->nullable();
             $table->text('biometric_last_error')->nullable();
+            $table->decimal('daily_rate', 10, 2)->default(0);
+            $table->string('pay_frequency', 20)->nullable();
+            $table->boolean('sss_covered')->default(false);
+            $table->decimal('sss_monthly_compensation', 10, 2)->nullable();
+            $table->boolean('philhealth_covered')->default(false);
+            $table->decimal('philhealth_monthly_basic_salary', 10, 2)->nullable();
+            $table->boolean('pagibig_covered')->default(false);
+            $table->decimal('pagibig_monthly_compensation', 10, 2)->nullable();
             $table->timestamps();
         });
 
@@ -50,6 +58,14 @@ return new class extends Migration
                 'biometric_fingerprint_id' => null,
                 'biometric_enrolled_at' => null,
                 'biometric_last_error' => null,
+                'daily_rate' => 0,
+                'pay_frequency' => null,
+                'sss_covered' => false,
+                'sss_monthly_compensation' => null,
+                'philhealth_covered' => false,
+                'philhealth_monthly_basic_salary' => null,
+                'pagibig_covered' => false,
+                'pagibig_monthly_compensation' => null,
                 'created_at' => $now,
                 'updated_at' => $now,
             ])

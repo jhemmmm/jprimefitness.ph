@@ -54,6 +54,54 @@ class PayrollReportsPageTest extends TestCase
             'gross_amount' => 1000,
             'bonus' => 100,
             'income_tax' => 100,
+            'employee_contributions' => [
+                'sss' => [
+                    'label' => 'SSS',
+                    'total' => 400,
+                    'lines' => [
+                        'regular_ss' => [
+                            'label' => 'Regular SS',
+                            'amount' => 400,
+                        ],
+                    ],
+                ],
+                'philhealth' => [
+                    'label' => 'PhilHealth',
+                    'total' => 200,
+                    'lines' => [
+                        'premium' => [
+                            'label' => 'Premium',
+                            'amount' => 200,
+                        ],
+                    ],
+                ],
+            ],
+            'employer_contributions' => [
+                'sss' => [
+                    'label' => 'SSS',
+                    'total' => 650,
+                    'lines' => [
+                        'regular_ss' => [
+                            'label' => 'Regular SS',
+                            'amount' => 620,
+                        ],
+                        'ec' => [
+                            'label' => "Employees' Compensation",
+                            'amount' => 30,
+                        ],
+                    ],
+                ],
+                'philhealth' => [
+                    'label' => 'PhilHealth',
+                    'total' => 300,
+                    'lines' => [
+                        'premium' => [
+                            'label' => 'Premium',
+                            'amount' => 300,
+                        ],
+                    ],
+                ],
+            ],
             'pt_commission_amount' => 200,
             'pt_commission_items' => [],
             'manual_deductions' => 50,
@@ -73,6 +121,50 @@ class PayrollReportsPageTest extends TestCase
             'gross_amount' => 2000,
             'bonus' => 0,
             'income_tax' => 0,
+            'employee_contributions' => [
+                'pagibig' => [
+                    'label' => 'Pag-IBIG',
+                    'total' => 100,
+                    'lines' => [
+                        'premium' => [
+                            'label' => 'Premium',
+                            'amount' => 100,
+                        ],
+                    ],
+                ],
+                'philhealth' => [
+                    'label' => 'PhilHealth',
+                    'total' => 200,
+                    'lines' => [
+                        'premium' => [
+                            'label' => 'Premium',
+                            'amount' => 200,
+                        ],
+                    ],
+                ],
+            ],
+            'employer_contributions' => [
+                'pagibig' => [
+                    'label' => 'Pag-IBIG',
+                    'total' => 100,
+                    'lines' => [
+                        'premium' => [
+                            'label' => 'Premium',
+                            'amount' => 100,
+                        ],
+                    ],
+                ],
+                'philhealth' => [
+                    'label' => 'PhilHealth',
+                    'total' => 350,
+                    'lines' => [
+                        'premium' => [
+                            'label' => 'Premium',
+                            'amount' => 350,
+                        ],
+                    ],
+                ],
+            ],
             'pt_commission_amount' => 0,
             'pt_commission_items' => [],
             'manual_deductions' => 0,
@@ -134,7 +226,9 @@ class PayrollReportsPageTest extends TestCase
         $response->assertJsonPath('summary.total_bonus', 100);
         $response->assertJsonPath('summary.pt_commission', 200);
         $response->assertJsonPath('summary.income_tax', 100);
-        $response->assertJsonPath('summary.total_deductions', 250);
+        $response->assertJsonPath('summary.employee_government_contributions', 900);
+        $response->assertJsonPath('summary.employer_government_contributions', 1400);
+        $response->assertJsonPath('summary.total_deductions', 1150);
         $response->assertJsonPath('summary.net_payroll', 3050);
         $response->assertJsonPath('summary.total_paid', 2500);
         $response->assertJsonPath('summary.outstanding_balance', 550);
@@ -167,6 +261,34 @@ class PayrollReportsPageTest extends TestCase
             'gross_amount' => 1400,
             'bonus' => 100,
             'income_tax' => 75,
+            'employee_contributions' => [
+                'sss' => [
+                    'label' => 'SSS',
+                    'total' => 500,
+                    'lines' => [
+                        'regular_ss' => [
+                            'label' => 'Regular SS',
+                            'amount' => 500,
+                        ],
+                    ],
+                ],
+            ],
+            'employer_contributions' => [
+                'sss' => [
+                    'label' => 'SSS',
+                    'total' => 800,
+                    'lines' => [
+                        'regular_ss' => [
+                            'label' => 'Regular SS',
+                            'amount' => 770,
+                        ],
+                        'ec' => [
+                            'label' => "Employees' Compensation",
+                            'amount' => 30,
+                        ],
+                    ],
+                ],
+            ],
             'pt_commission_amount' => 0,
             'pt_commission_items' => [],
             'manual_deductions' => 50,
@@ -190,6 +312,8 @@ class PayrollReportsPageTest extends TestCase
         $this->assertStringContainsString('Payout Scope', $content);
         $this->assertStringContainsString('Summary', $content);
         $this->assertStringContainsString('Income Tax', $content);
+        $this->assertStringContainsString("Employee Government Contributions", $content);
+        $this->assertStringContainsString("Employer Government Contributions", $content);
         $this->assertStringContainsString('Paid Out To Date', $content);
         $this->assertStringContainsString('Recent Payrolls', $content);
         $this->assertStringContainsString('Juan Dela Cruz', $content);

@@ -61,6 +61,8 @@ class PayrollReportsController extends Controller
             fputcsv($handle, ['PT Commission', $report['summary']['pt_commission']]);
             fputcsv($handle, ['Membership Commission', $report['summary']['membership_commission']]);
             fputcsv($handle, ['Income Tax', $report['summary']['income_tax']]);
+            fputcsv($handle, ['Employee Government Contributions', $report['summary']['employee_government_contributions']]);
+            fputcsv($handle, ['Employer Government Contributions', $report['summary']['employer_government_contributions']]);
             fputcsv($handle, ['Total Deductions', $report['summary']['total_deductions']]);
             fputcsv($handle, ['Net Payroll', $report['summary']['net_payroll']]);
             fputcsv($handle, ['Paid Out To Date', $report['summary']['total_paid']]);
@@ -170,7 +172,25 @@ class PayrollReportsController extends Controller
         $incomeTax = round((float) (clone $payrollQuery)->sum('income_tax'), 2);
         $manualDeductions = round((float) (clone $payrollQuery)->sum('manual_deductions'), 2);
         $cashAdvanceDeductions = round((float) (clone $payrollQuery)->sum('cash_advance_deduction'), 2);
-        $totalDeductions = round($incomeTax + $manualDeductions + $cashAdvanceDeductions, 2);
+        $payrollContributionSnapshots = (clone $payrollQuery)
+            ->select([
+                'id',
+                'employee_contributions',
+                'employer_contributions',
+            ])
+            ->get();
+        $employeeGovernmentContributions = round(
+            $payrollContributionSnapshots->sum(fn (Payroll $payroll): float => $payroll->employeeContributionsTotal()),
+            2
+        );
+        $employerGovernmentContributions = round(
+            $payrollContributionSnapshots->sum(fn (Payroll $payroll): float => $payroll->employerContributionsTotal()),
+            2
+        );
+        $totalDeductions = round(
+            $incomeTax + $manualDeductions + $employeeGovernmentContributions + $cashAdvanceDeductions,
+            2
+        );
         $netPayroll = round((float) (clone $payrollQuery)->sum('net_amount'), 2);
         $totalPaid = round((float) (clone $payoutQuery)->sum('payouts.amount'), 2);
         $payrollCount = (int) (clone $payrollQuery)->count();
@@ -198,6 +218,8 @@ class PayrollReportsController extends Controller
                 'pt_commission' => $ptCommission,
                 'membership_commission' => $membershipCommission,
                 'income_tax' => $incomeTax,
+                'employee_government_contributions' => $employeeGovernmentContributions,
+                'employer_government_contributions' => $employerGovernmentContributions,
                 'total_deductions' => $totalDeductions,
                 'net_payroll' => $netPayroll,
                 'total_paid' => $totalPaid,
@@ -387,7 +409,10 @@ class PayrollReportsController extends Controller
                     'gross_amount' => round((float) $payroll->gross_amount, 2),
                     'bonus' => round((float) $payroll->bonus, 2),
                     'pt_commission_amount' => round((float) $payroll->pt_commission_amount, 2),
-                    'total_deductions' => round((float) $payroll->manual_deductions + (float) $payroll->cash_advance_deduction, 2),
+                    'total_deductions' => round(
+                        $payroll->employeeDeductionsTotal() + (float) $payroll->cash_advance_deduction,
+                        2
+                    ),
                     'net_amount' => round((float) $payroll->net_amount, 2),
                     'total_paid' => $totalPaid,
                     'outstanding_balance' => round(max(0, (float) $payroll->net_amount - $totalPaid), 2),

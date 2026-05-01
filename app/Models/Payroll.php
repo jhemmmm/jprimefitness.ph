@@ -30,6 +30,8 @@ class Payroll extends Model
         'gross_amount',
         'bonus',
         'income_tax',
+        'employee_contributions',
+        'employer_contributions',
         'pt_commission_amount',
         'pt_commission_items',
         'membership_commission_amount',
@@ -109,7 +111,30 @@ class Payroll extends Model
 
     public function employeeDeductionsTotal(): float
     {
-        return round((float) $this->income_tax + (float) $this->manual_deductions, 2);
+        return round(
+            (float) $this->income_tax
+            + (float) $this->manual_deductions
+            + $this->employeeContributionsTotal(),
+            2
+        );
+    }
+
+    public function employeeContributionsTotal(): float
+    {
+        return round(
+            collect($this->employee_contributions ?? [])
+                ->sum(fn (array $program): float => round((float) ($program['total'] ?? 0), 2)),
+            2
+        );
+    }
+
+    public function employerContributionsTotal(): float
+    {
+        return round(
+            collect($this->employer_contributions ?? [])
+                ->sum(fn (array $program): float => round((float) ($program['total'] ?? 0), 2)),
+            2
+        );
     }
 
     public function hasAttendanceBreakdownSnapshot(): bool
