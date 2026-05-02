@@ -5,7 +5,6 @@ namespace App\Providers;
 use App\Models\BusinessProfile;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
-use App\Services\CashLedgerService;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Role;
@@ -26,10 +25,6 @@ class AppServiceProvider extends ServiceProvider
     {
         View::composer('panel.*', function ($view) {
             $businessProfile = BusinessProfile::current();
-            $cashLedgerSummary = app(CashLedgerService::class)->summarize();
-            $businessProfile->setAttribute('cash_ledger_summary', $cashLedgerSummary);
-            $businessProfile->setAttribute('cash_balance', $cashLedgerSummary['balance']);
-
             $ratePlans = RatePlan::where('is_active', true)->get();
             $ptProducts = PTProduct::where('is_active', true)->get();
             $roles = Role::all();

@@ -15,7 +15,6 @@ class FreshInstallSchemaTest extends TestCase
     {
         $this->assertTrue(Schema::hasTable('audit_events'));
         $this->assertTrue(Schema::hasTable('business_profiles'));
-        $this->assertTrue(Schema::hasTable('cash_ledger_entries'));
         $this->assertTrue(Schema::hasTable('member_profiles'));
         $this->assertTrue(Schema::hasTable('member_subscriptions'));
 
@@ -23,6 +22,7 @@ class FreshInstallSchemaTest extends TestCase
         $this->assertFalse(Schema::hasTable('branch_rate_prices'));
         $this->assertFalse(Schema::hasTable('branch_pt_prices'));
         $this->assertFalse(Schema::hasTable('branch_cash_ledger_entries'));
+        $this->assertFalse(Schema::hasTable('cash_ledger_entries'));
 
         $this->assertTableHasColumns('rate_plans', [
             'price',

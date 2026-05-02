@@ -127,14 +127,6 @@
                         <span class="sidebar-nav-label">Sales Reports</span>
                     </a>
                 </div>
-                @if (auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']))
-                    <div class="sidebar-nav-item">
-                        <a href="{{ route('panel.reports.financial') }}" @class(['active' => request()->routeIs('panel.reports.financial*')])>
-                            <i class="bi bi-graph-up"></i>
-                            <span class="sidebar-nav-label">Financial Reports</span>
-                        </a>
-                    </div>
-                @endif
                 <div class="sidebar-nav-item">
                     <a href="{{ route('panel.reports.attendance') }}" @class(['active' => request()->routeIs('panel.reports.attendance*')])>
                         <i class="bi bi-clipboard2-data-fill"></i>
@@ -152,24 +144,10 @@
 
                 {{-- Business --}}
                 <div class="sidebar-menu-heading">Business</div>
-                @if (auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']))
-                    <div class="sidebar-nav-item">
-                        <a href="{{ route('panel.business.cash-ledger') }}" @class(['active' => request()->routeIs('panel.business.cash-ledger*')])>
-                            <i class="bi bi-cash-stack"></i>
-                            <span class="sidebar-nav-label">Cash Ledger</span>
-                        </a>
-                    </div>
-                @endif
                 <div class="sidebar-nav-item">
                     <a href="{{ route('panel.business.settings') }}" @class(['active' => request()->routeIs('panel.business.settings*')])>
                         <i class="bi bi-gear-fill"></i>
                         <span class="sidebar-nav-label">Business Settings</span>
-                    </a>
-                </div>
-                <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.business.photos') }}" @class(['active' => request()->routeIs('panel.business.photos*')])>
-                        <i class="bi bi-images"></i>
-                        <span class="sidebar-nav-label">Photos</span>
                     </a>
                 </div>
 

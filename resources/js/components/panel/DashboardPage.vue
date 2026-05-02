@@ -440,11 +440,6 @@ export default {
                value: this.currentLocationLabel,
             },
             {
-               label: "Status",
-               value: this.$filters.capitalize(this.businessProfile?.status || "open"),
-               badge: this.businessProfile?.status || "open",
-            },
-            {
                label: "Address",
                value: [this.businessProfile?.city, this.businessProfile?.province].filter(Boolean).join(", ") || "Not set",
                sub: this.businessProfile?.address || "",

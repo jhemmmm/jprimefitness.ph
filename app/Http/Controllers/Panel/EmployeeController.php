@@ -14,7 +14,6 @@ use App\Models\User;
 use App\Notifications\CashAdvanceStatusChangedNotification;
 use App\Notifications\PayrollApprovedNotification;
 use App\Services\AuditHistoryService;
-use App\Services\CashLedgerService;
 use App\Services\NotificationRecipientResolver;
 use App\Services\PayrollService;
 use Illuminate\Contracts\Support\Responsable;
@@ -30,7 +29,6 @@ class EmployeeController extends Controller
 {
     public function __construct(
         private PayrollService $payrollService,
-        private CashLedgerService $cashLedgerService,
         private NotificationRecipientResolver $notificationRecipientResolver,
         private AuditHistoryService $auditHistoryService,
     ) {
@@ -774,7 +772,6 @@ class EmployeeController extends Controller
         ]);
 
         $this->payrollService->syncStatus($payroll);
-        $this->cashLedgerService->syncPayout($payout);
         $payout = $payout->fresh(['payroll', 'releasedBy', 'employee:id,name']);
 
         $this->auditHistoryService->recordSubjectEvent(
@@ -961,7 +958,6 @@ class EmployeeController extends Controller
         $cashAdvance->remaining_amount = (float) $cashAdvance->amount;
         $cashAdvance->save();
         $cashAdvance->load(['approvedBy:id,name', 'releasedBy:id,name', 'cancelledBy:id,name']);
-        $this->cashLedgerService->syncCashAdvance($cashAdvance, $cashAdvance->status);
 
         if ($previousStatus !== $cashAdvance->status) {
             $this->notificationRecipientResolver->send(
@@ -997,7 +993,6 @@ class EmployeeController extends Controller
             auth()->id(),
             auth()->user()?->name,
         );
-        $this->cashLedgerService->syncCashAdvance($cashAdvance, 'deleted');
         $cashAdvance->delete();
 
         return response()->json(null, 204);

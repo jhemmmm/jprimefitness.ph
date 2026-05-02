@@ -12,8 +12,6 @@ class AuditEvent extends Model
 
     public const SUBJECT_BUSINESS_PROFILE = 'business_profile';
 
-    public const SUBJECT_CASH_LEDGER_ENTRY = 'cash_ledger_entry';
-
     public const SUBJECT_EMPLOYEE = 'employee';
 
     public const SUBJECT_PAYROLL = 'payroll';

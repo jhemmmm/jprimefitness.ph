@@ -15,7 +15,6 @@ class AuditSubjectRegistry
     {
         return [
             ['value' => AuditEvent::SUBJECT_BUSINESS_PROFILE, 'label' => 'Business Profile'],
-            ['value' => AuditEvent::SUBJECT_CASH_LEDGER_ENTRY, 'label' => 'Cash Ledger'],
             ['value' => AuditEvent::SUBJECT_EMPLOYEE, 'label' => 'Employees'],
             ['value' => AuditEvent::SUBJECT_PAYROLL, 'label' => 'Payrolls'],
             ['value' => AuditEvent::SUBJECT_PAYOUT, 'label' => 'Payouts'],
@@ -51,8 +50,6 @@ class AuditSubjectRegistry
             'restored',
             'configured',
             'removed',
-            'photo_added',
-            'photo_removed',
             'plan_changed',
             'status_updated',
             'manager_assigned',
@@ -100,7 +97,6 @@ class AuditSubjectRegistry
 
         return match ($subjectType) {
             AuditEvent::SUBJECT_BUSINESS_PROFILE => route('panel.business.settings'),
-            AuditEvent::SUBJECT_CASH_LEDGER_ENTRY => route('panel.business.cash-ledger'),
             AuditEvent::SUBJECT_EMPLOYEE => route('panel.employees.show', $subjectId),
             AuditEvent::SUBJECT_PAYROLL,
             AuditEvent::SUBJECT_PAYOUT,

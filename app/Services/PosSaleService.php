@@ -22,7 +22,6 @@ use Illuminate\Validation\ValidationException;
 class PosSaleService
 {
     public function __construct(
-        private CashLedgerService $cashLedgerService,
         private InventoryStockAlertService $inventoryStockAlertService,
         private AuditHistoryService $auditHistoryService,
     ) {}
@@ -213,8 +212,6 @@ class PosSaleService
                 );
             }
 
-            $this->cashLedgerService->syncSaleTransaction($saleTransaction);
-
             return $saleTransaction;
         });
     }
@@ -306,8 +303,6 @@ class PosSaleService
                 $saleCause,
                 $saleTransaction->sold_at,
             );
-            $this->cashLedgerService->syncSaleTransaction($saleTransaction);
-
             return $saleTransaction;
         });
     }
@@ -395,8 +390,6 @@ class PosSaleService
                 $saleCause,
                 $saleTransaction->sold_at,
             );
-            $this->cashLedgerService->syncSaleTransaction($saleTransaction);
-
             return $saleTransaction;
         });
     }
@@ -435,7 +428,6 @@ class PosSaleService
 
             $walkIn = $walkIn->fresh(['ratePlan']);
             $this->recordWalkInAudit($walkIn, 'created', $processedBy);
-            $this->cashLedgerService->syncWalkIn($walkIn, 'created');
             $payment = $this->resolvePayment((float) $walkIn->amount_paid, $data);
 
             $saleTransaction = SaleTransaction::create([

@@ -25,7 +25,6 @@ class PayrollService
 
     public function __construct(
         private AuditHistoryService $auditHistoryService,
-        private CashLedgerService $cashLedgerService,
     ) {}
 
     /**
@@ -467,8 +466,6 @@ class PayrollService
                 auth()->user()?->name,
                 $processedAt,
             );
-            $this->cashLedgerService->syncCashAdvance($advance, $advance->status);
-
             $remaining -= $deduct;
         }
     }

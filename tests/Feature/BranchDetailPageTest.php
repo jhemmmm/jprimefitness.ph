@@ -16,10 +16,6 @@ class BranchDetailPageTest extends TestCase
     {
         BusinessProfile::factory()->create([
             'name' => 'JPrime Fitness Naga',
-            'hero_title' => 'Train with purpose',
-            'hero_highlight' => 'One standard.',
-            'phone' => '09171234567',
-            'email' => 'hello@example.test',
             'city' => 'Naga City',
             'province' => 'Camarines Sur',
         ]);

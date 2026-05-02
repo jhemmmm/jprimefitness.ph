@@ -8,7 +8,6 @@ use App\Http\Controllers\Panel\AuditHistoryController;
 use App\Http\Controllers\Panel\DashboardController;
 use App\Http\Controllers\Panel\EmployeeBiometricController;
 use App\Http\Controllers\Panel\EmployeeController;
-use App\Http\Controllers\Panel\FinancialReportsController;
 use App\Http\Controllers\Panel\InventoryController;
 use App\Http\Controllers\Panel\MembersController;
 use App\Http\Controllers\Panel\NotificationsController;
@@ -37,16 +36,8 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::post('/audit-history/{auditEvent}/restore', [AuditHistoryController::class, 'restore'])->name('audit-history.restore')->whereNumber('auditEvent');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::prefix('business')->name('business.')->group(function () {
-        Route::get('/cash-ledger', [SettingsController::class, 'cashLedgerPage'])->name('cash-ledger');
-        Route::get('/photos', [SettingsController::class, 'photosPage'])->name('photos');
         Route::get('/settings', [SettingsController::class, 'settingsPage'])->name('settings');
         Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
-        Route::post('/photos', [SettingsController::class, 'storePhoto'])->name('photos.store');
-        Route::delete('/photos/{index}', [SettingsController::class, 'destroyPhoto'])->name('photos.destroy')->whereNumber('index');
-        Route::get('/cash-ledger/list', [SettingsController::class, 'cashLedger'])->name('cash-ledger.list');
-        Route::post('/cash-ledger', [SettingsController::class, 'storeCashLedgerEntry'])->name('cash-ledger.store');
-        Route::put('/cash-ledger/{entry}', [SettingsController::class, 'updateCashLedgerEntry'])->name('cash-ledger.update')->whereNumber('entry');
-        Route::delete('/cash-ledger/{entry}', [SettingsController::class, 'destroyCashLedgerEntry'])->name('cash-ledger.destroy')->whereNumber('entry');
     });
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/list', [NotificationsController::class, 'list'])->name('notifications.list');
@@ -105,9 +96,6 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
         Route::get('/sales', [SalesReportsController::class, 'index'])->name('sales');
         Route::get('/sales/data', [SalesReportsController::class, 'data'])->name('sales.data');
         Route::get('/sales/export', [SalesReportsController::class, 'export'])->name('sales.export');
-        Route::get('/financial', [FinancialReportsController::class, 'index'])->name('financial');
-        Route::get('/financial/data', [FinancialReportsController::class, 'data'])->name('financial.data');
-        Route::get('/financial/export', [FinancialReportsController::class, 'export'])->name('financial.export');
 
         Route::get('/attendance', [AttendanceReportsController::class, 'index'])->name('attendance');
         Route::get('/attendance/data', [AttendanceReportsController::class, 'data'])->name('attendance.data');

@@ -22,10 +22,6 @@ class BusinessProfileFactory extends Factory
             'city' => fake()->city(),
             'province' => fake()->state(),
             'address' => fake()->address(),
-            'phone' => fake()->phoneNumber(),
-            'email' => fake()->safeEmail(),
-            'facebook_url' => fake()->url(),
-            'map_url' => fake()->url(),
         ]);
     }
 }

@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\Attendance;
 use App\Models\AuditEvent;
 use App\Models\CashAdvance;
-use App\Models\CashLedgerEntry;
 use App\Models\InventoryItem;
 use App\Models\User;
 use App\Models\WalkIn;
@@ -186,14 +185,6 @@ class AuditHistoryService
             ];
         }
 
-        if ($subject instanceof CashLedgerEntry && $subject->is_system) {
-            return [
-                'available' => false,
-                'label' => null,
-                'reason' => 'System-generated cash ledger entries are restored by restoring their source record.',
-            ];
-        }
-
         if (! method_exists($subject, 'trashed')) {
             return [
                 'available' => false,
@@ -242,7 +233,6 @@ class AuditHistoryService
                 AuditEvent::SUBJECT_WALK_IN => $this->restoreWalkIn($subject, $actor),
                 AuditEvent::SUBJECT_INVENTORY_ITEM => $this->restoreInventoryItem($subject, $actor),
                 AuditEvent::SUBJECT_CASH_ADVANCE => $this->restoreCashAdvance($subject, $actor),
-                AuditEvent::SUBJECT_CASH_LEDGER_ENTRY => $this->restoreCashLedgerEntry($subject, $actor),
                 default => throw ValidationException::withMessages([
                     'restore' => 'This deleted event cannot be restored from Audit History.',
                 ]),
@@ -414,7 +404,6 @@ class AuditHistoryService
 
         $walkIn->restore();
         $walkIn->refresh()->load('ratePlan');
-        app(CashLedgerService::class)->syncWalkIn($walkIn, 'restored');
 
         $this->recordSubjectEvent(
             AuditEvent::SUBJECT_WALK_IN,
@@ -480,7 +469,6 @@ class AuditHistoryService
 
         $cashAdvance->restore();
         $cashAdvance->refresh()->loadMissing(['employee:id,name', 'approvedBy:id,name', 'releasedBy:id,name', 'cancelledBy:id,name']);
-        app(CashLedgerService::class)->syncCashAdvance($cashAdvance, 'restored');
 
         $this->recordSubjectEvent(
             AuditEvent::SUBJECT_CASH_ADVANCE,
@@ -499,40 +487,6 @@ class AuditHistoryService
         );
     }
 
-    private function restoreCashLedgerEntry(Model $subject, mixed $actor): void
-    {
-        $entry = $subject instanceof CashLedgerEntry ? $subject->loadMissing('createdBy:id,name') : null;
-
-        if (! $entry instanceof CashLedgerEntry || $entry->is_system) {
-            throw ValidationException::withMessages([
-                'restore' => 'Only manual cash ledger deletes can be restored directly from Audit History.',
-            ]);
-        }
-
-        $entry->restore();
-        $entry->refresh()->loadMissing('createdBy:id,name');
-
-        $this->recordSubjectEvent(
-            AuditEvent::SUBJECT_CASH_LEDGER_ENTRY,
-            $entry->id,
-            'restored',
-            [
-                'id' => $entry->id,
-                'entry_type' => $entry->entry_type,
-                'direction' => $entry->direction,
-                'amount' => round((float) $entry->amount, 2),
-                'title' => $entry->title,
-                'description' => $entry->description,
-                'is_system' => (bool) $entry->is_system,
-                'source_id' => $entry->source_id,
-            ],
-            [],
-            $this->actorId($actor),
-            $this->actorName($actor),
-            now(),
-        );
-    }
-
     private function restorableSubject(AuditEvent $auditEvent): ?Model
     {
         return match ($auditEvent->subject_type) {
@@ -541,7 +495,6 @@ class AuditHistoryService
             AuditEvent::SUBJECT_WALK_IN => WalkIn::withTrashed()->find($auditEvent->subject_id),
             AuditEvent::SUBJECT_INVENTORY_ITEM => InventoryItem::withTrashed()->find($auditEvent->subject_id),
             AuditEvent::SUBJECT_CASH_ADVANCE => CashAdvance::withTrashed()->find($auditEvent->subject_id),
-            AuditEvent::SUBJECT_CASH_LEDGER_ENTRY => CashLedgerEntry::withTrashed()->find($auditEvent->subject_id),
             default => null,
         };
     }

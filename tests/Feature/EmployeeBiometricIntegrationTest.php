@@ -506,7 +506,6 @@ class EmployeeBiometricIntegrationTest extends TestCase
     {
         return BusinessProfile::factory()->create([
             'name' => 'Naga',
-            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
             'province' => 'Camarines Sur',
         ]);

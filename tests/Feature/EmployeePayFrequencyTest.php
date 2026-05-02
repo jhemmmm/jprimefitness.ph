@@ -274,7 +274,6 @@ class EmployeePayFrequencyTest extends TestCase
         return BusinessProfile::factory()->create([
             'name' => $name,
             'country_code' => $countryCode,
-            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
             'province' => 'Camarines Sur',
         ]);

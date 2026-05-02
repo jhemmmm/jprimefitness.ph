@@ -3,7 +3,6 @@
 namespace App\Support;
 
 use App\Models\AuditEvent;
-use App\Models\CashLedgerEntry;
 use App\Models\SaleTransaction;
 use Illuminate\Support\Str;
 
@@ -51,7 +50,6 @@ class PanelAuditEventFormatter
     {
         $label = match ($subjectType) {
             AuditEvent::SUBJECT_BUSINESS_PROFILE => (string) ($snapshot['name'] ?? 'Business Profile'),
-            AuditEvent::SUBJECT_CASH_LEDGER_ENTRY => sprintf('Cash Ledger Entry #%d - %s', $subjectId, $snapshot['title'] ?? 'Untitled'),
             AuditEvent::SUBJECT_EMPLOYEE => sprintf('Employee #%d - %s', $subjectId, $snapshot['name'] ?? 'Unknown Employee'),
             AuditEvent::SUBJECT_PAYROLL => sprintf('Payroll #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
             AuditEvent::SUBJECT_PAYOUT => sprintf('Payout #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
@@ -78,17 +76,7 @@ class PanelAuditEventFormatter
     private function title(string $subjectType, string $event): string
     {
         return match ($subjectType) {
-            AuditEvent::SUBJECT_BUSINESS_PROFILE => match ($event) {
-                'photo_added' => 'Business photo added',
-                'photo_removed' => 'Business photo removed',
-                default => 'Business profile updated',
-            },
-            AuditEvent::SUBJECT_CASH_LEDGER_ENTRY => match ($event) {
-                'created' => 'Cash ledger entry created',
-                'deleted' => 'Cash ledger entry deleted',
-                'restored' => 'Cash ledger entry restored',
-                default => 'Cash ledger entry updated',
-            },
+            AuditEvent::SUBJECT_BUSINESS_PROFILE => 'Business profile updated',
             AuditEvent::SUBJECT_EMPLOYEE => match ($event) {
                 'created' => 'Employee created',
                 'deleted' => 'Employee deleted',
@@ -165,7 +153,6 @@ class PanelAuditEventFormatter
     {
         return match ($subjectType) {
             AuditEvent::SUBJECT_BUSINESS_PROFILE => $this->businessProfileMessage($event, $snapshot),
-            AuditEvent::SUBJECT_CASH_LEDGER_ENTRY => $this->cashLedgerMessage($event, $snapshot),
             AuditEvent::SUBJECT_EMPLOYEE => $this->employeeMessage($event, $snapshot),
             AuditEvent::SUBJECT_PAYROLL => $this->payrollMessage($event, $snapshot),
             AuditEvent::SUBJECT_PAYOUT => $this->payoutMessage($snapshot),
@@ -194,16 +181,6 @@ class PanelAuditEventFormatter
             AuditEvent::SUBJECT_BUSINESS_PROFILE => [
                 'business_profile_id' => $snapshot['id'] ?? null,
                 'business_name' => $snapshot['name'] ?? null,
-                'status' => $snapshot['status'] ?? null,
-            ],
-            AuditEvent::SUBJECT_CASH_LEDGER_ENTRY => [
-                'entry_type' => $snapshot['entry_type'] ?? null,
-                'direction' => $snapshot['direction'] ?? null,
-                'amount' => $this->nullableMoney($snapshot['amount'] ?? null),
-                'title' => $snapshot['title'] ?? null,
-                'description' => $snapshot['description'] ?? null,
-                'is_system' => $snapshot['is_system'] ?? null,
-                'source_id' => $snapshot['source_id'] ?? null,
             ],
             AuditEvent::SUBJECT_EMPLOYEE => [
                 'employee_id' => $snapshot['id'] ?? null,
@@ -337,31 +314,7 @@ class PanelAuditEventFormatter
     {
         $name = (string) ($snapshot['name'] ?? 'The business profile');
 
-        return match ($event) {
-            'photo_added' => 'A new photo was added for '.$name.'.',
-            'photo_removed' => 'A business photo was removed for '.$name.'.',
-            default => $name.' was updated.',
-        };
-    }
-
-    /**
-     * @param  array<string, mixed>  $snapshot
-     */
-    private function cashLedgerMessage(string $event, array $snapshot): string
-    {
-        $mode = ! empty($snapshot['is_system']) ? 'system' : 'manual';
-        $direction = ($snapshot['direction'] ?? CashLedgerEntry::DIRECTION_IN) === CashLedgerEntry::DIRECTION_OUT
-            ? 'cash out'
-            : 'cash in';
-        $title = (string) ($snapshot['title'] ?? 'Untitled entry');
-        $amount = $this->currency((float) ($snapshot['amount'] ?? 0));
-
-        return match ($event) {
-            'created' => sprintf('A %s %s entry for %s titled "%s" was created.', $mode, $direction, $amount, $title),
-            'deleted' => sprintf('The %s %s entry for %s titled "%s" was deleted.', $mode, $direction, $amount, $title),
-            'restored' => sprintf('The %s %s entry for %s titled "%s" was restored.', $mode, $direction, $amount, $title),
-            default => sprintf('The %s %s entry for %s titled "%s" was updated.', $mode, $direction, $amount, $title),
-        };
+        return $name.' was updated.';
     }
 
     /**

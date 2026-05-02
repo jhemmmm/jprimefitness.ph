@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Attendance;
 use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
-use App\Models\CashLedgerEntry;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\MemberPtPackage;
@@ -17,8 +16,6 @@ use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -96,7 +93,6 @@ class AuditHistoryExpansionTest extends TestCase
 
         $this->assertSame([
             AuditEvent::SUBJECT_BUSINESS_PROFILE,
-            AuditEvent::SUBJECT_CASH_LEDGER_ENTRY,
             AuditEvent::SUBJECT_EMPLOYEE,
             AuditEvent::SUBJECT_PAYROLL,
             AuditEvent::SUBJECT_PAYOUT,
@@ -133,10 +129,8 @@ class AuditHistoryExpansionTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_business_profile_photo_and_manual_cash_ledger_changes_record_audit_events(): void
+    public function test_business_profile_changes_record_audit_events(): void
     {
-        Storage::fake('public');
-
         $admin = $this->createUserWithRole('admin', 'Admin Bea');
 
         $this->actingAs($admin)
@@ -147,55 +141,10 @@ class AuditHistoryExpansionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('name', 'JPrime Fitness Audit Hub');
 
-        $this->actingAs($admin)
-            ->post('/panel/business/photos', [
-                'photo' => UploadedFile::fake()->image('lobby.jpg'),
-            ])
-            ->assertCreated();
-
-        $this->actingAs($admin)
-            ->deleteJson('/panel/business/photos/0')
-            ->assertNoContent();
-
-        $entryId = $this->actingAs($admin)
-            ->postJson('/panel/business/cash-ledger', [
-                'direction' => CashLedgerEntry::DIRECTION_IN,
-                'amount' => 2500,
-                'occurred_at' => '2026-04-09 08:00:00',
-                'title' => 'Opening Float',
-                'description' => 'Front desk cash drawer',
-            ])
-            ->assertCreated()
-            ->json('entry.id');
-
-        $this->actingAs($admin)
-            ->putJson("/panel/business/cash-ledger/{$entryId}", [
-                'direction' => CashLedgerEntry::DIRECTION_OUT,
-                'amount' => 350,
-                'occurred_at' => '2026-04-09 09:00:00',
-                'title' => 'Utility Bill',
-                'description' => 'Internet payment',
-            ])
-            ->assertOk();
-
-        $this->actingAs($admin)
-            ->deleteJson("/panel/business/cash-ledger/{$entryId}")
-            ->assertNoContent();
-
         $this->assertSame(
-            ['updated', 'photo_added', 'photo_removed'],
+            ['updated'],
             AuditEvent::query()
                 ->where('subject_type', AuditEvent::SUBJECT_BUSINESS_PROFILE)
-                ->orderBy('id')
-                ->pluck('event')
-                ->all()
-        );
-
-        $this->assertSame(
-            ['created', 'updated', 'deleted'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_CASH_LEDGER_ENTRY)
-                ->where('subject_id', $entryId)
                 ->orderBy('id')
                 ->pluck('event')
                 ->all()
@@ -278,6 +227,10 @@ class AuditHistoryExpansionTest extends TestCase
         $this->actingAs($manager)
             ->deleteJson("/panel/employees/{$deleteEmployeeId}")
             ->assertOk();
+
+        BusinessProfile::current()->update([
+            'payroll_government_contributions_enabled' => true,
+        ]);
 
         $payrollId = $this->actingAs($manager)
             ->postJson("/panel/employees/{$employeeId}/payrolls", [
@@ -391,16 +344,6 @@ class AuditHistoryExpansionTest extends TestCase
             'subject_id' => $payoutId,
             'event' => 'created',
         ]);
-
-        $payoutLedgerEvent = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_CASH_LEDGER_ENTRY)
-            ->where('event', 'created')
-            ->get()
-            ->first(fn (AuditEvent $auditEvent): bool => ($auditEvent->metadata['entry_type'] ?? null) === CashLedgerEntry::TYPE_PAYROLL_PAYOUT
-                && (int) ($auditEvent->metadata['source_id'] ?? 0) === $payoutId);
-
-        $this->assertNotNull($payoutLedgerEvent);
-        $this->assertSame(AuditEvent::SUBJECT_PAYOUT, $payoutLedgerEvent->metadata['caused_by']['subject_type'] ?? null);
 
         $this->actingAs($manager)
             ->getJson('/panel/audit-history/list?subject_type=payout&subject_id='.$payoutId)
@@ -721,17 +664,6 @@ class AuditHistoryExpansionTest extends TestCase
                 ->all()
         );
 
-        $walkInLedgerEvents = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_CASH_LEDGER_ENTRY)
-            ->orderBy('id')
-            ->get()
-            ->filter(fn (AuditEvent $auditEvent): bool => ($auditEvent->metadata['caused_by']['subject_type'] ?? null) === AuditEvent::SUBJECT_WALK_IN)
-            ->pluck('event')
-            ->values()
-            ->all();
-
-        $this->assertSame(['created', 'updated', 'deleted'], $walkInLedgerEvents);
-
         $this->assertSame(
             ['created', 'updated', 'deleted'],
             AuditEvent::query()
@@ -883,30 +815,6 @@ class AuditHistoryExpansionTest extends TestCase
         $this->assertNotNull($ptPackageCreatedEvent);
         $this->assertSame('2026-04-10 12:00:00', $ptPackageCreatedEvent->occurred_at?->toDateTimeString());
 
-        $this->assertSame(
-            4,
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_CASH_LEDGER_ENTRY)
-                ->where('event', 'created')
-                ->get()
-                ->filter(fn (AuditEvent $auditEvent): bool => in_array(
-                    $auditEvent->metadata['entry_type'] ?? null,
-                    [
-                        CashLedgerEntry::TYPE_INVENTORY_SALE,
-                        CashLedgerEntry::TYPE_MEMBERSHIP_SALE,
-                        CashLedgerEntry::TYPE_PT_PACKAGE_SALE,
-                        CashLedgerEntry::TYPE_WALK_IN_SALE,
-                    ],
-                    true,
-                ))
-                ->count()
-        );
-
-        $this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?subject_type=cash_ledger_entry&search=Membership sale')
-            ->assertOk()
-            ->assertJsonPath('events.data.0.caused_by.subject_type', AuditEvent::SUBJECT_SALE_TRANSACTION)
-            ->assertJsonPath('events.data.0.caused_by.action_url', route('panel.sales.index'));
     }
 
     public function test_read_only_and_failed_actions_do_not_create_extra_audit_events(): void
@@ -1026,28 +934,14 @@ class AuditHistoryExpansionTest extends TestCase
 
         return array_merge([
             'name' => $profile->name,
-            'status' => $profile->status,
             'country_code' => $profile->country_code,
             'city' => $profile->city,
             'province' => $profile->province,
             'address' => $profile->address,
-            'phone' => $profile->phone,
-            'email' => $profile->email,
             'timezone' => $profile->timezone,
             'amenities' => $profile->amenities ?? [],
             'opening_time' => $profile->opening_time,
             'closing_time' => $profile->closing_time,
-            'facebook_url' => $profile->facebook_url,
-            'messenger_url' => $profile->messenger_url,
-            'whatsapp_url' => $profile->whatsapp_url,
-            'map_url' => $profile->map_url,
-            'hero_badge' => $profile->hero_badge,
-            'hero_title' => $profile->hero_title,
-            'hero_highlight' => $profile->hero_highlight,
-            'hero_description' => $profile->hero_description,
-            'about_heading' => $profile->about_heading,
-            'about_description' => $profile->about_description,
-            'membership_note' => $profile->membership_note,
         ], $overrides);
     }
 

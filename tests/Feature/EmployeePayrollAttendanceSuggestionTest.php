@@ -211,7 +211,6 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
             'name' => 'JPrime Fitness',
             'country_code' => $countryCode,
             'pay_overwork_hours' => $payOverworkHours,
-            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
             'province' => 'Camarines Sur',
         ]);

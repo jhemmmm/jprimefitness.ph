@@ -3,7 +3,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Business Settings</h4>
-            <p class="text-muted small mb-0">Manage business profile details, hours, contact links, and public-site copy.</p>
+            <p class="text-muted small mb-0">Manage business profile details, payroll toggles, location, hours, and amenities.</p>
          </div>
       </div>
 

@@ -27,7 +27,6 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
 
         BusinessProfile::factory()->create([
             'name' => 'J Prime Fitness',
-            'status' => BusinessProfile::STATUS_OPEN,
         ]);
     }
 

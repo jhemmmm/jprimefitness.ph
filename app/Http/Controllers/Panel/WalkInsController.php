@@ -8,7 +8,6 @@ use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\WalkIn;
 use App\Services\AuditHistoryService;
-use App\Services\CashLedgerService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,7 +17,6 @@ use Illuminate\View\View;
 class WalkInsController extends Controller
 {
     public function __construct(
-        private CashLedgerService $cashLedgerService,
         private AuditHistoryService $auditHistoryService,
     ) {}
 
@@ -85,7 +83,6 @@ class WalkInsController extends Controller
         $data['visited_at'] = $data['visited_at'] ?? now();
 
         $walkIn = WalkIn::create($data);
-        $this->cashLedgerService->syncWalkIn($walkIn, 'created');
         $walkIn = $walkIn->fresh(['ratePlan']);
 
         $this->auditHistoryService->recordSubjectEvent(
@@ -122,7 +119,6 @@ class WalkInsController extends Controller
         $data['payment_method'] = $data['payment_method'] ?? $walkIn->payment_method ?? SaleTransaction::PAYMENT_METHOD_CASH;
         $walkIn->update($data);
         $walkIn = $walkIn->fresh(['ratePlan']);
-        $this->cashLedgerService->syncWalkIn($walkIn, 'updated');
 
         $this->auditHistoryService->recordSubjectEvent(
             AuditEvent::SUBJECT_WALK_IN,
@@ -141,7 +137,6 @@ class WalkInsController extends Controller
     public function destroy(WalkIn $walkIn): JsonResponse
     {
         $snapshot = $this->walkInAuditSnapshot($walkIn->loadMissing('ratePlan'));
-        $this->cashLedgerService->deleteWalkIn($walkIn);
         $walkIn->delete();
 
         $this->auditHistoryService->recordSubjectEvent(

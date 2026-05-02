@@ -10,27 +10,18 @@
                   <div class="panel-card-header align-items-start flex-column flex-md-row">
                      <div>
                         <div class="panel-card-title">Business identity</div>
-                        <div class="panel-card-sub">Set the core profile details staff and members rely on every day.</div>
+                        <div class="panel-card-sub">Set the business name, country, and payroll behavior.</div>
                      </div>
                      <span class="business-settings-section-index">01</span>
                   </div>
                   <div class="panel-card-body">
                      <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md-8">
                            <label class="form-label form-label-sm fw-semibold">Business Name <span class="text-danger">*</span></label>
                            <input type="text" class="form-control" :class="{ 'is-invalid': errors.name }" v-model="form.name" :disabled="identityFieldsLocked" />
                            <div class="invalid-feedback" v-if="errors.name">{{ errors.name[0] }}</div>
                         </div>
-                        <div class="col-md-3">
-                           <label class="form-label form-label-sm fw-semibold">Status <span class="text-danger">*</span></label>
-                           <select class="form-select" :class="{ 'is-invalid': errors.status }" v-model="form.status" :disabled="identityFieldsLocked">
-                              <option value="open">Open</option>
-                              <option value="closed">Closed</option>
-                              <option value="coming_soon">Coming Soon</option>
-                           </select>
-                           <div class="invalid-feedback" v-if="errors.status">{{ errors.status[0] }}</div>
-                        </div>
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                            <label class="form-label form-label-sm fw-semibold">Country Code <span class="text-danger">*</span></label>
                            <select class="form-select" :class="{ 'is-invalid': errors.country_code }" v-model="form.country_code" :disabled="identityFieldsLocked">
                               <option v-for="country in countryOptions" :key="country.value" :value="country.value">{{ country.label }}</option>
@@ -59,7 +50,7 @@
                                  <div>
                                     <div class="fw-semibold">Payroll wage tax</div>
                                     <div class="text-muted small">
-                                       When enabled, new payrolls and recalculated drafts will apply the app's calculated income tax withholding. Existing saved payroll snapshots stay unchanged.
+                                       When enabled, new payrolls and recalculated drafts will apply the app's calculated income tax withholding.
                                     </div>
                                  </div>
                                  <div class="form-check form-switch m-0">
@@ -75,7 +66,7 @@
                                  <div>
                                     <div class="fw-semibold">Government contributions</div>
                                     <div class="text-muted small">
-                                       When enabled, new payrolls and recalculated drafts will snapshot SSS, PhilHealth, and Pag-IBIG deductions and employer shares. Existing saved payroll snapshots stay unchanged.
+                                       When enabled, new payrolls and recalculated drafts will snapshot SSS, PhilHealth, and Pag-IBIG deductions and employer shares.
                                     </div>
                                  </div>
                                  <div class="form-check form-switch m-0">
@@ -98,7 +89,7 @@
                   <div class="panel-card-header align-items-start flex-column flex-md-row">
                      <div>
                         <div class="panel-card-title">Location & hours</div>
-                        <div class="panel-card-sub">Organize how the branch appears on maps, schedules, and public pages.</div>
+                        <div class="panel-card-sub">Maintain the operating location and schedule used across the panel.</div>
                      </div>
                      <span class="business-settings-section-index">02</span>
                   </div>
@@ -119,83 +110,24 @@
                            <input type="text" class="form-control" :class="{ 'is-invalid': errors.address }" v-model="form.address" />
                            <div class="invalid-feedback" v-if="errors.address">{{ errors.address[0] }}</div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                            <label class="form-label form-label-sm fw-semibold">Opening Time</label>
                            <input type="time" class="form-control" :class="{ 'is-invalid': errors.opening_time }" v-model="form.opening_time" />
                            <div class="invalid-feedback" v-if="errors.opening_time">{{ errors.opening_time[0] }}</div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                            <label class="form-label form-label-sm fw-semibold">Closing Time</label>
                            <input type="time" class="form-control" :class="{ 'is-invalid': errors.closing_time }" v-model="form.closing_time" />
                            <div class="invalid-feedback" v-if="errors.closing_time">{{ errors.closing_time[0] }}</div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                            <label class="form-label form-label-sm fw-semibold">Timezone</label>
                            <select class="form-select" :class="{ 'is-invalid': errors.timezone }" v-model="form.timezone">
                               <option v-for="timezone in timezoneOptions" :key="timezone.value" :value="timezone.value">{{ timezone.label }}</option>
                            </select>
                            <div class="invalid-feedback" v-if="errors.timezone">{{ errors.timezone[0] }}</div>
                         </div>
-                        <div class="col-md-6">
-                           <label class="form-label form-label-sm fw-semibold">Google Maps URL</label>
-                           <input type="url" class="form-control" :class="{ 'is-invalid': errors.map_url }" v-model="form.map_url" />
-                           <div class="form-text">Paste the public map link members can use for directions.</div>
-                           <div class="invalid-feedback" v-if="errors.map_url">{{ errors.map_url[0] }}</div>
-                        </div>
-                     </div>
-                  </div>
-               </section>
-
-               <section id="business-contact" class="panel-card business-settings-section">
-                  <div class="panel-card-header align-items-start flex-column flex-md-row">
-                     <div>
-                        <div class="panel-card-title">Contact & social</div>
-                        <div class="panel-card-sub">Keep every direct channel in one place for quick updates.</div>
-                     </div>
-                     <span class="business-settings-section-index">03</span>
-                  </div>
-                  <div class="panel-card-body">
-                     <div class="row g-3">
-                        <div class="col-md-6">
-                           <label class="form-label form-label-sm fw-semibold">Phone</label>
-                           <input type="text" class="form-control" :class="{ 'is-invalid': errors.phone }" v-model="form.phone" />
-                           <div class="invalid-feedback" v-if="errors.phone">{{ errors.phone[0] }}</div>
-                        </div>
-                        <div class="col-md-6">
-                           <label class="form-label form-label-sm fw-semibold">Email</label>
-                           <input type="email" class="form-control" :class="{ 'is-invalid': errors.email }" v-model="form.email" />
-                           <div class="invalid-feedback" v-if="errors.email">{{ errors.email[0] }}</div>
-                        </div>
-                        <div class="col-md-4">
-                           <label class="form-label form-label-sm fw-semibold">Facebook URL</label>
-                           <input type="url" class="form-control" :class="{ 'is-invalid': errors.facebook_url }" v-model="form.facebook_url" />
-                           <div class="invalid-feedback" v-if="errors.facebook_url">{{ errors.facebook_url[0] }}</div>
-                        </div>
-                        <div class="col-md-4">
-                           <label class="form-label form-label-sm fw-semibold">Messenger URL</label>
-                           <input type="url" class="form-control" :class="{ 'is-invalid': errors.messenger_url }" v-model="form.messenger_url" />
-                           <div class="invalid-feedback" v-if="errors.messenger_url">{{ errors.messenger_url[0] }}</div>
-                        </div>
-                        <div class="col-md-4">
-                           <label class="form-label form-label-sm fw-semibold">WhatsApp URL</label>
-                           <input type="url" class="form-control" :class="{ 'is-invalid': errors.whatsapp_url }" v-model="form.whatsapp_url" />
-                           <div class="invalid-feedback" v-if="errors.whatsapp_url">{{ errors.whatsapp_url[0] }}</div>
-                        </div>
-                     </div>
-                  </div>
-               </section>
-
-               <section id="business-media" class="panel-card business-settings-section">
-                  <div class="panel-card-header align-items-start flex-column flex-md-row">
-                     <div>
-                        <div class="panel-card-title">Amenities & media</div>
-                        <div class="panel-card-sub">Show what the facility offers and keep gallery content easy to manage.</div>
-                     </div>
-                     <span class="business-settings-section-index">04</span>
-                  </div>
-                  <div class="panel-card-body">
-                     <div class="row g-3">
-                        <div class="col-lg-7">
+                        <div class="col-12">
                            <label class="form-label form-label-sm fw-semibold">Amenities</label>
                            <textarea
                               class="form-control"
@@ -207,73 +139,11 @@
                            <div class="form-text">Examples: lockers, shower rooms, vending area, cardio zone, recovery space.</div>
                            <div class="invalid-feedback" v-if="errors.amenities">{{ errors.amenities[0] }}</div>
                         </div>
-                        <div class="col-lg-5">
-                           <div class="business-settings-media-card h-100">
-                              <div class="small text-uppercase text-muted fw-semibold mb-2">Photo gallery</div>
-                              <div class="business-settings-media-count">{{ galleryPhotoCount }}</div>
-                              <div class="text-muted small mb-3">
-                                 {{ galleryPhotoCount === 1 ? "photo is currently available for the public gallery." : "photos are currently available for the public gallery." }}
-                              </div>
-                              <a href="/panel/business/photos" class="btn btn-outline-secondary btn-sm business-settings-media-link">
-                                 <i class="bi bi-images me-1"></i>
-                                 Manage Photos
-                              </a>
-                           </div>
-                        </div>
                         <div class="col-12" v-if="parsedAmenities.length">
                            <div class="small text-muted mb-2">Preview</div>
                            <div class="d-flex flex-wrap gap-2">
                               <span class="m-badge m-badge--plan" v-for="amenity in parsedAmenities" :key="amenity">{{ amenity }}</span>
                            </div>
-                        </div>
-                     </div>
-                  </div>
-               </section>
-
-               <section id="business-copy" class="panel-card business-settings-section">
-                  <div class="panel-card-header align-items-start flex-column flex-md-row">
-                     <div>
-                        <div class="panel-card-title">Website copy</div>
-                        <div class="panel-card-sub">Write the homepage and about-section copy without hunting across the form.</div>
-                     </div>
-                     <span class="business-settings-section-index">05</span>
-                  </div>
-                  <div class="panel-card-body">
-                     <div class="row g-3">
-                        <div class="col-md-4">
-                           <label class="form-label form-label-sm fw-semibold">Hero Badge</label>
-                           <input type="text" class="form-control" :class="{ 'is-invalid': errors.hero_badge }" v-model="form.hero_badge" />
-                           <div class="invalid-feedback" v-if="errors.hero_badge">{{ errors.hero_badge[0] }}</div>
-                        </div>
-                        <div class="col-md-4">
-                           <label class="form-label form-label-sm fw-semibold">Hero Title</label>
-                           <input type="text" class="form-control" :class="{ 'is-invalid': errors.hero_title }" v-model="form.hero_title" />
-                           <div class="invalid-feedback" v-if="errors.hero_title">{{ errors.hero_title[0] }}</div>
-                        </div>
-                        <div class="col-md-4">
-                           <label class="form-label form-label-sm fw-semibold">Hero Highlight</label>
-                           <input type="text" class="form-control" :class="{ 'is-invalid': errors.hero_highlight }" v-model="form.hero_highlight" />
-                           <div class="invalid-feedback" v-if="errors.hero_highlight">{{ errors.hero_highlight[0] }}</div>
-                        </div>
-                        <div class="col-12">
-                           <label class="form-label form-label-sm fw-semibold">Hero Description</label>
-                           <textarea class="form-control" rows="3" :class="{ 'is-invalid': errors.hero_description }" v-model="form.hero_description"></textarea>
-                           <div class="invalid-feedback" v-if="errors.hero_description">{{ errors.hero_description[0] }}</div>
-                        </div>
-                        <div class="col-md-6">
-                           <label class="form-label form-label-sm fw-semibold">About Heading</label>
-                           <input type="text" class="form-control" :class="{ 'is-invalid': errors.about_heading }" v-model="form.about_heading" />
-                           <div class="invalid-feedback" v-if="errors.about_heading">{{ errors.about_heading[0] }}</div>
-                        </div>
-                        <div class="col-md-6">
-                           <label class="form-label form-label-sm fw-semibold">Membership Note</label>
-                           <input type="text" class="form-control" :class="{ 'is-invalid': errors.membership_note }" v-model="form.membership_note" />
-                           <div class="invalid-feedback" v-if="errors.membership_note">{{ errors.membership_note[0] }}</div>
-                        </div>
-                        <div class="col-12">
-                           <label class="form-label form-label-sm fw-semibold">About Description</label>
-                           <textarea class="form-control" rows="4" :class="{ 'is-invalid': errors.about_description }" v-model="form.about_description"></textarea>
-                           <div class="invalid-feedback" v-if="errors.about_description">{{ errors.about_description[0] }}</div>
                         </div>
                      </div>
                   </div>
@@ -299,7 +169,7 @@
                   </div>
                   <div class="panel-card-body">
                      <div class="business-settings-summary-status">
-                        <span :class="['m-badge', statusBadgeClass]">{{ statusLabel }}</span>
+                        <span class="m-badge m-badge--open">Active</span>
                         <span class="small text-muted">{{ hasPendingChanges ? "Unsaved changes ready to publish." : "Everything matches the saved profile." }}</span>
                      </div>
 
@@ -313,20 +183,8 @@
                            <div class="business-settings-metric-value">{{ form.timezone || "-" }}</div>
                         </div>
                         <div class="business-settings-metric">
-                           <div class="business-settings-metric-label">Social links</div>
-                           <div class="business-settings-metric-value">{{ socialLinkCount }}</div>
-                        </div>
-                        <div class="business-settings-metric">
                            <div class="business-settings-metric-label">Amenities</div>
                            <div class="business-settings-metric-value">{{ parsedAmenities.length }}</div>
-                        </div>
-                        <div class="business-settings-metric">
-                           <div class="business-settings-metric-label">Gallery</div>
-                           <div class="business-settings-metric-value">{{ galleryPhotoCount }}</div>
-                        </div>
-                        <div class="business-settings-metric">
-                           <div class="business-settings-metric-label">Website copy</div>
-                           <div class="business-settings-metric-value">{{ websiteCopyStatus }}</div>
                         </div>
                      </div>
 
@@ -336,7 +194,7 @@
                      </button>
 
                      <div class="form-text mt-2 text-center" v-if="!saving && !hasPendingChanges">No pending changes.</div>
-                     <div class="form-text mt-2" v-if="identityFieldsLocked">Business name, status, and country code can only be changed by a super admin.</div>
+                     <div class="form-text mt-2" v-if="identityFieldsLocked">Business name and country code can only be changed by a super admin.</div>
                   </div>
                </div>
 
@@ -363,44 +221,7 @@
 <script>
 const regionNames = typeof Intl !== "undefined" && typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
 
-const COUNTRY_CODES = [
-   "PH",
-   "US",
-   "CA",
-   "AU",
-   "NZ",
-   "GB",
-   "IE",
-   "SG",
-   "MY",
-   "ID",
-   "TH",
-   "VN",
-   "JP",
-   "KR",
-   "HK",
-   "TW",
-   "CN",
-   "IN",
-   "AE",
-   "SA",
-   "QA",
-   "KW",
-   "BH",
-   "OM",
-   "DE",
-   "FR",
-   "ES",
-   "IT",
-   "NL",
-   "CH",
-   "SE",
-   "NO",
-   "DK",
-   "ZA",
-   "BR",
-   "MX",
-];
+const COUNTRY_CODES = ["PH", "US", "CA", "AU", "NZ", "GB", "SG", "MY", "ID", "TH", "VN", "JP", "KR", "HK", "TW", "CN", "IN", "AE"];
 
 const FALLBACK_TIMEZONES = [
    "UTC",
@@ -413,14 +234,9 @@ const FALLBACK_TIMEZONES = [
    "Asia/Kuala_Lumpur",
    "Asia/Jakarta",
    "Asia/Dubai",
-   "Asia/Riyadh",
    "Europe/London",
-   "Europe/Paris",
-   "Europe/Berlin",
    "America/New_York",
-   "America/Chicago",
    "America/Los_Angeles",
-   "Australia/Sydney",
 ];
 
 const supportedTimezones = typeof Intl !== "undefined" && typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : [];
@@ -441,36 +257,17 @@ const SECTION_LINKS = [
    {
       id: "business-identity",
       label: "Business identity",
-      note: "Name, status, country, and payroll behavior.",
+      note: "Name, country, and payroll behavior.",
    },
    {
       id: "business-location",
       label: "Location & hours",
-      note: "Address, maps, timezone, and operating schedule.",
-   },
-   {
-      id: "business-contact",
-      label: "Contact & social",
-      note: "Direct contact details and messaging links.",
-   },
-   {
-      id: "business-media",
-      label: "Amenities & media",
-      note: "Facility amenities plus gallery management.",
-   },
-   {
-      id: "business-copy",
-      label: "Website copy",
-      note: "Homepage messaging and about-section content.",
+      note: "Address, timezone, amenities, and schedule.",
    },
 ];
 
 function ensureSelectOption(options, value, formatter = null) {
-   if (!value) {
-      return options;
-   }
-
-   if (options.some((option) => option.value === value)) {
+   if (!value || options.some((option) => option.value === value)) {
       return options;
    }
 
@@ -525,45 +322,12 @@ export default {
       identityFieldsLocked: function () {
          return !this.is("super admin");
       },
-      statusLabel: function () {
-         return this.$filters.capitalize(this.form.status || "open");
-      },
-      statusBadgeClass: function () {
-         return this.$filters.statusBadge(this.form.status) || "m-badge--draft";
-      },
-      galleryPhotoCount: function () {
-         return Array.isArray(this.profile.photos) ? this.profile.photos.length : 0;
-      },
-      socialLinkCount: function () {
-         return [this.form.facebook_url, this.form.messenger_url, this.form.whatsapp_url, this.form.map_url].filter(Boolean).length;
-      },
       businessHoursLabel: function () {
          if (!this.form.opening_time && !this.form.closing_time) {
             return "Not set";
          }
 
          return [this.formatShortTime(this.form.opening_time), this.formatShortTime(this.form.closing_time)].filter(Boolean).join(" - ");
-      },
-      websiteCopyStatus: function () {
-         const completedFields = [
-            this.form.hero_badge,
-            this.form.hero_title,
-            this.form.hero_highlight,
-            this.form.hero_description,
-            this.form.about_heading,
-            this.form.about_description,
-            this.form.membership_note,
-         ].filter((value) => String(value || "").trim()).length;
-
-         if (completedFields >= 5) {
-            return "Ready";
-         }
-
-         if (completedFields > 0) {
-            return `${completedFields}/7 set`;
-         }
-
-         return "Needs copy";
       },
       hasPendingChanges: function () {
          return JSON.stringify(this.buildPayload()) !== JSON.stringify(this.normalizePayload(this.profile));
@@ -574,7 +338,6 @@ export default {
       getForm: function (profile) {
          return {
             name: profile.name || "",
-            status: profile.status || "open",
             country_code: profile.country_code || "PH",
             pay_overwork_hours: Boolean(profile.pay_overwork_hours),
             payroll_income_tax_enabled: Boolean(profile.payroll_income_tax_enabled),
@@ -582,30 +345,16 @@ export default {
             city: profile.city || "",
             province: profile.province || "",
             address: profile.address || "",
-            phone: profile.phone || "",
-            email: profile.email || "",
-            map_url: profile.map_url || "",
             opening_time: profile.opening_time ? String(profile.opening_time).slice(0, 5) : "",
             closing_time: profile.closing_time ? String(profile.closing_time).slice(0, 5) : "",
-            facebook_url: profile.facebook_url || "",
-            messenger_url: profile.messenger_url || "",
-            whatsapp_url: profile.whatsapp_url || "",
             timezone: profile.timezone || "Asia/Manila",
             amenities_text: Array.isArray(profile.amenities) ? profile.amenities.join(", ") : "",
-            hero_badge: profile.hero_badge || "",
-            hero_title: profile.hero_title || "",
-            hero_highlight: profile.hero_highlight || "",
-            hero_description: profile.hero_description || "",
-            about_heading: profile.about_heading || "",
-            about_description: profile.about_description || "",
-            membership_note: profile.membership_note || "",
          };
       },
 
       normalizePayload: function (source, overrides = {}) {
          return {
             name: source.name || "",
-            status: source.status || "open",
             country_code: String(source.country_code || "PH").toUpperCase(),
             pay_overwork_hours: Boolean(source.pay_overwork_hours),
             payroll_income_tax_enabled: Boolean(source.payroll_income_tax_enabled),
@@ -613,23 +362,10 @@ export default {
             city: source.city || "",
             province: source.province || "",
             address: source.address || "",
-            phone: source.phone || "",
-            email: source.email || "",
             timezone: source.timezone || "Asia/Manila",
             amenities: Array.isArray(source.amenities) ? source.amenities.filter(Boolean) : [],
             opening_time: source.opening_time ? String(source.opening_time).slice(0, 5) : "",
             closing_time: source.closing_time ? String(source.closing_time).slice(0, 5) : "",
-            facebook_url: source.facebook_url || "",
-            messenger_url: source.messenger_url || "",
-            whatsapp_url: source.whatsapp_url || "",
-            map_url: source.map_url || "",
-            hero_badge: source.hero_badge || null,
-            hero_title: source.hero_title || null,
-            hero_highlight: source.hero_highlight || null,
-            hero_description: source.hero_description || null,
-            about_heading: source.about_heading || null,
-            about_description: source.about_description || null,
-            membership_note: source.membership_note || null,
             ...overrides,
          };
       },

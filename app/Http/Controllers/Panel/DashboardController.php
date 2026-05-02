@@ -157,7 +157,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * @param  array{id:int, name:string, city:?string, province:?string, status:?string}  $location
+     * @param  array{id:int, name:string, city:?string, province:?string}  $location
      * @return array<int, array<string, int|string>>
      */
     private function locationLoadRows(array $location, \DateTimeInterface $todayStart, \DateTimeInterface $todayEnd): array
@@ -165,14 +165,13 @@ class DashboardController extends Controller
         return [[
             'location_id' => $location['id'],
             'location_name' => $location['name'],
-            'status' => $location['status'],
             'current_occupancy' => Attendance::query()->whereNull('checked_out_at')->count(),
             'today_check_ins' => Attendance::query()->whereBetween('checked_in_at', [$todayStart, $todayEnd])->count(),
         ]];
     }
 
     /**
-     * @param  array{id:int, name:string, city:?string, province:?string, status:?string}  $location
+     * @param  array{id:int, name:string, city:?string, province:?string}  $location
      * @return array<int, array<string, mixed>>
      */
     private function checkInsToday(array $location, \DateTimeInterface $start, \DateTimeInterface $end): array

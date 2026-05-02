@@ -2221,69 +2221,6 @@ body.auth-body {
     width: 80px;
 }
 
-// ── Social links (branches table / cards) ────────────────────────────────────
-
-.social-link {
-    color: var(--bs-secondary-color);
-    font-size: 1rem;
-    text-decoration: none;
-    line-height: 1;
-
-    &:hover {
-        color: var(--bs-danger);
-    }
-}
-
-// ── Branch photo gallery ─────────────────────────────────────────────────────
-
-.branch-photos-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.branch-photo-item {
-    position: relative;
-    width: 80px;
-    height: 80px;
-}
-
-.branch-photo-thumb {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-    border-radius: 6px;
-    border: 1px solid rgba(0, 0, 0, 0.12);
-
-    [data-bs-theme="dark"] & {
-        border-color: rgba(255, 255, 255, 0.12);
-    }
-}
-
-.branch-photo-del {
-    position: absolute;
-    top: 3px;
-    right: 3px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
-    border: none;
-    font-size: 0.55rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-    line-height: 1;
-
-    &:hover {
-        background: #dc3545;
-    }
-}
-
 // ── Members - plan section & view modal ──────────────────────────────────────
 
 .plan-section {

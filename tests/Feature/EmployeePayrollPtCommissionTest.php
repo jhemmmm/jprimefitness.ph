@@ -253,7 +253,6 @@ class EmployeePayrollPtCommissionTest extends TestCase
     {
         return BusinessProfile::factory()->create([
             'name' => $name,
-            'status' => BusinessProfile::STATUS_OPEN,
             'city' => 'Naga City',
             'province' => 'Camarines Sur',
         ]);

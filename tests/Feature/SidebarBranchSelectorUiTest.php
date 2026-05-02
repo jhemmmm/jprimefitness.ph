@@ -28,7 +28,6 @@ class SidebarBranchSelectorUiTest extends TestCase
             resource_path('views/panel/members/show.blade.php'),
             resource_path('views/panel/reports/attendance.blade.php'),
             resource_path('views/panel/reports/sales.blade.php'),
-            resource_path('views/panel/reports/financial.blade.php'),
             resource_path('views/panel/reports/payroll.blade.php'),
             resource_path('views/panel/walk-ins.blade.php'),
         ];
@@ -106,22 +105,11 @@ class SidebarBranchSelectorUiTest extends TestCase
         }
     }
 
-    public function test_business_cash_ledger_page_uses_standard_panel_table_layout(): void
-    {
-        $contents = file_get_contents(resource_path('js/components/panel/vendor/BusinessCashLedgerPage.vue'));
-
-        $this->assertNotFalse($contents);
-        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Cash Ledger</h4>', $contents);
-        $this->assertStringContainsString('table table-hover table-striped align-middle mb-0 panel-table', $contents);
-        $this->assertStringNotContainsString('>Clear</button>', $contents);
-    }
-
     public function test_business_and_notifications_pages_use_standard_panel_page_headers(): void
     {
         $auditHistoryContents = file_get_contents(resource_path('js/components/panel/AuditHistoryPage.vue'));
         $notificationsContents = file_get_contents(resource_path('js/components/panel/NotificationsPage.vue'));
         $settingsContents = file_get_contents(resource_path('js/components/panel/BusinessSettingsPage.vue'));
-        $galleryContents = file_get_contents(resource_path('js/components/panel/vendor/BusinessGalleryPage.vue'));
 
         $this->assertNotFalse($auditHistoryContents);
         $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Audit History</h4>', $auditHistoryContents);
@@ -147,11 +135,6 @@ class SidebarBranchSelectorUiTest extends TestCase
 
         $this->assertNotFalse($settingsContents);
         $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Business Settings</h4>', $settingsContents);
-
-        $this->assertNotFalse($galleryContents);
-        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Business Gallery</h4>', $galleryContents);
-        $this->assertStringContainsString('v-if="pageError"', $galleryContents);
-        $this->assertStringContainsString('panel-card-title', $galleryContents);
     }
 
     public function test_members_mobile_cards_keep_link_styling_and_remove_view_details_menu_action(): void
@@ -187,10 +170,10 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertNotFalse($contents);
         $this->assertStringContainsString('Business identity', $contents);
         $this->assertStringContainsString('Location & hours', $contents);
-        $this->assertStringContainsString('Contact & social', $contents);
-        $this->assertStringContainsString('Amenities & media', $contents);
-        $this->assertStringContainsString('Website copy', $contents);
-        $this->assertStringContainsString('Manage Photos', $contents);
+        $this->assertStringNotContainsString('Contact & social', $contents);
+        $this->assertStringNotContainsString('Amenities & media', $contents);
+        $this->assertStringNotContainsString('Website copy', $contents);
+        $this->assertStringNotContainsString('Manage Photos', $contents);
         $this->assertStringContainsString('Payroll wage tax', $contents);
         $this->assertStringContainsString('Government contributions', $contents);
         $this->assertStringContainsString('business-settings-shortcut', $contents);
@@ -209,12 +192,12 @@ class SidebarBranchSelectorUiTest extends TestCase
 
         $this->assertNotFalse($contents);
         $this->assertStringContainsString('<div class="sidebar-menu-heading">Business</div>', $contents);
-        $this->assertStringContainsString("route('panel.business.cash-ledger')", $contents);
-        $this->assertStringContainsString('<span class="sidebar-nav-label">Cash Ledger</span>', $contents);
+        $this->assertStringNotContainsString("route('panel.business.cash-ledger')", $contents);
+        $this->assertStringNotContainsString('<span class="sidebar-nav-label">Cash Ledger</span>', $contents);
         $this->assertStringContainsString("route('panel.business.settings')", $contents);
         $this->assertStringContainsString('<span class="sidebar-nav-label">Business Settings</span>', $contents);
-        $this->assertStringContainsString("route('panel.business.photos')", $contents);
-        $this->assertStringContainsString('<span class="sidebar-nav-label">Photos</span>', $contents);
+        $this->assertStringNotContainsString("route('panel.business.photos')", $contents);
+        $this->assertStringNotContainsString('<span class="sidebar-nav-label">Photos</span>', $contents);
         $this->assertStringContainsString('<div class="sidebar-menu-heading">System</div>', $contents);
         $this->assertStringContainsString("route('panel.audit-history')", $contents);
         $this->assertStringContainsString('<span class="sidebar-nav-label">Audit History</span>', $contents);

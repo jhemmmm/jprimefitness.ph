@@ -37,7 +37,6 @@ class EmployeePayslipTest extends TestCase
 
         $businessProfile = BusinessProfile::factory()->create([
             'name' => 'JPrime Fitness Naga',
-            'status' => BusinessProfile::STATUS_OPEN,
             'pay_overwork_hours' => true,
         ]);
 
@@ -209,7 +208,6 @@ class EmployeePayslipTest extends TestCase
     {
         $businessProfile = BusinessProfile::factory()->create([
             'name' => 'JPrime Fitness Daet',
-            'status' => BusinessProfile::STATUS_OPEN,
             'pay_overwork_hours' => false,
         ]);
 
@@ -254,7 +252,6 @@ class EmployeePayslipTest extends TestCase
     {
         $businessProfile = BusinessProfile::factory()->create([
             'name' => 'JPrime Fitness Legazpi',
-            'status' => BusinessProfile::STATUS_OPEN,
             'pay_overwork_hours' => false,
         ]);
 
@@ -298,7 +295,6 @@ class EmployeePayslipTest extends TestCase
     {
         $businessProfile = BusinessProfile::factory()->create([
             'name' => 'JPrime Fitness Naga',
-            'status' => BusinessProfile::STATUS_OPEN,
             'pay_overwork_hours' => false,
         ]);
 

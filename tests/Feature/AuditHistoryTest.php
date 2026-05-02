@@ -6,7 +6,6 @@ use App\Models\Attendance;
 use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
 use App\Models\CashAdvance;
-use App\Models\CashLedgerEntry;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\User;
@@ -288,18 +287,6 @@ class AuditHistoryTest extends TestCase
         ]);
         $cashAdvance->delete();
 
-        $manualEntry = CashLedgerEntry::create([
-            'entry_type' => CashLedgerEntry::TYPE_MANUAL_ADJUSTMENT,
-            'direction' => CashLedgerEntry::DIRECTION_OUT,
-            'amount' => 350,
-            'occurred_at' => '2026-04-10 12:00:00',
-            'title' => 'Drawer correction',
-            'description' => 'Manual adjustment',
-            'is_system' => false,
-            'created_by' => $manager->id,
-        ]);
-        $manualEntry->delete();
-
         $this->makeAuditEvent(AuditEvent::SUBJECT_EMPLOYEE, $deletedEmployee->id, 'deleted', 'Employee #'.$deletedEmployee->id.' - '.$deletedEmployee->name, occurredAt: '2026-04-10 13:00:00');
         $this->makeAuditEvent(AuditEvent::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$member->name, occurredAt: '2026-04-10 13:05:00');
         $this->makeAuditEvent(AuditEvent::SUBJECT_WALK_IN, $walkIn->id, 'deleted', 'Walk-in #'.$walkIn->id.' - '.$walkIn->name, occurredAt: '2026-04-10 13:10:00');
@@ -308,9 +295,6 @@ class AuditHistoryTest extends TestCase
             'employee_id' => $employee->id,
             'employee_name' => $employee->name,
         ], '2026-04-10 13:20:00');
-        $this->makeAuditEvent(AuditEvent::SUBJECT_CASH_LEDGER_ENTRY, $manualEntry->id, 'deleted', 'Cash Ledger #'.$manualEntry->id.' - '.$manualEntry->title, [
-            'is_system' => false,
-        ], '2026-04-10 13:25:00');
 
         $events = collect($this->actingAs($manager)
             ->getJson('/panel/audit-history/list?per_page=20')
@@ -323,7 +307,6 @@ class AuditHistoryTest extends TestCase
             [AuditEvent::SUBJECT_WALK_IN, $walkIn->id],
             [AuditEvent::SUBJECT_INVENTORY_ITEM, $inventoryItem->id],
             [AuditEvent::SUBJECT_CASH_ADVANCE, $cashAdvance->id],
-            [AuditEvent::SUBJECT_CASH_LEDGER_ENTRY, $manualEntry->id],
         ] as [$subjectType, $subjectId]) {
             $event = $this->findSerializedEvent($events->all(), $subjectType, $subjectId, 'deleted');
 
@@ -347,27 +330,6 @@ class AuditHistoryTest extends TestCase
             occurredAt: '2026-04-10 08:00:00',
         );
 
-        $systemEntry = CashLedgerEntry::create([
-            'entry_type' => CashLedgerEntry::TYPE_WALK_IN_SALE,
-            'direction' => CashLedgerEntry::DIRECTION_IN,
-            'source_id' => 444,
-            'amount' => 250,
-            'occurred_at' => '2026-04-10 09:00:00',
-            'title' => 'Walk-in payment',
-            'description' => 'System entry',
-            'is_system' => true,
-        ]);
-        $systemEntry->delete();
-
-        $systemDeletedEvent = $this->makeAuditEvent(
-            AuditEvent::SUBJECT_CASH_LEDGER_ENTRY,
-            $systemEntry->id,
-            'deleted',
-            'Cash Ledger #'.$systemEntry->id.' - '.$systemEntry->title,
-            ['is_system' => true],
-            '2026-04-10 09:05:00',
-        );
-
         $updatedEvent = $this->makeAuditEvent(
             AuditEvent::SUBJECT_EMPLOYEE,
             $activeEmployee->id,
@@ -385,11 +347,6 @@ class AuditHistoryTest extends TestCase
         $this->assertNotNull($missingEvent);
         $this->assertFalse((bool) $missingEvent['restore']['available']);
         $this->assertStringContainsString('no longer exists', $missingEvent['restore']['reason']);
-
-        $systemEvent = $this->findSerializedEvent($events->all(), $systemDeletedEvent->subject_type, $systemDeletedEvent->subject_id, 'deleted');
-        $this->assertNotNull($systemEvent);
-        $this->assertFalse((bool) $systemEvent['restore']['available']);
-        $this->assertStringContainsString('System-generated cash ledger entries', $systemEvent['restore']['reason']);
 
         $nonDeletedEvent = $this->findSerializedEvent($events->all(), $updatedEvent->subject_type, $updatedEvent->subject_id, 'updated');
         $this->assertNotNull($nonDeletedEvent);
@@ -425,20 +382,7 @@ class AuditHistoryTest extends TestCase
         $inventoryItem->delete();
         $inventoryEvent = $this->makeAuditEvent(AuditEvent::SUBJECT_INVENTORY_ITEM, $inventoryItem->id, 'deleted', 'Inventory Item #'.$inventoryItem->id.' - '.$inventoryItem->name);
 
-        $manualEntry = CashLedgerEntry::create([
-            'entry_type' => CashLedgerEntry::TYPE_MANUAL_ADJUSTMENT,
-            'direction' => CashLedgerEntry::DIRECTION_OUT,
-            'amount' => 125,
-            'occurred_at' => '2026-04-10 10:00:00',
-            'title' => 'Supplies correction',
-            'description' => 'Manual adjustment',
-            'is_system' => false,
-            'created_by' => $manager->id,
-        ]);
-        $manualEntry->delete();
-        $manualEntryEvent = $this->makeAuditEvent(AuditEvent::SUBJECT_CASH_LEDGER_ENTRY, $manualEntry->id, 'deleted', 'Cash Ledger #'.$manualEntry->id.' - '.$manualEntry->title, ['is_system' => false]);
-
-        foreach ([$employeeEvent, $attendanceEvent, $inventoryEvent, $manualEntryEvent] as $auditEvent) {
+        foreach ([$employeeEvent, $attendanceEvent, $inventoryEvent] as $auditEvent) {
             $this->actingAs($manager)
                 ->postJson("/panel/audit-history/{$auditEvent->id}/restore")
                 ->assertOk()
@@ -448,7 +392,6 @@ class AuditHistoryTest extends TestCase
         $this->assertNull(User::withTrashed()->findOrFail($employee->id)->deleted_at);
         $this->assertNull(Attendance::withTrashed()->findOrFail($attendance->id)->deleted_at);
         $this->assertNull(InventoryItem::withTrashed()->findOrFail($inventoryItem->id)->deleted_at);
-        $this->assertNull(CashLedgerEntry::withTrashed()->findOrFail($manualEntry->id)->deleted_at);
 
         $this->assertSame('restored', AuditEvent::query()
             ->where('subject_type', AuditEvent::SUBJECT_EMPLOYEE)
@@ -457,7 +400,7 @@ class AuditHistoryTest extends TestCase
             ->value('event'));
     }
 
-    public function test_restore_endpoint_restores_walk_ins_and_related_cash_ledger_entries(): void
+    public function test_restore_endpoint_restores_walk_ins(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
 
@@ -469,19 +412,7 @@ class AuditHistoryTest extends TestCase
             'visited_at' => '2026-04-10 09:00:00',
         ]);
 
-        $cashLedgerEntry = CashLedgerEntry::create([
-            'entry_type' => CashLedgerEntry::TYPE_WALK_IN_SALE,
-            'direction' => CashLedgerEntry::DIRECTION_IN,
-            'source_id' => $walkIn->id,
-            'amount' => 250,
-            'occurred_at' => '2026-04-10 09:00:00',
-            'title' => 'Walk-in payment',
-            'description' => $walkIn->name,
-            'is_system' => true,
-        ]);
-
         $walkIn->delete();
-        $cashLedgerEntry->delete();
 
         $auditEvent = $this->makeAuditEvent(AuditEvent::SUBJECT_WALK_IN, $walkIn->id, 'deleted', 'Walk-in #'.$walkIn->id.' - '.$walkIn->name);
 
@@ -490,14 +421,9 @@ class AuditHistoryTest extends TestCase
             ->assertOk();
 
         $this->assertNull(WalkIn::withTrashed()->findOrFail($walkIn->id)->deleted_at);
-        $this->assertNull(CashLedgerEntry::withTrashed()
-            ->where('entry_type', CashLedgerEntry::TYPE_WALK_IN_SALE)
-            ->where('source_id', $walkIn->id)
-            ->firstOrFail()
-            ->deleted_at);
     }
 
-    public function test_restore_endpoint_restores_cash_advances_and_related_cash_ledger_entries(): void
+    public function test_restore_endpoint_restores_cash_advances(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $employee = $this->createUserWithRole('employee', 'Employee Eli');
@@ -512,19 +438,7 @@ class AuditHistoryTest extends TestCase
             'released_by' => $manager->id,
         ]);
 
-        $cashLedgerEntry = CashLedgerEntry::create([
-            'entry_type' => CashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE,
-            'direction' => CashLedgerEntry::DIRECTION_OUT,
-            'source_id' => $cashAdvance->id,
-            'amount' => 1500,
-            'occurred_at' => '2026-04-10 09:00:00',
-            'title' => 'Cash advance release',
-            'description' => $employee->name,
-            'is_system' => true,
-        ]);
-
         $cashAdvance->delete();
-        $cashLedgerEntry->delete();
 
         $auditEvent = $this->makeAuditEvent(
             AuditEvent::SUBJECT_CASH_ADVANCE,
@@ -542,11 +456,6 @@ class AuditHistoryTest extends TestCase
             ->assertOk();
 
         $this->assertNull(CashAdvance::withTrashed()->findOrFail($cashAdvance->id)->deleted_at);
-        $this->assertNull(CashLedgerEntry::withTrashed()
-            ->where('entry_type', CashLedgerEntry::TYPE_CASH_ADVANCE_RELEASE)
-            ->where('source_id', $cashAdvance->id)
-            ->firstOrFail()
-            ->deleted_at);
     }
 
     public function test_restore_endpoint_rejects_non_restorable_events(): void
@@ -575,27 +484,7 @@ class AuditHistoryTest extends TestCase
             'Employee #999999 - Missing Person',
         );
 
-        $systemEntry = CashLedgerEntry::create([
-            'entry_type' => CashLedgerEntry::TYPE_WALK_IN_SALE,
-            'direction' => CashLedgerEntry::DIRECTION_IN,
-            'source_id' => 555,
-            'amount' => 250,
-            'occurred_at' => '2026-04-10 10:00:00',
-            'title' => 'Walk-in payment',
-            'description' => 'System entry',
-            'is_system' => true,
-        ]);
-        $systemEntry->delete();
-
-        $systemDeletedEvent = $this->makeAuditEvent(
-            AuditEvent::SUBJECT_CASH_LEDGER_ENTRY,
-            $systemEntry->id,
-            'deleted',
-            'Cash Ledger #'.$systemEntry->id.' - '.$systemEntry->title,
-            ['is_system' => true],
-        );
-
-        foreach ([$updatedEvent, $alreadyActiveDeletedEvent, $missingDeletedEvent, $systemDeletedEvent] as $auditEvent) {
+        foreach ([$updatedEvent, $alreadyActiveDeletedEvent, $missingDeletedEvent] as $auditEvent) {
             $this->actingAs($manager)
                 ->postJson("/panel/audit-history/{$auditEvent->id}/restore")
                 ->assertUnprocessable()

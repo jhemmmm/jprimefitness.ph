@@ -13,48 +13,26 @@ class BusinessProfile extends Model
 
     public const COUNTRY_PHILIPPINES = 'PH';
 
-    public const STATUS_OPEN = 'open';
-
-    public const STATUS_CLOSED = 'closed';
-
-    public const STATUS_COMING_SOON = 'coming_soon';
-
     protected $fillable = [
         'name',
         'country_code',
         'pay_overwork_hours',
         'payroll_income_tax_enabled',
         'payroll_government_contributions_enabled',
-        'status',
         'city',
         'province',
         'address',
-        'phone',
-        'email',
-        'messenger_url',
-        'facebook_url',
-        'whatsapp_url',
-        'map_url',
-        'photos',
         'opening_time',
         'closing_time',
         'amenities',
         'operating_hours',
         'timezone',
-        'hero_badge',
-        'hero_title',
-        'hero_highlight',
-        'hero_description',
-        'about_heading',
-        'about_description',
-        'membership_note',
     ];
 
     protected $casts = [
         'pay_overwork_hours' => 'boolean',
         'payroll_income_tax_enabled' => 'boolean',
         'payroll_government_contributions_enabled' => 'boolean',
-        'photos' => 'array',
         'amenities' => 'array',
         'operating_hours' => 'array',
     ];
@@ -70,29 +48,14 @@ class BusinessProfile extends Model
             'pay_overwork_hours' => false,
             'payroll_income_tax_enabled' => false,
             'payroll_government_contributions_enabled' => false,
-            'status' => self::STATUS_OPEN,
             'city' => 'Naga City',
             'province' => 'Camarines Sur',
             'address' => null,
-            'phone' => null,
-            'email' => null,
-            'messenger_url' => null,
-            'facebook_url' => null,
-            'whatsapp_url' => null,
-            'map_url' => null,
-            'photos' => [],
             'opening_time' => '06:00',
             'closing_time' => '22:00',
             'amenities' => [],
             'operating_hours' => [],
             'timezone' => 'Asia/Manila',
-            'hero_badge' => 'Single-location gym',
-            'hero_title' => 'Train with purpose.',
-            'hero_highlight' => 'One location. One standard.',
-            'hero_description' => 'Clean facilities, straightforward pricing, and coaching that keeps the focus on real progress.',
-            'about_heading' => 'Fitness that fits your goals.',
-            'about_description' => 'JPrime Fitness is built around a simple promise: a clean, safe, and results-driven training space that stays accessible to everyday members.',
-            'membership_note' => 'Membership, walk-in access, and PT pricing are managed from one central profile.',
         ];
     }
 
@@ -102,7 +65,7 @@ class BusinessProfile extends Model
     }
 
     /**
-     * @return array{id:int, name:string, city:?string, province:?string, status:?string}
+     * @return array{id:int, name:string, city:?string, province:?string}
      */
     public function locationSummary(): array
     {
@@ -111,12 +74,11 @@ class BusinessProfile extends Model
             'name' => $this->name,
             'city' => $this->city,
             'province' => $this->province,
-            'status' => $this->status,
         ];
     }
 
     /**
-     * @return array{id:int, name:string, city:?string, province:?string, status:?string, country_code:?string, pay_overwork_hours:bool, payroll_income_tax_enabled:bool, payroll_government_contributions_enabled:bool}
+     * @return array{id:int, name:string, city:?string, province:?string, country_code:?string, pay_overwork_hours:bool, payroll_income_tax_enabled:bool, payroll_government_contributions_enabled:bool}
      */
     public function panelShellPayload(): array
     {

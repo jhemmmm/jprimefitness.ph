@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\BusinessProfile;
-use App\Models\CashLedgerEntry;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\MemberPtPackage;
@@ -161,14 +160,6 @@ class SalesPageTest extends TestCase
             'quantity' => 18,
         ]);
 
-        $this->assertDatabaseHas('cash_ledger_entries', [
-            'entry_type' => CashLedgerEntry::TYPE_INVENTORY_SALE,
-            'source_id' => $transactionId,
-            'amount' => 190,
-            'direction' => CashLedgerEntry::DIRECTION_IN,
-            'is_system' => true,
-        ]);
-
         $this->assertSame(route('panel.sales.receipt', $transactionId), $response->json('receipt_url'));
     }
 
@@ -246,12 +237,6 @@ class SalesPageTest extends TestCase
             'total' => 4999.50,
         ]);
 
-        $this->assertDatabaseHas('cash_ledger_entries', [
-            'entry_type' => CashLedgerEntry::TYPE_MEMBERSHIP_SALE,
-            'amount' => 4999.50,
-            'direction' => CashLedgerEntry::DIRECTION_IN,
-            'is_system' => true,
-        ]);
     }
 
     public function test_membership_sale_can_reuse_email_from_a_soft_deleted_member(): void
@@ -370,42 +355,6 @@ class SalesPageTest extends TestCase
             'total' => 7200,
         ]);
 
-        $this->assertDatabaseMissing('cash_ledger_entries', [
-            'entry_type' => CashLedgerEntry::TYPE_PT_PACKAGE_SALE,
-            'amount' => 7200,
-        ]);
-    }
-
-    public function test_cash_pt_package_sale_creates_cash_ledger_entry(): void
-    {
-        $staff = $this->createUserWithRole('staff', 'Staff Cole');
-        $member = $this->createUserWithRole('member', 'Member Kai');
-        $ptProduct = $this->createPtProduct('10 Sessions', 10, [
-            'price' => 5000,
-            'coach_commission_rate' => 40,
-        ]);
-
-        $transactionId = $this->actingAs($staff)
-            ->postJson('/panel/sales', [
-                'type' => SaleTransaction::TYPE_PT_PACKAGE,
-                'member_mode' => 'existing',
-                'member_id' => $member->id,
-                'pt_product_id' => $ptProduct->id,
-                'assigned_at' => '2026-03-29',
-                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
-                'amount_received' => 5000,
-                'sold_at' => '2026-03-29 16:30:00',
-            ])
-            ->assertCreated()
-            ->json('id');
-
-        $this->assertDatabaseHas('cash_ledger_entries', [
-            'entry_type' => CashLedgerEntry::TYPE_PT_PACKAGE_SALE,
-            'source_id' => $transactionId,
-            'amount' => 5000,
-            'direction' => CashLedgerEntry::DIRECTION_IN,
-            'is_system' => true,
-        ]);
     }
 
     public function test_sale_transaction_history_survives_processor_deletion(): void

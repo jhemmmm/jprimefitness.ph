@@ -84,17 +84,6 @@
                     </span>
                     <div class="text-muted small mt-1">Single-location training hub</div>
                 </div>
-                <div class="d-flex gap-4">
-                    <a href="#" class="text-white-50 text-decoration-none small">
-                        <i class="bi bi-facebook me-1"></i>Facebook
-                    </a>
-                    <a href="#" class="text-white-50 text-decoration-none small">
-                        <i class="bi bi-instagram me-1"></i>Instagram
-                    </a>
-                    <a href="#" class="text-white-50 text-decoration-none small">
-                        <i class="bi bi-tiktok me-1"></i>TikTok
-                    </a>
-                </div>
             </div>
         </div>
     </footer>
