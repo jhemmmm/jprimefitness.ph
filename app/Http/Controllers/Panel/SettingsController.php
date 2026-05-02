@@ -11,11 +11,21 @@ use Illuminate\View\View;
 
 class SettingsController extends Controller
 {
+    /**
+     * Redirect to the settings page.
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
     public function index(): RedirectResponse
     {
         return to_route('panel.business.settings');
     }
 
+    /**
+     * Display the settings page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function settingsPage(): View
     {
         return view('panel.business.settings', [
@@ -23,6 +33,11 @@ class SettingsController extends Controller
         ]);
     }
 
+    /**
+     * Update the business settings.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);

@@ -17,10 +17,20 @@ use Spatie\LaravelPdf\Facades\Pdf;
 
 class SalesController extends Controller
 {
+    /**
+     * Create a new sales controller instance.
+     *
+     * @return void
+     */
     public function __construct(
         private PosSaleService $posSaleService,
     ) {}
 
+    /**
+     * Display the sales page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.sales', [
@@ -28,6 +38,11 @@ class SalesController extends Controller
         ]);
     }
 
+    /**
+     * Return sales page context data.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function context(): JsonResponse
     {
         return response()->json([
@@ -35,6 +50,11 @@ class SalesController extends Controller
         ]);
     }
 
+    /**
+     * Return sales transaction history.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function history(Request $request): JsonResponse
     {
         $request->validate([
@@ -73,6 +93,11 @@ class SalesController extends Controller
         ]);
     }
 
+    /**
+     * Create a sales transaction.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request): JsonResponse
     {
         $data = $this->validateStorePayload($request);
@@ -82,6 +107,11 @@ class SalesController extends Controller
         return response()->json($this->transformTransaction($transaction), 201);
     }
 
+    /**
+     * Download a sales receipt.
+     *
+     * @return \Illuminate\Contracts\Support\Responsable
+     */
     public function receipt(SaleTransaction $saleTransaction): Responsable
     {
         $fileName = 'sale-receipt-'.$saleTransaction->id.'.pdf';

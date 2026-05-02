@@ -13,16 +13,31 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceReportsController extends Controller
 {
+    /**
+     * Display the attendance reports page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.reports.attendance');
     }
 
+    /**
+     * Return attendance report data.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function data(Request $request): JsonResponse
     {
         return response()->json($this->reportPayload($request));
     }
 
+    /**
+     * Export the attendance report as CSV.
+     *
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
     public function export(Request $request): StreamedResponse
     {
         $report = $this->reportPayload($request);
@@ -257,6 +272,11 @@ class AttendanceReportsController extends Controller
             ->count();
     }
 
+    /**
+     * Return the unique attendee key for an attendance record.
+     *
+     * @return string
+     */
     private function attendeeKey(Attendance $attendance): string
     {
         if ($attendance->user_id !== null) {
@@ -268,6 +288,11 @@ class AttendanceReportsController extends Controller
         return $attendance->attendee_type.':name:'.$normalizedName;
     }
 
+    /**
+     * Return the attendance duration in minutes.
+     *
+     * @return ?int
+     */
     private function durationMinutes(Attendance $attendance): ?int
     {
         if (! $attendance->checked_in_at || ! $attendance->checked_out_at) {
@@ -277,6 +302,11 @@ class AttendanceReportsController extends Controller
         return max(0, $attendance->checked_in_at->diffInMinutes($attendance->checked_out_at));
     }
 
+    /**
+     * Return the display label for an attendance type.
+     *
+     * @return string
+     */
     private function typeLabel(string $type): string
     {
         return match ($type) {

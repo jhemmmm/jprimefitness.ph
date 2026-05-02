@@ -21,6 +21,11 @@ class SearchController extends Controller
         'staff',
     ];
 
+    /**
+     * Return global search results.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
@@ -201,6 +206,11 @@ class SearchController extends Controller
         return $value !== '' ? $value : null;
     }
 
+    /**
+     * Format an inventory quantity value.
+     *
+     * @return string
+     */
     private function formatQuantity(string|int|float|null $value): string
     {
         $formatted = number_format((float) $value, 2, '.', ',');

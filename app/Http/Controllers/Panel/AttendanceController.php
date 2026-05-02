@@ -16,6 +16,11 @@ use Illuminate\View\View;
 
 class AttendanceController extends Controller
 {
+    /**
+     * Create a new attendance controller instance.
+     *
+     * @return void
+     */
     public function __construct(
         private SystemActivityService $systemActivityService,
     ) {}
@@ -67,6 +72,11 @@ class AttendanceController extends Controller
         ]);
     }
 
+    /**
+     * Create an attendance record.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request): JsonResponse
     {
         $base = $request->validate([
@@ -104,6 +114,11 @@ class AttendanceController extends Controller
         return response()->json($this->serializeAttendance($attendance), 201);
     }
 
+    /**
+     * Update an attendance record.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, Attendance $attendance): JsonResponse
     {
         $data = $request->validate([
@@ -124,6 +139,11 @@ class AttendanceController extends Controller
         return response()->json($this->serializeAttendance($attendance));
     }
 
+    /**
+     * Check out an attendance record.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function checkout(Attendance $attendance): JsonResponse
     {
         if ($attendance->checked_out_at) {
@@ -147,6 +167,11 @@ class AttendanceController extends Controller
         return response()->json($this->serializeAttendance($attendance));
     }
 
+    /**
+     * Delete an attendance record.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy(Attendance $attendance): JsonResponse
     {
         $attendance->delete();

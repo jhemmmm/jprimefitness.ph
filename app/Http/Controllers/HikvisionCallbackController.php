@@ -10,6 +10,11 @@ use Illuminate\Support\Str;
 
 class HikvisionCallbackController extends Controller
 {
+    /**
+     * Handle the Hikvision attendance callback.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request, HikvisionAttendanceService $hikvisionAttendanceService): JsonResponse
     {
         Log::info('Received Hikvision attendance callback', $this->requestLogContext($request));
@@ -53,6 +58,11 @@ class HikvisionCallbackController extends Controller
         ], $statusCode);
     }
 
+    /**
+     * Determine whether the callback request token is valid.
+     *
+     * @return bool
+     */
     private function hasValidToken(Request $request): bool
     {
         $expected = (string) config('hikvision.helper_forward_token', '');
@@ -102,6 +112,11 @@ class HikvisionCallbackController extends Controller
         return $context;
     }
 
+    /**
+     * Determine whether a log context key should be redacted.
+     *
+     * @return bool
+     */
     private function shouldRedactKey(string $key): bool
     {
         return in_array(Str::lower($key), [

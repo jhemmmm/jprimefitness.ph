@@ -13,10 +13,20 @@ use Illuminate\Http\Request;
 
 class PricingController extends Controller
 {
+    /**
+     * Create a new pricing controller instance.
+     *
+     * @return void
+     */
     public function __construct(
         private SystemActivityService $systemActivityService,
     ) {}
 
+    /**
+     * Display the pricing page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.pricing', [
@@ -24,6 +34,11 @@ class PricingController extends Controller
         ]);
     }
 
+    /**
+     * Return pricing configuration data.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show(): JsonResponse
     {
         $membershipRates = RatePlan::query()
@@ -89,6 +104,11 @@ class PricingController extends Controller
         ]);
     }
 
+    /**
+     * Create a membership rate plan.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function storeRatePlan(Request $request, RatePlan $ratePlan): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
@@ -111,6 +131,11 @@ class PricingController extends Controller
         return response()->json(['message' => 'Rate plan pricing created successfully.'], 201);
     }
 
+    /**
+     * Update a membership rate plan.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updateRatePlan(Request $request, RatePlan $ratePlan): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
@@ -132,6 +157,11 @@ class PricingController extends Controller
         return response()->json(['message' => 'Rate plan pricing updated successfully.']);
     }
 
+    /**
+     * Delete a membership rate plan.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroyRatePlan(RatePlan $ratePlan): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
@@ -156,6 +186,11 @@ class PricingController extends Controller
         return response()->json(null, 204);
     }
 
+    /**
+     * Create a PT product.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function storePtProduct(Request $request, PTProduct $ptProduct): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
@@ -178,6 +213,11 @@ class PricingController extends Controller
         return response()->json(['message' => 'PT rate created successfully.'], 201);
     }
 
+    /**
+     * Update a PT product.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updatePtProduct(Request $request, PTProduct $ptProduct): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
@@ -199,6 +239,11 @@ class PricingController extends Controller
         return response()->json(['message' => 'PT rate updated successfully.']);
     }
 
+    /**
+     * Delete a PT product.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroyPtProduct(PTProduct $ptProduct): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);

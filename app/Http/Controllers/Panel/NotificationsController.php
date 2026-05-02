@@ -11,11 +11,21 @@ use Illuminate\Validation\Rule;
 
 class NotificationsController extends Controller
 {
+    /**
+     * Display the notifications page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.notifications');
     }
 
+    /**
+     * Return notification records.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function list(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -46,6 +56,11 @@ class NotificationsController extends Controller
         ]);
     }
 
+    /**
+     * Mark a notification as read.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function markAsRead(Request $request, string $notificationId): JsonResponse
     {
         /** @var DatabaseNotification $notification */
@@ -64,6 +79,11 @@ class NotificationsController extends Controller
         ]);
     }
 
+    /**
+     * Mark all notifications as read.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function markAllAsRead(Request $request): JsonResponse
     {
         $request->user()->unreadNotifications()->update([

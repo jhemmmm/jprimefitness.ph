@@ -14,6 +14,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PayrollReportsController extends Controller
 {
+    /**
+     * Display the payroll reports page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
@@ -21,6 +26,11 @@ class PayrollReportsController extends Controller
         return view('panel.reports.payroll');
     }
 
+    /**
+     * Return payroll report data.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function data(Request $request): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
@@ -28,6 +38,11 @@ class PayrollReportsController extends Controller
         return response()->json($this->reportPayload($request));
     }
 
+    /**
+     * Export the payroll report as CSV.
+     *
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
     public function export(Request $request): StreamedResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
@@ -202,6 +217,11 @@ class PayrollReportsController extends Controller
         ];
     }
 
+    /**
+     * Build the payroll report query.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     private function payrollQuery(array $filters): Builder
     {
         return Payroll::query()
@@ -211,6 +231,11 @@ class PayrollReportsController extends Controller
             ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('period_end', '<=', $filters['date_to']));
     }
 
+    /**
+     * Build the payroll payout report query.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     private function payoutQuery(array $filters): Builder
     {
         return Payout::query()
@@ -380,6 +405,11 @@ class PayrollReportsController extends Controller
             ->all();
     }
 
+    /**
+     * Return the display label for a payroll status.
+     *
+     * @return string
+     */
     private function statusLabel(string $status): string
     {
         return match ($status) {
@@ -392,6 +422,11 @@ class PayrollReportsController extends Controller
         };
     }
 
+    /**
+     * Return the display label for a pay frequency.
+     *
+     * @return string
+     */
     private function payFrequencyLabel(?string $payFrequency): string
     {
         return match ($payFrequency) {
@@ -401,6 +436,11 @@ class PayrollReportsController extends Controller
         };
     }
 
+    /**
+     * Return the display label for a payout method.
+     *
+     * @return string
+     */
     private function payoutMethodLabel(string $method): string
     {
         return match ($method) {

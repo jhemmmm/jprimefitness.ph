@@ -15,11 +15,21 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    /**
+     * Display the dashboard page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.dashboard');
     }
 
+    /**
+     * Return dashboard data for the current user.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function data(Request $request): JsonResponse
     {
         return response()->json($this->dashboardPayload());
@@ -74,11 +84,21 @@ class DashboardController extends Controller
         return $payload;
     }
 
+    /**
+     * Count registered members.
+     *
+     * @return int
+     */
     private function totalMembers(): int
     {
         return User::role('member')->count();
     }
 
+    /**
+     * Count active trainers.
+     *
+     * @return int
+     */
     private function activeTrainerCount(): int
     {
         return User::role('coach')
@@ -86,6 +106,11 @@ class DashboardController extends Controller
             ->count();
     }
 
+    /**
+     * Count active employees.
+     *
+     * @return int
+     */
     private function activeEmployeeCount(): int
     {
         return User::role(['employee', 'manager', 'admin', 'staff'])
@@ -93,6 +118,11 @@ class DashboardController extends Controller
             ->count();
     }
 
+    /**
+     * Count check-ins inside the given window.
+     *
+     * @return int
+     */
     private function todayCheckInCount(\DateTimeInterface $start, \DateTimeInterface $end): int
     {
         return Attendance::query()
@@ -100,6 +130,11 @@ class DashboardController extends Controller
             ->count();
     }
 
+    /**
+     * Count guest check-ins inside the given window.
+     *
+     * @return int
+     */
     private function guestCheckInCountForWindow(\DateTimeInterface $start, \DateTimeInterface $end): int
     {
         return Attendance::query()
@@ -108,6 +143,11 @@ class DashboardController extends Controller
             ->count();
     }
 
+    /**
+     * Calculate sales revenue inside the given window.
+     *
+     * @return float
+     */
     private function revenueForWindow(\DateTimeInterface $start, \DateTimeInterface $end): float
     {
         return round((float) SaleTransaction::query()
@@ -312,6 +352,11 @@ class DashboardController extends Controller
             ->all();
     }
 
+    /**
+     * Calculate the outstanding approved payroll balance.
+     *
+     * @return float
+     */
     private function pendingPayrollBalance(): float
     {
         $netPayroll = (float) Payroll::query()
@@ -325,6 +370,11 @@ class DashboardController extends Controller
         return round(max(0, $netPayroll - $totalPaid), 2);
     }
 
+    /**
+     * Return the loaded current membership for a user.
+     *
+     * @return ?\App\Models\MemberSubscription
+     */
     private function loadedCurrentMembership(?User $user): ?MemberSubscription
     {
         if ($user === null) {
@@ -342,6 +392,11 @@ class DashboardController extends Controller
             ], true));
     }
 
+    /**
+     * Return the display label for an attendance type.
+     *
+     * @return string
+     */
     private function attendanceTypeLabel(string $type): string
     {
         return match ($type) {

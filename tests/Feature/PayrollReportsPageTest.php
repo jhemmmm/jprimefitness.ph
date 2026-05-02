@@ -39,6 +39,26 @@ class PayrollReportsPageTest extends TestCase
             ->assertSee('business-profile=', false);
     }
 
+    public function test_payroll_reports_stat_cards_render_even_eight_card_grid(): void
+    {
+        $contents = file_get_contents(resource_path('js/components/panel/PayrollReportsPage.vue'));
+
+        $this->assertSame(1, preg_match('/statCards: function \(\) \{\s+return \[(.*?)\];\s+\},\s+chartStatusBreakdown/s', $contents, $matches));
+
+        $statCards = $matches[1];
+
+        $this->assertSame(8, preg_match_all('/label: "/', $statCards));
+        $this->assertStringContainsString('Payroll Runs', $statCards);
+        $this->assertStringContainsString('Gross Payroll', $statCards);
+        $this->assertStringContainsString('Bonuses', $statCards);
+        $this->assertStringContainsString('Withholding Tax', $statCards);
+        $this->assertStringContainsString("Employee Gov't Contributions", $statCards);
+        $this->assertStringContainsString('Net Payroll', $statCards);
+        $this->assertStringContainsString('Paid Out To Date', $statCards);
+        $this->assertStringContainsString('Outstanding To Date', $statCards);
+        $this->assertStringNotContainsString("Employer Gov't Contributions", $statCards);
+    }
+
     public function test_payroll_reports_data_returns_summary_and_breakdowns(): void
     {
         $this->setBusinessProfile('Naga');

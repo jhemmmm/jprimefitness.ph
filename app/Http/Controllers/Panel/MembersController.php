@@ -20,16 +20,31 @@ use Illuminate\Validation\Rule;
 
 class MembersController extends Controller
 {
+    /**
+     * Create a new members controller instance.
+     *
+     * @return void
+     */
     public function __construct(
         private MemberPtPackageAlertService $memberPtPackageAlertService,
         private SystemActivityService $systemActivityService,
     ) {}
 
+    /**
+     * Display the members page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.members');
     }
 
+    /**
+     * Return member records.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function list(Request $request): JsonResponse
     {
         $membersQuery = User::role('member')
@@ -79,6 +94,11 @@ class MembersController extends Controller
         ]);
     }
 
+    /**
+     * Create a member record.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -151,6 +171,11 @@ class MembersController extends Controller
         return response()->json($this->memberPayload($member, detailed: true), 201);
     }
 
+    /**
+     * Display a member detail page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function show(User $member): View
     {
         abort_unless($member->hasRole('member'), 404);
@@ -161,6 +186,11 @@ class MembersController extends Controller
         ]);
     }
 
+    /**
+     * Return member attendance records.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function attendance(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
@@ -195,6 +225,11 @@ class MembersController extends Controller
         ]);
     }
 
+    /**
+     * Update a member membership.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updateMembership(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
@@ -221,6 +256,11 @@ class MembersController extends Controller
         return response()->json($this->memberPayload($member->fresh(), detailed: true));
     }
 
+    /**
+     * Update a member membership status.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updateMembershipStatus(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
@@ -260,6 +300,11 @@ class MembersController extends Controller
         return response()->json($this->memberPayload($member->fresh(), detailed: true));
     }
 
+    /**
+     * Create a member PT package.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function storePtPackage(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
@@ -325,6 +370,11 @@ class MembersController extends Controller
         return response()->json($this->memberPayload($member->fresh(), detailed: true), 201);
     }
 
+    /**
+     * Create a member PT session usage record.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function storePtSessionUsage(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
@@ -394,6 +444,11 @@ class MembersController extends Controller
         return response()->json($this->memberPayload($member->fresh(), detailed: true), 201);
     }
 
+    /**
+     * Update a member record.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
@@ -697,6 +752,11 @@ class MembersController extends Controller
             ->all();
     }
 
+    /**
+     * Determine whether a coach can be assigned.
+     *
+     * @return bool
+     */
     private function coachIsAssignable(int $coachId): bool
     {
         return User::role('coach')

@@ -16,16 +16,31 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SalesReportsController extends Controller
 {
+    /**
+     * Display the sales reports page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.reports.sales');
     }
 
+    /**
+     * Return sales report data.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function data(Request $request): JsonResponse
     {
         return response()->json($this->reportPayload($request));
     }
 
+    /**
+     * Export the sales report as CSV.
+     *
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
     public function export(Request $request): StreamedResponse
     {
         $report = $this->reportPayload($request);

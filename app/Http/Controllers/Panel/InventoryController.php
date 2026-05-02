@@ -13,10 +13,20 @@ use Illuminate\Validation\Rule;
 
 class InventoryController extends Controller
 {
+    /**
+     * Create a new inventory controller instance.
+     *
+     * @return void
+     */
     public function __construct(
         private InventoryStockAlertService $inventoryStockAlertService,
     ) {}
 
+    /**
+     * Display the inventory page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.inventory', [
@@ -24,6 +34,11 @@ class InventoryController extends Controller
         ]);
     }
 
+    /**
+     * Return inventory records.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function list(Request $request): JsonResponse
     {
         $itemsQuery = InventoryItem::query()
@@ -94,6 +109,11 @@ class InventoryController extends Controller
         return response()->json(compact('inventory', 'stats'));
     }
 
+    /**
+     * Create an inventory item.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request): JsonResponse
     {
         $item = InventoryItem::create($this->validatePayload($request))
@@ -104,6 +124,11 @@ class InventoryController extends Controller
         return response()->json($this->serializeItem($item), 201);
     }
 
+    /**
+     * Update an inventory item.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, InventoryItem $inventoryItem): JsonResponse
     {
         $previousAlertState = $inventoryItem->stock_alert_state;
@@ -116,6 +141,11 @@ class InventoryController extends Controller
         return response()->json($this->serializeItem($inventoryItem));
     }
 
+    /**
+     * Delete an inventory item.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy(InventoryItem $inventoryItem): JsonResponse
     {
         $inventoryItem->delete();

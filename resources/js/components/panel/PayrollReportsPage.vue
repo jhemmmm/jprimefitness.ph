@@ -471,15 +471,6 @@ export default {
                valueClass: "text-warning",
             },
             {
-               label: "Employer Gov't Contributions",
-               value: this.formatCurrencyLabel(this.report.summary.employer_government_contributions),
-               sub: "Informational employer share",
-               icon: "bi-building",
-               iconBg: "bg-info-soft",
-               iconColor: "text-info",
-               valueClass: "text-info",
-            },
-            {
                label: "Net Payroll",
                value: this.formatCurrencyLabel(this.report.summary.net_payroll),
                sub: "Before payout progress",

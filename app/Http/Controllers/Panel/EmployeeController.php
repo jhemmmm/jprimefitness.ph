@@ -25,6 +25,11 @@ use Spatie\LaravelPdf\Facades\Pdf;
 
 class EmployeeController extends Controller
 {
+    /**
+     * Create a new employee controller instance.
+     *
+     * @return void
+     */
     public function __construct(
         private PayrollService $payrollService,
         private NotificationRecipientResolver $notificationRecipientResolver,
@@ -33,11 +38,21 @@ class EmployeeController extends Controller
         $this->middleware('can:manage employees');
     }
 
+    /**
+     * Display the employees page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.employees.index');
     }
 
+    /**
+     * Display an employee detail page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function show(User $employee): View
     {
         return view('panel.employees.show', [
@@ -46,6 +61,11 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * Return employee records.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function list(Request $request): JsonResponse
     {
         $employees = User::role(['employee', 'coach', 'manager', 'admin', 'staff'])
@@ -70,6 +90,11 @@ class EmployeeController extends Controller
         return response()->json($employees);
     }
 
+    /**
+     * Create an employee record.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request): JsonResponse
     {
         $businessProfile = BusinessProfile::current();
@@ -125,6 +150,11 @@ class EmployeeController extends Controller
         return response()->json($this->serializeEmployee($employee), 201);
     }
 
+    /**
+     * Update an employee record.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function update(Request $request, User $employee): JsonResponse
     {
         $businessProfile = BusinessProfile::current();
@@ -181,6 +211,11 @@ class EmployeeController extends Controller
         return response()->json($this->serializeEmployee($employee));
     }
 
+    /**
+     * Delete an employee record.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy(User $employee): JsonResponse
     {
         abort_if($employee->id === auth()->id(), 403);
@@ -202,6 +237,11 @@ class EmployeeController extends Controller
         return response()->json(['message' => 'Employee deleted.']);
     }
 
+    /**
+     * Return employee attendance records.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function attendance(Request $request, User $employee): JsonResponse
     {
         $records = Attendance::query()
@@ -233,6 +273,11 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * Return employee payroll records.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function payrolls(User $employee): JsonResponse
     {
         $payrolls = Payroll::query()
@@ -247,6 +292,11 @@ class EmployeeController extends Controller
         return response()->json($payrolls);
     }
 
+    /**
+     * Download an employee payslip.
+     *
+     * @return \Illuminate\Contracts\Support\Responsable
+     */
     public function payslip(User $employee, Payroll $payroll): Responsable
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -271,6 +321,11 @@ class EmployeeController extends Controller
         ])->driver('dompdf')->format('a4')->margins(8, 8, 8, 8)->download($fileName);
     }
 
+    /**
+     * Create an employee payroll.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function storePayroll(Request $request, User $employee): JsonResponse
     {
         $employee->loadMissing('employeeProfile');
@@ -351,6 +406,11 @@ class EmployeeController extends Controller
         return response()->json($this->serializePayroll($payroll), 201);
     }
 
+    /**
+     * Update an employee payroll.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function updatePayroll(Request $request, User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -435,6 +495,11 @@ class EmployeeController extends Controller
         return response()->json($this->serializePayroll($payroll));
     }
 
+    /**
+     * Approve an employee payroll.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function approvePayroll(User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -469,6 +534,11 @@ class EmployeeController extends Controller
         return response()->json($this->serializePayroll($payroll));
     }
 
+    /**
+     * Cancel an employee payroll.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function cancelPayroll(User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -496,6 +566,11 @@ class EmployeeController extends Controller
         return response()->json($this->serializePayroll($payroll));
     }
 
+    /**
+     * Return payroll suggestions for an employee.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function payrollSuggest(Request $request, User $employee): JsonResponse
     {
         $employee->loadMissing('employeeProfile');
@@ -576,6 +651,11 @@ class EmployeeController extends Controller
         ));
     }
 
+    /**
+     * Return released employee payouts.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function payouts(User $employee): JsonResponse
     {
         $payouts = Payout::query()
@@ -590,6 +670,11 @@ class EmployeeController extends Controller
         return response()->json($payouts);
     }
 
+    /**
+     * Return payouts for an employee payroll.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function payrollPayouts(User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -605,6 +690,11 @@ class EmployeeController extends Controller
         return response()->json($payouts);
     }
 
+    /**
+     * Create a payroll payout.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function storePayout(Request $request, User $employee, Payroll $payroll): JsonResponse
     {
         abort_if($payroll->employee_id !== $employee->id, 404);
@@ -839,6 +929,11 @@ class EmployeeController extends Controller
         return $normalized;
     }
 
+    /**
+     * Normalize an optional monetary value.
+     *
+     * @return ?float
+     */
     private function normalizeNullableMoney(mixed $value): ?float
     {
         if ($value === null || $value === '') {
@@ -848,16 +943,31 @@ class EmployeeController extends Controller
         return round((float) $value, 2);
     }
 
+    /**
+     * Determine whether payroll uses Philippine settings.
+     *
+     * @return bool
+     */
     private function isPhilippinesPayrollBusiness(?BusinessProfile $businessProfile = null): bool
     {
         return ($businessProfile ?? BusinessProfile::current())->country_code === BusinessProfile::COUNTRY_PHILIPPINES;
     }
 
+    /**
+     * Build the default Hikvision employee number.
+     *
+     * @return string
+     */
     private function defaultHikvisionEmployeeNo(int $employeeId): string
     {
         return str_pad((string) $employeeId, 8, '0', STR_PAD_LEFT);
     }
 
+    /**
+     * Return the employee daily rate.
+     *
+     * @return float
+     */
     private function employeeDailyRate(User $employee): float
     {
         $employee->loadMissing('employeeProfile');
@@ -865,6 +975,11 @@ class EmployeeController extends Controller
         return round((float) ($employee->employeeProfile?->daily_rate ?? 0), 2);
     }
 
+    /**
+     * Return the employee pay frequency.
+     *
+     * @return ?string
+     */
     private function employeePayFrequency(User $employee): ?string
     {
         $employee->loadMissing('employeeProfile');

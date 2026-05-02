@@ -11,6 +11,11 @@ use Illuminate\Http\Request;
 
 class EmployeeBiometricController extends Controller
 {
+    /**
+     * Create a new employee biometric controller instance.
+     *
+     * @return void
+     */
     public function __construct()
     {
         $this->middleware('can:manage employees');
@@ -34,6 +39,11 @@ class EmployeeBiometricController extends Controller
         ], 202);
     }
 
+    /**
+     * Display an employee biometric enrollment session.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function show(
         User $employee,
         EmployeeBiometricSession $session,
@@ -51,6 +61,11 @@ class EmployeeBiometricController extends Controller
         ]);
     }
 
+    /**
+     * Remove an employee biometric fingerprint.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function destroy(Request $request, User $employee, HikvisionBiometricService $hikvisionBiometricService): JsonResponse
     {
         $profile = $hikvisionBiometricService->removeFingerprint($employee, $request->user());

@@ -14,6 +14,11 @@ use Illuminate\Validation\Rule;
 
 class SystemActivityController extends Controller
 {
+    /**
+     * Create a new system activity controller instance.
+     *
+     * @return void
+     */
     public function __construct(
         private SystemActivityService $systemActivityService,
     ) {
@@ -24,11 +29,21 @@ class SystemActivityController extends Controller
         });
     }
 
+    /**
+     * Display the system activity page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.system-activity');
     }
 
+    /**
+     * Return system activity records.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function list(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -85,6 +100,11 @@ class SystemActivityController extends Controller
         ]);
     }
 
+    /**
+     * Restore a supported deleted system activity subject.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function restore(Request $request, SystemActivity $systemActivity): JsonResponse
     {
         $this->systemActivityService->restoreSubject($systemActivity, $request->user());
@@ -119,6 +139,11 @@ class SystemActivityController extends Controller
         ];
     }
 
+    /**
+     * Apply sorting to the system activity query.
+     *
+     * @return void
+     */
     private function applySorting(Builder $query, string $sortBy, string $sortDirection): void
     {
         match ($sortBy) {
