@@ -23,14 +23,11 @@ app.component("members-page", MembersPage);
 import MemberDetailPage from "./components/panel/MemberDetailPage.vue";
 app.component("member-detail-page", MemberDetailPage);
 
-import WalkInsPage from "./components/panel/WalkInsPage.vue";
-app.component("walk-ins-page", WalkInsPage);
-
 import BusinessSettingsPage from "./components/panel/BusinessSettingsPage.vue";
 app.component("business-settings-page", BusinessSettingsPage);
 
-import AuditHistoryPage from "./components/panel/AuditHistoryPage.vue";
-app.component("audit-history-page", AuditHistoryPage);
+import SystemActivityPage from "./components/panel/SystemActivityPage.vue";
+app.component("system-activity-page", SystemActivityPage);
 
 import InventoryPage from "./components/panel/InventoryPage.vue";
 app.component("inventory-page", InventoryPage);

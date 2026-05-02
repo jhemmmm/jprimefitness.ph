@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Attendance;
 use App\Models\BusinessProfile;
 use App\Models\User;
-use App\Models\WalkIn;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -59,33 +58,6 @@ class PanelBranchFilterAccessTest extends TestCase
         $this->assertIsArray($record);
         $this->assertArrayNotHasKey('branch_id', $record);
         $this->assertArrayNotHasKey('branch', $record);
-    }
-
-    public function test_walk_in_list_ignores_legacy_branch_query_params(): void
-    {
-        $this->setBusinessProfile('Naga');
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
-
-        WalkIn::create([
-            'served_by' => $staff->id,
-            'name' => 'Guest One',
-            'amount_paid' => 350,
-            'payment_method' => 'cash',
-            'visited_at' => now()->subHour(),
-        ]);
-
-        $response = $this->actingAs($staff)
-            ->getJson('/panel/walk-ins/list?branch=999')
-            ->assertOk()
-            ->assertJsonPath('walkIns.data.0.name', 'Guest One')
-            ->assertJsonPath('stats.today', 1)
-            ->assertJsonPath('stats.revenue_today', 350);
-
-        $walkIn = $response->json('walkIns.data.0');
-
-        $this->assertIsArray($walkIn);
-        $this->assertArrayNotHasKey('branch_id', $walkIn);
-        $this->assertArrayNotHasKey('branch', $walkIn);
     }
 
     public function test_employee_list_ignores_legacy_branch_query_params(): void

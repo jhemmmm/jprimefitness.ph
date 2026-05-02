@@ -29,7 +29,6 @@ class SidebarBranchSelectorUiTest extends TestCase
             resource_path('views/panel/reports/attendance.blade.php'),
             resource_path('views/panel/reports/sales.blade.php'),
             resource_path('views/panel/reports/payroll.blade.php'),
-            resource_path('views/panel/walk-ins.blade.php'),
         ];
 
         foreach ($pages as $page) {
@@ -49,7 +48,6 @@ class SidebarBranchSelectorUiTest extends TestCase
             resource_path('js/components/panel/InventoryPage.vue'),
             resource_path('js/components/panel/MemberDetailPage.vue'),
             resource_path('js/components/panel/MembersPage.vue'),
-            resource_path('js/components/panel/WalkInsPage.vue'),
             resource_path('js/components/panel/vendor/EmployeeSettingsPage.vue'),
             resource_path('js/components/panel/vendor/MemberAttendancePage.vue'),
             resource_path('js/components/panel/vendor/MemberSettingsPage.vue'),
@@ -67,7 +65,6 @@ class SidebarBranchSelectorUiTest extends TestCase
     {
         $components = [
             resource_path('js/components/panel/AttendancePage.vue'),
-            resource_path('js/components/panel/WalkInsPage.vue'),
             resource_path('js/components/panel/InventoryPage.vue'),
             resource_path('js/components/panel/NotificationsPage.vue'),
             resource_path('js/components/panel/vendor/PanelNotifications.vue'),
@@ -107,14 +104,14 @@ class SidebarBranchSelectorUiTest extends TestCase
 
     public function test_business_and_notifications_pages_use_standard_panel_page_headers(): void
     {
-        $auditHistoryContents = file_get_contents(resource_path('js/components/panel/AuditHistoryPage.vue'));
+        $auditHistoryContents = file_get_contents(resource_path('js/components/panel/SystemActivityPage.vue'));
         $notificationsContents = file_get_contents(resource_path('js/components/panel/NotificationsPage.vue'));
         $settingsContents = file_get_contents(resource_path('js/components/panel/BusinessSettingsPage.vue'));
 
         $this->assertNotFalse($auditHistoryContents);
-        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Audit History</h4>', $auditHistoryContents);
-        $this->assertStringContainsString('/panel/audit-history/list', $auditHistoryContents);
-        $this->assertStringContainsString('/panel/audit-history/${this.restoreTarget.id}/restore', $auditHistoryContents);
+        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">System Activity</h4>', $auditHistoryContents);
+        $this->assertStringContainsString('/panel/system-activity/list', $auditHistoryContents);
+        $this->assertStringContainsString('/panel/system-activity/${this.restoreTarget.id}/restore', $auditHistoryContents);
         $this->assertStringContainsString('table table-hover table-striped align-middle mb-0 panel-table', $auditHistoryContents);
         $this->assertStringContainsString("['m-badge', auditEventBadgeClass(event.event)]", $auditHistoryContents);
         $this->assertStringNotContainsString('class="dropdown d-flex justify-content-end"', $auditHistoryContents);
@@ -199,8 +196,8 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringNotContainsString("route('panel.business.photos')", $contents);
         $this->assertStringNotContainsString('<span class="sidebar-nav-label">Photos</span>', $contents);
         $this->assertStringContainsString('<div class="sidebar-menu-heading">System</div>', $contents);
-        $this->assertStringContainsString("route('panel.audit-history')", $contents);
-        $this->assertStringContainsString('<span class="sidebar-nav-label">Audit History</span>', $contents);
+        $this->assertStringContainsString("route('panel.system-activity')", $contents);
+        $this->assertStringContainsString('<span class="sidebar-nav-label">System Activity</span>', $contents);
         $this->assertStringContainsString("route('panel.settings')", $contents);
         $this->assertStringContainsString('<span class="sidebar-nav-label">Settings</span>', $contents);
     }

@@ -38,11 +38,10 @@ class AttendanceController extends Controller
      */
     public function list(Request $request): JsonResponse
     {
-        $records = Attendance::with(['user', 'walkIn', 'recordedBy'])
+        $records = Attendance::with(['user', 'recordedBy'])
             ->when($request->search, fn ($query) => $query->where(function ($inner) use ($request) {
                 $inner->where('name', 'like', "%{$request->search}%")
-                    ->orWhereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', "%{$request->search}%"))
-                    ->orWhereHas('walkIn', fn ($walkInQuery) => $walkInQuery->where('name', 'like', "%{$request->search}%"));
+                    ->orWhereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', "%{$request->search}%"));
             }))
             ->when($request->type, fn ($query, $type) => $query->where('attendee_type', $type))
             ->when($request->date_from, fn ($query, $date) => $query->whereDate('checked_in_at', '>=', $date))
@@ -89,7 +88,7 @@ class AttendanceController extends Controller
             'source' => Attendance::SOURCE_MANUAL,
             'source_device_serial' => null,
         ]));
-        $attendance = $attendance->fresh(['user', 'walkIn', 'recordedBy']);
+        $attendance = $attendance->fresh(['user', 'recordedBy']);
 
         $this->auditHistoryService->recordSubjectEvent(
             AuditEvent::SUBJECT_ATTENDANCE,
@@ -120,7 +119,7 @@ class AttendanceController extends Controller
         }
 
         $attendance->update($data);
-        $attendance = $attendance->fresh(['user', 'walkIn', 'recordedBy']);
+        $attendance = $attendance->fresh(['user', 'recordedBy']);
 
         $this->auditHistoryService->recordSubjectEvent(
             AuditEvent::SUBJECT_ATTENDANCE,
@@ -143,7 +142,7 @@ class AttendanceController extends Controller
         }
 
         $attendance->update(['checked_out_at' => now()]);
-        $attendance = $attendance->fresh(['user', 'walkIn', 'recordedBy']);
+        $attendance = $attendance->fresh(['user', 'recordedBy']);
 
         $this->auditHistoryService->recordSubjectEvent(
             AuditEvent::SUBJECT_ATTENDANCE,
@@ -161,7 +160,7 @@ class AttendanceController extends Controller
 
     public function destroy(Attendance $attendance): JsonResponse
     {
-        $snapshot = $this->attendanceAuditSnapshot($attendance->loadMissing(['user', 'walkIn', 'recordedBy']));
+        $snapshot = $this->attendanceAuditSnapshot($attendance->loadMissing(['user', 'recordedBy']));
 
         $attendance->delete();
 
@@ -205,7 +204,7 @@ class AttendanceController extends Controller
             'id' => $attendance->id,
             'attendee_type' => $attendance->attendee_type,
             'user_id' => $attendance->user_id,
-            'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
+            'name' => $attendance->name ?: $attendance->user?->name,
             'checked_in_at' => $attendance->checked_in_at?->toISOString(),
             'checked_out_at' => $attendance->checked_out_at?->toISOString(),
             'notes' => $attendance->notes,
@@ -222,8 +221,7 @@ class AttendanceController extends Controller
         return [
             'id' => $attendance->id,
             'user_id' => $attendance->user_id,
-            'walk_in_id' => $attendance->walk_in_id,
-            'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
+            'name' => $attendance->name ?: $attendance->user?->name,
             'attendee_type' => $attendance->attendee_type,
             'checked_in_at' => $attendance->checked_in_at?->toISOString(),
             'checked_out_at' => $attendance->checked_out_at?->toISOString(),

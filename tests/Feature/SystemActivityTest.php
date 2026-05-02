@@ -8,14 +8,14 @@ use App\Models\BusinessProfile;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\User;
-use App\Models\WalkIn;
+use App\Services\AuditHistoryService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
-class AuditHistoryTest extends TestCase
+class SystemActivityTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
@@ -75,12 +75,12 @@ class AuditHistoryTest extends TestCase
         ]);
 
         $this->actingAs($manager)
-            ->get('/panel/audit-history')
+            ->get('/panel/system-activity')
             ->assertOk()
-            ->assertSee('audit-history-page', false);
+            ->assertSee('system-activity-page', false);
 
         $this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?subject_type=payroll&subject_id=11&event=approved&search=approved&date_from=2026-04-01&date_to=2026-04-30&per_page=10')
+            ->getJson('/panel/system-activity/list?subject_type=payroll&subject_id=11&event=approved&search=approved&date_from=2026-04-01&date_to=2026-04-30&per_page=10')
             ->assertOk()
             ->assertJsonPath('events.total', 1)
             ->assertJsonPath('events.data.0.subject_type', AuditEvent::SUBJECT_PAYROLL)
@@ -91,11 +91,11 @@ class AuditHistoryTest extends TestCase
             ->assertJsonPath('events.data.0.action_url', route('panel.employees.show', $employee));
 
         $this->actingAs($staff)
-            ->get('/panel/audit-history')
+            ->get('/panel/system-activity')
             ->assertForbidden();
 
         $this->actingAs($staff)
-            ->getJson('/panel/audit-history/list')
+            ->getJson('/panel/system-activity/list')
             ->assertForbidden();
     }
 
@@ -134,14 +134,14 @@ class AuditHistoryTest extends TestCase
         ]);
 
         $this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?sort_by=actor_name&sort_direction=asc&per_page=10')
+            ->getJson('/panel/system-activity/list?sort_by=actor_name&sort_direction=asc&per_page=10')
             ->assertOk()
             ->assertJsonPath('events.data.0.actor_name', 'Ava Alpha')
             ->assertJsonPath('events.data.1.actor_name', 'Mia Middle')
             ->assertJsonPath('events.data.2.actor_name', 'Zoe Zebra');
 
         $this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?sort_by=occurred_at&sort_direction=asc&per_page=10')
+            ->getJson('/panel/system-activity/list?sort_by=occurred_at&sort_direction=asc&per_page=10')
             ->assertOk()
             ->assertJsonPath('events.data.0.subject_id', 102)
             ->assertJsonPath('events.data.1.subject_id', 103)
@@ -166,15 +166,6 @@ class AuditHistoryTest extends TestCase
         ]);
         $attendance->delete();
 
-        $walkIn = WalkIn::create([
-            'served_by' => $manager->id,
-            'name' => 'Walk-in Gwen',
-            'amount_paid' => 250,
-            'payment_method' => 'cash',
-            'visited_at' => '2026-04-10 09:00:00',
-        ]);
-        $walkIn->delete();
-
         $inventoryItem = InventoryItem::factory()->create([
             'inventory_category_id' => $category->id,
             'name' => 'Protein Shake',
@@ -183,18 +174,16 @@ class AuditHistoryTest extends TestCase
 
         $this->makeAuditEvent(AuditEvent::SUBJECT_EMPLOYEE, $deletedEmployee->id, 'deleted', 'Employee #'.$deletedEmployee->id.' - '.$deletedEmployee->name, occurredAt: '2026-04-10 13:00:00');
         $this->makeAuditEvent(AuditEvent::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$member->name, occurredAt: '2026-04-10 13:05:00');
-        $this->makeAuditEvent(AuditEvent::SUBJECT_WALK_IN, $walkIn->id, 'deleted', 'Walk-in #'.$walkIn->id.' - '.$walkIn->name, occurredAt: '2026-04-10 13:10:00');
         $this->makeAuditEvent(AuditEvent::SUBJECT_INVENTORY_ITEM, $inventoryItem->id, 'deleted', 'Inventory Item #'.$inventoryItem->id.' - '.$inventoryItem->name, occurredAt: '2026-04-10 13:15:00');
 
         $events = collect($this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?per_page=20')
+            ->getJson('/panel/system-activity/list?per_page=20')
             ->assertOk()
             ->json('events.data'));
 
         foreach ([
             [AuditEvent::SUBJECT_EMPLOYEE, $deletedEmployee->id],
             [AuditEvent::SUBJECT_ATTENDANCE, $attendance->id],
-            [AuditEvent::SUBJECT_WALK_IN, $walkIn->id],
             [AuditEvent::SUBJECT_INVENTORY_ITEM, $inventoryItem->id],
         ] as [$subjectType, $subjectId]) {
             $event = $this->findSerializedEvent($events->all(), $subjectType, $subjectId, 'deleted');
@@ -228,7 +217,7 @@ class AuditHistoryTest extends TestCase
         );
 
         $events = collect($this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?per_page=20')
+            ->getJson('/panel/system-activity/list?per_page=20')
             ->assertOk()
             ->json('events.data'));
 
@@ -273,7 +262,7 @@ class AuditHistoryTest extends TestCase
 
         foreach ([$employeeEvent, $attendanceEvent, $inventoryEvent] as $auditEvent) {
             $this->actingAs($manager)
-                ->postJson("/panel/audit-history/{$auditEvent->id}/restore")
+                ->postJson("/panel/system-activity/{$auditEvent->id}/restore")
                 ->assertOk()
                 ->assertJsonPath('message', 'Record restored successfully.');
         }
@@ -289,27 +278,25 @@ class AuditHistoryTest extends TestCase
             ->value('event'));
     }
 
-    public function test_restore_endpoint_restores_walk_ins(): void
+    public function test_restore_endpoint_restores_attendance_walk_in_check_ins(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
 
-        $walkIn = WalkIn::create([
-            'served_by' => $manager->id,
+        $attendance = Attendance::create([
+            'attendee_type' => Attendance::TYPE_WALK_IN,
             'name' => 'Walk-in Gwen',
-            'amount_paid' => 250,
-            'payment_method' => 'cash',
-            'visited_at' => '2026-04-10 09:00:00',
+            'checked_in_at' => '2026-04-10 09:00:00',
+            'recorded_by' => $manager->id,
         ]);
+        $attendance->delete();
 
-        $walkIn->delete();
-
-        $auditEvent = $this->makeAuditEvent(AuditEvent::SUBJECT_WALK_IN, $walkIn->id, 'deleted', 'Walk-in #'.$walkIn->id.' - '.$walkIn->name);
+        $auditEvent = $this->makeAuditEvent(AuditEvent::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$attendance->name);
 
         $this->actingAs($manager)
-            ->postJson("/panel/audit-history/{$auditEvent->id}/restore")
+            ->postJson("/panel/system-activity/{$auditEvent->id}/restore")
             ->assertOk();
 
-        $this->assertNull(WalkIn::withTrashed()->findOrFail($walkIn->id)->deleted_at);
+        $this->assertNull(Attendance::withTrashed()->findOrFail($attendance->id)->deleted_at);
     }
 
     public function test_restore_endpoint_rejects_non_restorable_events(): void
@@ -340,7 +327,7 @@ class AuditHistoryTest extends TestCase
 
         foreach ([$updatedEvent, $alreadyActiveDeletedEvent, $missingDeletedEvent] as $auditEvent) {
             $this->actingAs($manager)
-                ->postJson("/panel/audit-history/{$auditEvent->id}/restore")
+                ->postJson("/panel/system-activity/{$auditEvent->id}/restore")
                 ->assertUnprocessable()
                 ->assertJsonValidationErrors(['restore']);
         }
@@ -361,7 +348,7 @@ class AuditHistoryTest extends TestCase
         );
 
         $response = $this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?subject_type=employee&subject_id='.$employee->id.'&per_page=10')
+            ->getJson('/panel/system-activity/list?subject_type=employee&subject_id='.$employee->id.'&per_page=10')
             ->assertOk();
 
         $actionUrl = $response->json('events.data.0.action_url');
@@ -380,29 +367,37 @@ class AuditHistoryTest extends TestCase
 
     }
 
-    public function test_walk_in_audit_subject_labels_are_trimmed_to_fit_the_column(): void
+    public function test_sale_audit_subject_labels_are_trimmed_to_fit_the_column(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
-        $longName = str_repeat('W', 255);
+        $longName = str_repeat('S', 255);
 
-        $walkInId = $this->actingAs($manager)
-            ->postJson('/panel/walk-ins', [
-                'name' => $longName,
-                'amount_paid' => 250,
+        app(AuditHistoryService::class)->recordSubjectEvent(
+            AuditEvent::SUBJECT_SALE_TRANSACTION,
+            999,
+            'created',
+            [
+                'id' => 999,
+                'customer_name' => $longName,
+                'item_name' => 'Single Visit',
+                'type' => 'walk_in',
                 'payment_method' => 'cash',
-                'visited_at' => '2026-04-10 09:00:00',
-            ])
-            ->assertCreated()
-            ->json('id');
+                'total' => 250,
+            ],
+            [],
+            $manager->id,
+            $manager->name,
+            now(),
+        );
 
         $auditEvent = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_WALK_IN)
-            ->where('subject_id', $walkInId)
+            ->where('subject_type', AuditEvent::SUBJECT_SALE_TRANSACTION)
+            ->where('subject_id', 999)
             ->where('event', 'created')
             ->firstOrFail();
 
         $this->assertLessThanOrEqual(255, strlen($auditEvent->subject_label ?? ''));
-        $this->assertStringStartsWith('Walk-in #'.$walkInId.' - ', (string) $auditEvent->subject_label);
+        $this->assertStringStartsWith('Sale #999 - ', (string) $auditEvent->subject_label);
     }
 
     private function createUserWithRole(string $role, string $name): User

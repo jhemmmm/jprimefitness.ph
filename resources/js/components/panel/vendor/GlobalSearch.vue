@@ -10,7 +10,7 @@
                <div class="modal-content global-search-shell border-0 shadow-lg">
                   <div class="global-search-bar">
                      <i class="bi bi-search global-search-bar-icon"></i>
-                     <input ref="input" v-model="search" type="text" class="global-search-input" placeholder="Search members, employees, inventory, or walk-ins" @input="onSearchInput" />
+                     <input ref="input" v-model="search" type="text" class="global-search-input" placeholder="Search members, employees, or inventory" @input="onSearchInput" />
                      <button v-if="search" type="button" class="btn btn-link btn-sm text-muted text-decoration-none px-0" @click="clearSearch">
                         <i class="bi bi-x-lg"></i>
                      </button>
@@ -21,7 +21,7 @@
 
                      <div v-else-if="!hasEnoughCharacters" class="global-search-state text-muted">
                         <div class="fw-semibold text-body mb-1">Search across the panel</div>
-                        <div>Type at least 2 characters to search members, employees, inventory, and walk-ins.</div>
+                        <div>Type at least 2 characters to search members, employees, and inventory.</div>
                      </div>
 
                      <div v-else-if="loading" class="global-search-state text-muted">
@@ -76,7 +76,6 @@ const GROUP_CONFIG = {
    members: { icon: "bi-people-fill", iconBg: "bg-primary-soft", iconColor: "text-primary" },
    employees: { icon: "bi-person-workspace", iconBg: "bg-warning-soft", iconColor: "text-warning" },
    inventory: { icon: "bi-box-seam-fill", iconBg: "bg-danger-soft", iconColor: "text-danger" },
-   walkins: { icon: "bi-person-plus-fill", iconBg: "bg-primary-soft", iconColor: "text-primary" },
 };
 
 export default {

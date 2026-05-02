@@ -10,7 +10,6 @@ use App\Models\Payroll;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\User;
-use App\Models\WalkIn;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Carbon;
 use Spatie\Permission\Models\Role;
@@ -99,14 +98,6 @@ class DashboardPageTest extends TestCase
             'status' => MemberSubscription::STATUS_ACTIVE,
         ]);
 
-        $walkIn = WalkIn::create([
-            'served_by' => $manager->id,
-            'name' => 'Walk-in Pia',
-            'amount_paid' => 350,
-            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
-            'visited_at' => '2026-04-15 11:00:00',
-        ]);
-
         Attendance::create([
             'attendee_type' => Attendance::TYPE_MEMBER,
             'user_id' => $member->id,
@@ -127,8 +118,7 @@ class DashboardPageTest extends TestCase
 
         Attendance::create([
             'attendee_type' => Attendance::TYPE_WALK_IN,
-            'walk_in_id' => $walkIn->id,
-            'name' => $walkIn->name,
+            'name' => 'Walk-in Pia',
             'checked_in_at' => '2026-04-15 11:00:00',
             'checked_out_at' => '2026-04-15 11:30:00',
             'recorded_by' => $manager->id,
@@ -218,11 +208,11 @@ class DashboardPageTest extends TestCase
         $response->assertJsonPath('permissions.can_view_financial_data', true);
         $response->assertJsonPath('stats_row_1.total_members', 1);
         $response->assertJsonPath('stats_row_1.check_ins_today', 3);
-        $response->assertJsonPath('stats_row_1.revenue_today', 950);
-        $response->assertJsonPath('stats_row_1.revenue_this_month', 1750);
+        $response->assertJsonPath('stats_row_1.revenue_today', 600);
+        $response->assertJsonPath('stats_row_1.revenue_this_month', 1400);
         $response->assertJsonPath('stats_row_2.active_trainers', 1);
         $response->assertJsonPath('stats_row_2.active_employees', 2);
-        $response->assertJsonPath('stats_row_2.walk_ins_today', 1);
+        $response->assertJsonPath('stats_row_2.guest_check_ins_today', 1);
         $response->assertJsonPath('stats_row_2.pending_payroll_balance', 1000);
         $response->assertJsonCount(24, 'peak_hours');
         $response->assertJsonPath('peak_hours.8.hour_slot', '08:00');
@@ -233,7 +223,7 @@ class DashboardPageTest extends TestCase
         $response->assertJsonPath('location_load.0.current_occupancy', 1);
         $response->assertJsonPath('location_load.0.today_check_ins', 3);
         $response->assertJsonPath('check_ins_today.0.name', 'Walk-in Pia');
-        $response->assertJsonPath('check_ins_today.0.plan_or_rate', 'Walk-in Rate');
+        $response->assertJsonPath('check_ins_today.0.plan_or_rate', 'Walk-in');
         $response->assertJsonPath('recent_members.0.name', 'Member Lea');
         $response->assertJsonPath('recent_sales.0.item_name', 'Monthly Membership');
         $response->assertJsonPath('expiring_memberships.0.member_name', 'Member Lea');

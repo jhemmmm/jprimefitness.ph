@@ -6,7 +6,6 @@ use App\Models\Attendance;
 use App\Models\AuditEvent;
 use App\Models\InventoryItem;
 use App\Models\User;
-use App\Models\WalkIn;
 use App\Support\AuditSubjectRegistry;
 use App\Support\PanelAuditEventFormatter;
 use DateTimeInterface;
@@ -147,7 +146,7 @@ class AuditHistoryService
         return $this->auditSubjectRegistry->normalizeCausedBy($metadata);
     }
 
-    public function canViewAuditHistory(mixed $user): bool
+    public function canViewSystemActivity(mixed $user): bool
     {
         return $user !== null && method_exists($user, 'hasAnyRole')
             && $user->hasAnyRole(['super admin', 'admin', 'manager']);
@@ -180,7 +179,7 @@ class AuditHistoryService
             return [
                 'available' => false,
                 'label' => null,
-                'reason' => 'This deleted event cannot be restored from Audit History.',
+                'reason' => 'This deleted activity cannot be restored from System Activity.',
             ];
         }
 
@@ -205,7 +204,7 @@ class AuditHistoryService
 
         if (! $restoreDescriptor['available']) {
             throw ValidationException::withMessages([
-                'restore' => $restoreDescriptor['reason'] ?? 'This deleted event cannot be restored from Audit History.',
+                'restore' => $restoreDescriptor['reason'] ?? 'This deleted activity cannot be restored from System Activity.',
             ]);
         }
 
@@ -221,10 +220,9 @@ class AuditHistoryService
             match ($auditEvent->subject_type) {
                 AuditEvent::SUBJECT_EMPLOYEE => $this->restoreEmployee($subject, $actor),
                 AuditEvent::SUBJECT_ATTENDANCE => $this->restoreAttendance($subject, $actor),
-                AuditEvent::SUBJECT_WALK_IN => $this->restoreWalkIn($subject, $actor),
                 AuditEvent::SUBJECT_INVENTORY_ITEM => $this->restoreInventoryItem($subject, $actor),
                 default => throw ValidationException::withMessages([
-                    'restore' => 'This deleted event cannot be restored from Audit History.',
+                    'restore' => 'This deleted activity cannot be restored from System Activity.',
                 ]),
             };
         });
@@ -266,7 +264,7 @@ class AuditHistoryService
     private function restoreAttendance(Model $subject, mixed $actor): void
     {
         $attendance = $subject instanceof Attendance
-            ? $subject->loadMissing(['user', 'walkIn', 'recordedBy'])
+            ? $subject->loadMissing(['user', 'recordedBy'])
             : null;
 
         if (! $attendance instanceof Attendance) {
@@ -276,7 +274,7 @@ class AuditHistoryService
         }
 
         $attendance->restore();
-        $attendance->refresh()->load(['user', 'walkIn', 'recordedBy']);
+        $attendance->refresh()->load(['user', 'recordedBy']);
 
         $this->recordSubjectEvent(
             AuditEvent::SUBJECT_ATTENDANCE,
@@ -285,43 +283,10 @@ class AuditHistoryService
             [
                 'id' => $attendance->id,
                 'user_id' => $attendance->user_id,
-                'walk_in_id' => $attendance->walk_in_id,
-                'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
+                'name' => $attendance->name ?: $attendance->user?->name,
                 'attendee_type' => $attendance->attendee_type,
                 'checked_in_at' => $attendance->checked_in_at?->toISOString(),
                 'checked_out_at' => $attendance->checked_out_at?->toISOString(),
-            ],
-            [],
-            $this->actorId($actor),
-            $this->actorName($actor),
-            now(),
-        );
-    }
-
-    private function restoreWalkIn(Model $subject, mixed $actor): void
-    {
-        $walkIn = $subject instanceof WalkIn ? $subject->loadMissing('ratePlan') : null;
-
-        if (! $walkIn instanceof WalkIn) {
-            throw ValidationException::withMessages([
-                'restore' => 'This walk-in delete cannot be restored.',
-            ]);
-        }
-
-        $walkIn->restore();
-        $walkIn->refresh()->load('ratePlan');
-
-        $this->recordSubjectEvent(
-            AuditEvent::SUBJECT_WALK_IN,
-            $walkIn->id,
-            'restored',
-            [
-                'id' => $walkIn->id,
-                'name' => $walkIn->name,
-                'rate_plan_name' => $walkIn->ratePlan?->name,
-                'amount_paid' => round((float) $walkIn->amount_paid, 2),
-                'payment_method' => $walkIn->payment_method,
-                'served_by' => $walkIn->served_by,
             ],
             [],
             $this->actorId($actor),
@@ -366,7 +331,6 @@ class AuditHistoryService
         return match ($auditEvent->subject_type) {
             AuditEvent::SUBJECT_EMPLOYEE => User::withTrashed()->find($auditEvent->subject_id),
             AuditEvent::SUBJECT_ATTENDANCE => Attendance::withTrashed()->find($auditEvent->subject_id),
-            AuditEvent::SUBJECT_WALK_IN => WalkIn::withTrashed()->find($auditEvent->subject_id),
             AuditEvent::SUBJECT_INVENTORY_ITEM => InventoryItem::withTrashed()->find($auditEvent->subject_id),
             default => null,
         };

@@ -1,15 +1,15 @@
 <template>
-   <div class="audit-history-page">
+   <div class="system-activity-page">
       <div v-if="successMessage" class="alert alert-success py-2 small mb-3"><i class="bi bi-check-circle me-1"></i>{{ successMessage }}</div>
       <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
 
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
          <div>
-            <h4 class="panel-page-title mb-0">Audit History</h4>
-            <p class="text-muted small mb-0">Review shared audit trails across the panel.</p>
+            <h4 class="panel-page-title mb-0">System Activity</h4>
+            <p class="text-muted small mb-0">Review shared system activity across the panel.</p>
          </div>
 
-         <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="fetchAuditHistory(pagination.currentPage)">
+         <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="fetchSystemActivity(pagination.currentPage)">
             <i class="bi bi-arrow-clockwise me-1"></i>Refresh
          </button>
       </div>
@@ -25,25 +25,25 @@
                </div>
             </div>
             <div class="col-6 col-md-3 col-lg-2">
-               <select class="form-select" v-model="filters.subject_type" @change="fetchAuditHistory(1)">
+               <select class="form-select" v-model="filters.subject_type" @change="fetchSystemActivity(1)">
                   <option value="">All Subjects</option>
                   <option v-for="option in subjectOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                </select>
             </div>
             <div class="col-6 col-md-3 col-lg-2">
-               <input type="number" min="1" class="form-control" placeholder="Subject ID" v-model="filters.subject_id" @change="fetchAuditHistory(1)" />
+               <input type="number" min="1" class="form-control" placeholder="Subject ID" v-model="filters.subject_id" @change="fetchSystemActivity(1)" />
             </div>
             <div class="col-6 col-md-3 col-lg-2">
-               <select class="form-select" v-model="filters.event" @change="fetchAuditHistory(1)">
+               <select class="form-select" v-model="filters.event" @change="fetchSystemActivity(1)">
                   <option value="">All Events</option>
                   <option v-for="option in eventOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
                </select>
             </div>
             <div class="col-6 col-md-3 col-lg-1">
-               <input type="date" class="form-control" v-model="filters.date_from" @change="fetchAuditHistory(1)" />
+               <input type="date" class="form-control" v-model="filters.date_from" @change="fetchSystemActivity(1)" />
             </div>
             <div class="col-6 col-md-3 col-lg-1">
-               <input type="date" class="form-control" v-model="filters.date_to" @change="fetchAuditHistory(1)" />
+               <input type="date" class="form-control" v-model="filters.date_to" @change="fetchSystemActivity(1)" />
             </div>
          </div>
       </div>
@@ -51,7 +51,7 @@
       <div class="panel-card">
          <div class="panel-card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
             <span class="panel-card-title">
-               Audit Events
+               Activity Events
                <span class="badge-count ms-1">{{ loading ? "-" : pagination.total }}</span>
             </span>
             <span class="text-muted small" v-if="!loading && pagination.total > 0">Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}</span>
@@ -116,7 +116,7 @@
 
          <div v-else-if="events.length === 0" class="text-center py-5 text-muted">
             <i class="bi bi-clock-history empty-icon"></i>
-            <p class="mt-2 mb-1">No audit events found</p>
+            <p class="mt-2 mb-1">No activity events found</p>
             <p class="small mb-0">Try adjusting your filters</p>
          </div>
 
@@ -283,7 +283,7 @@
                </div>
                <div class="modal-body" v-if="restoreTarget">
                   <div v-if="restoreError" class="alert alert-danger py-2 small mb-3">{{ restoreError }}</div>
-                  <p class="mb-1">Restore this deleted record from Audit History?</p>
+                  <p class="mb-1">Restore this deleted record from System Activity?</p>
                   <p class="fw-semibold mb-0">{{ restoreTarget.subject_label || restoreTarget.subject_type_label }}</p>
                   <p class="text-muted small mb-0">#{{ restoreTarget.subject_id }} · {{ restoreTarget.event_label }}</p>
                </div>
@@ -344,7 +344,7 @@ export default {
    mounted: function () {
       this.hydrateFiltersFromUrl();
       this.restoreModal = new Modal(this.$refs.restoreModal);
-      this.fetchAuditHistory();
+      this.fetchSystemActivity();
    },
 
    beforeUnmount: function () {
@@ -370,12 +370,12 @@ export default {
          this.pagination.currentPage = Number(params.get("page") || 1);
       },
 
-      fetchAuditHistory: function (page = 1) {
+      fetchSystemActivity: function (page = 1) {
          this.loading = true;
          this.pageError = "";
 
          return axios
-            .get("/panel/audit-history/list", {
+            .get("/panel/system-activity/list", {
                params: {
                   subject_type: this.filters.subject_type || undefined,
                   subject_id: this.filters.subject_id || undefined,
@@ -407,7 +407,7 @@ export default {
                this.syncUrl();
             })
             .catch((error) => {
-               this.pageError = error.response?.data?.message || "Failed to load audit history.";
+               this.pageError = error.response?.data?.message || "Failed to load system activity.";
             })
             .finally(() => {
                this.loading = false;
@@ -458,7 +458,7 @@ export default {
 
       onSearchInput: function () {
          clearTimeout(this.searchTimer);
-         this.searchTimer = setTimeout(() => this.fetchAuditHistory(1), 350);
+         this.searchTimer = setTimeout(() => this.fetchSystemActivity(1), 350);
       },
 
       openRestoreModal: function (event) {
@@ -477,13 +477,13 @@ export default {
          this.pageError = "";
 
          axios
-            .post(`/panel/audit-history/${this.restoreTarget.id}/restore`)
+            .post(`/panel/system-activity/${this.restoreTarget.id}/restore`)
             .then((response) => {
                this.successMessage = response.data.message || "Record restored successfully.";
                this.restoreModal.hide();
                this.restoreTarget = null;
 
-               return this.fetchAuditHistory(this.pagination.currentPage);
+               return this.fetchSystemActivity(this.pagination.currentPage);
             })
             .catch((error) => {
                this.restoreError = error.response?.data?.errors?.restore?.[0] || error.response?.data?.message || "Failed to restore record.";
@@ -501,7 +501,7 @@ export default {
             this.sort.direction = column === "occurred_at" ? "desc" : "asc";
          }
 
-         this.fetchAuditHistory(1);
+         this.fetchSystemActivity(1);
       },
 
       sortButtonClass: function (column) {
@@ -543,7 +543,7 @@ export default {
          const url = new URL(link.url);
          const page = Number(url.searchParams.get("page") || 1);
 
-         this.fetchAuditHistory(page);
+         this.fetchSystemActivity(page);
       },
 
       syncUrl: function () {

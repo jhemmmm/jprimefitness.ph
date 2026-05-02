@@ -21,7 +21,6 @@ class DatabaseSeeder extends Seeder
             BusinessProfileSeeder::class,
             UserSeeder::class,
             MemberSeeder::class,
-            WalkInSeeder::class,
             AttendanceSeeder::class,
         ]);
 

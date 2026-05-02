@@ -23,7 +23,6 @@ class Attendance extends Model
     protected $fillable = [
         'attendee_type',
         'user_id',
-        'walk_in_id',
         'name',
         'checked_in_at',
         'checked_out_at',
@@ -47,11 +46,6 @@ class Attendance extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function walkIn(): BelongsTo
-    {
-        return $this->belongsTo(WalkIn::class);
     }
 
     public function recordedBy(): BelongsTo

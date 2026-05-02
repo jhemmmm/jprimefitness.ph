@@ -4,7 +4,7 @@ use App\Http\Controllers\HikvisionCallbackController;
 use App\Http\Controllers\Home\HomeController;
 use App\Http\Controllers\Panel\AttendanceController;
 use App\Http\Controllers\Panel\AttendanceReportsController;
-use App\Http\Controllers\Panel\AuditHistoryController;
+use App\Http\Controllers\Panel\SystemActivityController;
 use App\Http\Controllers\Panel\DashboardController;
 use App\Http\Controllers\Panel\EmployeeBiometricController;
 use App\Http\Controllers\Panel\EmployeeController;
@@ -17,7 +17,6 @@ use App\Http\Controllers\Panel\SalesController;
 use App\Http\Controllers\Panel\SalesReportsController;
 use App\Http\Controllers\Panel\SearchController;
 use App\Http\Controllers\Panel\SettingsController;
-use App\Http\Controllers\Panel\WalkInsController;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -31,9 +30,9 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/data', [DashboardController::class, 'data'])->name('dashboard.data');
     Route::get('/search', [SearchController::class, 'index'])->name('search');
-    Route::get('/audit-history', [AuditHistoryController::class, 'index'])->name('audit-history');
-    Route::get('/audit-history/list', [AuditHistoryController::class, 'list'])->name('audit-history.list');
-    Route::post('/audit-history/{auditEvent}/restore', [AuditHistoryController::class, 'restore'])->name('audit-history.restore')->whereNumber('auditEvent');
+    Route::get('/system-activity', [SystemActivityController::class, 'index'])->name('system-activity');
+    Route::get('/system-activity/list', [SystemActivityController::class, 'list'])->name('system-activity.list');
+    Route::post('/system-activity/{auditEvent}/restore', [SystemActivityController::class, 'restore'])->name('system-activity.restore')->whereNumber('auditEvent');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::prefix('business')->name('business.')->group(function () {
         Route::get('/settings', [SettingsController::class, 'settingsPage'])->name('settings');
@@ -57,14 +56,6 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::post('/members/{member}/pt-session-usages', [MembersController::class, 'storePtSessionUsage'])->name('members.pt-session-usages.store')->whereNumber('member');
     Route::get('/members/{member}', [MembersController::class, 'show'])->name('members.show')->whereNumber('member');
     Route::put('/members/{member}', [MembersController::class, 'update'])->name('members.update')->whereNumber('member');
-
-    // Walk-ins
-    Route::get('/walk-ins', [WalkInsController::class, 'index'])->name('walkins.index');
-    Route::get('/walk-ins/list', [WalkInsController::class, 'list'])->name('walkins.list');
-    Route::post('/walk-ins', [WalkInsController::class, 'store'])->name('walkins.store');
-    Route::get('/walk-ins/{walkIn}', [WalkInsController::class, 'show'])->name('walkins.show')->whereNumber('walkIn');
-    Route::put('/walk-ins/{walkIn}', [WalkInsController::class, 'update'])->name('walkins.update')->whereNumber('walkIn');
-    Route::delete('/walk-ins/{walkIn}', [WalkInsController::class, 'destroy'])->name('walkins.destroy')->whereNumber('walkIn');
 
     // Inventory
     Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');

@@ -6,7 +6,6 @@ use App\Models\BusinessProfile;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\User;
-use App\Models\WalkIn;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Permission;
@@ -60,15 +59,6 @@ class PanelGlobalSearchTest extends TestCase
             'unit' => 'bottle',
             'quantity' => 12,
         ]);
-        $walkIn = WalkIn::create([
-            'served_by' => $manager->id,
-            'name' => 'Search Guest',
-            'phone' => '09170000003',
-            'amount_paid' => 350,
-            'payment_method' => 'cash',
-            'visited_at' => now()->subHour(),
-        ]);
-
         $this->actingAs($manager)
             ->getJson('/panel/search?search=Search')
             ->assertOk()
@@ -76,11 +66,10 @@ class PanelGlobalSearchTest extends TestCase
             ->assertJsonPath('groups.members.total', 1)
             ->assertJsonPath('groups.employees.total', 1)
             ->assertJsonPath('groups.inventory.total', 1)
-            ->assertJsonPath('groups.walkins.total', 1)
             ->assertJsonPath('groups.members.items.0.url', route('panel.members.show', $member))
             ->assertJsonPath('groups.employees.items.0.url', route('panel.employees.show', $employee))
             ->assertJsonPath('groups.inventory.items.0.url', route('panel.inventory.index', ['search' => 'SEARCH-001']))
-            ->assertJsonPath('groups.walkins.items.0.url', route('panel.walkins.index', ['search' => $walkIn->phone]));
+            ->assertJsonMissingPath('groups.walkins');
 
         $this->assertDatabaseHas('inventory_items', [
             'id' => $item->id,
@@ -104,15 +93,6 @@ class PanelGlobalSearchTest extends TestCase
             'sku' => 'SCOPED-1',
         ]);
 
-        WalkIn::create([
-            'served_by' => $staff->id,
-            'name' => 'Scoped Guest',
-            'phone' => '09980000001',
-            'amount_paid' => 250,
-            'payment_method' => 'cash',
-            'visited_at' => now()->subMinutes(30),
-        ]);
-
         $response = $this->actingAs($staff)
             ->getJson('/panel/search?search=Scoped')
             ->assertOk();
@@ -121,11 +101,10 @@ class PanelGlobalSearchTest extends TestCase
 
         $this->assertSame(1, data_get($groups, 'members.total'));
         $this->assertSame(1, data_get($groups, 'inventory.total'));
-        $this->assertSame(1, data_get($groups, 'walkins.total'));
         $this->assertArrayNotHasKey('employees', $groups);
+        $this->assertArrayNotHasKey('walkins', $groups);
         $this->assertSame(['Scoped Member'], collect(data_get($groups, 'members.items', []))->pluck('title')->all());
         $this->assertSame(['Scoped Bottle'], collect(data_get($groups, 'inventory.items', []))->pluck('title')->all());
-        $this->assertSame(['Scoped Guest'], collect(data_get($groups, 'walkins.items', []))->pluck('title')->all());
     }
 
     private function setBusinessProfile(string $name): BusinessProfile

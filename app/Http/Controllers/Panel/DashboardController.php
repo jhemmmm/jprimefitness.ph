@@ -10,7 +10,6 @@ use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\SaleTransaction;
 use App\Models\User;
-use App\Models\WalkIn;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -64,7 +63,7 @@ class DashboardController extends Controller
             'stats_row_2' => array_merge([
                 'active_trainers' => $this->activeTrainerCount(),
                 'active_employees' => $this->activeEmployeeCount(),
-                'walk_ins_today' => $this->walkInCountForWindow($todayStart, $todayEnd),
+                'guest_check_ins_today' => $this->guestCheckInCountForWindow($todayStart, $todayEnd),
             ], $canViewFinancialData ? [
                 'pending_payroll_balance' => $this->pendingPayrollBalance(),
             ] : []),
@@ -111,22 +110,19 @@ class DashboardController extends Controller
             ->count();
     }
 
-    private function walkInCountForWindow(\DateTimeInterface $start, \DateTimeInterface $end): int
+    private function guestCheckInCountForWindow(\DateTimeInterface $start, \DateTimeInterface $end): int
     {
-        return WalkIn::query()
-            ->whereBetween('visited_at', [$start, $end])
+        return Attendance::query()
+            ->where('attendee_type', Attendance::TYPE_WALK_IN)
+            ->whereBetween('checked_in_at', [$start, $end])
             ->count();
     }
 
     private function revenueForWindow(\DateTimeInterface $start, \DateTimeInterface $end): float
     {
-        $salesTotal = (float) SaleTransaction::query()
+        return round((float) SaleTransaction::query()
             ->whereBetween('sold_at', [$start, $end])
-            ->sum('total');
-
-        $directWalkInTotal = (float) $this->directWalkInQuery($start, $end)->sum('amount_paid');
-
-        return round($salesTotal + $directWalkInTotal, 2);
+            ->sum('total'), 2);
     }
 
     /**
@@ -184,7 +180,6 @@ class DashboardController extends Controller
                     ->whereIn('status', [MemberSubscription::STATUS_ACTIVE, MemberSubscription::STATUS_PAUSED])
                     ->orderByDesc('start_date'),
                 'user.roles',
-                'walkIn.ratePlan:id,name',
             ])
             ->orderByDesc('checked_in_at')
             ->orderByDesc('id')
@@ -204,7 +199,7 @@ class DashboardController extends Controller
                     'location_name' => $location['name'],
                     'plan_or_rate' => match ($attendance->attendee_type) {
                         Attendance::TYPE_MEMBER => $membership?->ratePlan?->name ?? 'Membership',
-                        Attendance::TYPE_WALK_IN => $attendance->walkIn?->ratePlan?->name ?? 'Walk-in Rate',
+                        Attendance::TYPE_WALK_IN => 'Walk-in',
                         Attendance::TYPE_EMPLOYEE => $employeeRole ?: 'Employee',
                         default => '-',
                     },
@@ -364,28 +359,6 @@ class DashboardController extends Controller
             ->sum('payouts.amount');
 
         return round(max(0, $netPayroll - $totalPaid), 2);
-    }
-
-    private function directWalkInQuery(\DateTimeInterface $start, \DateTimeInterface $end)
-    {
-        $query = WalkIn::query()
-            ->whereBetween('visited_at', [$start, $end]);
-
-        $posBackedWalkInIds = SaleTransaction::query()
-            ->where('type', SaleTransaction::TYPE_WALK_IN)
-            ->whereBetween('sold_at', [$start, $end])
-            ->get(['details'])
-            ->map(fn (SaleTransaction $transaction) => (int) data_get($transaction->details, 'walk_in_id'))
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        if ($posBackedWalkInIds !== []) {
-            $query->whereNotIn('id', $posBackedWalkInIds);
-        }
-
-        return $query;
     }
 
     private function loadedCurrentMembership(?User $user): ?MemberSubscription

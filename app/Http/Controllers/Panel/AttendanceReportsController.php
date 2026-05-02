@@ -130,7 +130,6 @@ class AttendanceReportsController extends Controller
                 'id',
                 'attendee_type',
                 'user_id',
-                'walk_in_id',
                 'name',
                 'checked_in_at',
                 'checked_out_at',
@@ -288,10 +287,6 @@ class AttendanceReportsController extends Controller
     {
         if ($attendance->user_id !== null) {
             return $attendance->attendee_type.':user:'.$attendance->user_id;
-        }
-
-        if ($attendance->walk_in_id !== null) {
-            return $attendance->attendee_type.':walk_in:'.$attendance->walk_in_id;
         }
 
         $normalizedName = mb_strtolower(trim((string) $attendance->name));

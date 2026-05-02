@@ -21,7 +21,7 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
-class AuditHistoryExpansionTest extends TestCase
+class SystemActivityExpansionTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
@@ -82,13 +82,13 @@ class AuditHistoryExpansionTest extends TestCase
 
         foreach ([$superAdmin, $admin, $manager] as $allowedUser) {
             $this->actingAs($allowedUser)
-                ->get('/panel/audit-history')
+                ->get('/panel/system-activity')
                 ->assertOk()
-                ->assertSee('audit-history-page', false);
+                ->assertSee('system-activity-page', false);
         }
 
         $response = $this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?subject_type=member_subscription&event=created&per_page=10')
+            ->getJson('/panel/system-activity/list?subject_type=member_subscription&event=created&per_page=10')
             ->assertOk();
 
         $this->assertSame([
@@ -101,7 +101,6 @@ class AuditHistoryExpansionTest extends TestCase
             AuditEvent::SUBJECT_MEMBER_PT_PACKAGE,
             AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE,
             AuditEvent::SUBJECT_ATTENDANCE,
-            AuditEvent::SUBJECT_WALK_IN,
             AuditEvent::SUBJECT_SALE_TRANSACTION,
             AuditEvent::SUBJECT_INVENTORY_ITEM,
             AuditEvent::SUBJECT_RATE_PLAN,
@@ -120,11 +119,11 @@ class AuditHistoryExpansionTest extends TestCase
             ->assertJsonPath('events.data.0.caused_by.action_url', route('panel.sales.index'));
 
         $this->actingAs($staff)
-            ->get('/panel/audit-history')
+            ->get('/panel/system-activity')
             ->assertForbidden();
 
         $this->actingAs($staff)
-            ->getJson('/panel/audit-history/list')
+            ->getJson('/panel/system-activity/list')
             ->assertForbidden();
     }
 
@@ -342,7 +341,7 @@ class AuditHistoryExpansionTest extends TestCase
         ]);
 
         $this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?subject_type=payout&subject_id='.$payoutId)
+            ->getJson('/panel/system-activity/list?subject_type=payout&subject_id='.$payoutId)
             ->assertOk()
             ->assertJsonPath('events.data.0.action_url', route('panel.employees.show', $employee));
     }
@@ -474,17 +473,16 @@ class AuditHistoryExpansionTest extends TestCase
         );
 
         $this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?subject_type=member_pt_session_usage&subject_id='.$usage->id)
+            ->getJson('/panel/system-activity/list?subject_type=member_pt_session_usage&subject_id='.$usage->id)
             ->assertOk()
             ->assertJsonPath('events.data.0.action_url', route('panel.members.show', $member));
     }
 
-    public function test_attendance_walk_in_inventory_and_pricing_mutations_record_primary_audit_events(): void
+    public function test_attendance_inventory_and_pricing_mutations_record_primary_audit_events(): void
     {
         $admin = $this->createUserWithRole('admin', 'Admin Zee');
         $member = $this->createUserWithRole('member', 'Member Pax');
         $category = InventoryCategory::factory()->create(['name' => 'Supplements']);
-        $ratePlan = $this->createRatePlan('Walk-in Plus', 1);
         $pricingRatePlan = $this->createRatePlan('Annual', 365, [
             'price' => null,
         ]);
@@ -516,33 +514,6 @@ class AuditHistoryExpansionTest extends TestCase
 
         $this->actingAs($admin)
             ->deleteJson("/panel/attendance/{$attendanceId}")
-            ->assertNoContent();
-
-        $walkInId = $this->actingAs($admin)
-            ->postJson('/panel/walk-ins', [
-                'rate_plan_id' => $ratePlan->id,
-                'name' => 'Walk-in Gwen',
-                'phone' => '09171112222',
-                'amount_paid' => 250,
-                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
-                'visited_at' => '2026-04-10 09:00:00',
-            ])
-            ->assertCreated()
-            ->json('id');
-
-        $this->actingAs($admin)
-            ->putJson("/panel/walk-ins/{$walkInId}", [
-                'rate_plan_id' => $ratePlan->id,
-                'name' => 'Walk-in Gwen Updated',
-                'phone' => '09171112222',
-                'amount_paid' => 300,
-                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
-                'visited_at' => '2026-04-10 09:30:00',
-            ])
-            ->assertOk();
-
-        $this->actingAs($admin)
-            ->deleteJson("/panel/walk-ins/{$walkInId}")
             ->assertNoContent();
 
         $itemId = $this->actingAs($admin)
@@ -627,16 +598,6 @@ class AuditHistoryExpansionTest extends TestCase
             AuditEvent::query()
                 ->where('subject_type', AuditEvent::SUBJECT_ATTENDANCE)
                 ->where('subject_id', $attendanceId)
-                ->orderBy('id')
-                ->pluck('event')
-                ->all()
-        );
-
-        $this->assertSame(
-            ['created', 'updated', 'deleted'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_WALK_IN)
-                ->where('subject_id', $walkInId)
                 ->orderBy('id')
                 ->pluck('event')
                 ->all()

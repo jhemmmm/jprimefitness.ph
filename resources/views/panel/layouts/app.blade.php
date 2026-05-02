@@ -64,13 +64,6 @@
                         <span class="sidebar-nav-label">Members</span>
                     </a>
                 </div>
-                <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.walkins.index') }}" @class(['active' => request()->routeIs('panel.walkins.*')])>
-                        <i class="bi bi-person-plus-fill"></i>
-                        <span class="sidebar-nav-label">Walk-ins</span>
-                    </a>
-                </div>
-
                 @can('manage employees')
                     <div class="sidebar-nav-item">
                         <a href="{{ route('panel.employees.index') }}" @class(['active' => request()->routeIs('panel.employees.*')])>
@@ -155,9 +148,9 @@
                 <div class="sidebar-menu-heading">System</div>
                 @if (auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']))
                     <div class="sidebar-nav-item">
-                        <a href="{{ route('panel.audit-history') }}" @class(['active' => request()->routeIs('panel.audit-history*')])>
+                        <a href="{{ route('panel.system-activity') }}" @class(['active' => request()->routeIs('panel.system-activity*')])>
                             <i class="bi bi-clock-history"></i>
-                            <span class="sidebar-nav-label">Audit History</span>
+                            <span class="sidebar-nav-label">System Activity</span>
                         </a>
                     </div>
                 @endif

@@ -58,12 +58,11 @@ class PanelAuditEventFormatter
             AuditEvent::SUBJECT_MEMBER_PT_PACKAGE => sprintf('PT Package #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
             AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE => sprintf('PT Session Usage #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
             AuditEvent::SUBJECT_ATTENDANCE => sprintf('Attendance #%d - %s', $subjectId, $snapshot['name'] ?? 'Attendance Record'),
-            AuditEvent::SUBJECT_WALK_IN => sprintf('Walk-in #%d - %s', $subjectId, $snapshot['name'] ?? 'Walk-in Record'),
             AuditEvent::SUBJECT_SALE_TRANSACTION => sprintf('Sale #%d - %s', $subjectId, $snapshot['customer_name'] ?? ($snapshot['item_name'] ?? 'Transaction')),
             AuditEvent::SUBJECT_INVENTORY_ITEM => sprintf('Inventory Item #%d - %s', $subjectId, $snapshot['name'] ?? 'Unnamed Item'),
             AuditEvent::SUBJECT_RATE_PLAN => sprintf('Rate Plan #%d - %s', $subjectId, $snapshot['name'] ?? 'Rate Plan'),
             AuditEvent::SUBJECT_PT_PRODUCT => sprintf('PT Product #%d - %s', $subjectId, $snapshot['name'] ?? 'PT Product'),
-            default => sprintf('Audit Event #%d', $subjectId),
+            default => sprintf('Activity #%d', $subjectId),
         };
 
         if (Str::length($label) <= self::SUBJECT_LABEL_MAX_LENGTH) {
@@ -117,12 +116,6 @@ class PanelAuditEventFormatter
                 'restored' => 'Attendance restored',
                 default => 'Attendance updated',
             },
-            AuditEvent::SUBJECT_WALK_IN => match ($event) {
-                'created' => 'Walk-in created',
-                'deleted' => 'Walk-in deleted',
-                'restored' => 'Walk-in restored',
-                default => 'Walk-in updated',
-            },
             AuditEvent::SUBJECT_SALE_TRANSACTION => 'Sale created',
             AuditEvent::SUBJECT_INVENTORY_ITEM => match ($event) {
                 'created' => 'Inventory item created',
@@ -141,7 +134,7 @@ class PanelAuditEventFormatter
                 'removed' => 'PT product removed',
                 default => 'PT product updated',
             },
-            default => 'Audit event recorded',
+            default => 'Activity recorded',
         };
     }
 
@@ -161,12 +154,11 @@ class PanelAuditEventFormatter
             AuditEvent::SUBJECT_MEMBER_PT_PACKAGE => $this->ptPackageMessage($event, $snapshot),
             AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE => $this->ptSessionUsageMessage($snapshot),
             AuditEvent::SUBJECT_ATTENDANCE => $this->attendanceMessage($event, $snapshot),
-            AuditEvent::SUBJECT_WALK_IN => $this->walkInMessage($event, $snapshot),
             AuditEvent::SUBJECT_SALE_TRANSACTION => $this->saleMessage($snapshot),
             AuditEvent::SUBJECT_INVENTORY_ITEM => $this->inventoryMessage($event, $snapshot, $metadata),
             AuditEvent::SUBJECT_RATE_PLAN => $this->ratePlanMessage($event, $snapshot),
             AuditEvent::SUBJECT_PT_PRODUCT => $this->ptProductMessage($event, $snapshot),
-            default => 'An audit event was recorded.',
+            default => 'A system activity was recorded.',
         };
     }
 
@@ -258,20 +250,12 @@ class PanelAuditEventFormatter
             ],
             AuditEvent::SUBJECT_ATTENDANCE => [
                 'user_id' => $snapshot['user_id'] ?? null,
-                'walk_in_id' => $snapshot['walk_in_id'] ?? null,
                 'name' => $snapshot['name'] ?? null,
                 'attendee_type' => $snapshot['attendee_type'] ?? null,
                 'checked_in_at' => $snapshot['checked_in_at'] ?? null,
                 'checked_out_at' => $snapshot['checked_out_at'] ?? null,
                 'source' => $snapshot['source'] ?? null,
                 'source_device_serial' => $snapshot['source_device_serial'] ?? null,
-            ],
-            AuditEvent::SUBJECT_WALK_IN => [
-                'walk_in_name' => $snapshot['name'] ?? null,
-                'rate_plan_name' => $snapshot['rate_plan_name'] ?? null,
-                'amount_paid' => $this->nullableMoney($snapshot['amount_paid'] ?? null),
-                'payment_method' => $snapshot['payment_method'] ?? null,
-                'served_by' => $snapshot['served_by'] ?? null,
             ],
             AuditEvent::SUBJECT_SALE_TRANSACTION => [
                 'sale_type' => $snapshot['type'] ?? null,
@@ -443,22 +427,6 @@ class PanelAuditEventFormatter
             'deleted' => $name."'s attendance record was deleted.",
             'restored' => $name."'s attendance record was restored.",
             default => $name."'s attendance record was updated.",
-        };
-    }
-
-    /**
-     * @param  array<string, mixed>  $snapshot
-     */
-    private function walkInMessage(string $event, array $snapshot): string
-    {
-        $name = (string) ($snapshot['name'] ?? 'This walk-in');
-        $amount = $this->currency((float) ($snapshot['amount_paid'] ?? 0));
-
-        return match ($event) {
-            'created' => $name.' was recorded as a walk-in payment worth '.$amount.'.',
-            'deleted' => $name."'s walk-in record was deleted.",
-            'restored' => $name."'s walk-in record was restored.",
-            default => $name."'s walk-in record was updated.",
         };
     }
 

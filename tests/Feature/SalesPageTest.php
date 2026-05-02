@@ -376,7 +376,7 @@ class SalesPageTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
     }
 
-    public function test_walk_in_sale_creates_walk_in_record_and_history_is_global(): void
+    public function test_walk_in_sale_creates_transaction_and_history_is_global(): void
     {
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
         $otherStaff = $this->createUserWithRole('staff', 'Staff Bea');
@@ -405,9 +405,10 @@ class SalesPageTest extends TestCase
             'details' => [],
         ]);
 
-        $this->assertDatabaseHas('walk_ins', [
-            'name' => 'Walk-in Carla',
-            'amount_paid' => 350,
+        $this->assertDatabaseHas('sale_transactions', [
+            'type' => SaleTransaction::TYPE_WALK_IN,
+            'customer_name' => 'Walk-in Carla',
+            'total' => 350,
         ]);
 
         $response = $this->actingAs($staff)

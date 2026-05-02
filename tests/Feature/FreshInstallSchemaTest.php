@@ -23,6 +23,7 @@ class FreshInstallSchemaTest extends TestCase
         $this->assertFalse(Schema::hasTable('branch_pt_prices'));
         $this->assertFalse(Schema::hasTable('branch_cash_ledger_entries'));
         $this->assertFalse(Schema::hasTable('cash_ledger_entries'));
+        $this->assertFalse(Schema::hasTable('walk_ins'));
 
         $this->assertTableHasColumns('rate_plans', [
             'price',
@@ -122,11 +123,6 @@ class FreshInstallSchemaTest extends TestCase
             'metadata',
             'occurred_at',
         ]);
-        $this->assertTableHasColumns('walk_ins', [
-            'payment_method',
-            'deleted_at',
-        ]);
-
         $this->assertTableHasColumns('inventory_items', [
             'stock_alert_state',
             'deleted_at',

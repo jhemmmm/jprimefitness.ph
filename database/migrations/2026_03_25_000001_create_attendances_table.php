@@ -12,7 +12,6 @@ return new class extends Migration
             $table->id();
             $table->enum('attendee_type', ['member', 'walk_in', 'employee']);
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('walk_in_id')->nullable()->constrained('walk_ins')->nullOnDelete();
             $table->string('name')->nullable();
             $table->timestamp('checked_in_at')->useCurrent();
             $table->timestamp('checked_out_at')->nullable();

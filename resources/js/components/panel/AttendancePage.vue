@@ -368,7 +368,7 @@
                      {{ deleteTarget.name }} &mdash;
                      {{ formatDateTime(deleteTarget.checked_in_at) }}
                   </p>
-                  <p class="text-muted small mt-2 mb-0">You can restore this record later from Audit History.</p>
+                  <p class="text-muted small mt-2 mb-0">You can restore this record later from System Activity.</p>
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

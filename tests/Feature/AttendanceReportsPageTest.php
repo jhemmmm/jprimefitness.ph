@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Attendance;
 use App\Models\BusinessProfile;
 use App\Models\User;
-use App\Models\WalkIn;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -47,14 +46,6 @@ class AttendanceReportsPageTest extends TestCase
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
         $member = $this->createUserWithRole('member', 'Member Joy');
         $employee = $this->createUserWithRole('staff', 'Employee Ben');
-        $walkIn = WalkIn::create([
-            'served_by' => $staff->id,
-            'name' => 'Walk-in Kai',
-            'amount_paid' => 350,
-            'payment_method' => 'cash',
-            'visited_at' => '2026-03-03 11:00:00',
-        ]);
-
         Attendance::create([
             'attendee_type' => Attendance::TYPE_MEMBER,
             'user_id' => $member->id,
@@ -75,8 +66,7 @@ class AttendanceReportsPageTest extends TestCase
 
         Attendance::create([
             'attendee_type' => Attendance::TYPE_WALK_IN,
-            'walk_in_id' => $walkIn->id,
-            'name' => $walkIn->name,
+            'name' => 'Walk-in Kai',
             'checked_in_at' => '2026-03-03 11:00:00',
             'checked_out_at' => '2026-03-03 11:30:00',
             'recorded_by' => $staff->id,
@@ -84,7 +74,7 @@ class AttendanceReportsPageTest extends TestCase
 
         Attendance::create([
             'attendee_type' => Attendance::TYPE_WALK_IN,
-            'name' => $walkIn->name,
+            'name' => 'Walk-in Lee',
             'checked_in_at' => '2026-03-04 12:00:00',
             'checked_out_at' => '2026-03-04 12:20:00',
             'recorded_by' => $staff->id,
@@ -128,7 +118,7 @@ class AttendanceReportsPageTest extends TestCase
         $response->assertJsonPath('daily_trend.2.attendance_date', '2026-03-04');
         $response->assertJsonPath('busiest_hours.0.hour_slot', '08:00');
         $response->assertJsonPath('busiest_hours.0.check_in_count', 2);
-        $response->assertJsonPath('recent_records.0.name', 'Walk-in Kai');
+        $response->assertJsonPath('recent_records.0.name', 'Walk-in Lee');
         $response->assertJsonPath('recent_records.1.name', 'Walk-in Kai');
     }
 

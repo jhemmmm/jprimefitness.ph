@@ -91,7 +91,7 @@ class HikvisionAttendanceService
                     'checked_out_at' => $eventTime,
                 ]);
 
-                $attendance = $latestAttendance->fresh(['user', 'walkIn', 'recordedBy']);
+                $attendance = $latestAttendance->fresh(['user', 'recordedBy']);
                 $action = 'check_out';
 
                 $this->auditHistoryService->recordSubjectEvent(
@@ -114,7 +114,7 @@ class HikvisionAttendanceService
                     'recorded_by' => null,
                     'source' => Attendance::SOURCE_HIKVISION,
                     'source_device_serial' => $normalized['device_serial'],
-                ])->fresh(['user', 'walkIn', 'recordedBy']);
+                ])->fresh(['user', 'recordedBy']);
                 $action = 'check_in';
 
                 $this->auditHistoryService->recordSubjectEvent(
@@ -205,8 +205,7 @@ class HikvisionAttendanceService
         return [
             'id' => $attendance->id,
             'user_id' => $attendance->user_id,
-            'walk_in_id' => $attendance->walk_in_id,
-            'name' => $attendance->name ?: $attendance->user?->name ?: $attendance->walkIn?->name,
+            'name' => $attendance->name ?: $attendance->user?->name,
             'attendee_type' => $attendance->attendee_type,
             'checked_in_at' => $attendance->checked_in_at?->toISOString(),
             'checked_out_at' => $attendance->checked_out_at?->toISOString(),

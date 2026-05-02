@@ -15,7 +15,7 @@ class RatePlansSeeder extends Seeder
                 'duration_days' => 1,
                 'price' => 120.00,
                 'is_active' => true,
-                'description' => 'Single-day access for walk-ins and trial members.',
+                'description' => 'Single-day access for trial members and guest check-ins.',
             ],
             [
                 'name' => 'Monthly',

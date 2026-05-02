@@ -277,7 +277,7 @@
                      Are you sure you want to delete <strong>{{ deleteTarget.name }}</strong
                      >?
                   </p>
-                  <p class="text-muted small mb-0">You can restore this employee later from Audit History.</p>
+                  <p class="text-muted small mb-0">You can restore this employee later from System Activity.</p>
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>

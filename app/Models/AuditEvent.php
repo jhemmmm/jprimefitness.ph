@@ -28,8 +28,6 @@ class AuditEvent extends Model
 
     public const SUBJECT_ATTENDANCE = 'attendance';
 
-    public const SUBJECT_WALK_IN = 'walk_in';
-
     public const SUBJECT_SALE_TRANSACTION = 'sale_transaction';
 
     public const SUBJECT_INVENTORY_ITEM = 'inventory_item';

@@ -37,7 +37,7 @@
                     Run one location.<br />Track every member.
                 </h2>
                 <p class="auth-brand-desc">
-                    One unified dashboard for memberships, walk-ins, PT sessions,
+                    One unified dashboard for memberships, check-ins, PT sessions,
                     payroll, revenue, and everything in between.
                 </p>
 

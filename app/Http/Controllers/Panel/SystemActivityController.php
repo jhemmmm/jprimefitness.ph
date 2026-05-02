@@ -12,13 +12,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 
-class AuditHistoryController extends Controller
+class SystemActivityController extends Controller
 {
     public function __construct(
-        private AuditHistoryService $auditHistoryService,
+        private AuditHistoryService $systemActivityService,
     ) {
         $this->middleware(function (Request $request, \Closure $next) {
-            abort_unless($this->auditHistoryService->canViewAuditHistory($request->user()), 403);
+            abort_unless($this->systemActivityService->canViewSystemActivity($request->user()), 403);
 
             return $next($request);
         });
@@ -26,7 +26,7 @@ class AuditHistoryController extends Controller
 
     public function index(): View
     {
-        return view('panel.audit-history');
+        return view('panel.system-activity');
     }
 
     public function list(Request $request): JsonResponse
@@ -79,15 +79,15 @@ class AuditHistoryController extends Controller
         return response()->json([
             'events' => $auditEvents,
             'meta' => [
-                'subject_types' => $this->auditHistoryService->subjectOptions(),
-                'event_options' => $this->auditHistoryService->eventOptions(),
+                'subject_types' => $this->systemActivityService->subjectOptions(),
+                'event_options' => $this->systemActivityService->eventOptions(),
             ],
         ]);
     }
 
     public function restore(Request $request, AuditEvent $auditEvent): JsonResponse
     {
-        $this->auditHistoryService->restoreSubject($auditEvent, $request->user());
+        $this->systemActivityService->restoreSubject($auditEvent, $request->user());
 
         return response()->json([
             'message' => 'Record restored successfully.',
@@ -104,18 +104,18 @@ class AuditHistoryController extends Controller
             'title' => $auditEvent->title,
             'message' => $auditEvent->message,
             'event' => $auditEvent->event,
-            'event_label' => $this->auditHistoryService->eventLabel($auditEvent->event),
+            'event_label' => $this->systemActivityService->eventLabel($auditEvent->event),
             'subject_type' => $auditEvent->subject_type,
-            'subject_type_label' => collect($this->auditHistoryService->subjectOptions())
+            'subject_type_label' => collect($this->systemActivityService->subjectOptions())
                 ->firstWhere('value', $auditEvent->subject_type)['label'] ?? $auditEvent->subject_type,
             'subject_id' => $auditEvent->subject_id,
             'subject_label' => $auditEvent->subject_label,
             'actor_name' => $auditEvent->actor_name,
             'occurred_at' => $auditEvent->occurred_at?->toISOString(),
-            'action_url' => $this->auditHistoryService->actionUrl($auditEvent),
-            'restore' => $this->auditHistoryService->restoreDescriptor($auditEvent),
+            'action_url' => $this->systemActivityService->actionUrl($auditEvent),
+            'restore' => $this->systemActivityService->restoreDescriptor($auditEvent),
             'metadata' => $auditEvent->metadata ?? [],
-            'caused_by' => $this->auditHistoryService->normalizeCausedBy($auditEvent->metadata ?? []),
+            'caused_by' => $this->systemActivityService->normalizeCausedBy($auditEvent->metadata ?? []),
         ];
     }
 

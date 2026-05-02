@@ -10,7 +10,6 @@ use App\Models\PTProduct;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\User;
-use App\Models\WalkIn;
 use DateTimeInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -392,43 +391,30 @@ class PosSaleService
                 }
             }
 
-            $walkIn = WalkIn::create([
-                'rate_plan_id' => $ratePlan?->id,
-                'served_by' => $processedBy->id,
-                'name' => $data['customer_name'],
-                'phone' => $data['customer_phone'] ?? null,
-                'amount_paid' => round((float) $data['amount_paid'], 2),
-                'payment_method' => $data['payment_method'],
-                'visited_at' => $data['sold_at'],
-                'notes' => $data['notes'] ?? null,
-            ]);
-
-            $walkIn = $walkIn->fresh(['ratePlan']);
-            $this->recordWalkInAudit($walkIn, 'created', $processedBy);
-            $payment = $this->resolvePayment((float) $walkIn->amount_paid, $data);
+            $saleTotal = round((float) $data['amount_paid'], 2);
+            $payment = $this->resolvePayment($saleTotal, $data);
 
             $saleTransaction = SaleTransaction::create([
                 'member_id' => null,
                 'type' => SaleTransaction::TYPE_WALK_IN,
-                'total' => round((float) $walkIn->amount_paid, 2),
+                'total' => $saleTotal,
                 'payment_method' => $payment['payment_method'],
                 'processed_by' => $processedBy->id,
                 'sold_at' => $data['sold_at'],
-                'customer_name' => $walkIn->name,
+                'customer_name' => $data['customer_name'],
                 'item_name' => $ratePlan?->name ?: 'Walk-in',
                 'details' => [
-                    'walk_in_id' => $walkIn->id,
                     'rate_plan_id' => $ratePlan?->id,
-                    'phone' => $walkIn->phone,
+                    'phone' => $data['customer_phone'] ?? null,
                     'line_items' => [[
                         'name' => $ratePlan?->name ?: 'Walk-in',
-                        'description' => $walkIn->phone,
+                        'description' => $data['customer_phone'] ?? null,
                         'quantity' => 1,
                         'unit' => 'entry',
-                        'unit_price' => round((float) $walkIn->amount_paid, 2),
-                        'line_total' => round((float) $walkIn->amount_paid, 2),
+                        'unit_price' => $saleTotal,
+                        'line_total' => $saleTotal,
                     ]],
-                    'subtotal' => round((float) $walkIn->amount_paid, 2),
+                    'subtotal' => $saleTotal,
                     'payment' => $payment,
                     'notes' => $data['notes'] ?? null,
                 ],
@@ -596,20 +582,6 @@ class PosSaleService
         );
     }
 
-    private function recordWalkInAudit(WalkIn $walkIn, string $event, User $processedBy): void
-    {
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_WALK_IN,
-            $walkIn->id,
-            $event,
-            $this->walkInAuditSnapshot($walkIn),
-            [],
-            $processedBy->id,
-            $processedBy->name,
-            $walkIn->visited_at ?? now(),
-        );
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -686,21 +658,6 @@ class PosSaleService
             'category_name' => $item->category?->name,
             'quantity' => round((float) $item->quantity, 2),
             'unit' => $item->unit,
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function walkInAuditSnapshot(WalkIn $walkIn): array
-    {
-        return [
-            'id' => $walkIn->id,
-            'name' => $walkIn->name,
-            'rate_plan_name' => $walkIn->ratePlan?->name,
-            'amount_paid' => round((float) $walkIn->amount_paid, 2),
-            'payment_method' => $walkIn->payment_method,
-            'served_by' => $walkIn->served_by,
         ];
     }
 

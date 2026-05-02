@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\Attendance;
 use App\Models\User;
-use App\Models\WalkIn;
 use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 
@@ -14,24 +13,21 @@ class AttendanceSeeder extends Seeder
     {
         Attendance::query()->delete();
 
-        $walkIns = WalkIn::query()
-            ->orderByDesc('visited_at')
-            ->take(8)
-            ->get();
         $members = User::role('member')->get();
         $employees = User::role(['employee', 'coach', 'manager', 'admin', 'staff'])->get();
         $recordedBy = User::role(['super admin', 'admin', 'manager', 'staff'])->first()?->id;
 
-        foreach ($walkIns as $index => $walkIn) {
-            $checkedIn = ($walkIn->visited_at ?? Carbon::now())->copy();
+        foreach (range(1, 8) as $index) {
+            $checkedIn = Carbon::now()
+                ->subDays($index - 1)
+                ->setTime(8 + ($index % 6), ($index * 7) % 60);
 
             Attendance::query()->create([
                 'attendee_type' => Attendance::TYPE_WALK_IN,
-                'walk_in_id' => $walkIn->id,
-                'name' => $walkIn->name,
+                'name' => "Guest {$index}",
                 'checked_in_at' => $checkedIn,
                 'checked_out_at' => $index % 3 === 0 ? null : $checkedIn->copy()->addMinutes(45 + ($index * 5)),
-                'recorded_by' => $recordedBy ?? $walkIn->served_by,
+                'recorded_by' => $recordedBy,
             ]);
         }
 

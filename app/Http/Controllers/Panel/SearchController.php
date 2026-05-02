@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\InventoryItem;
 use App\Models\User;
-use App\Models\WalkIn;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -45,7 +44,6 @@ class SearchController extends Controller
                     ? $this->employeeGroup($search)
                     : null,
                 'inventory' => $this->inventoryGroup($search),
-                'walkins' => $this->walkInGroup($search),
             ]),
         ]);
     }
@@ -172,47 +170,6 @@ class SearchController extends Controller
         return $this->groupPayload(
             'Inventory',
             route('panel.inventory.index', ['search' => $search]),
-            $total,
-            $items,
-        );
-    }
-
-    /**
-     * @return array{items: array<int, array{id: int, meta: string|null, status: string|null, subtitle: string|null, title: string, url: string}>, label: string, total: int, view_all_url: string}
-     */
-    private function walkInGroup(string $search): array
-    {
-        $query = WalkIn::query()
-            ->with(['ratePlan:id,name'])
-            ->where(function ($builder) use ($search) {
-                $builder->where('name', 'like', "%{$search}%")
-                    ->orWhere('phone', 'like', "%{$search}%");
-            });
-
-        $total = (clone $query)->count();
-
-        $items = $query
-            ->orderByDesc('visited_at')
-            ->limit(self::RESULTS_LIMIT)
-            ->get(['id', 'rate_plan_id', 'name', 'phone', 'payment_method', 'visited_at'])
-            ->map(fn (WalkIn $walkIn) => [
-                'id' => $walkIn->id,
-                'title' => $walkIn->name,
-                'subtitle' => $walkIn->ratePlan?->name,
-                'meta' => $this->implodeMeta([
-                    $walkIn->phone,
-                    $walkIn->visited_at?->format('M j, Y g:i A'),
-                    $walkIn->payment_method ? Str::headline($walkIn->payment_method) : null,
-                ]),
-                'status' => null,
-                'url' => route('panel.walkins.index', ['search' => $walkIn->phone ?: $walkIn->name]),
-            ])
-            ->values()
-            ->all();
-
-        return $this->groupPayload(
-            'Walk-ins',
-            route('panel.walkins.index', ['search' => $search]),
             $total,
             $items,
         );
