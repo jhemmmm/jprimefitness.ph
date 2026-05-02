@@ -12,7 +12,6 @@ use App\Models\SaleTransaction;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -34,7 +33,6 @@ class DashboardController extends Controller
     {
         $location = BusinessProfile::current()->locationSummary();
 
-        /** @var User $user */
         $user = auth()->user();
         $canViewFinancialData = $user->hasAnyRole(['super admin', 'admin', 'manager']);
         $todayStart = now()->startOfDay();
