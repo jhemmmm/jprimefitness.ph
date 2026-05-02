@@ -112,37 +112,11 @@
                               <div class="fw-semibold mb-3">Member</div>
                               <div class="row g-3">
                                  <div class="col-12">
-                                    <div class="btn-group btn-group-sm" role="group">
-                                       <button type="button" :class="['btn', form.member_mode === 'existing' ? 'btn-danger' : 'btn-outline-secondary']" @click="setMemberMode('existing')">Existing Member</button>
-                                       <button type="button" :class="['btn', form.member_mode === 'new' ? 'btn-danger' : 'btn-outline-secondary']" @click="setMemberMode('new')">New Member</button>
-                                    </div>
-                                    <div class="invalid-feedback d-block" v-if="formErrors.member_mode">{{ formErrors.member_mode }}</div>
-                                 </div>
-
-                                 <div class="col-12" v-if="form.member_mode === 'existing'">
                                     <label class="form-label">Search Member <span class="text-danger">*</span></label>
                                     <async-search-select v-model="form.member_id" :selected-label="form.member_label" placeholder="Select member" search-placeholder="Search by name, email, or phone" :fetch-options="fetchMemberOptions" :invalid="!!formErrors.member_id" @select-option="handleMemberSelect"></async-search-select>
                                     <div class="form-text small">Search by member name, email, or phone number.</div>
                                     <div class="invalid-feedback d-block">{{ formErrors.member_id }}</div>
                                  </div>
-
-                                 <template v-else>
-                                    <div class="col-12 col-md-6">
-                                       <label class="form-label">Member Name <span class="text-danger">*</span></label>
-                                       <input type="text" class="form-control" v-model="form.customer_name" :class="{ 'is-invalid': formErrors.customer_name }" />
-                                       <div class="invalid-feedback">{{ formErrors.customer_name }}</div>
-                                    </div>
-                                    <div class="col-12 col-md-6">
-                                       <label class="form-label">Phone</label>
-                                       <input type="text" class="form-control" v-model="form.customer_phone" :class="{ 'is-invalid': formErrors.customer_phone }" />
-                                       <div class="invalid-feedback">{{ formErrors.customer_phone }}</div>
-                                    </div>
-                                    <div class="col-12">
-                                       <label class="form-label">Email</label>
-                                       <input type="email" class="form-control" v-model="form.customer_email" :class="{ 'is-invalid': formErrors.customer_email }" />
-                                       <div class="invalid-feedback">{{ formErrors.customer_email }}</div>
-                                    </div>
-                                 </template>
                               </div>
                            </div>
                         </template>
@@ -606,11 +580,9 @@ export default {
                   quantity: 1,
                },
             ],
-            member_mode: "existing",
             member_id: null,
             member_label: "",
             customer_name: "",
-            customer_email: "",
             customer_phone: "",
             membership_rate_plan_id: "",
             pt_product_id: "",
@@ -735,11 +707,7 @@ export default {
             return "Walk-in / Member Counter Sale";
          }
 
-         if (this.form.member_mode === "existing") {
-            return this.form.member_label;
-         }
-
-         return this.form.customer_name;
+         return this.form.member_label;
       },
       summaryItem: function () {
          if (this.saleType === "inventory") {
@@ -805,11 +773,9 @@ export default {
       defaultForm: function () {
          return {
             inventory_lines: [this.defaultInventoryLine()],
-            member_mode: "existing",
             member_id: null,
             member_label: "",
             customer_name: "",
-            customer_email: "",
             customer_phone: "",
             membership_rate_plan_id: "",
             pt_product_id: "",
@@ -835,19 +801,6 @@ export default {
          this.successMessage = "";
          this.lastCompletedSale = null;
          this.resetForm();
-      },
-      setMemberMode: function (mode) {
-         this.form.member_mode = mode;
-         this.form.member_id = null;
-         this.form.member_label = "";
-         this.form.customer_name = "";
-         this.form.customer_email = "";
-         this.form.customer_phone = "";
-         this.formErrors.member_mode = "";
-         this.formErrors.member_id = "";
-         this.formErrors.customer_name = "";
-         this.formErrors.customer_email = "";
-         this.formErrors.customer_phone = "";
       },
       addInventoryLine: function () {
          this.form.inventory_lines.push(this.defaultInventoryLine());
@@ -1018,21 +971,13 @@ export default {
          }
 
          if (this.saleType === "membership") {
-            payload.member_mode = this.form.member_mode;
-            payload.member_id = this.form.member_mode === "existing" ? this.form.member_id : null;
-            payload.customer_name = this.form.member_mode === "new" ? this.form.customer_name : null;
-            payload.customer_email = this.form.member_mode === "new" ? this.form.customer_email || null : null;
-            payload.customer_phone = this.form.member_mode === "new" ? this.form.customer_phone || null : null;
+            payload.member_id = this.form.member_id || null;
             payload.rate_plan_id = this.form.membership_rate_plan_id || null;
             payload.start_date = this.form.start_date || null;
          }
 
          if (this.saleType === "pt_package") {
-            payload.member_mode = this.form.member_mode;
-            payload.member_id = this.form.member_mode === "existing" ? this.form.member_id : null;
-            payload.customer_name = this.form.member_mode === "new" ? this.form.customer_name : null;
-            payload.customer_email = this.form.member_mode === "new" ? this.form.customer_email || null : null;
-            payload.customer_phone = this.form.member_mode === "new" ? this.form.customer_phone || null : null;
+            payload.member_id = this.form.member_id || null;
             payload.pt_product_id = this.form.pt_product_id || null;
             payload.assigned_at = this.form.assigned_at || null;
             payload.expires_at = this.form.expires_at || null;

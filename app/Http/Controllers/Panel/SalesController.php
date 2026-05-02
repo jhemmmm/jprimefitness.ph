@@ -145,10 +145,8 @@ class SalesController extends Controller
             'items' => ['nullable', 'array', 'min:1'],
             'items.*.inventory_item_id' => ['nullable', 'integer', 'exists:inventory_items,id'],
             'items.*.quantity' => ['nullable', 'integer', 'min:1'],
-            'member_mode' => ['nullable', Rule::in(['existing', 'new'])],
             'member_id' => ['nullable', 'integer', 'exists:users,id'],
             'customer_name' => ['nullable', 'string', 'max:255'],
-            'customer_email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->withoutTrashed()],
             'customer_phone' => ['nullable', 'string', 'max:50'],
             'rate_plan_id' => ['nullable', 'integer', 'exists:rate_plans,id'],
             'pt_product_id' => ['nullable', 'integer', 'exists:pt_products,id'],
@@ -188,16 +186,8 @@ class SalesController extends Controller
         }
 
         if (in_array($validated['type'], [SaleTransaction::TYPE_MEMBERSHIP, SaleTransaction::TYPE_PT_PACKAGE], true)) {
-            if (empty($validated['member_mode'])) {
-                $errors['member_mode'][] = 'Choose whether this sale is for an existing or new member.';
-            }
-
-            if (($validated['member_mode'] ?? null) === 'existing' && empty($validated['member_id'])) {
+            if (empty($validated['member_id'])) {
                 $errors['member_id'][] = 'Select a member for this sale.';
-            }
-
-            if (($validated['member_mode'] ?? null) === 'new' && empty($validated['customer_name'])) {
-                $errors['customer_name'][] = 'Enter the new member name.';
             }
         }
 

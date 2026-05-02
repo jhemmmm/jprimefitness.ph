@@ -14,8 +14,6 @@ use DateTimeInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class PosSaleService
@@ -231,10 +229,7 @@ class PosSaleService
                 ]);
             }
 
-            $memberResult = $this->resolveMember($data);
-            /** @var User $member */
-            $member = $memberResult['member'];
-            $memberCreated = (bool) $memberResult['created'];
+            $member = $this->resolveMember($data);
             $saleTotal = round((float) $ratePlan->price, 2);
 
             $subscription = $member->sellMembershipPlan($ratePlan->id, $data['start_date'], [
@@ -273,10 +268,6 @@ class PosSaleService
 
             $saleCause = $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
 
-            if ($memberCreated) {
-                $this->recordMemberCreatedSystemActivity($member->fresh(), $processedBy, $saleCause, $saleTransaction->sold_at);
-            }
-
             $this->recordMembershipCreatedSystemActivity(
                 $subscription->fresh(['ratePlan', 'member']),
                 $processedBy,
@@ -305,10 +296,7 @@ class PosSaleService
                 ]);
             }
 
-            $memberResult = $this->resolveMember($data);
-            /** @var User $member */
-            $member = $memberResult['member'];
-            $memberCreated = (bool) $memberResult['created'];
+            $member = $this->resolveMember($data);
             $soldPrice = round((float) $ptProduct->price, 2);
             $payment = $this->resolvePayment($soldPrice, $data);
 
@@ -354,10 +342,6 @@ class PosSaleService
             ]);
 
             $saleCause = $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
-
-            if ($memberCreated) {
-                $this->recordMemberCreatedSystemActivity($member->fresh(), $processedBy, $saleCause, $saleTransaction->sold_at);
-            }
 
             $this->recordPtPackageSystemActivity(
                 $package->fresh(['ptProduct', 'coach', 'member']),
@@ -429,40 +413,19 @@ class PosSaleService
     /**
      * @param  array<string, mixed>  $data
      */
-    private function resolveMember(array $data): array
+    private function resolveMember(array $data): User
     {
-        if (($data['member_mode'] ?? null) === 'existing') {
-            $member = User::role('member')
-                ->whereKey((int) $data['member_id'])
-                ->first();
+        $member = User::role('member')
+            ->whereKey((int) ($data['member_id'] ?? 0))
+            ->first();
 
-            if (! $member) {
-                throw ValidationException::withMessages([
-                    'member_id' => ['The selected member could not be found.'],
-                ]);
-            }
-
-            return [
-                'member' => $member,
-                'created' => false,
-            ];
+        if (! $member) {
+            throw ValidationException::withMessages([
+                'member_id' => ['The selected member could not be found.'],
+            ]);
         }
 
-        $member = User::create([
-            'name' => $data['customer_name'],
-            'email' => $data['customer_email'] ?? null,
-            'phone' => $data['customer_phone'] ?? null,
-            'password' => Hash::make(Str::random(24)),
-            'status' => User::STATUS_ACTIVE,
-        ]);
-
-        $member->assignRole('member');
-        $member->profile()->create([]);
-
-        return [
-            'member' => $member,
-            'created' => true,
-        ];
+        return $member;
     }
 
     /**
@@ -493,27 +456,6 @@ class PosSaleService
         );
 
         return $causedBy;
-    }
-
-    private function recordMemberCreatedSystemActivity(
-        User $member,
-        User $processedBy,
-        array $causedBy,
-        DateTimeInterface|string|null $occurredAt = null,
-    ): void
-    {
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_MEMBER,
-            $member->id,
-            'created',
-            $this->memberSystemActivitySnapshot($member),
-            [
-                'caused_by' => $causedBy,
-            ],
-            $processedBy->id,
-            $processedBy->name,
-            $occurredAt ?? now(),
-        );
     }
 
     private function recordMembershipCreatedSystemActivity(
@@ -595,19 +537,6 @@ class PosSaleService
             'item_name' => $saleTransaction->item_name,
             'payment_method' => $saleTransaction->payment_method,
             'total' => round((float) $saleTransaction->total, 2),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function memberSystemActivitySnapshot(User $member): array
-    {
-        return [
-            'id' => $member->id,
-            'name' => $member->name,
-            'status' => $member->status,
-            'email' => $member->email,
         ];
     }
 

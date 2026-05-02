@@ -186,9 +186,10 @@ class SalesPageTest extends TestCase
             ->assertJsonValidationErrors(['items.0.quantity']);
     }
 
-    public function test_membership_sale_can_create_new_member_subscription_and_transaction(): void
+    public function test_membership_sale_can_attach_to_existing_member_subscription_and_transaction(): void
     {
         $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $member = $this->createUserWithRole('member', 'Member Mia');
         $ratePlan = $this->createRatePlan('6 Months', 180, [
             'price' => 4999.50,
         ]);
@@ -196,10 +197,7 @@ class SalesPageTest extends TestCase
         $this->actingAs($staff)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_MEMBERSHIP,
-                'member_mode' => 'new',
-                'customer_name' => 'New Member Mia',
-                'customer_email' => 'mia@example.com',
-                'customer_phone' => '09171234567',
+                'member_id' => $member->id,
                 'rate_plan_id' => $ratePlan->id,
                 'start_date' => '2026-04-01',
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
@@ -208,13 +206,9 @@ class SalesPageTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('type', SaleTransaction::TYPE_MEMBERSHIP)
-            ->assertJsonPath('customer_name', 'New Member Mia')
+            ->assertJsonPath('customer_name', 'Member Mia')
             ->assertJsonPath('item_name', '6 Months')
             ->assertJsonPath('change_amount', 0.5);
-
-        $member = User::where('email', 'mia@example.com')->firstOrFail();
-
-        $this->assertTrue($member->hasRole('member'));
 
         $subscription = MemberSubscription::where('user_id', $member->id)->firstOrFail();
 
@@ -229,23 +223,19 @@ class SalesPageTest extends TestCase
         ]);
     }
 
-    public function test_membership_sale_can_reuse_email_from_a_soft_deleted_member(): void
+    public function test_membership_sale_requires_existing_member_selection(): void
     {
         $staff = $this->createUserWithRole('staff', 'Staff Ben');
         $ratePlan = $this->createRatePlan('Monthly', 30, [
             'price' => 1499,
         ]);
 
-        $archivedMember = $this->createUserWithRole('member', 'Archived Member');
-        $archivedMember->update(['email' => 'archived-sale@example.com']);
-        $archivedMember->delete();
-
         $this->actingAs($staff)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_MEMBERSHIP,
                 'member_mode' => 'new',
                 'customer_name' => 'New Member Mia',
-                'customer_email' => 'archived-sale@example.com',
+                'customer_email' => 'mia@example.com',
                 'customer_phone' => '09171234567',
                 'rate_plan_id' => $ratePlan->id,
                 'start_date' => '2026-04-01',
@@ -253,20 +243,14 @@ class SalesPageTest extends TestCase
                 'amount_received' => 1500,
                 'sold_at' => '2026-03-29 15:00:00',
             ])
-            ->assertCreated()
-            ->assertJsonPath('customer_name', 'New Member Mia');
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['member_id']);
 
-        $this->assertSoftDeleted('users', [
-            'id' => $archivedMember->id,
+        $this->assertDatabaseMissing('users', [
+            'email' => 'mia@example.com',
         ]);
-        $this->assertDatabaseHas('sale_transactions', [
-            'type' => SaleTransaction::TYPE_MEMBERSHIP,
-            'customer_name' => 'New Member Mia',
-        ]);
-        $this->assertDatabaseHas('users', [
-            'email' => 'archived-sale@example.com',
-            'deleted_at' => null,
-        ]);
+        $this->assertDatabaseCount('member_subscriptions', 0);
+        $this->assertDatabaseCount('sale_transactions', 0);
     }
 
     public function test_pt_package_sale_can_attach_to_existing_member_without_coach_assignment(): void
@@ -280,7 +264,6 @@ class SalesPageTest extends TestCase
         $this->actingAs($staff)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_PT_PACKAGE,
-                'member_mode' => 'existing',
                 'member_id' => $member->id,
                 'pt_product_id' => $ptProduct->id,
                 'assigned_at' => '2026-03-29',
@@ -304,7 +287,16 @@ class SalesPageTest extends TestCase
             'type' => SaleTransaction::TYPE_PT_PACKAGE,
             'total' => 7200,
         ]);
+    }
 
+    public function test_sales_page_no_longer_renders_new_member_sale_controls(): void
+    {
+        $component = file_get_contents(resource_path('js/components/panel/SalesPage.vue'));
+
+        $this->assertStringNotContainsString('New Member', $component);
+        $this->assertStringNotContainsString('member_mode', $component);
+        $this->assertStringNotContainsString('customer_email', $component);
+        $this->assertStringContainsString('Search Member', $component);
     }
 
     public function test_sale_transaction_history_survives_processor_deletion(): void
