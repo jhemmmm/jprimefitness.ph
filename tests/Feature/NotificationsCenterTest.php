@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\CashAdvance;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\MemberPtPackage;
@@ -135,7 +134,6 @@ class NotificationsCenterTest extends TestCase
             'bonus' => 0,
             'income_tax' => 0,
             'manual_deductions' => 0,
-            'cash_advance_deduction' => 0,
             'net_amount' => 10000,
             'status' => Payroll::STATUS_DRAFT,
             'generated_by' => $actingAdmin->id,
@@ -152,112 +150,6 @@ class NotificationsCenterTest extends TestCase
         $this->assertSame(['payroll-approved'], $this->notificationTypesFor($managerB));
         $this->assertSame([], $this->notificationTypesFor($staff));
         $this->assertSame([], $this->notificationTypesFor($employee));
-    }
-
-    public function test_cash_advance_request_and_status_changes_create_notifications_once_per_transition(): void
-    {
-        $actingAdmin = $this->createUserWithRole('admin', 'Admin Dax');
-        $superAdmin = $this->createUserWithRole('super admin', 'Super Admin Dee');
-        $manager = $this->createUserWithRole('manager', 'Manager Dex');
-        $employee = $this->createUserWithRole('employee', 'Employee Don');
-
-        $createResponse = $this->actingAs($actingAdmin)
-            ->postJson("/panel/employees/{$employee->id}/cash-advances", [
-                'amount' => 1500,
-                'notes' => 'Uniform allowance',
-            ])
-            ->assertCreated();
-
-        $cashAdvanceId = $createResponse->json('id');
-
-        $this->assertSame(['cash-advance-status-changed'], $this->notificationTypesFor($actingAdmin));
-        $this->assertSame(['cash-advance-status-changed'], $this->notificationTypesFor($superAdmin));
-        $this->assertSame(['cash-advance-status-changed'], $this->notificationTypesFor($manager));
-
-        $this->actingAs($actingAdmin)
-            ->putJson("/panel/employees/{$employee->id}/cash-advances/{$cashAdvanceId}", [
-                'amount' => 1500,
-                'status' => CashAdvance::STATUS_APPROVED,
-                'notes' => 'Approved for release',
-            ])
-            ->assertOk();
-
-        $this->actingAs($actingAdmin)
-            ->putJson("/panel/employees/{$employee->id}/cash-advances/{$cashAdvanceId}", [
-                'status' => CashAdvance::STATUS_RELEASED,
-            ])
-            ->assertOk();
-
-        $cancelResponse = $this->actingAs($actingAdmin)
-            ->postJson("/panel/employees/{$employee->id}/cash-advances", [
-                'amount' => 800,
-                'notes' => 'Second request',
-            ])
-            ->assertCreated();
-
-        $cancelCashAdvanceId = $cancelResponse->json('id');
-
-        $this->actingAs($actingAdmin)
-            ->putJson("/panel/employees/{$employee->id}/cash-advances/{$cancelCashAdvanceId}", [
-                'amount' => 800,
-                'status' => CashAdvance::STATUS_CANCELLED,
-                'notes' => 'Request cancelled',
-            ])
-            ->assertOk();
-
-        $expectedTypes = [
-            'cash-advance-status-changed',
-            'cash-advance-status-changed',
-            'cash-advance-status-changed',
-            'cash-advance-status-changed',
-            'cash-advance-status-changed',
-        ];
-
-        $this->assertSame($expectedTypes, $this->notificationTypesFor($actingAdmin));
-        $this->assertSame($expectedTypes, $this->notificationTypesFor($superAdmin));
-        $this->assertSame($expectedTypes, $this->notificationTypesFor($manager));
-    }
-
-    public function test_approved_cash_advance_cannot_be_edited_without_creating_another_notification(): void
-    {
-        $actingAdmin = $this->createUserWithRole('admin', 'Admin Rex');
-        $employee = $this->createUserWithRole('employee', 'Employee Rae');
-
-        $cashAdvanceId = $this->actingAs($actingAdmin)
-            ->postJson("/panel/employees/{$employee->id}/cash-advances", [
-                'amount' => 1500,
-                'notes' => 'Uniform allowance',
-            ])
-            ->assertCreated()
-            ->json('id');
-
-        $this->actingAs($actingAdmin)
-            ->putJson("/panel/employees/{$employee->id}/cash-advances/{$cashAdvanceId}", [
-                'amount' => 1500,
-                'status' => CashAdvance::STATUS_APPROVED,
-                'notes' => 'Approved for release',
-            ])
-            ->assertOk();
-
-        $this->actingAs($actingAdmin)
-            ->putJson("/panel/employees/{$employee->id}/cash-advances/{$cashAdvanceId}", [
-                'amount' => 2000,
-                'notes' => 'Changed after approval',
-            ])
-            ->assertUnprocessable()
-            ->assertJsonPath('message', 'Approved cash advances cannot be edited.');
-
-        $this->assertDatabaseHas('cash_advances', [
-            'id' => $cashAdvanceId,
-            'amount' => '1500.00',
-            'status' => CashAdvance::STATUS_APPROVED,
-            'notes' => 'Approved for release',
-        ]);
-
-        $this->assertSame([
-            'cash-advance-status-changed',
-            'cash-advance-status-changed',
-        ], $this->notificationTypesFor($actingAdmin));
     }
 
     public function test_inventory_stock_alerts_only_fire_on_threshold_crossings_for_global_recipients(): void

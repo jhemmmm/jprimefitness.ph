@@ -5,16 +5,11 @@ namespace Tests\Feature;
 use App\Models\Attendance;
 use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
-use App\Models\CashAdvance;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\User;
 use App\Models\WalkIn;
-use App\Services\AuditHistoryService;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -50,33 +45,31 @@ class AuditHistoryTest extends TestCase
         $employee = $this->createUserWithRole('employee', 'Employee Eli');
 
         AuditEvent::factory()->create([
-            'subject_type' => AuditEvent::SUBJECT_CASH_ADVANCE,
+            'subject_type' => AuditEvent::SUBJECT_PAYROLL,
             'subject_id' => 11,
-            'subject_label' => 'Cash Advance #11 - '.$employee->name,
+            'subject_label' => 'Payroll #11 - '.$employee->name,
             'event' => 'approved',
-            'title' => 'Cash advance approved',
-            'message' => 'The cash advance for '.$employee->name.' amounting to ₱1,500.00 was approved.',
+            'title' => 'Payroll approved',
+            'message' => 'The payroll for '.$employee->name.' was approved.',
             'actor_name' => $manager->name,
             'metadata' => [
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->name,
-                'amount' => 1500,
             ],
             'occurred_at' => '2026-04-05 09:00:00',
         ]);
 
         AuditEvent::factory()->create([
-            'subject_type' => AuditEvent::SUBJECT_CASH_ADVANCE,
+            'subject_type' => AuditEvent::SUBJECT_PAYROLL,
             'subject_id' => 12,
-            'subject_label' => 'Cash Advance #12 - '.$employee->name,
-            'event' => 'deleted',
-            'title' => 'Cash advance deleted',
-            'message' => 'The cash advance for '.$employee->name.' amounting to ₱800.00 was deleted.',
+            'subject_label' => 'Payroll #12 - '.$employee->name,
+            'event' => 'created',
+            'title' => 'Payroll created',
+            'message' => 'The payroll for '.$employee->name.' was created.',
             'actor_name' => $manager->name,
             'metadata' => [
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->name,
-                'amount' => 800,
             ],
             'occurred_at' => '2026-03-20 08:00:00',
         ]);
@@ -87,13 +80,13 @@ class AuditHistoryTest extends TestCase
             ->assertSee('audit-history-page', false);
 
         $this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?subject_type=cash_advance&subject_id=11&event=approved&search=approved&date_from=2026-04-01&date_to=2026-04-30&per_page=10')
+            ->getJson('/panel/audit-history/list?subject_type=payroll&subject_id=11&event=approved&search=approved&date_from=2026-04-01&date_to=2026-04-30&per_page=10')
             ->assertOk()
             ->assertJsonPath('events.total', 1)
-            ->assertJsonPath('events.data.0.subject_type', AuditEvent::SUBJECT_CASH_ADVANCE)
+            ->assertJsonPath('events.data.0.subject_type', AuditEvent::SUBJECT_PAYROLL)
             ->assertJsonPath('events.data.0.subject_id', 11)
             ->assertJsonPath('events.data.0.event', 'approved')
-            ->assertJsonPath('events.data.0.subject_label', 'Cash Advance #11 - '.$employee->name)
+            ->assertJsonPath('events.data.0.subject_label', 'Payroll #11 - '.$employee->name)
             ->assertJsonPath('events.data.0.actor_name', $manager->name)
             ->assertJsonPath('events.data.0.action_url', route('panel.employees.show', $employee));
 
@@ -104,93 +97,6 @@ class AuditHistoryTest extends TestCase
         $this->actingAs($staff)
             ->getJson('/panel/audit-history/list')
             ->assertForbidden();
-    }
-
-    public function test_cash_advance_lifecycle_and_delete_actions_record_shared_audit_events(): void
-    {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
-        $employee = $this->createUserWithRole('employee', 'Employee Eli');
-
-        $releasedCashAdvanceId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/cash-advances", [
-                'amount' => 1500,
-                'notes' => 'Uniform allowance',
-            ])
-            ->assertCreated()
-            ->json('id');
-
-        $this->actingAs($manager)
-            ->putJson("/panel/employees/{$employee->id}/cash-advances/{$releasedCashAdvanceId}", [
-                'status' => CashAdvance::STATUS_APPROVED,
-                'notes' => 'Approved for release',
-            ])
-            ->assertOk();
-
-        $this->actingAs($manager)
-            ->putJson("/panel/employees/{$employee->id}/cash-advances/{$releasedCashAdvanceId}", [
-                'status' => CashAdvance::STATUS_RELEASED,
-            ])
-            ->assertOk();
-
-        $cancelledCashAdvanceId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/cash-advances", [
-                'amount' => 800,
-                'notes' => 'Second request',
-            ])
-            ->assertCreated()
-            ->json('id');
-
-        $this->actingAs($manager)
-            ->putJson("/panel/employees/{$employee->id}/cash-advances/{$cancelledCashAdvanceId}", [
-                'status' => CashAdvance::STATUS_CANCELLED,
-                'notes' => 'Cancelled request',
-            ])
-            ->assertOk();
-
-        $deletedCashAdvanceId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/cash-advances", [
-                'amount' => 500,
-                'notes' => 'Delete me',
-            ])
-            ->assertCreated()
-            ->json('id');
-
-        $this->actingAs($manager)
-            ->deleteJson("/panel/employees/{$employee->id}/cash-advances/{$deletedCashAdvanceId}")
-            ->assertNoContent();
-
-        $releasedEvents = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_CASH_ADVANCE)
-            ->where('subject_id', $releasedCashAdvanceId)
-            ->orderBy('occurred_at')
-            ->pluck('event')
-            ->all();
-
-        $cancelledEvents = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_CASH_ADVANCE)
-            ->where('subject_id', $cancelledCashAdvanceId)
-            ->orderBy('occurred_at')
-            ->pluck('event')
-            ->all();
-
-        $deletedEvents = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_CASH_ADVANCE)
-            ->where('subject_id', $deletedCashAdvanceId)
-            ->orderBy('occurred_at')
-            ->pluck('event')
-            ->all();
-
-        $this->assertSame(['requested', 'approved', 'released'], $releasedEvents);
-        $this->assertSame(['requested', 'cancelled'], $cancelledEvents);
-        $this->assertSame(['requested', 'deleted'], $deletedEvents);
-
-        $this->actingAs($manager)
-            ->getJson('/panel/audit-history/list?subject_type=cash_advance&subject_id='.$releasedCashAdvanceId.'&per_page=10')
-            ->assertOk()
-            ->assertJsonPath('events.total', 3)
-            ->assertJsonPath('events.data.0.event', 'released')
-            ->assertJsonPath('events.data.1.event', 'approved')
-            ->assertJsonPath('events.data.2.event', 'requested');
     }
 
     public function test_audit_history_list_supports_sorting(): void
@@ -245,7 +151,6 @@ class AuditHistoryTest extends TestCase
     public function test_deleted_audit_events_expose_restore_state_for_supported_subjects(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
-        $employee = $this->createUserWithRole('employee', 'Employee Eli');
         $member = $this->createUserWithRole('member', 'Member Max');
         $category = InventoryCategory::factory()->create(['name' => 'Supplements']);
 
@@ -276,25 +181,10 @@ class AuditHistoryTest extends TestCase
         ]);
         $inventoryItem->delete();
 
-        $cashAdvance = CashAdvance::create([
-            'employee_id' => $employee->id,
-            'amount' => 1500,
-            'remaining_amount' => 1500,
-            'status' => CashAdvance::STATUS_RELEASED,
-            'requested_at' => '2026-04-10 10:00:00',
-            'released_at' => '2026-04-10 11:00:00',
-            'released_by' => $manager->id,
-        ]);
-        $cashAdvance->delete();
-
         $this->makeAuditEvent(AuditEvent::SUBJECT_EMPLOYEE, $deletedEmployee->id, 'deleted', 'Employee #'.$deletedEmployee->id.' - '.$deletedEmployee->name, occurredAt: '2026-04-10 13:00:00');
         $this->makeAuditEvent(AuditEvent::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$member->name, occurredAt: '2026-04-10 13:05:00');
         $this->makeAuditEvent(AuditEvent::SUBJECT_WALK_IN, $walkIn->id, 'deleted', 'Walk-in #'.$walkIn->id.' - '.$walkIn->name, occurredAt: '2026-04-10 13:10:00');
         $this->makeAuditEvent(AuditEvent::SUBJECT_INVENTORY_ITEM, $inventoryItem->id, 'deleted', 'Inventory Item #'.$inventoryItem->id.' - '.$inventoryItem->name, occurredAt: '2026-04-10 13:15:00');
-        $this->makeAuditEvent(AuditEvent::SUBJECT_CASH_ADVANCE, $cashAdvance->id, 'deleted', 'Cash Advance #'.$cashAdvance->id.' - '.$employee->name, [
-            'employee_id' => $employee->id,
-            'employee_name' => $employee->name,
-        ], '2026-04-10 13:20:00');
 
         $events = collect($this->actingAs($manager)
             ->getJson('/panel/audit-history/list?per_page=20')
@@ -306,7 +196,6 @@ class AuditHistoryTest extends TestCase
             [AuditEvent::SUBJECT_ATTENDANCE, $attendance->id],
             [AuditEvent::SUBJECT_WALK_IN, $walkIn->id],
             [AuditEvent::SUBJECT_INVENTORY_ITEM, $inventoryItem->id],
-            [AuditEvent::SUBJECT_CASH_ADVANCE, $cashAdvance->id],
         ] as [$subjectType, $subjectId]) {
             $event = $this->findSerializedEvent($events->all(), $subjectType, $subjectId, 'deleted');
 
@@ -423,41 +312,6 @@ class AuditHistoryTest extends TestCase
         $this->assertNull(WalkIn::withTrashed()->findOrFail($walkIn->id)->deleted_at);
     }
 
-    public function test_restore_endpoint_restores_cash_advances(): void
-    {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
-        $employee = $this->createUserWithRole('employee', 'Employee Eli');
-
-        $cashAdvance = CashAdvance::create([
-            'employee_id' => $employee->id,
-            'amount' => 1500,
-            'remaining_amount' => 750,
-            'status' => CashAdvance::STATUS_RELEASED,
-            'requested_at' => '2026-04-10 08:00:00',
-            'released_at' => '2026-04-10 09:00:00',
-            'released_by' => $manager->id,
-        ]);
-
-        $cashAdvance->delete();
-
-        $auditEvent = $this->makeAuditEvent(
-            AuditEvent::SUBJECT_CASH_ADVANCE,
-            $cashAdvance->id,
-            'deleted',
-            'Cash Advance #'.$cashAdvance->id.' - '.$employee->name,
-            [
-                'employee_id' => $employee->id,
-                'employee_name' => $employee->name,
-            ],
-        );
-
-        $this->actingAs($manager)
-            ->postJson("/panel/audit-history/{$auditEvent->id}/restore")
-            ->assertOk();
-
-        $this->assertNull(CashAdvance::withTrashed()->findOrFail($cashAdvance->id)->deleted_at);
-    }
-
     public function test_restore_endpoint_rejects_non_restorable_events(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
@@ -524,9 +378,6 @@ class AuditHistoryTest extends TestCase
             ->postJson("/panel/employees/{$employee->id}/attendance")
             ->assertOk();
 
-        $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/cash-advances")
-            ->assertOk();
     }
 
     public function test_walk_in_audit_subject_labels_are_trimmed_to_fit_the_column(): void
@@ -552,154 +403,6 @@ class AuditHistoryTest extends TestCase
 
         $this->assertLessThanOrEqual(255, strlen($auditEvent->subject_label ?? ''));
         $this->assertStringStartsWith('Walk-in #'.$walkInId.' - ', (string) $auditEvent->subject_label);
-    }
-
-    public function test_payroll_deductions_record_partially_paid_and_paid_audit_events(): void
-    {
-        $manager = $this->createUserWithRole('manager', 'Manager Pia');
-        $coach = $this->createUserWithRole('coach', 'Coach Lou');
-
-        $cashAdvanceId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$coach->id}/cash-advances", [
-                'amount' => 1500,
-                'notes' => 'Payroll-backed advance',
-            ])
-            ->assertCreated()
-            ->json('id');
-
-        $this->actingAs($manager)
-            ->putJson("/panel/employees/{$coach->id}/cash-advances/{$cashAdvanceId}", [
-                'status' => CashAdvance::STATUS_APPROVED,
-            ])
-            ->assertOk();
-
-        $this->actingAs($manager)
-            ->putJson("/panel/employees/{$coach->id}/cash-advances/{$cashAdvanceId}", [
-                'status' => CashAdvance::STATUS_RELEASED,
-            ])
-            ->assertOk();
-
-        $firstPayrollId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$coach->id}/payrolls", [
-                'period_start' => '2026-04-01',
-                'period_end' => '2026-04-15',
-                'gross_amount' => 1000,
-                'bonus' => 0,
-                'manual_deductions' => 0,
-                'cash_advance_deduction' => 500,
-            ])
-            ->assertCreated()
-            ->json('id');
-
-        $this->actingAs($manager)
-            ->postJson("/panel/employees/{$coach->id}/payrolls/{$firstPayrollId}/approve")
-            ->assertOk();
-
-        $secondPayrollId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$coach->id}/payrolls", [
-                'period_start' => '2026-04-16',
-                'period_end' => '2026-04-30',
-                'gross_amount' => 1200,
-                'bonus' => 0,
-                'manual_deductions' => 0,
-                'cash_advance_deduction' => 1000,
-            ])
-            ->assertCreated()
-            ->json('id');
-
-        $this->actingAs($manager)
-            ->postJson("/panel/employees/{$coach->id}/payrolls/{$secondPayrollId}/approve")
-            ->assertOk();
-
-        $events = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_CASH_ADVANCE)
-            ->where('subject_id', $cashAdvanceId)
-            ->orderBy('occurred_at')
-            ->get();
-
-        $this->assertSame(['requested', 'approved', 'released', 'partially_paid', 'paid'], $events->pluck('event')->all());
-
-        $partiallyPaidEvent = $events->firstWhere('event', 'partially_paid');
-        $paidEvent = $events->firstWhere('event', 'paid');
-
-        $this->assertNotNull($partiallyPaidEvent);
-        $this->assertNotNull($paidEvent);
-        $this->assertSame($firstPayrollId, $partiallyPaidEvent->metadata['source_id']);
-        $this->assertSame($secondPayrollId, $paidEvent->metadata['source_id']);
-        $this->assertSame(500.0, (float) $partiallyPaidEvent->metadata['deducted_amount']);
-        $this->assertSame(1000.0, (float) $paidEvent->metadata['deducted_amount']);
-    }
-
-    public function test_backfill_service_normalizes_legacy_cash_advance_history_without_duplicate_lifecycle_events(): void
-    {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
-        $employee = $this->createUserWithRole('employee', 'Employee Eli');
-
-        Schema::table('cash_advances', function (Blueprint $table) {
-            $table->json('audit_data')->nullable()->after('paid_at');
-        });
-
-        DB::table('cash_advances')->insert([
-            'id' => 1,
-            'employee_id' => $employee->id,
-            'amount' => 500,
-            'remaining_amount' => 200,
-            'status' => CashAdvance::STATUS_PARTIALLY_PAID,
-            'notes' => 'Legacy allowance',
-            'requested_at' => '2026-04-01 09:00:00',
-            'approved_at' => '2026-04-01 10:00:00',
-            'approved_by' => $manager->id,
-            'released_at' => '2026-04-02 08:00:00',
-            'released_by' => $manager->id,
-            'cancelled_at' => null,
-            'cancelled_by' => null,
-            'cancel_reason' => null,
-            'paid_at' => null,
-            'audit_data' => json_encode([
-                [
-                    'event' => 'requested',
-                    'at' => '2026-04-01T09:00:00+08:00',
-                    'by_user_id' => $employee->id,
-                    'by_name' => $employee->name,
-                    'source' => 'panel',
-                    'notes' => 'Legacy allowance',
-                ],
-                [
-                    'event' => 'approved',
-                    'at' => '2026-04-01T10:00:00+08:00',
-                    'by_user_id' => $manager->id,
-                    'by_name' => $manager->name,
-                    'source' => 'panel',
-                    'notes' => 'Legacy approval',
-                ],
-                [
-                    'event' => 'partially_paid',
-                    'at' => '2026-04-03T12:00:00+08:00',
-                    'by_user_id' => $manager->id,
-                    'by_name' => $manager->name,
-                    'source' => 'payroll',
-                    'source_id' => 77,
-                    'deducted_amount' => 300,
-                    'remaining_before' => 500,
-                    'remaining_after' => 200,
-                ],
-            ], JSON_THROW_ON_ERROR),
-            'created_at' => '2026-04-01 09:00:00',
-            'updated_at' => '2026-04-03 12:00:00',
-        ]);
-
-        app(AuditHistoryService::class)->backfillCashAdvanceEvents();
-
-        $events = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_CASH_ADVANCE)
-            ->where('subject_id', 1)
-            ->orderBy('occurred_at')
-            ->get();
-
-        $this->assertCount(4, $events);
-        $this->assertSame(['requested', 'approved', 'released', 'partially_paid'], $events->pluck('event')->all());
-        $this->assertSame('Legacy allowance', $events[0]->metadata['notes']);
-        $this->assertSame(77, $events[3]->metadata['source_id']);
     }
 
     private function createUserWithRole(string $role, string $name): User

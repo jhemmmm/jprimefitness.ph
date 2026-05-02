@@ -5,7 +5,7 @@
       <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Notifications</h4>
-            <p class="text-muted small mb-0">Operational alerts for payroll, cash advances, and inventory.</p>
+            <p class="text-muted small mb-0">Operational alerts for payroll and inventory.</p>
          </div>
 
          <div class="d-flex align-items-center gap-2 flex-wrap">

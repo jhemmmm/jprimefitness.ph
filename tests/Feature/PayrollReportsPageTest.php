@@ -103,7 +103,6 @@ class PayrollReportsPageTest extends TestCase
                 ],
             ],
             'manual_deductions' => 50,
-            'cash_advance_deduction' => 100,
             'net_amount' => 1050,
             'status' => Payroll::STATUS_APPROVED,
             'generated_by' => $manager->id,
@@ -164,7 +163,6 @@ class PayrollReportsPageTest extends TestCase
                 ],
             ],
             'manual_deductions' => 0,
-            'cash_advance_deduction' => 0,
             'net_amount' => 2000,
             'status' => Payroll::STATUS_PAID,
             'generated_by' => $manager->id,
@@ -181,7 +179,6 @@ class PayrollReportsPageTest extends TestCase
             'bonus' => 0,
             'income_tax' => 0,
             'manual_deductions' => 0,
-            'cash_advance_deduction' => 0,
             'net_amount' => 999,
             'status' => Payroll::STATUS_CANCELED,
             'generated_by' => $manager->id,
@@ -221,7 +218,7 @@ class PayrollReportsPageTest extends TestCase
         $response->assertJsonPath('summary.income_tax', 100);
         $response->assertJsonPath('summary.employee_government_contributions', 900);
         $response->assertJsonPath('summary.employer_government_contributions', 1400);
-        $response->assertJsonPath('summary.total_deductions', 1150);
+        $response->assertJsonPath('summary.total_deductions', 1050);
         $response->assertJsonPath('summary.net_payroll', 3050);
         $response->assertJsonPath('summary.total_paid', 2500);
         $response->assertJsonPath('summary.outstanding_balance', 550);
@@ -283,7 +280,6 @@ class PayrollReportsPageTest extends TestCase
                 ],
             ],
             'manual_deductions' => 50,
-            'cash_advance_deduction' => 0,
             'net_amount' => 1375,
             'status' => Payroll::STATUS_APPROVED,
             'generated_by' => $manager->id,

@@ -68,7 +68,6 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
                 'gross_amount' => 800,
                 'bonus' => 0,
                 'manual_deductions' => 0,
-                'cash_advance_deduction' => 0,
             ])
             ->assertCreated()
             ->assertJsonPath('regular_hours', 8)
@@ -123,7 +122,6 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
                 'gross_amount' => 1100,
                 'bonus' => 0,
                 'manual_deductions' => 0,
-                'cash_advance_deduction' => 0,
             ])
             ->assertCreated()
             ->assertJsonPath('regular_hours', 8)
@@ -149,7 +147,6 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
                 'gross_amount' => 1200,
                 'bonus' => 0,
                 'manual_deductions' => 0,
-                'cash_advance_deduction' => 0,
             ])
             ->assertOk()
             ->assertJsonPath('regular_hours', 8)
@@ -183,7 +180,6 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
             'bonus' => 0,
             'income_tax' => 0,
             'manual_deductions' => 0,
-            'cash_advance_deduction' => 0,
             'net_amount' => 500,
             'status' => Payroll::STATUS_APPROVED,
             'generated_by' => $manager->id,

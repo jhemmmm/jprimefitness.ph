@@ -126,7 +126,6 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::post('/employees/{employee}/attendance', [EmployeeController::class, 'attendance'])->name('employees.attendance')->whereNumber('employee')->withTrashed();
     Route::get('/employees/{employee}/payrolls', [EmployeeController::class, 'payrolls'])->name('employees.payrolls.list')->whereNumber('employee')->withTrashed();
     Route::post('/employees/{employee}/payrolls', [EmployeeController::class, 'storePayroll'])->name('employees.payrolls.store')->whereNumber('employee');
-    Route::get('/employees/{employee}/payrolls/suggested-ca', [EmployeeController::class, 'payrollSuggestedCa'])->name('employees.payrolls.suggestedCa')->whereNumber('employee')->withTrashed();
     Route::get('/employees/{employee}/payrolls/suggest', [EmployeeController::class, 'payrollSuggest'])->name('employees.payrolls.suggest')->whereNumber('employee')->withTrashed();
     Route::get('/employees/{employee}/payrolls/{payroll}/payslip', [EmployeeController::class, 'payslip'])->name('employees.payrolls.payslip')->whereNumber('employee')->whereNumber('payroll')->withTrashed();
     Route::put('/employees/{employee}/payrolls/{payroll}', [EmployeeController::class, 'updatePayroll'])->name('employees.payrolls.update')->whereNumber('employee')->whereNumber('payroll');
@@ -135,10 +134,6 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/employees/{employee}/payouts', [EmployeeController::class, 'payouts'])->name('employees.payouts.list')->whereNumber('employee')->withTrashed();
     Route::get('/employees/{employee}/payrolls/{payroll}/payouts', [EmployeeController::class, 'payrollPayouts'])->name('employees.payrolls.payouts.list')->whereNumber('employee')->whereNumber('payroll')->withTrashed();
     Route::post('/employees/{employee}/payrolls/{payroll}/payouts', [EmployeeController::class, 'storePayout'])->name('employees.payrolls.payouts.store')->whereNumber('employee')->whereNumber('payroll');
-    Route::get('/employees/{employee}/cash-advances', [EmployeeController::class, 'cashAdvances'])->name('employees.cash-advances.list')->whereNumber('employee')->withTrashed();
-    Route::post('/employees/{employee}/cash-advances', [EmployeeController::class, 'storeCashAdvance'])->name('employees.cash-advances.store')->whereNumber('employee');
-    Route::put('/employees/{employee}/cash-advances/{cashAdvance}', [EmployeeController::class, 'updateCashAdvance'])->name('employees.cash-advances.update')->whereNumber('employee')->whereNumber('cashAdvance');
-    Route::delete('/employees/{employee}/cash-advances/{cashAdvance}', [EmployeeController::class, 'destroyCashAdvance'])->name('employees.cash-advances.destroy')->whereNumber('employee')->whereNumber('cashAdvance');
 });
 
 Auth::routes(['register' => false]);

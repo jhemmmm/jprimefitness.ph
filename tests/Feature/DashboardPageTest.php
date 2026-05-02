@@ -192,7 +192,6 @@ class DashboardPageTest extends TestCase
             'bonus' => 0,
             'income_tax' => 0,
             'manual_deductions' => 0,
-            'cash_advance_deduction' => 0,
             'net_amount' => 1200,
             'status' => Payroll::STATUS_APPROVED,
             'generated_by' => $manager->id,

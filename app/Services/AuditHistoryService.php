@@ -4,26 +4,20 @@ namespace App\Services;
 
 use App\Models\Attendance;
 use App\Models\AuditEvent;
-use App\Models\CashAdvance;
 use App\Models\InventoryItem;
 use App\Models\User;
 use App\Models\WalkIn;
 use App\Support\AuditSubjectRegistry;
-use App\Support\CashAdvanceAuditEventFormatter;
 use App\Support\PanelAuditEventFormatter;
-use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 class AuditHistoryService
 {
     public function __construct(
         private AuditSubjectRegistry $auditSubjectRegistry,
-        private CashAdvanceAuditEventFormatter $cashAdvanceAuditEventFormatter,
         private PanelAuditEventFormatter $panelAuditEventFormatter,
     ) {}
 
@@ -68,10 +62,7 @@ class AuditHistoryService
         array $snapshot = [],
         array $metadata = [],
     ): array {
-        return match ($subjectType) {
-            AuditEvent::SUBJECT_CASH_ADVANCE => $this->cashAdvanceAuditEventFormatter->format($snapshot, $event, $metadata),
-            default => $this->panelAuditEventFormatter->format($subjectType, $subjectId, $event, $snapshot, $metadata),
-        };
+        return $this->panelAuditEventFormatter->format($subjectType, $subjectId, $event, $snapshot, $metadata);
     }
 
     /**
@@ -232,96 +223,11 @@ class AuditHistoryService
                 AuditEvent::SUBJECT_ATTENDANCE => $this->restoreAttendance($subject, $actor),
                 AuditEvent::SUBJECT_WALK_IN => $this->restoreWalkIn($subject, $actor),
                 AuditEvent::SUBJECT_INVENTORY_ITEM => $this->restoreInventoryItem($subject, $actor),
-                AuditEvent::SUBJECT_CASH_ADVANCE => $this->restoreCashAdvance($subject, $actor),
                 default => throw ValidationException::withMessages([
                     'restore' => 'This deleted event cannot be restored from Audit History.',
                 ]),
             };
         });
-    }
-
-    public function backfillCashAdvanceEvents(): void
-    {
-        if (! Schema::hasTable('audit_events')
-            || ! Schema::hasTable('cash_advances')
-            || ! Schema::hasColumn('cash_advances', 'audit_data')) {
-            return;
-        }
-
-        DB::table('cash_advances')
-            ->leftJoin('users as employees', 'employees.id', '=', 'cash_advances.employee_id')
-            ->leftJoin('users as approved_by_users', 'approved_by_users.id', '=', 'cash_advances.approved_by')
-            ->leftJoin('users as released_by_users', 'released_by_users.id', '=', 'cash_advances.released_by')
-            ->leftJoin('users as cancelled_by_users', 'cancelled_by_users.id', '=', 'cash_advances.cancelled_by')
-            ->select([
-                'cash_advances.id',
-                'cash_advances.employee_id',
-                'cash_advances.amount',
-                'cash_advances.remaining_amount',
-                'cash_advances.status',
-                'cash_advances.notes',
-                'cash_advances.requested_at',
-                'cash_advances.approved_at',
-                'cash_advances.approved_by',
-                'cash_advances.released_at',
-                'cash_advances.released_by',
-                'cash_advances.cancelled_at',
-                'cash_advances.cancelled_by',
-                'cash_advances.paid_at',
-                'cash_advances.audit_data',
-                'employees.name as employee_name',
-                'approved_by_users.name as approved_by_name',
-                'released_by_users.name as released_by_name',
-                'cancelled_by_users.name as cancelled_by_name',
-            ])
-            ->orderBy('cash_advances.id')
-            ->chunk(100, function (Collection $cashAdvances): void {
-                $inserts = [];
-
-                foreach ($cashAdvances as $cashAdvance) {
-                    $snapshot = $this->cashAdvanceSnapshotFromRow($cashAdvance);
-
-                    foreach ($this->normalizedLegacyCashAdvanceEvents($cashAdvance) as $event) {
-                        $payload = $this->cashAdvanceAuditEventFormatter->format(
-                            $snapshot,
-                            $event['event'],
-                            $event['metadata'],
-                        );
-
-                        $inserts[] = [
-                            'subject_type' => $payload['subject_type'],
-                            'subject_id' => $payload['subject_id'],
-                            'subject_label' => $payload['subject_label'],
-                            'event' => $payload['event'],
-                            'title' => $payload['title'],
-                            'message' => $payload['message'],
-                            'actor_user_id' => $event['actor_user_id'],
-                            'actor_name' => $event['actor_name'],
-                            'metadata' => json_encode($payload['metadata'], JSON_THROW_ON_ERROR),
-                            'occurred_at' => $event['at']->toDateTimeString(),
-                            'created_at' => $event['at']->toDateTimeString(),
-                            'updated_at' => $event['at']->toDateTimeString(),
-                        ];
-                    }
-                }
-
-                if ($inserts !== []) {
-                    DB::table('audit_events')->insert($inserts);
-                }
-            });
-    }
-
-    /**
-     * @return array{id: int, employee_id: int, employee_name: string, amount: float}
-     */
-    private function cashAdvanceSnapshotFromRow(object $cashAdvance): array
-    {
-        return [
-            'id' => (int) $cashAdvance->id,
-            'employee_id' => (int) $cashAdvance->employee_id,
-            'employee_name' => (string) ($cashAdvance->employee_name ?? 'Unknown Employee'),
-            'amount' => round((float) $cashAdvance->amount, 2),
-        ];
     }
 
     private function restoreEmployee(Model $subject, mixed $actor): void
@@ -455,38 +361,6 @@ class AuditHistoryService
         );
     }
 
-    private function restoreCashAdvance(Model $subject, mixed $actor): void
-    {
-        $cashAdvance = $subject instanceof CashAdvance
-            ? $subject->loadMissing(['employee:id,name', 'approvedBy:id,name', 'releasedBy:id,name', 'cancelledBy:id,name'])
-            : null;
-
-        if (! $cashAdvance instanceof CashAdvance) {
-            throw ValidationException::withMessages([
-                'restore' => 'This cash advance delete cannot be restored.',
-            ]);
-        }
-
-        $cashAdvance->restore();
-        $cashAdvance->refresh()->loadMissing(['employee:id,name', 'approvedBy:id,name', 'releasedBy:id,name', 'cancelledBy:id,name']);
-
-        $this->recordSubjectEvent(
-            AuditEvent::SUBJECT_CASH_ADVANCE,
-            $cashAdvance->id,
-            'restored',
-            [
-                'id' => $cashAdvance->id,
-                'employee_id' => (int) $cashAdvance->employee_id,
-                'employee_name' => (string) ($cashAdvance->employee?->name ?? 'Unknown Employee'),
-                'amount' => round((float) $cashAdvance->amount, 2),
-            ],
-            [],
-            $this->actorId($actor),
-            $this->actorName($actor),
-            now(),
-        );
-    }
-
     private function restorableSubject(AuditEvent $auditEvent): ?Model
     {
         return match ($auditEvent->subject_type) {
@@ -494,7 +368,6 @@ class AuditHistoryService
             AuditEvent::SUBJECT_ATTENDANCE => Attendance::withTrashed()->find($auditEvent->subject_id),
             AuditEvent::SUBJECT_WALK_IN => WalkIn::withTrashed()->find($auditEvent->subject_id),
             AuditEvent::SUBJECT_INVENTORY_ITEM => InventoryItem::withTrashed()->find($auditEvent->subject_id),
-            AuditEvent::SUBJECT_CASH_ADVANCE => CashAdvance::withTrashed()->find($auditEvent->subject_id),
             default => null,
         };
     }
@@ -519,165 +392,4 @@ class AuditHistoryService
         return null;
     }
 
-    /**
-     * @return array<int, array{
-     *     event: string,
-     *     at: Carbon,
-     *     actor_user_id: ?int,
-     *     actor_name: ?string,
-     *     metadata: array<string, mixed>
-     * }>
-     */
-    private function normalizedLegacyCashAdvanceEvents(object $cashAdvance): array
-    {
-        $auditData = json_decode((string) ($cashAdvance->audit_data ?? '[]'), true);
-
-        if (! is_array($auditData)) {
-            $auditData = [];
-        }
-
-        $normalizedAuditData = [];
-
-        foreach ($auditData as $event) {
-            if (! is_array($event) || empty($event['at'])) {
-                continue;
-            }
-
-            $normalizedAuditData[] = [
-                'event' => $this->normalizeEventName($event['event'] ?? null),
-                'at' => Carbon::parse((string) $event['at']),
-                'actor_user_id' => isset($event['by_user_id']) ? (int) $event['by_user_id'] : null,
-                'actor_name' => $this->nullableString($event['by_name'] ?? null),
-                'metadata' => $this->filterMetadata([
-                    'notes' => $this->nullableString($event['notes'] ?? null),
-                    'source' => $this->nullableString($event['source'] ?? null),
-                    'source_id' => isset($event['source_id']) ? (int) $event['source_id'] : null,
-                    'deducted_amount' => $this->nullableFloat($event['deducted_amount'] ?? null),
-                    'remaining_before' => $this->nullableFloat($event['remaining_before'] ?? null),
-                    'remaining_after' => $this->nullableFloat($event['remaining_after'] ?? null),
-                ]),
-            ];
-        }
-
-        $recordedEvents = collect($normalizedAuditData)
-            ->pluck('event')
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        $legacyEvents = collect([
-            [
-                'event' => 'requested',
-                'at' => $cashAdvance->requested_at,
-                'actor_user_id' => (int) $cashAdvance->employee_id,
-                'actor_name' => $this->nullableString($cashAdvance->employee_name ?? null),
-                'metadata' => $this->filterMetadata([
-                    'notes' => $this->nullableString($cashAdvance->notes ?? null),
-                    'source' => 'panel',
-                ]),
-            ],
-            [
-                'event' => 'approved',
-                'at' => $cashAdvance->approved_at,
-                'actor_user_id' => $cashAdvance->approved_by !== null ? (int) $cashAdvance->approved_by : null,
-                'actor_name' => $this->nullableString($cashAdvance->approved_by_name ?? null),
-                'metadata' => $this->filterMetadata([
-                    'notes' => $this->nullableString($cashAdvance->notes ?? null),
-                    'source' => 'panel',
-                ]),
-            ],
-            [
-                'event' => 'released',
-                'at' => $cashAdvance->released_at,
-                'actor_user_id' => $cashAdvance->released_by !== null ? (int) $cashAdvance->released_by : null,
-                'actor_name' => $this->nullableString($cashAdvance->released_by_name ?? null),
-                'metadata' => $this->filterMetadata([
-                    'notes' => $this->nullableString($cashAdvance->notes ?? null),
-                    'source' => 'panel',
-                ]),
-            ],
-            [
-                'event' => 'paid',
-                'at' => $cashAdvance->paid_at,
-                'actor_user_id' => null,
-                'actor_name' => null,
-                'metadata' => $this->filterMetadata([
-                    'remaining_after' => 0,
-                ]),
-            ],
-            [
-                'event' => 'cancelled',
-                'at' => $cashAdvance->cancelled_at,
-                'actor_user_id' => $cashAdvance->cancelled_by !== null ? (int) $cashAdvance->cancelled_by : null,
-                'actor_name' => $this->nullableString($cashAdvance->cancelled_by_name ?? null),
-                'metadata' => $this->filterMetadata([
-                    'notes' => $this->nullableString($cashAdvance->notes ?? null),
-                    'source' => 'panel',
-                ]),
-            ],
-        ])
-            ->filter(function (array $event) use ($recordedEvents): bool {
-                return $event['at'] !== null && ! in_array($event['event'], $recordedEvents, true);
-            })
-            ->map(function (array $event): array {
-                return [
-                    'event' => $event['event'],
-                    'at' => Carbon::parse((string) $event['at']),
-                    'actor_user_id' => $event['actor_user_id'],
-                    'actor_name' => $event['actor_name'],
-                    'metadata' => $event['metadata'],
-                ];
-            })
-            ->values()
-            ->all();
-
-        $timeline = [...$legacyEvents, ...$normalizedAuditData];
-
-        usort($timeline, function (array $left, array $right): int {
-            $atComparison = $left['at']->getTimestamp() <=> $right['at']->getTimestamp();
-
-            if ($atComparison !== 0) {
-                return $atComparison;
-            }
-
-            return strcmp($left['event'], $right['event']);
-        });
-
-        return $timeline;
-    }
-
-    private function normalizeEventName(mixed $event): string
-    {
-        $normalized = trim((string) ($event ?? ''));
-
-        return $normalized !== '' ? $normalized : 'updated';
-    }
-
-    private function nullableFloat(mixed $value): ?float
-    {
-        if ($value === null || $value === '') {
-            return null;
-        }
-
-        return round((float) $value, 2);
-    }
-
-    private function nullableString(mixed $value): ?string
-    {
-        $normalized = trim((string) ($value ?? ''));
-
-        return $normalized !== '' ? $normalized : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $metadata
-     * @return array<string, mixed>
-     */
-    private function filterMetadata(array $metadata): array
-    {
-        return array_filter($metadata, static function (mixed $value): bool {
-            return $value !== null && $value !== '';
-        });
-    }
 }

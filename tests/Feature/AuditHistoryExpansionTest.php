@@ -96,7 +96,6 @@ class AuditHistoryExpansionTest extends TestCase
             AuditEvent::SUBJECT_EMPLOYEE,
             AuditEvent::SUBJECT_PAYROLL,
             AuditEvent::SUBJECT_PAYOUT,
-            AuditEvent::SUBJECT_CASH_ADVANCE,
             AuditEvent::SUBJECT_MEMBER,
             AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
             AuditEvent::SUBJECT_MEMBER_PT_PACKAGE,
@@ -151,7 +150,7 @@ class AuditHistoryExpansionTest extends TestCase
         );
     }
 
-    public function test_employee_payroll_payout_and_cash_advance_side_effects_record_audit_events(): void
+    public function test_employee_payroll_payout_side_effects_record_audit_events(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Pia');
         $coachRoleId = Role::findByName('coach')->id;
@@ -239,7 +238,6 @@ class AuditHistoryExpansionTest extends TestCase
                 'gross_amount' => 4000,
                 'bonus' => 200,
                 'manual_deductions' => 100,
-                'cash_advance_deduction' => 0,
                 'notes' => 'First half payroll',
             ])
             ->assertCreated()
@@ -252,7 +250,6 @@ class AuditHistoryExpansionTest extends TestCase
                 'gross_amount' => 4200,
                 'bonus' => 250,
                 'manual_deductions' => 100,
-                'cash_advance_deduction' => 0,
                 'notes' => 'Adjusted first half payroll',
             ])
             ->assertOk();
@@ -268,7 +265,6 @@ class AuditHistoryExpansionTest extends TestCase
                 'gross_amount' => 3800,
                 'bonus' => 0,
                 'manual_deductions' => 0,
-                'cash_advance_deduction' => 0,
             ])
             ->assertCreated()
             ->json('id');
@@ -867,7 +863,6 @@ class AuditHistoryExpansionTest extends TestCase
             'bonus' => 0,
             'income_tax' => 0,
             'manual_deductions' => 0,
-            'cash_advance_deduction' => 0,
             'net_amount' => 1000,
             'status' => Payroll::STATUS_DRAFT,
             'generated_by' => $manager->id,

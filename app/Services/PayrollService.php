@@ -3,9 +3,7 @@
 namespace App\Services;
 
 use App\Models\Attendance;
-use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
-use App\Models\CashAdvance;
 use App\Models\EmployeeProfile;
 use App\Models\Payroll;
 use App\Models\User;
@@ -21,10 +19,6 @@ class PayrollService
 
     private const STANDARD_WORKDAY_MINUTES = 480;
 
-    public function __construct(
-        private AuditHistoryService $auditHistoryService,
-    ) {}
-
     /**
      * Compute net_amount from payroll components.
      */
@@ -32,7 +26,6 @@ class PayrollService
         float $gross,
         float $bonus,
         float $manualDed,
-        float $caDed,
         float $incomeTax = 0,
         float $employeeContributionTotal = 0
     ): float {
@@ -43,18 +36,17 @@ class PayrollService
                     $gross,
                     $bonus
                 )
-                - $this->totalEmployeeDeductionsBeforeCashAdvance(
+                - $this->totalEmployeeDeductions(
                     $incomeTax,
                     $manualDed,
                     $employeeContributionTotal
                 )
-                - $caDed
             ),
             2
         );
     }
 
-    public function totalEmployeeDeductionsBeforeCashAdvance(
+    public function totalEmployeeDeductions(
         float $incomeTax,
         float $manualDed,
         float $employeeContributionTotal = 0
@@ -119,7 +111,6 @@ class PayrollService
         float $gross,
         float $bonus,
         float $manualDed,
-        float $caDed,
         array $context = []
     ): array {
         $bonusBreakdown = $this->bonusTaxBreakdown($countryCode, $bonus, $context);
@@ -142,7 +133,7 @@ class PayrollService
         $incomeTax = $payrollCalculationSettings['payroll_income_tax_enabled']
             ? $taxProfile->calculateIncomeTax($payFrequency, $taxableEarnings)
             : 0.0;
-        $employeeDeductionsTotal = $this->totalEmployeeDeductionsBeforeCashAdvance(
+        $employeeDeductionsTotal = $this->totalEmployeeDeductions(
             $incomeTax,
             $manualDed,
             $governmentContributions['employee_contributions_total']
@@ -163,7 +154,6 @@ class PayrollService
                 $gross,
                 $bonus,
                 $manualDed,
-                $caDed,
                 $incomeTax,
                 $governmentContributions['employee_contributions_total']
             ),
@@ -207,7 +197,6 @@ class PayrollService
             (float) $payroll->gross_amount,
             (float) $payroll->bonus,
             (float) $payroll->manual_deductions,
-            (float) $payroll->cash_advance_deduction,
             $context
         );
 
@@ -221,63 +210,7 @@ class PayrollService
     }
 
     /**
-     * Limit cash advance deduction to the payroll amount that remains payable after taxes.
-     */
-    public function maxCashAdvanceDeduction(
-        int $employeeId,
-        ?string $countryCode,
-        ?string $payFrequency,
-        float $gross,
-        float $bonus,
-        float $manualDed,
-        array $context = []
-    ): float {
-        $payableBeforeCa = $this->calculatePayrollTotals(
-            $countryCode,
-            $payFrequency,
-            $gross,
-            $bonus,
-            $manualDed,
-            0,
-            $context
-        );
-        $pendingCa = $this->pendingCaTotal($employeeId);
-
-        return round(min($payableBeforeCa['net_amount'], $pendingCa), 2);
-    }
-
-    /**
-     * Clamp the stored cash advance deduction and recompute the payroll totals.
-     */
-    public function normalizePayrollCashAdvanceDeduction(Payroll $payroll): float
-    {
-        $maxDeduction = $this->maxCashAdvanceDeduction(
-            $payroll->employee_id,
-            BusinessProfile::current()->country_code,
-            $payroll->pay_frequency,
-            (float) $payroll->gross_amount,
-            (float) $payroll->bonus,
-            (float) $payroll->manual_deductions,
-            [
-                'employee_id' => $payroll->employee_id,
-                'exclude_payroll_id' => $payroll->id,
-                'period_end' => $payroll->period_end?->toDateString(),
-            ]
-        );
-
-        $actualDeduction = round(min((float) $payroll->cash_advance_deduction, $maxDeduction), 2);
-
-        if ((float) $payroll->cash_advance_deduction !== $actualDeduction) {
-            $payroll->cash_advance_deduction = $actualDeduction;
-        }
-
-        $this->syncCalculatedAmounts($payroll);
-
-        return $actualDeduction;
-    }
-
-    /**
-     * Suggest gross amount and CA deduction based on attendance in a period.
+     * Suggest gross amount based on attendance in a period.
      *
      * @return array{
      *     daily_rate: float,
@@ -287,8 +220,7 @@ class PayrollService
      *     overwork_hours: float,
      *     overwork_pay_amount: float,
      *     regular_hours: float,
-     *     regular_pay_amount: float,
-     *     suggested_ca: float
+     *     regular_pay_amount: float
      * }
      */
     public function suggestFromAttendance(
@@ -345,7 +277,6 @@ class PayrollService
             2
         );
         $gross = round($regularPayAmount + $overworkPayAmount, 2);
-        $suggestedCa = $this->pendingCaTotal($employee->id);
 
         return [
             'days_worked' => $daysWorked,
@@ -356,7 +287,6 @@ class PayrollService
             'overwork_pay_amount' => $overworkPayAmount,
             'open_attendance_count' => $openAttendanceCount,
             'gross_amount' => $gross,
-            'suggested_ca' => $suggestedCa,
         ];
     }
 
@@ -366,79 +296,6 @@ class PayrollService
         float $overworkPayAmount
     ): float {
         return round($grossAmount - $regularPayAmount - $overworkPayAmount, 2);
-    }
-
-    /**
-     * Return the total remaining cash advance amount for an employee.
-     * Used as the suggested deduction when creating a payroll.
-     */
-    public function pendingCaTotal(int $employeeId): float
-    {
-        return (float) CashAdvance::where('employee_id', $employeeId)
-            ->whereIn('status', [CashAdvance::STATUS_RELEASED, CashAdvance::STATUS_PARTIALLY_PAID])
-            ->sum('remaining_amount');
-    }
-
-    /**
-     * Apply cash advance deductions when a payroll is approved.
-     * Deducts from oldest advances first (FIFO), up to cash_advance_deduction.
-     */
-    public function applyAdvances(Payroll $payroll): void
-    {
-        $limit = (float) $payroll->cash_advance_deduction;
-        if ($limit <= 0) {
-            return;
-        }
-
-        $advances = CashAdvance::where('employee_id', $payroll->employee_id)
-            ->whereIn('status', [CashAdvance::STATUS_RELEASED, CashAdvance::STATUS_PARTIALLY_PAID])
-            ->with('employee:id,name')
-            ->orderBy('requested_at')
-            ->get();
-
-        $remaining = $limit;
-
-        foreach ($advances as $advance) {
-            if ($remaining <= 0) {
-                break;
-            }
-
-            $remainingBefore = (float) $advance->remaining_amount;
-            $processedAt = now();
-            $deduct = min($remainingBefore, $remaining);
-
-            $advance->remaining_amount = round($remainingBefore - $deduct, 2);
-            $advance->status = $advance->remaining_amount <= 0
-                ? CashAdvance::STATUS_PAID
-                : CashAdvance::STATUS_PARTIALLY_PAID;
-            $advance->paid_at = $advance->status === CashAdvance::STATUS_PAID
-                ? ($advance->paid_at ?? $processedAt)
-                : null;
-            $advance->save();
-
-            $this->auditHistoryService->recordSubjectEvent(
-                AuditEvent::SUBJECT_CASH_ADVANCE,
-                $advance->id,
-                $advance->status,
-                [
-                    'id' => $advance->id,
-                    'employee_id' => $advance->employee_id,
-                    'employee_name' => $advance->employee?->name ?? 'Unknown Employee',
-                    'amount' => round((float) $advance->amount, 2),
-                ],
-                [
-                    'source' => 'payroll',
-                    'source_id' => $payroll->id,
-                    'deducted_amount' => round($deduct, 2),
-                    'remaining_before' => round($remainingBefore, 2),
-                    'remaining_after' => round((float) $advance->remaining_amount, 2),
-                ],
-                auth()->id() ?? $payroll->approved_by,
-                auth()->user()?->name,
-                $processedAt,
-            );
-            $remaining -= $deduct;
-        }
     }
 
     /**

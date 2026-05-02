@@ -3,7 +3,7 @@
       <div class="d-flex align-items-center justify-content-between mb-4">
          <div>
             <h4 class="fw-bold mb-0">Employee Details</h4>
-            <div class="text-muted small">Overview, activity, payouts, and settings</div>
+            <div class="text-muted small">Overview, activity, payroll, payouts, and settings</div>
          </div>
          <a href="/panel/employees" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back</a>
       </div>
@@ -50,7 +50,6 @@
 import EmployeeAttendancePage from "./vendor/EmployeeAttendancePage.vue";
 import EmployeePayrollPage from "./vendor/EmployeePayrollPage.vue";
 import EmployeePayoutPage from "./vendor/EmployeePayoutPage.vue";
-import EmployeeCashAdvancePage from "./vendor/EmployeeCashAdvancePage.vue";
 import EmployeeSettingsPage from "./vendor/EmployeeSettingsPage.vue";
 
 export default {
@@ -58,7 +57,6 @@ export default {
       EmployeeAttendancePage,
       EmployeePayrollPage,
       EmployeePayoutPage,
-      EmployeeCashAdvancePage,
       EmployeeSettingsPage,
    },
 
@@ -75,7 +73,6 @@ export default {
             { key: "attendance", label: "Attendance", icon: "bi-calendar-check" },
             { key: "payroll", label: "Payrolls", icon: "bi-receipt" },
             { key: "payout", label: "Payouts", icon: "bi-cash-stack" },
-            { key: "cashAdvance", label: "Cash Advances", icon: "bi-wallet2" },
             { key: "settings", label: "Settings", icon: "bi-gear" },
          ],
       };
@@ -87,7 +84,6 @@ export default {
             attendance: "EmployeeAttendancePage",
             payroll: "EmployeePayrollPage",
             payout: "EmployeePayoutPage",
-            cashAdvance: "EmployeeCashAdvancePage",
             settings: "EmployeeSettingsPage",
          }[this.activeTab];
       },

@@ -122,8 +122,6 @@ class FreshInstallSchemaTest extends TestCase
             'metadata',
             'occurred_at',
         ]);
-        $this->assertFalse(Schema::hasColumn('cash_advances', 'audit_data'));
-
         $this->assertTableHasColumns('walk_ins', [
             'payment_method',
             'deleted_at',
@@ -138,10 +136,6 @@ class FreshInstallSchemaTest extends TestCase
             'deleted_at',
             'source',
             'source_device_serial',
-        ]);
-
-        $this->assertTableHasColumns('cash_advances', [
-            'deleted_at',
         ]);
 
         $this->assertSame(0, DB::table('inventory_categories')->count());

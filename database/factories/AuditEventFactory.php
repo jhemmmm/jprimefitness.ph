@@ -18,11 +18,11 @@ class AuditEventFactory extends Factory
     public function definition(): array
     {
         return [
-            'subject_type' => AuditEvent::SUBJECT_CASH_ADVANCE,
+            'subject_type' => AuditEvent::SUBJECT_PAYROLL,
             'subject_id' => fake()->numberBetween(1, 9999),
-            'subject_label' => 'Cash Advance #'.fake()->numberBetween(1, 9999).' - '.fake()->name(),
-            'event' => 'requested',
-            'title' => 'Cash advance requested',
+            'subject_label' => 'Payroll #'.fake()->numberBetween(1, 9999).' - '.fake()->name(),
+            'event' => 'created',
+            'title' => 'Payroll created',
             'message' => fake()->sentence(),
             'actor_user_id' => null,
             'actor_name' => fake()->name(),

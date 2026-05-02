@@ -205,25 +205,13 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString('<span class="sidebar-nav-label">Settings</span>', $contents);
     }
 
-    public function test_cash_advance_page_uses_shared_audit_history_endpoint(): void
-    {
-        $contents = file_get_contents(resource_path('js/components/panel/vendor/EmployeeCashAdvancePage.vue'));
-
-        $this->assertNotFalse($contents);
-        $this->assertStringContainsString('/panel/audit-history/list', $contents);
-        $this->assertStringContainsString('Open in Audit History', $contents);
-        $this->assertStringNotContainsString('audit_data', $contents);
-    }
-
-    public function test_employee_payroll_page_relies_on_automatic_cash_advance_suggestions(): void
+    public function test_employee_payroll_page_contains_only_current_payroll_inputs(): void
     {
         $contents = file_get_contents(resource_path('js/components/panel/vendor/EmployeePayrollPage.vue'));
 
         $this->assertNotFalse($contents);
-        $this->assertStringContainsString('Cash Advance Deduction (₱)', $contents);
+        $this->assertStringContainsString('Other Deductions', $contents);
         $this->assertStringNotContainsString('Auto-fill', $contents);
-        $this->assertStringNotContainsString('loadSuggestedCa', $contents);
-        $this->assertStringNotContainsString('loadingCa', $contents);
     }
 
     public function test_removed_branch_selector_files_are_gone(): void

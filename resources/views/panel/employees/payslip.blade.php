@@ -518,13 +518,6 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="breakdown-label">Cash advance deduction</td>
-                                    <td
-                                        class="breakdown-amount {{ (float) $payroll->cash_advance_deduction > 0 ? 'amount-negative' : '' }}">
-                                        {{ (float) $payroll->cash_advance_deduction > 0 ? '- PHP ' . number_format((float) $payroll->cash_advance_deduction, 2) : '-' }}
-                                    </td>
-                                </tr>
-                                <tr>
                                     <td class="breakdown-label"><strong>Net pay</strong></td>
                                     <td class="breakdown-amount amount-positive">PHP
                                         {{ number_format((float) $payroll->net_amount, 2) }}</td>

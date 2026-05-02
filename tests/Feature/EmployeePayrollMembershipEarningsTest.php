@@ -48,7 +48,6 @@ class EmployeePayrollMembershipEarningsTest extends TestCase
                 'gross_amount' => 4000,
                 'bonus' => 0,
                 'manual_deductions' => 0,
-                'cash_advance_deduction' => 0,
             ])
             ->assertCreated()
             ->assertJsonPath('total_earnings', 4000)

@@ -6,12 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
-use App\Models\CashAdvance;
 use App\Models\EmployeeProfile;
 use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\User;
-use App\Notifications\CashAdvanceStatusChangedNotification;
 use App\Notifications\PayrollApprovedNotification;
 use App\Services\AuditHistoryService;
 use App\Services\NotificationRecipientResolver;
@@ -283,7 +281,6 @@ class EmployeeController extends Controller
             'gross_amount' => ['required', 'numeric', 'min:0'],
             'bonus' => ['nullable', 'numeric', 'min:0'],
             'manual_deductions' => ['nullable', 'numeric', 'min:0'],
-            'cash_advance_deduction' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -298,7 +295,6 @@ class EmployeeController extends Controller
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
-        $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
         $payFrequency = $this->employeePayFrequency($employee);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
@@ -308,33 +304,14 @@ class EmployeeController extends Controller
             'period_end' => $data['period_end'],
         ];
 
-        $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
-            $employee->id,
-            $countryCode,
-            $payFrequency,
-            $gross,
-            $bonus,
-            $manualDeductions,
-            $payrollTaxContext
-        );
         $payrollTotals = $this->payrollService->calculatePayrollTotals(
             $countryCode,
             $payFrequency,
             $gross,
             $bonus,
             $manualDeductions,
-            $cashAdvanceDeduction,
             $payrollTaxContext
         );
-
-        if ($cashAdvanceDeduction > $maxCashAdvanceDeduction) {
-            return response()->json([
-                'message' => 'The given data was invalid.',
-                'errors' => [
-                    'cash_advance_deduction' => ["Cash advance deduction may not exceed {$maxCashAdvanceDeduction}."],
-                ],
-            ], 422);
-        }
 
         $payroll = Payroll::create([
             'employee_id' => $employee->id,
@@ -351,7 +328,6 @@ class EmployeeController extends Controller
             'employee_contributions' => $payrollTotals['employee_contributions'],
             'employer_contributions' => $payrollTotals['employer_contributions'],
             'manual_deductions' => $manualDeductions,
-            'cash_advance_deduction' => $cashAdvanceDeduction,
             'net_amount' => $payrollTotals['net_amount'],
             'status' => Payroll::STATUS_DRAFT,
             'notes' => $data['notes'] ?? null,
@@ -390,7 +366,6 @@ class EmployeeController extends Controller
             'gross_amount' => ['required', 'numeric', 'min:0'],
             'bonus' => ['nullable', 'numeric', 'min:0'],
             'manual_deductions' => ['nullable', 'numeric', 'min:0'],
-            'cash_advance_deduction' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -405,7 +380,6 @@ class EmployeeController extends Controller
         $gross = (float) $data['gross_amount'];
         $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
-        $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
         $payFrequency = $this->employeePayFrequency($employee);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
@@ -417,33 +391,14 @@ class EmployeeController extends Controller
             'period_end' => $data['period_end'],
         ];
 
-        $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
-            $employee->id,
-            $countryCode,
-            $payFrequency,
-            $gross,
-            $bonus,
-            $manualDeductions,
-            $payrollTaxContext
-        );
         $payrollTotals = $this->payrollService->calculatePayrollTotals(
             $countryCode,
             $payFrequency,
             $gross,
             $bonus,
             $manualDeductions,
-            $cashAdvanceDeduction,
             $payrollTaxContext
         );
-
-        if ($cashAdvanceDeduction > $maxCashAdvanceDeduction) {
-            return response()->json([
-                'message' => 'The given data was invalid.',
-                'errors' => [
-                    'cash_advance_deduction' => ["Cash advance deduction may not exceed {$maxCashAdvanceDeduction}."],
-                ],
-            ], 422);
-        }
 
         $payroll->update([
             'period_start' => $data['period_start'],
@@ -459,7 +414,6 @@ class EmployeeController extends Controller
             'employee_contributions' => $payrollTotals['employee_contributions'],
             'employer_contributions' => $payrollTotals['employer_contributions'],
             'manual_deductions' => $manualDeductions,
-            'cash_advance_deduction' => $cashAdvanceDeduction,
             'net_amount' => $payrollTotals['net_amount'],
             'notes' => $data['notes'] ?? null,
         ]);
@@ -494,8 +448,6 @@ class EmployeeController extends Controller
         $payroll->approved_at = now();
         $payroll->save();
 
-        $this->payrollService->normalizePayrollCashAdvanceDeduction($payroll);
-        $this->payrollService->applyAdvances($payroll);
         $this->payrollService->syncStatus($payroll);
 
         $this->notificationRecipientResolver->send(
@@ -544,13 +496,6 @@ class EmployeeController extends Controller
         return response()->json($this->serializePayroll($payroll));
     }
 
-    public function payrollSuggestedCa(User $employee): JsonResponse
-    {
-        return response()->json([
-            'suggested_ca' => $this->payrollService->pendingCaTotal($employee->id),
-        ]);
-    }
-
     public function payrollSuggest(Request $request, User $employee): JsonResponse
     {
         $employee->loadMissing('employeeProfile');
@@ -562,7 +507,6 @@ class EmployeeController extends Controller
             'gross_amount' => ['nullable', 'numeric', 'min:0'],
             'bonus' => ['nullable', 'numeric', 'min:0'],
             'manual_deductions' => ['nullable', 'numeric', 'min:0'],
-            'cash_advance_deduction' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $payroll = null;
@@ -587,7 +531,6 @@ class EmployeeController extends Controller
         $grossAmount = (float) ($data['gross_amount'] ?? $attendanceSuggestion['gross_amount']);
         $bonusAmount = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
-        $cashAdvanceDeduction = (float) ($data['cash_advance_deduction'] ?? 0);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
             'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
@@ -601,22 +544,12 @@ class EmployeeController extends Controller
             $payrollTaxContext['exclude_payroll_id'] = $payroll->id;
         }
 
-        $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
-            $employee->id,
-            $countryCode,
-            $payFrequency,
-            $grossAmount,
-            $bonusAmount,
-            $manualDeductions,
-            $payrollTaxContext
-        );
         $payrollTotals = $this->payrollService->calculatePayrollTotals(
             $countryCode,
             $payFrequency,
             $grossAmount,
             $bonusAmount,
             $manualDeductions,
-            $cashAdvanceDeduction,
             $payrollTaxContext
         );
 
@@ -634,9 +567,6 @@ class EmployeeController extends Controller
                 'employee_deductions_total' => $payrollTotals['employee_deductions_total'],
                 'net_amount_preview' => $payrollTotals['net_amount'],
                 'remaining_bonus_exemption' => $payrollTotals['remaining_bonus_exemption'],
-                'max_cash_advance_deduction' => $maxCashAdvanceDeduction,
-                'pending_ca_total' => $attendanceSuggestion['suggested_ca'],
-                'suggested_ca' => min($attendanceSuggestion['suggested_ca'], $maxCashAdvanceDeduction),
                 'manual_gross_adjustment_amount' => $this->payrollService->manualGrossAdjustmentAmount(
                     $grossAmount,
                     $attendanceSuggestion['regular_pay_amount'],
@@ -722,216 +652,6 @@ class EmployeeController extends Controller
         );
 
         return response()->json($this->serializePayout($payout), 201);
-    }
-
-    public function cashAdvances(User $employee): JsonResponse
-    {
-        $advances = CashAdvance::query()
-            ->where('employee_id', $employee->id)
-            ->with(['approvedBy:id,name', 'releasedBy:id,name', 'cancelledBy:id,name'])
-            ->orderByDesc('requested_at')
-            ->get()
-            ->map(fn (CashAdvance $cashAdvance) => $this->serializeCashAdvance($cashAdvance))
-            ->values()
-            ->all();
-
-        $statsQuery = CashAdvance::where('employee_id', $employee->id);
-        $remainingQuery = CashAdvance::where('employee_id', $employee->id)
-            ->whereIn('status', [
-                CashAdvance::STATUS_RELEASED,
-                CashAdvance::STATUS_PARTIALLY_PAID,
-            ]);
-
-        return response()->json([
-            'advances' => $advances,
-            'stats' => [
-                'remaining_amount' => (float) (clone $remainingQuery)->sum('remaining_amount'),
-                'requested_count' => (clone $statsQuery)->where('status', CashAdvance::STATUS_REQUESTED)->count(),
-                'approved_count' => (clone $statsQuery)->where('status', CashAdvance::STATUS_APPROVED)->count(),
-                'released_count' => (clone $statsQuery)->where('status', CashAdvance::STATUS_RELEASED)->count(),
-                'partially_paid_count' => (clone $statsQuery)->where('status', CashAdvance::STATUS_PARTIALLY_PAID)->count(),
-                'paid_count' => (clone $statsQuery)->where('status', CashAdvance::STATUS_PAID)->count(),
-            ],
-        ]);
-    }
-
-    public function storeCashAdvance(Request $request, User $employee): JsonResponse
-    {
-        $data = $request->validate([
-            'amount' => ['required', 'numeric', 'min:1'],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'requested_at' => ['nullable', 'date'],
-        ]);
-
-        $cashAdvance = CashAdvance::create([
-            'employee_id' => $employee->id,
-            'amount' => $data['amount'],
-            'remaining_amount' => $data['amount'],
-            'status' => CashAdvance::STATUS_REQUESTED,
-            'notes' => $data['notes'] ?? null,
-            'requested_at' => $data['requested_at'] ?? now(),
-        ]);
-
-        $this->recordCashAdvanceAuditEvent(
-            $cashAdvance,
-            $employee,
-            CashAdvance::STATUS_REQUESTED,
-            [
-                'notes' => $cashAdvance->notes,
-                'source' => 'panel',
-            ],
-            $cashAdvance->requested_at,
-        );
-
-        $this->notificationRecipientResolver->send(
-            new CashAdvanceStatusChangedNotification($cashAdvance, $employee),
-        );
-
-        return response()->json($this->serializeCashAdvance($cashAdvance), 201);
-    }
-
-    public function updateCashAdvance(Request $request, User $employee, CashAdvance $cashAdvance): JsonResponse
-    {
-        abort_if($cashAdvance->employee_id !== $employee->id, 404);
-
-        if (in_array($cashAdvance->status, [
-            CashAdvance::STATUS_RELEASED,
-            CashAdvance::STATUS_PARTIALLY_PAID,
-            CashAdvance::STATUS_PAID,
-            CashAdvance::STATUS_CANCELLED,
-        ], true)) {
-            return response()->json(['message' => 'Released and finalized cash advances cannot be edited here.'], 422);
-        }
-
-        $data = $request->validate([
-            'amount' => ['sometimes', 'numeric', 'min:1'],
-            'status' => [
-                'sometimes',
-                Rule::in([
-                    CashAdvance::STATUS_REQUESTED,
-                    CashAdvance::STATUS_APPROVED,
-                    CashAdvance::STATUS_RELEASED,
-                    CashAdvance::STATUS_CANCELLED,
-                ]),
-            ],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'requested_at' => ['nullable', 'date'],
-        ]);
-
-        $isEditingApprovedAdvance = $cashAdvance->status === CashAdvance::STATUS_APPROVED
-            && (array_key_exists('amount', $data)
-                || array_key_exists('notes', $data)
-                || array_key_exists('requested_at', $data));
-
-        if ($isEditingApprovedAdvance) {
-            return response()->json([
-                'message' => 'Approved cash advances cannot be edited.',
-            ], 422);
-        }
-
-        $allowedTransitions = match ($cashAdvance->status) {
-            CashAdvance::STATUS_REQUESTED => [
-                CashAdvance::STATUS_REQUESTED,
-                CashAdvance::STATUS_APPROVED,
-                CashAdvance::STATUS_CANCELLED,
-            ],
-            CashAdvance::STATUS_APPROVED => [
-                CashAdvance::STATUS_APPROVED,
-                CashAdvance::STATUS_RELEASED,
-                CashAdvance::STATUS_CANCELLED,
-            ],
-            default => [],
-        };
-
-        $nextStatus = $data['status'] ?? $cashAdvance->status;
-
-        if (! in_array($nextStatus, $allowedTransitions, true)) {
-            return response()->json(['message' => 'Invalid cash advance status transition.'], 422);
-        }
-
-        $previousStatus = $cashAdvance->status;
-        $actor = auth()->user();
-
-        $cashAdvance->update($data);
-
-        if ($previousStatus !== $cashAdvance->status) {
-            if ($cashAdvance->status === CashAdvance::STATUS_APPROVED && ! $cashAdvance->approved_at) {
-                $cashAdvance->approved_at = now();
-                $cashAdvance->approved_by = auth()->id();
-            }
-
-            if ($cashAdvance->status === CashAdvance::STATUS_RELEASED && ! $cashAdvance->released_at) {
-                $cashAdvance->released_at = now();
-                $cashAdvance->released_by = auth()->id();
-            }
-
-            if ($cashAdvance->status === CashAdvance::STATUS_CANCELLED && ! $cashAdvance->cancelled_at) {
-                $cashAdvance->cancelled_at = now();
-                $cashAdvance->cancelled_by = auth()->id();
-            }
-
-            $eventAt = match ($cashAdvance->status) {
-                CashAdvance::STATUS_APPROVED => $cashAdvance->approved_at,
-                CashAdvance::STATUS_RELEASED => $cashAdvance->released_at,
-                CashAdvance::STATUS_CANCELLED => $cashAdvance->cancelled_at,
-                default => now(),
-            };
-
-            $this->recordCashAdvanceAuditEvent(
-                $cashAdvance,
-                $employee,
-                $cashAdvance->status,
-                [
-                    'notes' => $cashAdvance->notes,
-                    'source' => 'panel',
-                ],
-                $eventAt,
-                $actor?->id,
-                $actor?->name,
-            );
-        }
-
-        $cashAdvance->remaining_amount = (float) $cashAdvance->amount;
-        $cashAdvance->save();
-        $cashAdvance->load(['approvedBy:id,name', 'releasedBy:id,name', 'cancelledBy:id,name']);
-
-        if ($previousStatus !== $cashAdvance->status) {
-            $this->notificationRecipientResolver->send(
-                new CashAdvanceStatusChangedNotification($cashAdvance, $employee),
-            );
-        }
-
-        return response()->json($this->serializeCashAdvance($cashAdvance));
-    }
-
-    public function destroyCashAdvance(User $employee, CashAdvance $cashAdvance): JsonResponse
-    {
-        abort_if($cashAdvance->employee_id !== $employee->id, 404);
-
-        if (in_array($cashAdvance->status, [
-            CashAdvance::STATUS_RELEASED,
-            CashAdvance::STATUS_PARTIALLY_PAID,
-            CashAdvance::STATUS_PAID,
-            CashAdvance::STATUS_CANCELLED,
-        ], true)) {
-            return response()->json(['message' => 'Finalized cash advances cannot be deleted.'], 422);
-        }
-
-        $this->recordCashAdvanceAuditEvent(
-            $cashAdvance,
-            $employee,
-            'deleted',
-            [
-                'notes' => $cashAdvance->notes,
-                'source' => 'panel',
-            ],
-            now(),
-            auth()->id(),
-            auth()->user()?->name,
-        );
-        $cashAdvance->delete();
-
-        return response()->json(null, 204);
     }
 
     /**
@@ -1188,7 +908,6 @@ class EmployeeController extends Controller
             'total_earnings' => $payroll->totalEarnings(),
             'income_tax' => (float) $payroll->income_tax,
             'manual_deductions' => (float) $payroll->manual_deductions,
-            'cash_advance_deduction' => (float) $payroll->cash_advance_deduction,
             'net_amount' => (float) $payroll->net_amount,
             'status' => $payroll->status,
             'notes' => $payroll->notes,
@@ -1221,58 +940,6 @@ class EmployeeController extends Controller
                 ? $payout->payroll->period_start->format('Y-m-d').' – '.$payout->payroll->period_end->format('Y-m-d')
                 : null,
         ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function serializeCashAdvance(CashAdvance $cashAdvance): array
-    {
-        $cashAdvance->loadMissing(['approvedBy:id,name', 'releasedBy:id,name', 'cancelledBy:id,name']);
-
-        return [
-            'id' => $cashAdvance->id,
-            'amount' => (float) $cashAdvance->amount,
-            'remaining_amount' => (float) $cashAdvance->remaining_amount,
-            'deducted_amount' => round((float) $cashAdvance->amount - (float) $cashAdvance->remaining_amount, 2),
-            'status' => $cashAdvance->status,
-            'notes' => $cashAdvance->notes,
-            'requested_at' => $cashAdvance->requested_at?->toISOString(),
-            'approved_at' => $cashAdvance->approved_at?->toISOString(),
-            'approved_by_name' => $cashAdvance->approvedBy?->name,
-            'released_at' => $cashAdvance->released_at?->toISOString(),
-            'released_by_name' => $cashAdvance->releasedBy?->name,
-            'cancelled_at' => $cashAdvance->cancelled_at?->toISOString(),
-            'cancelled_by_name' => $cashAdvance->cancelledBy?->name,
-            'paid_at' => $cashAdvance->paid_at?->toISOString(),
-            'created_at' => $cashAdvance->created_at?->toISOString(),
-        ];
-    }
-
-    private function recordCashAdvanceAuditEvent(
-        CashAdvance $cashAdvance,
-        User $employee,
-        string $event,
-        array $metadata,
-        mixed $occurredAt,
-        ?int $actorUserId = null,
-        ?string $actorName = null,
-    ): void {
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_CASH_ADVANCE,
-            $cashAdvance->id,
-            $event,
-            [
-                'id' => $cashAdvance->id,
-                'employee_id' => $employee->id,
-                'employee_name' => $employee->name,
-                'amount' => round((float) $cashAdvance->amount, 2),
-            ],
-            $metadata,
-            $actorUserId ?? auth()->id(),
-            $actorName ?? auth()->user()?->name,
-            $occurredAt ?? now(),
-        );
     }
 
     /**

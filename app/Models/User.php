@@ -200,11 +200,6 @@ class User extends Authenticatable
         return $this->hasMany(Payout::class, 'employee_id');
     }
 
-    public function cashAdvances(): HasMany
-    {
-        return $this->hasMany(CashAdvance::class, 'employee_id');
-    }
-
     protected function casts(): array
     {
         return [

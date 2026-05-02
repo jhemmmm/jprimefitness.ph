@@ -167,7 +167,6 @@ class PayrollReportsController extends Controller
         $totalBonus = round((float) (clone $payrollQuery)->sum('bonus'), 2);
         $incomeTax = round((float) (clone $payrollQuery)->sum('income_tax'), 2);
         $manualDeductions = round((float) (clone $payrollQuery)->sum('manual_deductions'), 2);
-        $cashAdvanceDeductions = round((float) (clone $payrollQuery)->sum('cash_advance_deduction'), 2);
         $payrollContributionSnapshots = (clone $payrollQuery)
             ->select([
                 'id',
@@ -184,7 +183,7 @@ class PayrollReportsController extends Controller
             2
         );
         $totalDeductions = round(
-            $incomeTax + $manualDeductions + $employeeGovernmentContributions + $cashAdvanceDeductions,
+            $incomeTax + $manualDeductions + $employeeGovernmentContributions,
             2
         );
         $netPayroll = round((float) (clone $payrollQuery)->sum('net_amount'), 2);
@@ -402,10 +401,7 @@ class PayrollReportsController extends Controller
                     'status_label' => $this->statusLabel($payroll->status),
                     'gross_amount' => round((float) $payroll->gross_amount, 2),
                     'bonus' => round((float) $payroll->bonus, 2),
-                    'total_deductions' => round(
-                        $payroll->employeeDeductionsTotal() + (float) $payroll->cash_advance_deduction,
-                        2
-                    ),
+                    'total_deductions' => $payroll->employeeDeductionsTotal(),
                     'net_amount' => round((float) $payroll->net_amount, 2),
                     'total_paid' => $totalPaid,
                     'outstanding_balance' => round(max(0, (float) $payroll->net_amount - $totalPaid), 2),

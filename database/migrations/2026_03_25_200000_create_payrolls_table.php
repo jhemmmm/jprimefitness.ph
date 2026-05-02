@@ -21,7 +21,6 @@ return new class extends Migration
             $table->json('employee_contributions')->nullable();
             $table->json('employer_contributions')->nullable();
             $table->decimal('manual_deductions', 10, 2)->default(0);
-            $table->decimal('cash_advance_deduction', 10, 2)->default(0);
             $table->decimal('net_amount', 10, 2)->default(0);
             $table->enum('status', [Payroll::STATUS_DRAFT, Payroll::STATUS_APPROVED, Payroll::STATUS_CANCELED, Payroll::STATUS_PARTIALLY_PAID, Payroll::STATUS_PAID])->default(Payroll::STATUS_DRAFT);
             $table->text('notes')->nullable();
