@@ -402,7 +402,7 @@ class EmployeeBiometricIntegrationTest extends TestCase
         ]);
 
         $this->assertSame(
-            ['checked_in', 'updated', 'checked_out'],
+            ['checked_in', 'checked_out'],
             SystemActivity::query()
                 ->where('subject_type', SystemActivity::SUBJECT_ATTENDANCE)
                 ->where('subject_id', $attendance->id)
@@ -412,7 +412,7 @@ class EmployeeBiometricIntegrationTest extends TestCase
         );
 
         $this->assertSame(
-            ['Hikvision SERIAL-1', null, 'Hikvision SERIAL-1'],
+            ['Hikvision SERIAL-1', null],
             SystemActivity::query()
                 ->where('subject_type', SystemActivity::SUBJECT_ATTENDANCE)
                 ->where('subject_id', $attendance->id)

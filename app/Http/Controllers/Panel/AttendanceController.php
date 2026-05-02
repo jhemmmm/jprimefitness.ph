@@ -153,17 +153,6 @@ class AttendanceController extends Controller
         $attendance->update(['checked_out_at' => now()]);
         $attendance = $attendance->fresh(['user', 'recordedBy']);
 
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_ATTENDANCE,
-            $attendance->id,
-            'checked_out',
-            $this->attendanceSystemActivitySnapshot($attendance),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            $attendance->checked_out_at ?? now(),
-        );
-
         return response()->json($this->serializeAttendance($attendance));
     }
 

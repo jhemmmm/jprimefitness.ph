@@ -5,11 +5,22 @@ namespace App\Observers;
 use App\Models\Attendance;
 use App\Models\SystemActivity;
 use App\Services\SystemActivityService;
+use DateTimeInterface;
 
 class AttendanceObserver
 {
     public function updated(Attendance $attendance): void
     {
+        if (
+            $attendance->wasChanged('checked_out_at')
+            && $attendance->getOriginal('checked_out_at') === null
+            && $attendance->checked_out_at !== null
+        ) {
+            $this->record($attendance, 'checked_out', $attendance->checked_out_at);
+
+            return;
+        }
+
         $this->record($attendance, 'updated');
     }
 
@@ -18,7 +29,7 @@ class AttendanceObserver
         $this->record($attendance, 'deleted');
     }
 
-    private function record(Attendance $attendance, string $event): void
+    private function record(Attendance $attendance, string $event, DateTimeInterface|string|null $occurredAt = null): void
     {
         $attendance->loadMissing(['user', 'recordedBy']);
 
@@ -30,7 +41,7 @@ class AttendanceObserver
             [],
             auth()->id(),
             auth()->user()?->name,
-            now(),
+            $occurredAt ?? now(),
         );
     }
 

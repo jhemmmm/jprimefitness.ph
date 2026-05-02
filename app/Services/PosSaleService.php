@@ -156,7 +156,7 @@ class PosSaleService
                 $saleTotal += $lineTotal;
 
                 $item->quantity = round($availableQuantity - $quantity, 2);
-                $item->save();
+                $item->saveQuietly();
                 $this->inventoryStockAlertService->sync($item);
                 $stockDeductions[] = [
                     'item' => $item->fresh('category:id,name'),

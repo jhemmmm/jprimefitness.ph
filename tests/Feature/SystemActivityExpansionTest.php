@@ -594,7 +594,7 @@ class SystemActivityExpansionTest extends TestCase
             ->assertNoContent();
 
         $this->assertSame(
-            ['checked_in', 'updated', 'updated', 'checked_out', 'deleted'],
+            ['checked_in', 'updated', 'checked_out', 'deleted'],
             SystemActivity::query()
                 ->where('subject_type', SystemActivity::SUBJECT_ATTENDANCE)
                 ->where('subject_id', $attendanceId)
@@ -723,6 +723,13 @@ class SystemActivityExpansionTest extends TestCase
         $this->assertNotNull($inventoryStockEvent);
         $this->assertSame(SystemActivity::SUBJECT_SALE_TRANSACTION, $inventoryStockEvent->metadata['caused_by']['subject_type'] ?? null);
         $this->assertSame('2026-04-10 10:00:00', $inventoryStockEvent->occurred_at?->toDateTimeString());
+        $this->assertFalse(
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_INVENTORY_ITEM)
+                ->where('subject_id', $inventoryItem->id)
+                ->where('event', 'updated')
+                ->exists()
+        );
 
         $memberCreatedEvent = SystemActivity::query()
             ->where('subject_type', SystemActivity::SUBJECT_MEMBER)

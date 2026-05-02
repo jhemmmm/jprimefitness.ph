@@ -93,17 +93,6 @@ class HikvisionAttendanceService
 
                 $attendance = $latestAttendance->fresh(['user', 'recordedBy']);
                 $action = 'check_out';
-
-                $this->systemActivityService->recordSubjectEvent(
-                    SystemActivity::SUBJECT_ATTENDANCE,
-                    $attendance->id,
-                    'checked_out',
-                    $this->attendanceSnapshot($attendance),
-                    [],
-                    null,
-                    $actorName,
-                    $eventTime,
-                );
             } else {
                 $attendance = Attendance::query()->create([
                     'attendee_type' => Attendance::TYPE_EMPLOYEE,
