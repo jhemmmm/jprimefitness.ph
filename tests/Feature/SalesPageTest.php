@@ -69,7 +69,7 @@ class SalesPageTest extends TestCase
         $this->actingAs($staff)
             ->getJson('/panel/sales/context')
             ->assertOk()
-            ->assertJsonPath('location.name', 'JPrime Fitness Naga')
+            ->assertJsonMissingPath('location')
             ->assertJsonPath('options.inventory_items.0.id', $inventoryItem->id)
             ->assertJsonPath('options.membership_rates.0.id', $ratePlan->id)
             ->assertJsonPath('options.pt_rates.0.id', $ptProduct->id);

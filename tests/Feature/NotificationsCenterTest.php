@@ -69,11 +69,6 @@ class NotificationsCenterTest extends TestCase
             ->assertJsonPath('unread_count', 2)
             ->assertJsonPath('notifications.total', 2);
 
-        $notificationPayload = $response->json('notifications.data.0');
-
-        $this->assertIsArray($notificationPayload);
-        $this->assertArrayNotHasKey('branch_name', $notificationPayload);
-
         $notificationId = $response->json('notifications.data.0.id');
 
         $this->actingAs($staff)

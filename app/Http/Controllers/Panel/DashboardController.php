@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\BusinessProfile;
 use App\Models\MemberSubscription;
 use App\Models\Payout;
 use App\Models\Payroll;
@@ -31,25 +30,20 @@ class DashboardController extends Controller
      */
     private function dashboardPayload(): array
     {
-        $location = BusinessProfile::current()->locationSummary();
-
         $user = auth()->user();
         $canViewFinancialData = $user->hasAnyRole(['super admin', 'admin', 'manager']);
         $todayStart = now()->startOfDay();
         $todayEnd = now()->endOfDay();
         $monthStart = now()->startOfMonth();
         $monthEnd = now()->endOfDay();
-        $locationLoadRows = $this->locationLoadRows($location, $todayStart, $todayEnd);
 
         $payload = [
-            'scope' => [
-                'location' => [
-                    'id' => $location['id'],
-                    'name' => $location['name'],
-                ],
-            ],
             'permissions' => [
                 'can_view_financial_data' => $canViewFinancialData,
+            ],
+            'operations' => [
+                'current_occupancy' => Attendance::query()->whereNull('checked_out_at')->count(),
+                'today_check_ins' => Attendance::query()->whereBetween('checked_in_at', [$todayStart, $todayEnd])->count(),
             ],
             'stats_row_1' => array_merge([
                 'total_members' => $this->totalMembers(),
@@ -66,17 +60,15 @@ class DashboardController extends Controller
                 'pending_payroll_balance' => $this->pendingPayrollBalance(),
             ] : []),
             'peak_hours' => $this->peakHours($monthStart, $monthEnd),
-            'location_load' => $locationLoadRows,
-            'location_status' => $locationLoadRows,
-            'check_ins_today' => $this->checkInsToday($location, $todayStart, $todayEnd),
-            'trainers' => $this->trainers($location),
-            'recent_members' => $this->recentMembers($location),
-            'recent_sales' => $this->recentSales($location),
-            'expiring_memberships' => $this->expiringMemberships($location, $todayStart, now()->copy()->addDays(7)->endOfDay()),
+            'check_ins_today' => $this->checkInsToday($todayStart, $todayEnd),
+            'trainers' => $this->trainers(),
+            'recent_members' => $this->recentMembers(),
+            'recent_sales' => $this->recentSales(),
+            'expiring_memberships' => $this->expiringMemberships($todayStart, now()->copy()->addDays(7)->endOfDay()),
         ];
 
         if ($canViewFinancialData) {
-            $payload['pending_payrolls'] = $this->pendingPayrolls($location);
+            $payload['pending_payrolls'] = $this->pendingPayrolls();
         }
 
         return $payload;
@@ -151,24 +143,9 @@ class DashboardController extends Controller
     }
 
     /**
-     * @param  array{id:int, name:string, city:?string, province:?string}  $location
-     * @return array<int, array<string, int|string>>
-     */
-    private function locationLoadRows(array $location, \DateTimeInterface $todayStart, \DateTimeInterface $todayEnd): array
-    {
-        return [[
-            'location_id' => $location['id'],
-            'location_name' => $location['name'],
-            'current_occupancy' => Attendance::query()->whereNull('checked_out_at')->count(),
-            'today_check_ins' => Attendance::query()->whereBetween('checked_in_at', [$todayStart, $todayEnd])->count(),
-        ]];
-    }
-
-    /**
-     * @param  array{id:int, name:string, city:?string, province:?string}  $location
      * @return array<int, array<string, mixed>>
      */
-    private function checkInsToday(array $location, \DateTimeInterface $start, \DateTimeInterface $end): array
+    private function checkInsToday(\DateTimeInterface $start, \DateTimeInterface $end): array
     {
         return Attendance::query()
             ->whereBetween('checked_in_at', [$start, $end])
@@ -183,7 +160,7 @@ class DashboardController extends Controller
             ->orderByDesc('id')
             ->limit(10)
             ->get()
-            ->map(function (Attendance $attendance) use ($location): array {
+            ->map(function (Attendance $attendance): array {
                 $membership = $this->loadedCurrentMembership($attendance->user);
                 $employeeRole = $attendance->user?->roles
                     ? $attendance->user->roles->pluck('name')->filter()->implode(', ')
@@ -194,7 +171,6 @@ class DashboardController extends Controller
                     'name' => $attendance->name,
                     'attendee_type' => $attendance->attendee_type,
                     'attendee_type_label' => $this->attendanceTypeLabel($attendance->attendee_type),
-                    'location_name' => $location['name'],
                     'plan_or_rate' => match ($attendance->attendee_type) {
                         Attendance::TYPE_MEMBER => $membership?->ratePlan?->name ?? 'Membership',
                         Attendance::TYPE_WALK_IN => 'Walk-in',
@@ -209,10 +185,9 @@ class DashboardController extends Controller
     }
 
     /**
-     * @param  array{id:int, name:string, city:?string, province:?string, status:?string}  $location
      * @return array<int, array<string, mixed>>
      */
-    private function trainers(array $location): array
+    private function trainers(): array
     {
         return User::role('coach')
             ->where('status', User::STATUS_ACTIVE)
@@ -223,17 +198,15 @@ class DashboardController extends Controller
                 'id' => $trainer->id,
                 'name' => $trainer->name,
                 'status' => $trainer->status,
-                'location_names' => [$location['name']],
             ])
             ->values()
             ->all();
     }
 
     /**
-     * @param  array{id:int, name:string, city:?string, province:?string, status:?string}  $location
      * @return array<int, array<string, mixed>>
      */
-    private function recentMembers(array $location): array
+    private function recentMembers(): array
     {
         return User::role('member')
             ->with([
@@ -244,14 +217,13 @@ class DashboardController extends Controller
             ->orderByDesc('created_at')
             ->limit(8)
             ->get()
-            ->map(function (User $member) use ($location): array {
+            ->map(function (User $member): array {
                 $membership = $this->loadedCurrentMembership($member);
 
                 return [
                     'id' => $member->id,
                     'name' => $member->name,
                     'plan_name' => $membership?->ratePlan?->name ?? '-',
-                    'location_name' => $location['name'],
                     'status' => $member->status,
                 ];
             })
@@ -260,10 +232,9 @@ class DashboardController extends Controller
     }
 
     /**
-     * @param  array{id:int, name:string, city:?string, province:?string, status:?string}  $location
      * @return array<int, array<string, mixed>>
      */
-    private function recentSales(array $location): array
+    private function recentSales(): array
     {
         return SaleTransaction::query()
             ->with(['member:id,name'])
@@ -275,7 +246,6 @@ class DashboardController extends Controller
                 'id' => $sale->id,
                 'customer_name' => $sale->customer_name ?: $sale->member?->name ?: 'Walk-in Customer',
                 'item_name' => $sale->item_name ?: str($sale->type)->replace('_', ' ')->title()->toString(),
-                'location_name' => $location['name'],
                 'total' => round((float) $sale->total, 2),
                 'sold_at' => $sale->sold_at?->toISOString(),
             ])
@@ -284,10 +254,9 @@ class DashboardController extends Controller
     }
 
     /**
-     * @param  array{id:int, name:string, city:?string, province:?string, status:?string}  $location
      * @return array<int, array<string, mixed>>
      */
-    private function expiringMemberships(array $location, \DateTimeInterface $start, \DateTimeInterface $end): array
+    private function expiringMemberships(\DateTimeInterface $start, \DateTimeInterface $end): array
     {
         return MemberSubscription::query()
             ->whereIn('status', [MemberSubscription::STATUS_ACTIVE, MemberSubscription::STATUS_PAUSED])
@@ -301,7 +270,6 @@ class DashboardController extends Controller
                 'id' => $subscription->id,
                 'member_name' => $subscription->member?->name,
                 'plan_name' => $subscription->ratePlan?->name,
-                'location_name' => $location['name'],
                 'end_date' => $subscription->end_date?->toDateString(),
             ])
             ->values()
@@ -309,10 +277,9 @@ class DashboardController extends Controller
     }
 
     /**
-     * @param  array{id:int, name:string, city:?string, province:?string, status:?string}  $location
      * @return array<int, array<string, mixed>>
      */
-    private function pendingPayrolls(array $location): array
+    private function pendingPayrolls(): array
     {
         return Payroll::query()
             ->whereIn('status', [Payroll::STATUS_APPROVED, Payroll::STATUS_PARTIALLY_PAID])
@@ -325,7 +292,7 @@ class DashboardController extends Controller
             ->orderByDesc('id')
             ->limit(25)
             ->get()
-            ->map(function (Payroll $payroll) use ($location): array {
+            ->map(function (Payroll $payroll): array {
                 $totalPaid = round((float) ($payroll->total_paid ?? 0), 2);
                 $outstandingBalance = round(max(0, (float) $payroll->net_amount - $totalPaid), 2);
 
@@ -333,7 +300,6 @@ class DashboardController extends Controller
                     'id' => $payroll->id,
                     'employee_name' => $payroll->employee?->name,
                     'employee_role' => $payroll->employee?->roles?->pluck('name')->first() ?? 'Employee',
-                    'location_name' => $location['name'],
                     'status' => $payroll->status,
                     'net_amount' => round((float) $payroll->net_amount, 2),
                     'outstanding_balance' => $outstandingBalance,

@@ -19,7 +19,6 @@
                      {{ activeMembership.rate_plan.name }}
                   </span>
                </div>
-               <div class="text-muted small mb-2"><i class="bi bi-geo-alt me-1"></i>{{ currentLocationName }}</div>
                <div class="d-flex gap-3 flex-wrap small text-muted">
                   <span v-if="localMember.email"><i class="bi bi-envelope me-1"></i>{{ localMember.email }}</span>
                   <span v-if="localMember.phone"><i class="bi bi-telephone me-1"></i>{{ localMember.phone }}</span>
@@ -96,10 +95,6 @@ export default {
             this.localMember.member_subscriptions.find((membership) => membership.status === "active" || membership.status === "paused") ||
             this.localMember.member_subscriptions[0]
          );
-      },
-
-      currentLocationName: function () {
-         return this.localMember.location?.name || globalThis.JPrime?.profile?.name || "Current location";
       },
    },
 

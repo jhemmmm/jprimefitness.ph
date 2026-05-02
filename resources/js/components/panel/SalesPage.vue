@@ -23,7 +23,7 @@
 
       <div v-if="!hasProfile" class="panel-card p-5 text-center text-muted">
          <i class="bi bi-shop fs-1 d-block mb-2 opacity-25"></i>
-         <div>Location data is unavailable.</div>
+         <div>Business profile data is unavailable.</div>
       </div>
 
       <template v-else>
@@ -34,7 +34,7 @@
                      <div class="d-flex flex-column flex-md-row align-items-md-center gap-2 w-100">
                         <div>
                            <span class="panel-card-title">New Sale</span>
-                           <div class="small text-muted mt-1">Processing sale for {{ currentLocationName }}</div>
+                           <div class="small text-muted mt-1">Processing sale for {{ currentBusinessName }}</div>
                         </div>
                         <div class="btn-group btn-group-sm ms-md-auto sales-type-group" role="group">
                            <button type="button" :class="['btn', saleType === 'inventory' ? 'btn-danger' : 'btn-outline-secondary']" @click="setSaleType('inventory')">Inventory</button>
@@ -390,7 +390,7 @@
             <div class="panel-card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                <div>
                   <span class="panel-card-title">Transaction History</span>
-                  <div class="small text-muted mt-1">Recent transactions recorded for {{ currentLocationName }}</div>
+                  <div class="small text-muted mt-1">Recent transactions recorded for {{ currentBusinessName }}</div>
                </div>
                <div class="small text-muted" v-if="!loadingHistory && historyPagination.total > 0">Showing {{ historyPagination.from }}–{{ historyPagination.to }} of {{ historyPagination.total }}</div>
             </div>
@@ -671,8 +671,8 @@ export default {
       hasProfile: function () {
          return Boolean(this.profile?.id || window.JPrime?.profile?.id);
       },
-      currentLocationName: function () {
-         return this.profile?.name || window.JPrime?.profile?.name || "this location";
+      currentBusinessName: function () {
+         return this.profile?.name || window.JPrime?.profile?.name || "this business";
       },
       isCashPayment: function () {
          return this.form.payment_method === "cash";

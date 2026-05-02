@@ -3,7 +3,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Payroll Reports</h4>
-            <p class="text-muted small mb-0">Review payroll runs and current payout progress for payrolls ending within the selected period for {{ currentLocationLabel }}</p>
+            <p class="text-muted small mb-0">Review payroll runs and current payout progress for payrolls ending within the selected period.</p>
          </div>
       </div>
       <div class="panel-card mb-4">
@@ -185,41 +185,7 @@
          </div>
 
          <div class="row g-3 mb-4">
-            <div class="col-12 col-xl-6">
-               <div class="panel-card h-100">
-                  <div class="panel-card-header">
-                     <div class="panel-card-title">Location Summary</div>
-                  </div>
-                  <div class="p-3 p-md-4">
-                     <div v-if="loading">
-                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 3" :key="'branch-sk-' + index"></div>
-                     </div>
-                     <div v-else-if="report.location_breakdown.length === 0" class="text-center py-4 text-muted">
-                        <i class="bi bi-diagram-3 fs-1 d-block mb-2 opacity-25"></i>
-                        <div>No location payroll records for this filter.</div>
-                     </div>
-                     <div v-else>
-                        <div class="border rounded-3 px-3 py-2 mb-2" v-for="row in report.location_breakdown" :key="row.location_id">
-                           <div class="d-flex justify-content-between align-items-start gap-3">
-                              <div>
-                                 <div class="fw-semibold">{{ row.location_name }}</div>
-                                 <div class="text-muted small">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
-                                 <div class="small text-muted">Paid Out To Date: ₱{{ $filters.formatMoney(row.total_paid) }}</div>
-                              </div>
-                              <div class="text-end flex-shrink-0">
-                                 <div class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</div>
-                                 <div class="small" :class="row.outstanding_balance > 0 ? 'text-danger' : 'text-success'">
-                                    {{ row.outstanding_balance > 0 ? "Outstanding To Date ₱" + $filters.formatMoney(row.outstanding_balance) : "Fully Paid" }}
-                                 </div>
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
-
-            <div class="col-12 col-xl-6">
+            <div class="col-12">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
                      <div>
@@ -334,7 +300,6 @@
                         <thead>
                            <tr>
                               <th>Employee</th>
-                              <th>Location</th>
                               <th>Period</th>
                               <th>Frequency</th>
                               <th>Status</th>
@@ -350,7 +315,6 @@
                                  <div class="fw-semibold">{{ payroll.employee_name || "-" }}</div>
                                  <div class="small text-muted" v-if="payroll.approved_by_name">Approved by {{ payroll.approved_by_name }}</div>
                               </td>
-                              <td>{{ payroll.location_name || "-" }}</td>
                               <td>{{ payroll.period_label }}</td>
                               <td>{{ payroll.pay_frequency_label }}</td>
                               <td>
@@ -371,7 +335,7 @@
                         <div class="member-card-top">
                            <div>
                               <div class="member-card-name">{{ payroll.employee_name || "-" }}</div>
-                              <div class="member-card-sub">{{ payroll.location_name || "-" }} · {{ payroll.period_label }}</div>
+                              <div class="member-card-sub">{{ payroll.period_label }}</div>
                            </div>
                            <span :class="['m-badge', $filters.statusBadge(payroll.status)]">{{ payroll.status_label }}</span>
                         </div>
@@ -441,9 +405,6 @@ export default {
             { value: "semi_monthly", label: "Semi Monthly" },
             { value: "monthly", label: "Monthly" },
          ];
-      },
-      currentLocationLabel: function () {
-         return this.report.scope.location?.name || this.businessProfile?.name || window.JPrime?.profile?.name || "this location";
       },
       exportUrl: function () {
          const params = new URLSearchParams();
@@ -558,9 +519,6 @@ export default {
       formatDate,
       emptyReport: function () {
          return {
-            scope: {
-               location: null,
-            },
             filters: {
                date_from: null,
                date_to: null,
@@ -583,7 +541,6 @@ export default {
             },
             status_breakdown: [],
             pay_frequency_breakdown: [],
-            location_breakdown: [],
             payout_method_breakdown: [],
             payroll_trend: [],
             recent_payrolls: [],

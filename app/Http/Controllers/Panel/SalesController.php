@@ -31,7 +31,6 @@ class SalesController extends Controller
     public function context(): JsonResponse
     {
         return response()->json([
-            'location' => BusinessProfile::current()->locationSummary(),
             'options' => $this->posSaleService->context(),
         ]);
     }
@@ -70,7 +69,6 @@ class SalesController extends Controller
             ->withQueryString();
 
         return response()->json([
-            'location' => BusinessProfile::current()->locationSummary(),
             'transactions' => $history,
         ]);
     }
@@ -218,7 +216,6 @@ class SalesController extends Controller
     private function transformTransaction(SaleTransaction $transaction): array
     {
         $details = $transaction->details ?? [];
-        $location = BusinessProfile::current()->locationSummary();
 
         return [
             'id' => $transaction->id,
@@ -236,7 +233,6 @@ class SalesController extends Controller
             'customer_name' => $transaction->customer_name ?: $transaction->member?->name,
             'item_name' => $transaction->item_name,
             'details' => $details,
-            'location_name' => $location['name'],
             'receipt_url' => route('panel.sales.receipt', $transaction),
             'source_url' => match ($transaction->type) {
                 SaleTransaction::TYPE_MEMBERSHIP, SaleTransaction::TYPE_PT_PACKAGE => $transaction->member_id

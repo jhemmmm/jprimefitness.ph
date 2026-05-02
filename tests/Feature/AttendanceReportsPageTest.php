@@ -42,7 +42,7 @@ class AttendanceReportsPageTest extends TestCase
 
     public function test_attendance_reports_data_returns_summary_and_breakdowns(): void
     {
-        $profile = $this->setBusinessProfile('Naga');
+        $this->setBusinessProfile('Naga');
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
         $member = $this->createUserWithRole('member', 'Member Joy');
         $employee = $this->createUserWithRole('staff', 'Employee Ben');
@@ -93,8 +93,8 @@ class AttendanceReportsPageTest extends TestCase
             ->getJson('/panel/reports/attendance/data?date_from=2026-03-01&date_to=2026-03-31')
             ->assertOk();
 
-        $response->assertJsonPath('scope.location.id', $profile->id);
-        $response->assertJsonPath('scope.location.name', 'Naga');
+        $response->assertJsonMissingPath('scope.location');
+        $response->assertJsonMissingPath('location_breakdown');
         $response->assertJsonPath('filters.date_from', '2026-03-01');
         $response->assertJsonPath('filters.date_to', '2026-03-31');
         $response->assertJsonPath('filters.type', null);
@@ -110,8 +110,6 @@ class AttendanceReportsPageTest extends TestCase
         $response->assertJsonPath('type_breakdown.1.unique_attendees', 2);
         $response->assertJsonPath('type_breakdown.2.type', Attendance::TYPE_EMPLOYEE);
         $response->assertJsonPath('type_breakdown.2.currently_in_count', 1);
-        $response->assertJsonPath('location_breakdown.0.location_name', 'Naga');
-        $response->assertJsonPath('location_breakdown.0.check_in_count', 4);
         $response->assertJsonPath('daily_trend.0.attendance_date', '2026-03-02');
         $response->assertJsonPath('daily_trend.0.check_in_count', 2);
         $response->assertJsonPath('daily_trend.1.attendance_date', '2026-03-03');
@@ -146,6 +144,7 @@ class AttendanceReportsPageTest extends TestCase
         $this->assertStringContainsString('Summary', $content);
         $this->assertStringContainsString('Attendance by Type', $content);
         $this->assertStringContainsString('Member Joy', $content);
+        $this->assertStringNotContainsString('Location Totals', $content);
     }
 
     private function setBusinessProfile(string $name): BusinessProfile

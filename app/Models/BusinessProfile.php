@@ -65,25 +65,15 @@ class BusinessProfile extends Model
     }
 
     /**
-     * @return array{id:int, name:string, city:?string, province:?string}
+     * @return array{id:int, name:string, city:?string, province:?string, country_code:?string, pay_overwork_hours:bool, payroll_withholding_tax_enabled:bool, payroll_government_contributions_enabled:bool}
      */
-    public function locationSummary(): array
+    public function panelShellPayload(): array
     {
         return [
             'id' => $this->id,
             'name' => $this->name,
             'city' => $this->city,
             'province' => $this->province,
-        ];
-    }
-
-    /**
-     * @return array{id:int, name:string, city:?string, province:?string, country_code:?string, pay_overwork_hours:bool, payroll_withholding_tax_enabled:bool, payroll_government_contributions_enabled:bool}
-     */
-    public function panelShellPayload(): array
-    {
-        return [
-            ...$this->locationSummary(),
             'country_code' => $this->country_code,
             'pay_overwork_hours' => (bool) $this->pay_overwork_hours,
             'payroll_withholding_tax_enabled' => (bool) $this->payroll_withholding_tax_enabled,

@@ -82,7 +82,7 @@
                         <img src="{{ asset('logo.png') }}" alt="JPRIME FITNESS Logo" />JPRIME <span
                             class="text-danger">FITNESS</span>
                     </span>
-                    <div class="text-muted small mt-1">Single-location training hub</div>
+                    <div class="text-muted small mt-1">Training hub</div>
                 </div>
             </div>
         </div>

@@ -129,17 +129,14 @@
                     </div>
                 @endif
 
-                {{-- Business --}}
-                <div class="sidebar-menu-heading">Business</div>
+                {{-- System --}}
+                <div class="sidebar-menu-heading">System</div>
                 <div class="sidebar-nav-item">
                     <a href="{{ route('panel.business.settings') }}" @class(['active' => request()->routeIs('panel.business.settings*')])>
                         <i class="bi bi-gear-fill"></i>
-                        <span class="sidebar-nav-label">Business Settings</span>
+                        <span class="sidebar-nav-label">Settings</span>
                     </a>
                 </div>
-
-                {{-- System --}}
-                <div class="sidebar-menu-heading">System</div>
                 @if (auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']))
                     <div class="sidebar-nav-item">
                         <a href="{{ route('panel.system-activity') }}" @class(['active' => request()->routeIs('panel.system-activity*')])>

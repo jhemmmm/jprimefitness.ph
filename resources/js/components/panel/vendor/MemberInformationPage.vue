@@ -14,10 +14,6 @@
                      <div class="fw-semibold small">{{ member.phone || "-" }}</div>
                   </div>
                   <div class="col-md-6">
-                  <div class="small text-muted">Location</div>
-                  <div class="fw-semibold small">{{ currentLocationName }}</div>
-                  </div>
-                  <div class="col-md-6">
                      <div class="small text-muted">Status</div>
                      <div class="fw-semibold small">{{ $filters.capitalize(member.status) }}</div>
                   </div>
@@ -82,9 +78,6 @@ export default {
    },
 
    computed: {
-      currentLocationName: function () {
-         return this.member.location?.name || window.JPrime?.profile?.name || "-";
-      },
       activeMembership: function () {
          if (!this.member.member_subscriptions || !this.member.member_subscriptions.length) {
             return null;

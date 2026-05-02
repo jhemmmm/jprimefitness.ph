@@ -11,17 +11,13 @@ class FreshInstallSchemaTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_fresh_install_uses_canonical_single_location_schema(): void
+    public function test_fresh_install_uses_canonical_business_schema(): void
     {
         $this->assertTrue(Schema::hasTable('system_activities'));
         $this->assertTrue(Schema::hasTable('business_profiles'));
         $this->assertTrue(Schema::hasTable('member_profiles'));
         $this->assertTrue(Schema::hasTable('member_subscriptions'));
 
-        $this->assertFalse(Schema::hasTable('branches'));
-        $this->assertFalse(Schema::hasTable('branch_rate_prices'));
-        $this->assertFalse(Schema::hasTable('branch_pt_prices'));
-        $this->assertFalse(Schema::hasTable('branch_cash_ledger_entries'));
         $this->assertFalse(Schema::hasTable('cash_ledger_entries'));
         $this->assertFalse(Schema::hasTable('walk_ins'));
 

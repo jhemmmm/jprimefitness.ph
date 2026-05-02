@@ -394,8 +394,8 @@ export default {
       showFinancialStats: function () {
          return this.financialAccessState === null ? true : this.canViewFinancialData;
       },
-      currentLocationLabel: function () {
-         return this.dashboard.scope.location?.name || this.businessProfile?.name || window.JPrime?.profile?.name || "this location";
+      currentBusinessName: function () {
+         return this.businessProfile?.name || window.JPrime?.profile?.name || "this business";
       },
       businessHoursLabel: function () {
          const opening = this.formatBusinessTime(this.businessProfile?.opening_time);
@@ -408,12 +408,10 @@ export default {
          return opening || closing || "Not set";
       },
       operationsSummaryItems: function () {
-         const locationLoad = this.dashboard.location_load?.[0] || {};
-
          return [
             {
                label: "Current Occupancy",
-               value: this.formatCount(locationLoad.current_occupancy),
+               value: this.formatCount(this.dashboard.operations.current_occupancy),
                sub: "People currently checked in",
             },
             {
@@ -437,7 +435,7 @@ export default {
          return [
             {
                label: "Business",
-               value: this.currentLocationLabel,
+               value: this.currentBusinessName,
             },
             {
                label: "Address",
@@ -555,11 +553,12 @@ export default {
       formatDateTime,
       emptyDashboard: function () {
          return {
-            scope: {
-               location: null,
-            },
             permissions: {
                can_view_financial_data: false,
+            },
+            operations: {
+               current_occupancy: 0,
+               today_check_ins: 0,
             },
             stats_row_1: {
                total_members: 0,
@@ -574,8 +573,6 @@ export default {
                pending_payroll_balance: null,
             },
             peak_hours: [],
-            location_load: [],
-            location_status: [],
             check_ins_today: [],
             trainers: [],
             recent_members: [],
@@ -590,13 +587,13 @@ export default {
          return {
             ...empty,
             ...payload,
-            scope: {
-               ...empty.scope,
-               ...(payload.scope || {}),
-            },
             permissions: {
                ...empty.permissions,
                ...(payload.permissions || {}),
+            },
+            operations: {
+               ...empty.operations,
+               ...(payload.operations || {}),
             },
             stats_row_1: {
                ...empty.stats_row_1,
@@ -607,8 +604,6 @@ export default {
                ...(payload.stats_row_2 || {}),
             },
             peak_hours: payload.peak_hours || [],
-            location_load: payload.location_load || [],
-            location_status: payload.location_status || [],
             check_ins_today: payload.check_ins_today || [],
             trainers: payload.trainers || [],
             recent_members: payload.recent_members || [],

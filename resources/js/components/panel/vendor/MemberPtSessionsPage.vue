@@ -315,7 +315,7 @@ export default {
 
    computed: {
       availableProducts: function () {
-         return this.member.location?.pt_products || window.JPrime?.profile?.pt_products || [];
+         return this.member.pt_products || [];
       },
 
       availableCoaches: function () {

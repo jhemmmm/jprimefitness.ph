@@ -28,11 +28,6 @@
                   </select>
                   <div class="invalid-feedback" v-if="errors.status">{{ errors.status[0] }}</div>
                </div>
-               <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Location</label>
-                  <input type="text" class="form-control" :value="currentLocationName" disabled />
-               </div>
-
                <div class="col-12"><hr class="my-1" /></div>
 
                <div class="col-md-6">
@@ -103,9 +98,6 @@ export default {
    },
 
    computed: {
-      currentLocationName: function () {
-         return this.member.location?.name || window.JPrime?.profile?.name || "Current location";
-      },
       statusOptions: function () {
          return ["active", "inactive", "suspended"];
       },

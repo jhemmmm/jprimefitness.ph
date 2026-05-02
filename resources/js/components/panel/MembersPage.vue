@@ -6,7 +6,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Members</h4>
-            <p class="text-muted small mb-0">All registered gym members for the current location</p>
+            <p class="text-muted small mb-0">All registered gym members</p>
          </div>
          <button class="btn btn-danger px-3" @click="openAddModal">
             <i class="bi bi-person-plus-fill me-1"></i>
@@ -80,7 +80,6 @@
                         <th class="col-num">#</th>
                         <th>Member</th>
                         <th>Phone</th>
-                        <th>Location</th>
                         <th>Plan</th>
                         <th>Status</th>
                         <th>Joined</th>
@@ -101,7 +100,6 @@
                            </div>
                         </td>
                         <td><div class="skeleton-box sk-phone"></div></td>
-                        <td><div class="skeleton-box sk-branch"></div></td>
                         <td>
                            <div class="skeleton-box sk-plan-name mb-1"></div>
                            <div class="skeleton-box sk-plan-badge"></div>
@@ -161,7 +159,6 @@
                         <th class="col-num">#</th>
                         <th>Member</th>
                         <th>Phone</th>
-                        <th>Location</th>
                         <th>Plan</th>
                         <th>Status</th>
                         <th>Joined</th>
@@ -182,7 +179,6 @@
                            </a>
                         </td>
                         <td class="text-muted small">{{ member.phone || "-" }}</td>
-                        <td class="small">{{ member.location?.name || currentLocationName }}</td>
                         <td>
                            <template v-if="getCurrentMembership(member)">
                               <div class="plan-name mb-1">{{ getCurrentMembership(member).rate_plan.name }}</div>
@@ -418,12 +414,6 @@ export default {
    mounted: function () {
       this.memberModal = new Modal(this.$refs.memberFormModal);
       this.fetchMembers();
-   },
-
-   computed: {
-      currentLocationName: function () {
-         return window.JPrime?.profile?.name || "Current location";
-      },
    },
 
    methods: {

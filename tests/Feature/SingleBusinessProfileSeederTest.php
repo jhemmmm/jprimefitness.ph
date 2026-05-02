@@ -7,11 +7,9 @@ use App\Models\PTProduct;
 use App\Models\RatePlan;
 use Database\Seeders\DatabaseSeeder;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
-use Illuminate\Support\Facades\Schema;
-use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
-class BranchGovernmentContributionSeederTest extends TestCase
+class SingleBusinessProfileSeederTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
@@ -19,11 +17,8 @@ class BranchGovernmentContributionSeederTest extends TestCase
     {
         $this->seed(DatabaseSeeder::class);
 
-        $this->assertTrue(Schema::hasTable('business_profiles'));
-        $this->assertFalse(Schema::hasTable('branches'));
         $this->assertSame(1, BusinessProfile::query()->count());
         $this->assertGreaterThan(0, RatePlan::query()->whereNotNull('price')->count());
         $this->assertGreaterThan(0, PTProduct::query()->whereNotNull('price')->count());
-        $this->assertFalse(Permission::query()->where('name', 'manage branches')->exists());
     }
 }

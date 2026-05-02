@@ -26,7 +26,7 @@ class MembersAccessTest extends TestCase
         Role::findOrCreate('super admin');
     }
 
-    public function test_manager_can_view_attendance_for_a_member_in_the_single_location(): void
+    public function test_manager_can_view_attendance_for_a_member(): void
     {
         $manager = $this->createUserWithRole('manager');
         $member = $this->createMember();
@@ -166,7 +166,7 @@ class MembersAccessTest extends TestCase
             ->assertSee('"action_state":{"is_locked":false,"can_change_plan":true,"can_change_status":true,"reason":null}', false);
     }
 
-    public function test_manager_can_create_member_without_branch_assignment(): void
+    public function test_manager_can_create_member(): void
     {
         $manager = $this->createUserWithRole('manager');
         $plan = $this->createRatePlan('Monthly', 30);

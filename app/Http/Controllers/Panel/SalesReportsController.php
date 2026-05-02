@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
-use App\Models\BusinessProfile;
 use App\Models\SaleTransaction;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Query\Builder;
@@ -41,7 +40,6 @@ class SalesReportsController extends Controller
             }
 
             fputcsv($handle, ['Sales Reports']);
-            fputcsv($handle, ['Location', $report['scope']['location']['name'] ?? '-']);
             fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '-']);
             fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '-']);
             fputcsv($handle, ['Sale Type', $report['filters']['type'] ?: 'All Types']);
@@ -70,13 +68,6 @@ class SalesReportsController extends Controller
             }
             fputcsv($handle, []);
 
-            fputcsv($handle, ['Location Totals']);
-            fputcsv($handle, ['Location', 'Transactions', 'Total Sales']);
-            foreach ($report['location_breakdown'] as $row) {
-                fputcsv($handle, [$row['location_name'], $row['transaction_count'], $row['total_sales']]);
-            }
-            fputcsv($handle, []);
-
             fputcsv($handle, ['Daily Sales Trend']);
             fputcsv($handle, ['Date', 'Transactions', 'Total Sales']);
             foreach ($report['daily_trend'] as $row) {
@@ -92,10 +83,9 @@ class SalesReportsController extends Controller
             fputcsv($handle, []);
 
             fputcsv($handle, ['Recent Transactions']);
-            fputcsv($handle, ['Location', 'Customer', 'Item', 'Type', 'Payment Method', 'Total', 'Processed By', 'Sold At']);
+            fputcsv($handle, ['Customer', 'Item', 'Type', 'Payment Method', 'Total', 'Processed By', 'Sold At']);
             foreach ($report['recent_transactions'] as $row) {
                 fputcsv($handle, [
-                    $row['location_name'],
                     $row['customer_name'],
                     $row['item_name'],
                     $row['type'],
@@ -135,8 +125,6 @@ class SalesReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $location = BusinessProfile::current()->locationSummary();
-
         $salesQuery = SaleTransaction::query()
             ->when($data['type'] ?? null, fn ($query) => $query->where('type', $data['type']))
             ->when($data['payment_method'] ?? null, fn ($query) => $query->where('payment_method', $data['payment_method']))
@@ -144,12 +132,6 @@ class SalesReportsController extends Controller
             ->when($data['date_to'] ?? null, fn ($query) => $query->whereDate('sold_at', '<=', $data['date_to']));
 
         return [
-            'scope' => [
-                'location' => [
-                    'id' => $location['id'],
-                    'name' => $location['name'],
-                ],
-            ],
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
                 'date_to' => $data['date_to'] ?? null,
@@ -164,16 +146,7 @@ class SalesReportsController extends Controller
             'payment_breakdown' => $this->paymentBreakdown((clone $salesQuery)->toBase()),
             'daily_trend' => $this->dailyTrend((clone $salesQuery)->toBase()),
             'top_items' => $this->topItems((clone $salesQuery)->get()),
-            'location_breakdown' => [[
-                'location_id' => $location['id'],
-                'location_name' => $location['name'],
-                'transaction_count' => (clone $salesQuery)->count(),
-                'total_sales' => round((float) (clone $salesQuery)->sum('total'), 2),
-            ]],
-            'recent_transactions' => $this->recentTransactions(
-                (clone $salesQuery)->with(['processedBy:id,name'])->orderByDesc('sold_at')->limit(10)->get(),
-                $location['name']
-            ),
+            'recent_transactions' => $this->recentTransactions((clone $salesQuery)->with(['processedBy:id,name'])->orderByDesc('sold_at')->limit(10)->get()),
         ];
     }
 
@@ -341,14 +314,13 @@ class SalesReportsController extends Controller
      * @param  Collection<int, SaleTransaction>  $transactions
      * @return array<int, array<string, mixed>>
      */
-    private function recentTransactions(Collection $transactions, string $locationName): array
+    private function recentTransactions(Collection $transactions): array
     {
         return $transactions
             ->sortByDesc('sold_at')
             ->take(10)
             ->map(fn (SaleTransaction $transaction) => [
                 'id' => $transaction->id,
-                'location_name' => $locationName,
                 'customer_name' => $transaction->customer_name,
                 'item_name' => $transaction->item_name,
                 'type' => $transaction->type,

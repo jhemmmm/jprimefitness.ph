@@ -89,7 +89,7 @@
                 <div>
                     <div class="text-uppercase small fw-bold text-danger mb-2" style="letter-spacing: 0.14em;">Pricing</div>
                     <h2 class="fw-bold mb-1">Memberships and PT packages</h2>
-                    <p class="text-muted mb-0">All current prices are managed centrally for this location.</p>
+                    <p class="text-muted mb-0">All current prices are managed centrally for this gym.</p>
                 </div>
             </div>
 

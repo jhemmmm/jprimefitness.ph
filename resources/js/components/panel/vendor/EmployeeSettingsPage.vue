@@ -1,195 +1,193 @@
 <template>
    <div class="p-4">
-      <div class="row justify-content-center">
-         <div class="col-lg-8">
-            <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>Changes saved successfully.</div>
-            <div class="alert alert-danger py-2 small" v-if="generalError">{{ generalError }}</div>
+      <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>Changes saved successfully.</div>
+      <div class="alert alert-danger py-2 small" v-if="generalError">{{ generalError }}</div>
 
-            <div class="row g-3">
-               <div class="col-md-12">
-                  <label class="form-label form-label-sm fw-semibold">Name <span class="text-danger">*</span></label>
-                  <input type="text" class="form-control" :class="{ 'is-invalid': errors.name }" v-model="form.name" />
-                  <div class="invalid-feedback" v-if="errors.name">{{ errors.name[0] }}</div>
-               </div>
-               <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Email <span class="text-danger">*</span></label>
-                  <input type="email" class="form-control" :class="{ 'is-invalid': errors.email }" v-model="form.email" />
-                  <div class="invalid-feedback" v-if="errors.email">{{ errors.email[0] }}</div>
-               </div>
-               <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Phone</label>
-                  <input type="text" class="form-control" :class="{ 'is-invalid': errors.phone }" v-model="form.phone" />
-                  <div class="invalid-feedback" v-if="errors.phone">{{ errors.phone[0] }}</div>
-               </div>
-               <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Role <span class="text-danger">*</span></label>
-                  <div :class="{ 'is-invalid': errors.role_ids }">
-                     <MultiSelect v-model="form.role_ids" :options="allowedRoles" placeholder="Select roles..." searchable />
+      <div class="row g-4 align-items-start">
+         <div class="col-xl-8">
+            <section class="h-100">
+               <div class="fw-semibold mb-1">Employee Information</div>
+
+               <div class="row g-3">
+                  <div class="col-md-12">
+                     <label class="form-label form-label-sm fw-semibold">Name <span class="text-danger">*</span></label>
+                     <input type="text" class="form-control" :class="{ 'is-invalid': errors.name }" v-model="form.name" />
+                     <div class="invalid-feedback" v-if="errors.name">{{ errors.name[0] }}</div>
                   </div>
-                  <div class="invalid-feedback" v-if="errors.role_ids">{{ errors.role_ids[0] }}</div>
+                  <div class="col-md-6">
+                     <label class="form-label form-label-sm fw-semibold">Email <span class="text-danger">*</span></label>
+                     <input type="email" class="form-control" :class="{ 'is-invalid': errors.email }" v-model="form.email" />
+                     <div class="invalid-feedback" v-if="errors.email">{{ errors.email[0] }}</div>
+                  </div>
+                  <div class="col-md-6">
+                     <label class="form-label form-label-sm fw-semibold">Phone</label>
+                     <input type="text" class="form-control" :class="{ 'is-invalid': errors.phone }" v-model="form.phone" />
+                     <div class="invalid-feedback" v-if="errors.phone">{{ errors.phone[0] }}</div>
+                  </div>
+                  <div class="col-md-6">
+                     <label class="form-label form-label-sm fw-semibold">Role <span class="text-danger">*</span></label>
+                     <div :class="{ 'is-invalid': errors.role_ids }">
+                        <MultiSelect v-model="form.role_ids" :options="allowedRoles" placeholder="Select roles..." searchable />
+                     </div>
+                     <div class="invalid-feedback" v-if="errors.role_ids">{{ errors.role_ids[0] }}</div>
+                  </div>
+                  <div class="col-md-6">
+                     <label class="form-label form-label-sm fw-semibold">Status <span class="text-danger">*</span></label>
+                     <select class="form-select" :class="{ 'is-invalid': errors.status }" v-model="form.status">
+                        <option v-for="status in statusOptions" :key="status" :value="status">{{ $filters.capitalize(status) }}</option>
+                     </select>
+                     <div class="invalid-feedback" v-if="errors.status">{{ errors.status[0] }}</div>
+                  </div>
+                  <div class="col-md-6">
+                     <label class="form-label form-label-sm fw-semibold">Daily Rate (₱)</label>
+                     <input
+                        type="number"
+                        class="form-control"
+                        :class="{ 'is-invalid': errors['employee_profile.daily_rate'] }"
+                        v-model="form.employee_profile.daily_rate"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                     />
+                     <div class="invalid-feedback" v-if="errors['employee_profile.daily_rate']">{{ errors["employee_profile.daily_rate"][0] }}</div>
+                  </div>
+                  <div class="col-md-6">
+                     <label class="form-label form-label-sm fw-semibold">Pay Frequency</label>
+                     <select
+                        class="form-select"
+                        :class="{ 'is-invalid': errors['employee_profile.pay_frequency'] }"
+                        v-model="form.employee_profile.pay_frequency"
+                     >
+                        <option value="semi_monthly">Semi-Monthly</option>
+                        <option value="monthly">Monthly</option>
+                     </select>
+                     <div class="form-text small">Set the payroll schedule directly on the employee contract.</div>
+                     <div class="invalid-feedback" v-if="errors['employee_profile.pay_frequency']">{{ errors["employee_profile.pay_frequency"][0] }}</div>
+                  </div>
+                  <div class="col-md-6">
+                     <label class="form-label form-label-sm fw-semibold">
+                        New Password
+                        <span class="text-muted small">(leave blank to keep current)</span>
+                     </label>
+                     <input type="password" class="form-control" :class="{ 'is-invalid': errors.password }" v-model="form.password" autocomplete="new-password" />
+                     <div class="invalid-feedback" v-if="errors.password">{{ errors.password[0] }}</div>
+                  </div>
                </div>
-               <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Status <span class="text-danger">*</span></label>
-                  <select class="form-select" :class="{ 'is-invalid': errors.status }" v-model="form.status">
-                     <option v-for="status in statusOptions" :key="status" :value="status">{{ $filters.capitalize(status) }}</option>
-                  </select>
-                  <div class="invalid-feedback" v-if="errors.status">{{ errors.status[0] }}</div>
-               </div>
-               <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Location</label>
-                  <input type="text" class="form-control" :value="currentLocationName" disabled />
-               </div>
-                <div class="col-md-6">
-                   <label class="form-label form-label-sm fw-semibold">Daily Rate (₱)</label>
-                   <input
-                      type="number"
-                      class="form-control"
-                      :class="{ 'is-invalid': errors['employee_profile.daily_rate'] }"
-                      v-model="form.employee_profile.daily_rate"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                   />
-                   <div class="invalid-feedback" v-if="errors['employee_profile.daily_rate']">{{ errors["employee_profile.daily_rate"][0] }}</div>
-                </div>
-                <div class="col-md-6">
-                   <label class="form-label form-label-sm fw-semibold">Pay Frequency</label>
-                   <select
-                      class="form-select"
-                      :class="{ 'is-invalid': errors['employee_profile.pay_frequency'] }"
-                      v-model="form.employee_profile.pay_frequency"
-                   >
-                      <option value="semi_monthly">Semi-Monthly</option>
-                      <option value="monthly">Monthly</option>
-                   </select>
-                   <div class="form-text small">Set the payroll schedule directly on the employee contract.</div>
-                   <div class="invalid-feedback" v-if="errors['employee_profile.pay_frequency']">{{ errors["employee_profile.pay_frequency"][0] }}</div>
-                </div>
-                <div class="col-12" v-if="isPhilippinesPayroll">
-                   <div class="border rounded-3 p-3 bg-light">
-                      <div class="fw-semibold mb-1">Philippine Government Contributions</div>
-                      <div class="text-muted small mb-3">Save the monthly statutory bases used to snapshot SSS, PhilHealth, and Pag-IBIG on payrolls.</div>
+            </section>
+         </div>
 
-                      <div class="row g-3">
-                         <div class="col-md-4">
-                            <div class="form-check form-switch mb-2">
-                               <input class="form-check-input" type="checkbox" id="employee-settings-sss-covered" v-model="form.employee_profile.sss_covered" />
-                               <label class="form-check-label fw-semibold" for="employee-settings-sss-covered">SSS Covered</label>
-                            </div>
-                            <label class="form-label form-label-sm fw-semibold">SSS Monthly Compensation (₱)</label>
-                            <input
-                               type="number"
-                               class="form-control"
-                               :class="{ 'is-invalid': errors['employee_profile.sss_monthly_compensation'] }"
-                               v-model="form.employee_profile.sss_monthly_compensation"
-                               min="0"
-                               step="0.01"
-                               placeholder="0.00"
-                               :disabled="!form.employee_profile.sss_covered"
-                            />
-                            <div class="form-text small">Required when SSS coverage is enabled.</div>
-                            <div class="invalid-feedback" v-if="errors['employee_profile.sss_monthly_compensation']">{{ errors["employee_profile.sss_monthly_compensation"][0] }}</div>
-                         </div>
-                         <div class="col-md-4">
-                            <div class="form-check form-switch mb-2">
-                               <input class="form-check-input" type="checkbox" id="employee-settings-philhealth-covered" v-model="form.employee_profile.philhealth_covered" />
-                               <label class="form-check-label fw-semibold" for="employee-settings-philhealth-covered">PhilHealth Covered</label>
-                            </div>
-                            <label class="form-label form-label-sm fw-semibold">PhilHealth Monthly Basic Salary (₱)</label>
-                            <input
-                               type="number"
-                               class="form-control"
-                               :class="{ 'is-invalid': errors['employee_profile.philhealth_monthly_basic_salary'] }"
-                               v-model="form.employee_profile.philhealth_monthly_basic_salary"
-                               min="0"
-                               step="0.01"
-                               placeholder="0.00"
-                               :disabled="!form.employee_profile.philhealth_covered"
-                            />
-                            <div class="form-text small">Required when PhilHealth coverage is enabled.</div>
-                            <div class="invalid-feedback" v-if="errors['employee_profile.philhealth_monthly_basic_salary']">{{ errors["employee_profile.philhealth_monthly_basic_salary"][0] }}</div>
-                         </div>
-                         <div class="col-md-4">
-                            <div class="form-check form-switch mb-2">
-                               <input class="form-check-input" type="checkbox" id="employee-settings-pagibig-covered" v-model="form.employee_profile.pagibig_covered" />
-                               <label class="form-check-label fw-semibold" for="employee-settings-pagibig-covered">Pag-IBIG Covered</label>
-                            </div>
-                            <label class="form-label form-label-sm fw-semibold">Pag-IBIG Monthly Compensation (₱)</label>
-                            <input
-                               type="number"
-                               class="form-control"
-                               :class="{ 'is-invalid': errors['employee_profile.pagibig_monthly_compensation'] }"
-                               v-model="form.employee_profile.pagibig_monthly_compensation"
-                               min="0"
-                               step="0.01"
-                               placeholder="0.00"
-                               :disabled="!form.employee_profile.pagibig_covered"
-                            />
-                            <div class="form-text small">Required when Pag-IBIG coverage is enabled.</div>
-                            <div class="invalid-feedback" v-if="errors['employee_profile.pagibig_monthly_compensation']">{{ errors["employee_profile.pagibig_monthly_compensation"][0] }}</div>
-                         </div>
-                      </div>
-                   </div>
-                </div>
+         <div class="col-xl-4">
+            <div class="d-flex flex-column gap-3">
+               <section class="border rounded-3 p-3 bg-light">
+                  <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                     <div>
+                        <div class="fw-semibold">Biometric Fingerprint</div>
+                        <div class="text-muted small">Enroll a fingerprint so this employee can scan for check-in and check-out.</div>
+                     </div>
+                     <span
+                        v-if="biometricDisplayStatus"
+                        :class="['m-badge', biometricStatusClass(biometricDisplayStatus)]"
+                     >
+                        {{ biometricStatusLabel(biometricDisplayStatus) }}
+                     </span>
+                  </div>
 
-               <div class="col-12"><hr class="my-1" /></div>
+                  <div class="small text-muted mt-3">
+                     <div v-if="employeeProfile?.hikvision_employee_no"><i class="bi bi-person-badge me-1"></i>{{ employeeProfile.hikvision_employee_no }}</div>
+                     <div v-if="employeeProfile?.biometric_enrolled_at" class="mt-1"><i class="bi bi-clock me-1"></i>Enrolled {{ formatShortDateTime(employeeProfile.biometric_enrolled_at) }}</div>
+                     <div v-if="employeeProfile?.biometric_last_error" class="mt-2 text-danger">{{ employeeProfile.biometric_last_error }}</div>
+                  </div>
 
-               <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">
-                     New Password
-                     <span class="text-muted small">(leave blank to keep current)</span>
-                  </label>
-                  <input type="password" class="form-control" :class="{ 'is-invalid': errors.password }" v-model="form.password" autocomplete="new-password" />
-                  <div class="invalid-feedback" v-if="errors.password">{{ errors.password[0] }}</div>
-               </div>
+                  <div class="d-flex gap-2 flex-wrap mt-3">
+                     <button class="btn btn-danger btn-sm" @click="openBiometricModal" :disabled="biometricSubmitting || biometricRemoving">
+                        <span class="spinner-border spinner-border-sm me-1" v-if="biometricSubmitting"></span>
+                        {{ hasEnrolledFingerprint ? "Re-enroll Fingerprint" : "Enroll Fingerprint" }}
+                     </button>
+                     <button
+                        v-if="hasEnrolledFingerprint"
+                        class="btn btn-outline-secondary btn-sm"
+                        @click="removeFingerprint"
+                        :disabled="biometricSubmitting || biometricRemoving"
+                     >
+                        <span class="spinner-border spinner-border-sm me-1" v-if="biometricRemoving"></span>
+                        Remove Fingerprint
+                     </button>
+                  </div>
+               </section>
 
-               <div class="col-12">
-                  <div class="border rounded-3 p-3">
-                     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-                        <div>
-                           <div class="fw-semibold">Biometric Attendance</div>
-                           <div class="text-muted small">Enroll a fingerprint so this employee can scan for check-in and check-out.</div>
+               <section class="border rounded-3 p-3 bg-light" v-if="isPhilippinesPayroll">
+                  <div class="fw-semibold mb-1">Philippine Government Contributions</div>
+                  <div class="text-muted small mb-3">Save the monthly statutory bases used to snapshot SSS, PhilHealth, and Pag-IBIG on payrolls.</div>
+
+                  <div class="row g-3">
+                     <div class="col-12">
+                        <div class="form-check form-switch mb-2">
+                           <input class="form-check-input" type="checkbox" id="employee-settings-sss-covered" v-model="form.employee_profile.sss_covered" />
+                           <label class="form-check-label fw-semibold" for="employee-settings-sss-covered">SSS Covered</label>
                         </div>
-                        <span
-                           v-if="biometricDisplayStatus"
-                           :class="['m-badge', biometricStatusClass(biometricDisplayStatus)]"
-                        >
-                           {{ biometricStatusLabel(biometricDisplayStatus) }}
-                        </span>
+                        <label class="form-label form-label-sm fw-semibold">SSS Monthly Compensation (₱)</label>
+                        <input
+                           type="number"
+                           class="form-control"
+                           :class="{ 'is-invalid': errors['employee_profile.sss_monthly_compensation'] }"
+                           v-model="form.employee_profile.sss_monthly_compensation"
+                           min="0"
+                           step="0.01"
+                           placeholder="0.00"
+                           :disabled="!form.employee_profile.sss_covered"
+                        />
+                        <div class="form-text small">Required when SSS coverage is enabled.</div>
+                        <div class="invalid-feedback" v-if="errors['employee_profile.sss_monthly_compensation']">{{ errors["employee_profile.sss_monthly_compensation"][0] }}</div>
                      </div>
-
-                     <div class="small text-muted mt-3">
-                        <div v-if="employeeProfile?.hikvision_employee_no"><i class="bi bi-person-badge me-1"></i>{{ employeeProfile.hikvision_employee_no }}</div>
-                        <div v-if="employeeProfile?.biometric_enrolled_at" class="mt-1"><i class="bi bi-clock me-1"></i>Enrolled {{ formatShortDateTime(employeeProfile.biometric_enrolled_at) }}</div>
-                        <div v-if="employeeProfile?.biometric_last_error" class="mt-2 text-danger">{{ employeeProfile.biometric_last_error }}</div>
+                     <div class="col-12">
+                        <div class="form-check form-switch mb-2">
+                           <input class="form-check-input" type="checkbox" id="employee-settings-philhealth-covered" v-model="form.employee_profile.philhealth_covered" />
+                           <label class="form-check-label fw-semibold" for="employee-settings-philhealth-covered">PhilHealth Covered</label>
+                        </div>
+                        <label class="form-label form-label-sm fw-semibold">PhilHealth Monthly Basic Salary (₱)</label>
+                        <input
+                           type="number"
+                           class="form-control"
+                           :class="{ 'is-invalid': errors['employee_profile.philhealth_monthly_basic_salary'] }"
+                           v-model="form.employee_profile.philhealth_monthly_basic_salary"
+                           min="0"
+                           step="0.01"
+                           placeholder="0.00"
+                           :disabled="!form.employee_profile.philhealth_covered"
+                        />
+                        <div class="form-text small">Required when PhilHealth coverage is enabled.</div>
+                        <div class="invalid-feedback" v-if="errors['employee_profile.philhealth_monthly_basic_salary']">{{ errors["employee_profile.philhealth_monthly_basic_salary"][0] }}</div>
                      </div>
-
-                     <div class="d-flex gap-2 flex-wrap mt-3">
-                        <button class="btn btn-danger btn-sm" @click="openBiometricModal" :disabled="biometricSubmitting || biometricRemoving">
-                           <span class="spinner-border spinner-border-sm me-1" v-if="biometricSubmitting"></span>
-                           {{ hasEnrolledFingerprint ? "Re-enroll Fingerprint" : "Enroll Fingerprint" }}
-                        </button>
-                        <button
-                           v-if="hasEnrolledFingerprint"
-                           class="btn btn-outline-secondary btn-sm"
-                           @click="removeFingerprint"
-                           :disabled="biometricSubmitting || biometricRemoving"
-                        >
-                           <span class="spinner-border spinner-border-sm me-1" v-if="biometricRemoving"></span>
-                           Remove Fingerprint
-                        </button>
+                     <div class="col-12">
+                        <div class="form-check form-switch mb-2">
+                           <input class="form-check-input" type="checkbox" id="employee-settings-pagibig-covered" v-model="form.employee_profile.pagibig_covered" />
+                           <label class="form-check-label fw-semibold" for="employee-settings-pagibig-covered">Pag-IBIG Covered</label>
+                        </div>
+                        <label class="form-label form-label-sm fw-semibold">Pag-IBIG Monthly Compensation (₱)</label>
+                        <input
+                           type="number"
+                           class="form-control"
+                           :class="{ 'is-invalid': errors['employee_profile.pagibig_monthly_compensation'] }"
+                           v-model="form.employee_profile.pagibig_monthly_compensation"
+                           min="0"
+                           step="0.01"
+                           placeholder="0.00"
+                           :disabled="!form.employee_profile.pagibig_covered"
+                        />
+                        <div class="form-text small">Required when Pag-IBIG coverage is enabled.</div>
+                        <div class="invalid-feedback" v-if="errors['employee_profile.pagibig_monthly_compensation']">{{ errors["employee_profile.pagibig_monthly_compensation"][0] }}</div>
                      </div>
                   </div>
-               </div>
-            </div>
-
-            <div class="mt-4 d-flex justify-content-end">
-               <button class="btn btn-danger px-4" @click="save" :disabled="saving">
-                  <span class="spinner-border spinner-border-sm me-1" v-if="saving"></span>
-                  Save Changes
-               </button>
+               </section>
             </div>
          </div>
+      </div>
+
+      <div class="mt-4 d-flex justify-content-end">
+         <button class="btn btn-danger px-4" @click="save" :disabled="saving">
+            <span class="spinner-border spinner-border-sm me-1" v-if="saving"></span>
+            Save Changes
+         </button>
       </div>
 
       <div class="modal fade" tabindex="-1" ref="biometricModal" data-bs-backdrop="static" data-bs-keyboard="false">
@@ -311,9 +309,6 @@ export default {
       },
       statusOptions: function () {
          return ["active", "inactive", "suspended"];
-      },
-      currentLocationName: function () {
-         return this.employee.location?.name || window.JPrime?.profile?.name || "Current location";
       },
       isPhilippinesPayroll: function () {
          return (window.JPrime?.profile?.country_code || "PH") === "PH";

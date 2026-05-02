@@ -3,7 +3,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Sales Reports</h4>
-            <p class="text-muted small mb-0">Review sales performance, breakdowns, and recent transactions for {{ currentLocationLabel }}</p>
+            <p class="text-muted small mb-0">Review sales performance, breakdowns, and recent transactions.</p>
          </div>
       </div>
       <div class="panel-card mb-4">
@@ -120,13 +120,13 @@
             <div class="col-12 col-xl-8">
                <sales-daily-trend-chart :trend="report.daily_trend"></sales-daily-trend-chart>
             </div>
-            <div class="col-12 col-xl-4">
+            <div class="col-12 col-xl-6">
                <sales-type-breakdown-chart :breakdown="report.type_breakdown.filter((row) => row.total_sales > 0)"></sales-type-breakdown-chart>
             </div>
          </div>
 
          <div class="row g-3 mb-4">
-            <div class="col-12 col-xl-4">
+            <div class="col-12 col-xl-6">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
                      <div class="panel-card-title">Sales by Type</div>
@@ -274,84 +274,6 @@
                </div>
             </div>
 
-            <div class="col-12 col-xl-4">
-               <div class="panel-card h-100">
-                  <div class="panel-card-header">
-                  <div class="panel-card-title">Location Summary</div>
-                  </div>
-                  <div class="panel-card-body p-0">
-                     <div v-if="loading">
-                        <div class="p-3 d-none d-md-block">
-                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 4" :key="'branch-sk-' + index"></div>
-                        </div>
-                        <div class="d-md-none p-3">
-                           <div class="member-card" v-for="index in 3" :key="'branch-mobile-sk-' + index">
-                              <div class="member-card-top">
-                                 <div class="member-card-identity">
-                                    <div class="inventory-avatar">
-                                       <i class="bi bi-diagram-3-fill"></i>
-                                    </div>
-                                    <div>
-                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                       <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
-                                    </div>
-                                 </div>
-                              </div>
-                              <div class="member-card-footer">
-                                 <div class="skeleton-box" style="width: 72px; height: 12px; border-radius: 4px"></div>
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                     <div v-else>
-                        <div class="table-responsive d-none d-md-block">
-                           <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
-                              <thead>
-                                 <tr>
-                                    <th>Location</th>
-                                    <th>Transactions</th>
-                                    <th>Total</th>
-                                 </tr>
-                              </thead>
-                              <tbody>
-                                 <tr v-if="report.location_breakdown.length === 0" class="empty-row">
-                                    <td colspan="3">
-                                       <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
-                                       <div class="mt-1 text-muted small">No location activity for this filter.</div>
-                                    </td>
-                                 </tr>
-                                 <tr v-for="row in report.location_breakdown" :key="row.location_id">
-                                    <td>{{ row.location_name }}</td>
-                                    <td>{{ row.transaction_count }}</td>
-                                    <td class="fw-semibold">₱{{ $filters.formatMoney(row.total_sales) }}</td>
-                                 </tr>
-                              </tbody>
-                           </table>
-                        </div>
-                        <div class="d-md-none p-3">
-                           <div v-if="report.location_breakdown.length === 0" class="text-center py-4 text-muted small">No location activity for this filter.</div>
-                           <div v-else class="member-card" v-for="row in report.location_breakdown" :key="'location-mobile-' + row.location_id">
-                              <div class="member-card-top">
-                                 <div class="member-card-identity">
-                                    <div class="inventory-avatar">
-                                       <i class="bi bi-diagram-3-fill"></i>
-                                    </div>
-                                    <div>
-                                       <div class="member-card-name">{{ row.location_name }}</div>
-                                       <div class="member-card-sub">{{ row.transaction_count }} transaction{{ row.transaction_count !== 1 ? "s" : "" }}</div>
-                                    </div>
-                                 </div>
-                              </div>
-                              <div class="member-card-footer">
-                                 <span>Total Sales</span>
-                                 <span class="fw-semibold">₱{{ $filters.formatMoney(row.total_sales) }}</span>
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
          </div>
 
          <div class="row g-3 mb-4">
@@ -533,7 +455,6 @@
                      <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
                         <thead>
                            <tr>
-                              <th>Location</th>
                               <th>Customer</th>
                               <th>Type</th>
                               <th>Payment</th>
@@ -543,7 +464,6 @@
                         </thead>
                         <tbody>
                            <tr v-for="index in 6" :key="'recent-sk-' + index">
-                              <td><div class="skeleton-box" style="width: 90px; height: 14px; border-radius: 4px"></div></td>
                               <td><div class="skeleton-box" style="width: 120px; height: 14px; border-radius: 4px"></div></td>
                               <td><div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div></td>
                               <td><div class="skeleton-box" style="width: 90px; height: 14px; border-radius: 4px"></div></td>
@@ -586,7 +506,6 @@
                      <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
                         <thead>
                            <tr>
-                              <th>Location</th>
                               <th>Customer</th>
                               <th>Type</th>
                               <th>Payment</th>
@@ -596,13 +515,12 @@
                         </thead>
                         <tbody>
                            <tr v-if="report.recent_transactions.length === 0" class="empty-row">
-                              <td colspan="6">
+                              <td colspan="5">
                                  <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
                                  <div class="mt-1 text-muted small">No recent transactions for this filter.</div>
                               </td>
                            </tr>
                            <tr v-for="transaction in report.recent_transactions" :key="transaction.id">
-                              <td>{{ transaction.location_name || "-" }}</td>
                               <td>
                                  <div class="fw-semibold">{{ transaction.customer_name || "Walk-in / Counter Sale" }}</div>
                                  <div class="small text-muted">{{ transaction.item_name || "-" }}</div>
@@ -639,7 +557,6 @@
                            <span class="m-badge m-badge--plan">{{ transaction.payment_method_label }}</span>
                         </div>
                         <div class="small text-muted mb-2">
-                           <div>Location: {{ transaction.location_name || "-" }}</div>
                            <div>Sold At: {{ formatDateTime(transaction.sold_at) }}</div>
                            <div>Processed By: {{ transaction.processed_by || "-" }}</div>
                         </div>
@@ -694,9 +611,6 @@ export default {
       };
    },
    computed: {
-      currentLocationLabel: function () {
-         return this.report.scope.location?.name || this.businessProfile?.name || window.JPrime?.profile?.name || "this location";
-      },
       exportUrl: function () {
          const params = new URLSearchParams();
          const payload = this.buildParams();
@@ -718,9 +632,6 @@ export default {
       formatDateTime,
       emptyReport: function () {
          return {
-            scope: {
-               location: null,
-            },
             summary: {
                total_sales: 0,
                transaction_count: 0,
@@ -731,7 +642,6 @@ export default {
             payment_breakdown: [],
             daily_trend: [],
             top_items: [],
-            location_breakdown: [],
             recent_transactions: [],
          };
       },

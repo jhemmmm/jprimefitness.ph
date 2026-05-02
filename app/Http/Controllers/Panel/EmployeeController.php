@@ -675,7 +675,6 @@ class EmployeeController extends Controller
                 ->values()
                 ->all(),
             'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
-            'location' => BusinessProfile::current()->locationSummary(),
         ];
     }
 

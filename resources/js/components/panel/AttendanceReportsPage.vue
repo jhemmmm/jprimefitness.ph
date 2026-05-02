@@ -3,7 +3,7 @@
       <div class="d-flex justify-content-between align-items-center mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Attendance Reports</h4>
-            <p class="text-muted small mb-0">Review attendance trends, active check-ins, and location activity for {{ currentLocationLabel }}</p>
+            <p class="text-muted small mb-0">Review attendance trends, active check-ins, and attendee activity.</p>
          </div>
       </div>
       <div class="panel-card mb-4">
@@ -88,7 +88,7 @@
          </div>
 
          <div class="row g-3 mb-4">
-            <div class="col-12 col-xl-6">
+            <div class="col-12">
                <div class="panel-card h-100">
                   <div class="panel-card-header">
                      <div class="panel-card-title">Attendance by Type</div>
@@ -162,80 +162,6 @@
                </div>
             </div>
 
-            <div class="col-12 col-xl-6">
-               <div class="panel-card h-100">
-                  <div class="panel-card-header">
-                     <div class="panel-card-title">Location Summary</div>
-                  </div>
-                  <div class="panel-card-body p-0">
-                     <div v-if="loading">
-                        <div class="p-3 d-none d-md-block">
-                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 4" :key="'branch-sk-' + index"></div>
-                        </div>
-                        <div class="d-md-none p-3">
-                           <div class="member-card" v-for="index in 3" :key="'branch-mobile-sk-' + index">
-                              <div class="member-card-top">
-                                 <div class="member-card-identity">
-                                    <div class="member-avatar">
-                                       <i class="bi bi-geo-alt-fill"></i>
-                                    </div>
-                                    <div>
-                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                       <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
-                                    </div>
-                                 </div>
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                     <div v-else-if="report.location_breakdown.length === 0" class="text-center py-5 text-muted">
-                        <i class="bi bi-geo-alt empty-icon"></i>
-                        <p class="mt-2 mb-1">No location attendance found for this filter.</p>
-                     </div>
-                     <div v-else>
-                        <div class="table-responsive d-none d-md-block">
-                           <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
-                              <thead>
-                                 <tr>
-                                    <th>Location</th>
-                                    <th>Check-ins</th>
-                                    <th>Unique</th>
-                                    <th>Currently In</th>
-                                 </tr>
-                              </thead>
-                              <tbody>
-                                 <tr v-for="row in report.location_breakdown" :key="row.location_id">
-                                    <td>{{ row.location_name }}</td>
-                                    <td>{{ row.check_in_count }}</td>
-                                    <td>{{ row.unique_attendees }}</td>
-                                    <td>{{ row.currently_in_count }}</td>
-                                 </tr>
-                              </tbody>
-                           </table>
-                        </div>
-                        <div class="d-md-none p-3">
-                           <div class="member-card" v-for="row in report.location_breakdown" :key="'location-mobile-' + row.location_id">
-                              <div class="member-card-top">
-                                 <div class="member-card-identity">
-                                    <div class="member-avatar">
-                                       <i class="bi bi-geo-alt-fill"></i>
-                                    </div>
-                                    <div>
-                                       <div class="member-card-name">{{ row.location_name }}</div>
-                                       <div class="member-card-sub">{{ row.check_in_count }} check-in{{ row.check_in_count !== 1 ? "s" : "" }}</div>
-                                    </div>
-                                 </div>
-                              </div>
-                              <div class="member-card-footer">
-                                 <span>Unique {{ row.unique_attendees }}</span>
-                                 <span>Currently In {{ row.currently_in_count }}</span>
-                              </div>
-                           </div>
-                        </div>
-                     </div>
-                  </div>
-               </div>
-            </div>
          </div>
 
          <div class="row g-3 mb-4">
@@ -401,7 +327,6 @@
                            <tr>
                               <th>Name</th>
                               <th>Type</th>
-                              <th>Location</th>
                               <th>Checked In</th>
                               <th>Checked Out</th>
                               <th>Duration</th>
@@ -414,7 +339,6 @@
                               <td>
                                  <span :class="['m-badge', $filters.roleBadge(record.attendee_type)]">{{ record.attendee_type_label }}</span>
                               </td>
-                              <td>{{ record.location_name }}</td>
                               <td class="small text-muted">{{ formatDateTime(record.checked_in_at) }}</td>
                               <td class="small text-muted">{{ record.checked_out_at ? formatDateTime(record.checked_out_at) : "-" }}</td>
                               <td>{{ formatDuration(record.duration_minutes) }}</td>
@@ -436,7 +360,7 @@
                               </div>
                               <div>
                                  <div class="member-card-name">{{ record.name }}</div>
-                                 <div class="member-card-sub">{{ record.location_name }}</div>
+                                 <div class="member-card-sub">{{ record.attendee_type_label }}</div>
                               </div>
                            </div>
                         </div>
@@ -494,9 +418,6 @@ export default {
             { value: "walk_in", label: "Walk-ins" },
             { value: "employee", label: "Employees" },
          ];
-      },
-      currentLocationLabel: function () {
-         return this.report.scope.location?.name || this.businessProfile?.name || window.JPrime?.profile?.name || "this location";
       },
       averageVisitLabel: function () {
          return this.formatDuration(this.report.summary.average_visit_minutes);
@@ -565,9 +486,6 @@ export default {
       formatDateTime,
       emptyReport: function () {
          return {
-            scope: {
-               location: null,
-            },
             filters: {
                date_from: null,
                date_to: null,
@@ -582,7 +500,6 @@ export default {
                average_visit_minutes: 0,
             },
             type_breakdown: [],
-            location_breakdown: [],
             daily_trend: [],
             busiest_hours: [],
             recent_records: [],

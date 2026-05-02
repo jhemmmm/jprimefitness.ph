@@ -40,9 +40,9 @@ class SalesReportsPageTest extends TestCase
             ->assertSee('business-profile=', false);
     }
 
-    public function test_sales_reports_data_returns_single_location_metrics_and_breakdowns(): void
+    public function test_sales_reports_data_returns_metrics_and_breakdowns(): void
     {
-        $profile = $this->setBusinessProfile('Naga');
+        $this->setBusinessProfile('Naga');
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
 
         SaleTransaction::factory()->create([
@@ -86,8 +86,8 @@ class SalesReportsPageTest extends TestCase
             ->getJson('/panel/reports/sales/data?date_from=2026-03-01&date_to=2026-03-31')
             ->assertOk();
 
-        $response->assertJsonPath('scope.location.id', $profile->id);
-        $response->assertJsonPath('scope.location.name', 'Naga');
+        $response->assertJsonMissingPath('scope.location');
+        $response->assertJsonMissingPath('location_breakdown');
         $response->assertJsonPath('filters.date_from', '2026-03-01');
         $response->assertJsonPath('filters.date_to', '2026-03-31');
         $response->assertJsonPath('filters.type', null);
@@ -104,8 +104,6 @@ class SalesReportsPageTest extends TestCase
         $response->assertJsonPath('payment_breakdown.0.total_sales', 2000);
         $response->assertJsonPath('payment_breakdown.1.payment_method', SaleTransaction::PAYMENT_METHOD_GCASH);
         $response->assertJsonPath('payment_breakdown.1.total_sales', 1500);
-        $response->assertJsonPath('location_breakdown.0.location_name', 'Naga');
-        $response->assertJsonPath('location_breakdown.0.total_sales', 3500);
         $response->assertJsonPath('daily_trend.0.sale_date', '2026-03-02');
         $response->assertJsonPath('daily_trend.1.sale_date', '2026-03-03');
         $response->assertJsonPath('top_items.0.name', 'Bottled Water');
@@ -147,6 +145,7 @@ class SalesReportsPageTest extends TestCase
         $this->assertStringContainsString('Summary', $content);
         $this->assertStringContainsString('Sales by Type', $content);
         $this->assertStringContainsString('Bottled Water', $content);
+        $this->assertStringNotContainsString('Location Totals', $content);
     }
 
     private function setBusinessProfile(string $name): BusinessProfile

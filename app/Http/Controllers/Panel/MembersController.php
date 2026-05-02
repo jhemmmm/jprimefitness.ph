@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\SystemActivity;
-use App\Models\BusinessProfile;
 use App\Models\MemberPtPackage;
 use App\Models\MemberPtSessionUsage;
 use App\Models\MemberSubscription;
@@ -515,7 +514,7 @@ class MembersController extends Controller
                 'emergency_contact_phone' => $member->profile->emergency_contact_phone,
                 'notes' => $member->profile->notes,
             ] : null,
-            'location' => $this->locationPayload(includePtProducts: true),
+            'pt_products' => $detailed ? $this->availablePtProducts() : [],
             'member_subscriptions' => $member->memberSubscriptions
                 ->map(fn (MemberSubscription $subscription) => $this->serializeMemberSubscription($subscription))
                 ->values()
@@ -674,17 +673,11 @@ class MembersController extends Controller
     }
 
     /**
-     * @return array{id:int, name:string, city:?string, province:?string, status:?string, pt_products?:array<int, array<string, mixed>>}
+     * @return array<int, array<string, mixed>>
      */
-    private function locationPayload(bool $includePtProducts = false): array
+    private function availablePtProducts(): array
     {
-        $payload = BusinessProfile::current()->locationSummary();
-
-        if (! $includePtProducts) {
-            return $payload;
-        }
-
-        $payload['pt_products'] = PTProduct::query()
+        return PTProduct::query()
             ->where('is_active', true)
             ->whereNotNull('price')
             ->orderBy('session_count')
@@ -702,8 +695,6 @@ class MembersController extends Controller
             ])
             ->values()
             ->all();
-
-        return $payload;
     }
 
     private function coachIsAssignable(int $coachId): bool

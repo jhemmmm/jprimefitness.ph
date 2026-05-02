@@ -41,7 +41,7 @@ class PayrollReportsPageTest extends TestCase
 
     public function test_payroll_reports_data_returns_summary_and_breakdowns(): void
     {
-        $profile = $this->setBusinessProfile('Naga');
+        $this->setBusinessProfile('Naga');
         $manager = $this->createUserWithRole('manager', 'Payroll Manager');
         $employeeA = $this->createUserWithRole('staff', 'Juan Dela Cruz', 'semi_monthly');
         $employeeB = $this->createUserWithRole('staff', 'Maria Santos', 'monthly');
@@ -208,8 +208,8 @@ class PayrollReportsPageTest extends TestCase
             ->getJson('/panel/reports/payroll/data?date_from=2026-03-01&date_to=2026-03-31')
             ->assertOk();
 
-        $response->assertJsonPath('scope.location.id', $profile->id);
-        $response->assertJsonPath('scope.location.name', 'Naga');
+        $response->assertJsonMissingPath('scope.location');
+        $response->assertJsonMissingPath('location_breakdown');
         $response->assertJsonPath('filters.date_from', '2026-03-01');
         $response->assertJsonPath('filters.date_to', '2026-03-31');
         $response->assertJsonPath('summary.payroll_count', 2);
@@ -227,8 +227,6 @@ class PayrollReportsPageTest extends TestCase
         $response->assertJsonPath('status_breakdown.1.status', Payroll::STATUS_PAID);
         $response->assertJsonPath('pay_frequency_breakdown.0.pay_frequency', 'semi_monthly');
         $response->assertJsonPath('pay_frequency_breakdown.1.pay_frequency', 'monthly');
-        $response->assertJsonPath('location_breakdown.0.location_name', 'Naga');
-        $response->assertJsonPath('location_breakdown.0.total_paid', 2500);
         $response->assertJsonPath('payout_method_breakdown.0.method', Payout::METHOD_BANK_TRANSFER);
         $response->assertJsonPath('payout_method_breakdown.0.total_paid', 2000);
         $response->assertJsonPath('payroll_trend.0.period_end', '2026-03-15');
@@ -304,6 +302,7 @@ class PayrollReportsPageTest extends TestCase
         $this->assertStringContainsString('Paid Out To Date', $content);
         $this->assertStringContainsString('Recent Payrolls', $content);
         $this->assertStringContainsString('Juan Dela Cruz', $content);
+        $this->assertStringNotContainsString('Location Totals', $content);
     }
 
     public function test_payroll_reports_forbid_staff_access(): void

@@ -8,11 +8,11 @@ use App\Models\RatePlan;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Tests\TestCase;
 
-class BranchDetailPageTest extends TestCase
+class HomePageTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
-    public function test_home_page_renders_single_location_profile_and_global_pricing(): void
+    public function test_home_page_renders_business_profile_and_global_pricing(): void
     {
         BusinessProfile::factory()->create([
             'name' => 'JPrime Fitness Naga',
@@ -41,14 +41,7 @@ class BranchDetailPageTest extends TestCase
             ->assertSee('Memberships and PT packages')
             ->assertSee('Monthly')
             ->assertSee('12 Sessions')
-            ->assertSee('All current prices are managed centrally for this location.')
+            ->assertSee('All current prices are managed centrally for this gym.')
             ->assertSee('window.JPrime.timezone =', false);
-    }
-
-    public function test_legacy_branch_urls_return_not_found(): void
-    {
-        BusinessProfile::factory()->create(['name' => 'JPrime Fitness']);
-
-        $this->get('/branches/naga')->assertNotFound();
     }
 }

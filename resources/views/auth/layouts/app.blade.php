@@ -34,7 +34,7 @@
                 </div>
 
                 <h2 class="auth-brand-headline">
-                    Run one location.<br />Track every member.
+                    Run the gym.<br />Track every member.
                 </h2>
                 <p class="auth-brand-desc">
                     One unified dashboard for memberships, check-ins, PT sessions,
@@ -42,7 +42,7 @@
                 </p>
 
                 <div class="auth-brand-pills">
-                    <div class="auth-brand-pill"><i class="bi bi-geo-alt-fill"></i> Single location</div>
+                    <div class="auth-brand-pill"><i class="bi bi-geo-alt-fill"></i> Gym operations</div>
                     <div class="auth-brand-pill"><i class="bi bi-people-fill"></i> Member tracking</div>
                     <div class="auth-brand-pill"><i class="bi bi-bar-chart-fill"></i> Live analytics</div>
                 </div>

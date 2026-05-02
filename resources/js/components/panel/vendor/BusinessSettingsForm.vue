@@ -1,6 +1,6 @@
 <template>
    <div>
-      <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>Business settings saved successfully.</div>
+      <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>Settings saved successfully.</div>
       <div class="alert alert-danger py-2 small" v-if="generalError">{{ generalError }}</div>
 
       <div class="row g-4 business-settings-form-grid">

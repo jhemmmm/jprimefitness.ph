@@ -199,14 +199,14 @@
                         <template v-else> &mdash; <span class="text-warning fw-semibold">No daily rate set.</span> Set it on the employee profile to auto-compute gross. </template>
 	                        <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_non_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-gift me-1"></i>PH exempt bonus applied this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }} </span>
                         <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-calculator me-1"></i>Taxable bonus excess this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }} </span>
-                        <span v-if="!payrollWithholdingTaxEnabled" class="d-block text-muted mt-1"><i class="bi bi-slash-circle me-1"></i>Withholding tax is disabled in Business Settings.</span>
+                        <span v-if="!payrollWithholdingTaxEnabled" class="d-block text-muted mt-1"><i class="bi bi-slash-circle me-1"></i>Withholding tax is disabled in Settings.</span>
                         <span v-if="suggestion.employee_contributions_total > 0" class="d-block text-muted mt-1">
                            <i class="bi bi-shield-check me-1"></i>Employee government contributions: ₱{{ $filters.formatMoney(suggestion.employee_contributions_total) }} · {{ formatContributionSummary(suggestion.employee_contributions) }}
                         </span>
                         <span v-if="suggestion.employer_contributions_total > 0" class="d-block text-muted mt-1">
                            <i class="bi bi-building me-1"></i>Employer contribution share: ₱{{ $filters.formatMoney(suggestion.employer_contributions_total) }} · {{ formatContributionSummary(suggestion.employer_contributions) }}
                         </span>
-                        <span v-if="!payrollGovernmentContributionsEnabled" class="d-block text-muted mt-1"><i class="bi bi-slash-circle me-1"></i>Government contributions are disabled in Business Settings.</span>
+                        <span v-if="!payrollGovernmentContributionsEnabled" class="d-block text-muted mt-1"><i class="bi bi-slash-circle me-1"></i>Government contributions are disabled in Settings.</span>
                         <span v-if="suggestion.days_worked === 0" class="d-block text-muted mt-1"><i class="bi bi-info-circle me-1"></i>No attendance records found for this period.</span>
                         <span v-if="suggestion.open_attendance_count > 0" class="d-block text-muted mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ suggestion.open_attendance_count }} open attendance record{{ suggestion.open_attendance_count !== 1 ? "s are" : " is" }} excluded until checkout.</span>
                      </div>
@@ -262,7 +262,7 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Withholding Tax (₱)</label>
                         <input type="number" class="form-control" :value="form.withholding_tax" readonly />
-                        <div class="form-text" v-if="!payrollWithholdingTaxEnabled">Withholding tax is disabled in Business Settings.</div>
+                        <div class="form-text" v-if="!payrollWithholdingTaxEnabled">Withholding tax is disabled in Settings.</div>
                         <div class="form-text" v-else-if="suggestion && suggestion.taxable_earnings > 0">
                            Calculated from ₱{{ $filters.formatMoney(suggestion.taxable_earnings) }} taxable earnings.
                            <span v-if="suggestion.bonus_taxable_amount > 0">Taxable bonus portion: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}.</span>
@@ -293,7 +293,7 @@
                               </div>
                            </template>
                            <div v-else class="small text-muted">
-                              {{ payrollGovernmentContributionsEnabled ? "No employee government contributions apply to this payroll snapshot." : "Government contributions are disabled in Business Settings." }}
+                              {{ payrollGovernmentContributionsEnabled ? "No employee government contributions apply to this payroll snapshot." : "Government contributions are disabled in Settings." }}
                            </div>
                         </div>
                      </div>
@@ -317,7 +317,7 @@
                               </div>
                            </template>
                            <div v-else class="small text-muted">
-                              {{ payrollGovernmentContributionsEnabled ? "No employer contribution snapshot is stored for this payroll." : "Government contributions are disabled in Business Settings." }}
+                              {{ payrollGovernmentContributionsEnabled ? "No employer contribution snapshot is stored for this payroll." : "Government contributions are disabled in Settings." }}
                            </div>
                            <div class="form-text mt-2">Shown for reference only. Employer shares do not reduce employee net pay.</div>
                         </div>

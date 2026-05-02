@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\BusinessProfile;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,7 +37,6 @@ class AttendanceReportsController extends Controller
             }
 
             fputcsv($handle, ['Attendance Reports']);
-            fputcsv($handle, ['Location', $report['scope']['location']['name'] ?? '-']);
             fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '-']);
             fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '-']);
             fputcsv($handle, ['Attendee Type', $report['filters']['type_label'] ?: 'All Types']);
@@ -60,13 +58,6 @@ class AttendanceReportsController extends Controller
             }
             fputcsv($handle, []);
 
-            fputcsv($handle, ['Location Totals']);
-            fputcsv($handle, ['Location', 'Check-ins', 'Unique Attendees', 'Currently In']);
-            foreach ($report['location_breakdown'] as $row) {
-                fputcsv($handle, [$row['location_name'], $row['check_in_count'], $row['unique_attendees'], $row['currently_in_count']]);
-            }
-            fputcsv($handle, []);
-
             fputcsv($handle, ['Daily Trend']);
             fputcsv($handle, ['Date', 'Check-ins', 'Unique Attendees']);
             foreach ($report['daily_trend'] as $row) {
@@ -82,12 +73,11 @@ class AttendanceReportsController extends Controller
             fputcsv($handle, []);
 
             fputcsv($handle, ['Recent Attendance Records']);
-            fputcsv($handle, ['Name', 'Type', 'Location', 'Checked In', 'Checked Out', 'Duration Minutes', 'Status']);
+            fputcsv($handle, ['Name', 'Type', 'Checked In', 'Checked Out', 'Duration Minutes', 'Status']);
             foreach ($report['recent_records'] as $row) {
                 fputcsv($handle, [
                     $row['name'],
                     $row['attendee_type_label'],
-                    $row['location_name'],
                     $row['checked_in_at'],
                     $row['checked_out_at'],
                     $row['duration_minutes'],
@@ -119,8 +109,6 @@ class AttendanceReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $location = BusinessProfile::current()->locationSummary();
-
         $attendanceRecords = Attendance::query()
             ->when($data['type'] ?? null, fn ($query) => $query->where('attendee_type', $data['type']))
             ->when($data['date_from'] ?? null, fn ($query) => $query->whereDate('checked_in_at', '>=', $data['date_from']))
@@ -136,12 +124,6 @@ class AttendanceReportsController extends Controller
             ]);
 
         return [
-            'scope' => [
-                'location' => [
-                    'id' => $location['id'],
-                    'name' => $location['name'],
-                ],
-            ],
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
                 'date_to' => $data['date_to'] ?? null,
@@ -150,16 +132,9 @@ class AttendanceReportsController extends Controller
             ],
             'summary' => $this->summary($attendanceRecords),
             'type_breakdown' => $this->typeBreakdown($attendanceRecords),
-            'location_breakdown' => [[
-                'location_id' => $location['id'],
-                'location_name' => $location['name'],
-                'check_in_count' => $attendanceRecords->count(),
-                'unique_attendees' => $this->uniqueAttendeeCount($attendanceRecords),
-                'currently_in_count' => $attendanceRecords->whereNull('checked_out_at')->count(),
-            ]],
             'daily_trend' => $this->dailyTrend($attendanceRecords),
             'busiest_hours' => $this->busiestHours($attendanceRecords),
-            'recent_records' => $this->recentRecords($attendanceRecords, $location['name']),
+            'recent_records' => $this->recentRecords($attendanceRecords),
         ];
     }
 
@@ -253,7 +228,7 @@ class AttendanceReportsController extends Controller
      * @param  Collection<int, Attendance>  $attendanceRecords
      * @return array<int, array<string, mixed>>
      */
-    private function recentRecords(Collection $attendanceRecords, string $locationName): array
+    private function recentRecords(Collection $attendanceRecords): array
     {
         return $attendanceRecords
             ->take(10)
@@ -262,7 +237,6 @@ class AttendanceReportsController extends Controller
                 'name' => $attendance->name,
                 'attendee_type' => $attendance->attendee_type,
                 'attendee_type_label' => $this->typeLabel($attendance->attendee_type),
-                'location_name' => $locationName,
                 'checked_in_at' => $attendance->checked_in_at?->toISOString(),
                 'checked_out_at' => $attendance->checked_out_at?->toISOString(),
                 'duration_minutes' => $this->durationMinutes($attendance),

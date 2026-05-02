@@ -54,7 +54,7 @@ class InventoryPageTest extends TestCase
         ]);
     }
 
-    public function test_inventory_list_reports_stats_for_the_single_location(): void
+    public function test_inventory_list_reports_stats_for_the_business(): void
     {
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
         $drinkCategory = InventoryCategory::factory()->create(['name' => 'Drinks']);
@@ -91,25 +91,6 @@ class InventoryPageTest extends TestCase
 
         $this->assertSame(['Bottled Water', 'Protein Shake', 'Towel'], $names);
         $this->assertIsArray($firstItem);
-        $this->assertArrayNotHasKey('branch', $firstItem);
-        $this->assertArrayNotHasKey('branch_id', $firstItem);
-    }
-
-    public function test_inventory_list_ignores_legacy_branch_filters(): void
-    {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
-        $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
-
-        InventoryItem::factory()->create([
-            'inventory_category_id' => $category->id,
-            'name' => 'Bottled Water',
-        ]);
-
-        $this->actingAs($staff)
-            ->getJson('/panel/inventory/list?branch=999')
-            ->assertOk()
-            ->assertJsonPath('stats.total', 1)
-            ->assertJsonPath('inventory.data.0.name', 'Bottled Water');
     }
 
     public function test_inventory_list_can_be_filtered_by_category(): void
@@ -160,9 +141,6 @@ class InventoryPageTest extends TestCase
             ->assertJsonPath('name', 'Yoga Mat')
             ->assertJsonPath('category.id', $category->id);
 
-        $this->assertArrayNotHasKey('branch', $createResponse->json());
-        $this->assertArrayNotHasKey('branch_id', $createResponse->json());
-
         $itemId = $createResponse->json('id');
 
         $this->actingAs($staff)
@@ -181,9 +159,7 @@ class InventoryPageTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('quantity', '2.00')
-            ->assertJsonPath('is_low_stock', true)
-            ->assertJsonMissingPath('branch')
-            ->assertJsonMissingPath('branch_id');
+            ->assertJsonPath('is_low_stock', true);
 
         $this->assertDatabaseHas('inventory_items', [
             'id' => $itemId,

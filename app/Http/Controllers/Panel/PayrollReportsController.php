@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
-use App\Models\BusinessProfile;
 use App\Models\Payout;
 use App\Models\Payroll;
 use Illuminate\Contracts\View\View;
@@ -45,7 +44,6 @@ class PayrollReportsController extends Controller
             }
 
             fputcsv($handle, ['Payroll Reports']);
-            fputcsv($handle, ['Location', $report['scope']['location']['name'] ?? '-']);
             fputcsv($handle, ['Period End From', $report['filters']['date_from'] ?: '-']);
             fputcsv($handle, ['Period End To', $report['filters']['date_to'] ?: '-']);
             fputcsv($handle, ['Status', $report['filters']['status_label'] ?: 'All Active Statuses']);
@@ -81,19 +79,6 @@ class PayrollReportsController extends Controller
             }
             fputcsv($handle, []);
 
-            fputcsv($handle, ['Location Totals']);
-            fputcsv($handle, ['Location', 'Payroll Runs', 'Net Payroll', 'Paid Out', 'Outstanding']);
-            foreach ($report['location_breakdown'] as $row) {
-                fputcsv($handle, [
-                    $row['location_name'],
-                    $row['payroll_count'],
-                    $row['net_payroll'],
-                    $row['total_paid'],
-                    $row['outstanding_balance'],
-                ]);
-            }
-            fputcsv($handle, []);
-
             fputcsv($handle, ['Payout Methods for Selected Payrolls']);
             fputcsv($handle, ['Method', 'Payouts', 'Total Paid']);
             foreach ($report['payout_method_breakdown'] as $row) {
@@ -109,11 +94,10 @@ class PayrollReportsController extends Controller
             fputcsv($handle, []);
 
             fputcsv($handle, ['Recent Payrolls']);
-            fputcsv($handle, ['Employee', 'Location', 'Period', 'Pay Frequency', 'Status', 'Gross', 'Net', 'Paid Out', 'Outstanding', 'Approved By']);
+            fputcsv($handle, ['Employee', 'Period', 'Pay Frequency', 'Status', 'Gross', 'Net', 'Paid Out', 'Outstanding', 'Approved By']);
             foreach ($report['recent_payrolls'] as $row) {
                 fputcsv($handle, [
                     $row['employee_name'],
-                    $row['location_name'],
                     $row['period_label'],
                     $row['pay_frequency_label'],
                     $row['status_label'],
@@ -158,8 +142,6 @@ class PayrollReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
-        $location = BusinessProfile::current()->locationSummary();
-
         $payrollQuery = $this->payrollQuery($data);
         $payoutQuery = $this->payoutQuery($data);
 
@@ -192,12 +174,6 @@ class PayrollReportsController extends Controller
         $outstandingBalance = round(max(0, $netPayroll - $totalPaid), 2);
 
         return [
-            'scope' => [
-                'location' => [
-                    'id' => $location['id'],
-                    'name' => $location['name'],
-                ],
-            ],
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
                 'date_to' => $data['date_to'] ?? null,
@@ -220,17 +196,9 @@ class PayrollReportsController extends Controller
             ],
             'status_breakdown' => $this->statusBreakdown(clone $payrollQuery),
             'pay_frequency_breakdown' => $this->payFrequencyBreakdown(clone $payrollQuery),
-            'location_breakdown' => [[
-                'location_id' => $location['id'],
-                'location_name' => $location['name'],
-                'payroll_count' => $payrollCount,
-                'net_payroll' => $netPayroll,
-                'total_paid' => $totalPaid,
-                'outstanding_balance' => $outstandingBalance,
-            ]],
             'payout_method_breakdown' => $this->payoutMethodBreakdown(clone $payoutQuery),
             'payroll_trend' => $this->payrollTrend(clone $payrollQuery),
-            'recent_payrolls' => $this->recentPayrolls(clone $payrollQuery, $location['name']),
+            'recent_payrolls' => $this->recentPayrolls(clone $payrollQuery),
         ];
     }
 
@@ -373,7 +341,7 @@ class PayrollReportsController extends Controller
      * @param  Builder  $query
      * @return array<int, array<string, mixed>>
      */
-    private function recentPayrolls(Builder $query, string $locationName): array
+    private function recentPayrolls(Builder $query): array
     {
         return (clone $query)
             ->with([
@@ -385,13 +353,12 @@ class PayrollReportsController extends Controller
             ->orderByDesc('id')
             ->limit(10)
             ->get()
-            ->map(function (Payroll $payroll) use ($locationName): array {
+            ->map(function (Payroll $payroll): array {
                 $totalPaid = round((float) ($payroll->total_paid ?? 0), 2);
 
                 return [
                     'id' => $payroll->id,
                     'employee_name' => $payroll->employee?->name,
-                    'location_name' => $locationName,
                     'period_start' => $payroll->period_start?->toDateString(),
                     'period_end' => $payroll->period_end?->toDateString(),
                     'period_label' => $payroll->period_start?->format('Y-m-d').' – '.$payroll->period_end?->format('Y-m-d'),

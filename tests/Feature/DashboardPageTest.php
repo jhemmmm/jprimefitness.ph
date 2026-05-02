@@ -81,9 +81,9 @@ class DashboardPageTest extends TestCase
         $this->assertStringContainsString('@media (max-width: 575.98px)', $contents);
     }
 
-    public function test_dashboard_data_returns_single_location_metrics_for_managers(): void
+    public function test_dashboard_data_returns_business_metrics_for_managers(): void
     {
-        $profile = $this->setBusinessProfile('Naga');
+        $this->setBusinessProfile('Naga');
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $staffEmployee = $this->createUserWithRole('staff', 'Staff Ben');
         $coach = $this->createUserWithRole('coach', 'Coach Joy');
@@ -203,9 +203,10 @@ class DashboardPageTest extends TestCase
             ->getJson('/panel/dashboard/data')
             ->assertOk();
 
-        $response->assertJsonPath('scope.location.id', $profile->id);
-        $response->assertJsonPath('scope.location.name', 'Naga');
+        $response->assertJsonMissingPath('scope.location');
         $response->assertJsonPath('permissions.can_view_financial_data', true);
+        $response->assertJsonPath('operations.current_occupancy', 1);
+        $response->assertJsonPath('operations.today_check_ins', 3);
         $response->assertJsonPath('stats_row_1.total_members', 1);
         $response->assertJsonPath('stats_row_1.check_ins_today', 3);
         $response->assertJsonPath('stats_row_1.revenue_today', 600);
@@ -219,9 +220,8 @@ class DashboardPageTest extends TestCase
         $response->assertJsonPath('peak_hours.8.check_in_count', 2);
         $response->assertJsonPath('peak_hours.11.hour_slot', '11:00');
         $response->assertJsonPath('peak_hours.11.check_in_count', 2);
-        $response->assertJsonPath('location_load.0.location_name', 'Naga');
-        $response->assertJsonPath('location_load.0.current_occupancy', 1);
-        $response->assertJsonPath('location_load.0.today_check_ins', 3);
+        $response->assertJsonMissingPath('location_load');
+        $response->assertJsonMissingPath('location_status');
         $response->assertJsonPath('check_ins_today.0.name', 'Walk-in Pia');
         $response->assertJsonPath('check_ins_today.0.plan_or_rate', 'Walk-in');
         $response->assertJsonPath('recent_members.0.name', 'Member Lea');
@@ -260,7 +260,8 @@ class DashboardPageTest extends TestCase
 
         $response->assertJsonPath('permissions.can_view_financial_data', false);
         $response->assertJsonPath('stats_row_1.check_ins_today', 2);
-        $response->assertJsonPath('location_load.0.current_occupancy', 1);
+        $response->assertJsonPath('operations.current_occupancy', 1);
+        $response->assertJsonMissingPath('location_load');
 
         $this->assertArrayNotHasKey('pending_payrolls', $payload);
         $this->assertArrayNotHasKey('revenue_today', $payload['stats_row_1']);

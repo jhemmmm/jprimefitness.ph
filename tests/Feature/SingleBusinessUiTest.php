@@ -4,19 +4,18 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 
-class SidebarBranchSelectorUiTest extends TestCase
+class SingleBusinessUiTest extends TestCase
 {
-    public function test_panel_bootstrap_no_longer_registers_branch_selector_components(): void
+    public function test_panel_bootstrap_registers_expected_panel_components(): void
     {
         $contents = file_get_contents(resource_path('js/app.js'));
 
         $this->assertNotFalse($contents);
-        $this->assertStringNotContainsString('branch-selector', $contents);
-        $this->assertStringNotContainsString('BranchSelector', $contents);
-        $this->assertStringNotContainsString('BranchSelectorCollapsed', $contents);
+        $this->assertStringContainsString('global-search', $contents);
+        $this->assertStringContainsString('panel-notifications', $contents);
     }
 
-    public function test_single_location_pages_receive_business_profile_instead_of_branches_data(): void
+    public function test_panel_pages_receive_business_profile_directly(): void
     {
         $pages = [
             resource_path('views/panel/attendance.blade.php'),
@@ -35,11 +34,11 @@ class SidebarBranchSelectorUiTest extends TestCase
             $contents = file_get_contents($page);
 
             $this->assertNotFalse($contents);
-            $this->assertStringNotContainsString('branches-data', $contents, $page);
+            $this->assertStringNotContainsString('businesses-data', $contents, $page);
         }
     }
 
-    public function test_panel_components_no_longer_define_legacy_branches_data_props(): void
+    public function test_panel_components_do_not_define_business_collection_props(): void
     {
         $components = [
             resource_path('js/components/panel/AttendancePage.vue'),
@@ -57,11 +56,11 @@ class SidebarBranchSelectorUiTest extends TestCase
             $contents = file_get_contents($component);
 
             $this->assertNotFalse($contents);
-            $this->assertStringNotContainsString('branchesData', $contents, $component);
+            $this->assertStringNotContainsString('businessesData', $contents, $component);
         }
     }
 
-    public function test_single_location_ui_components_no_longer_reference_branch_payload_fields(): void
+    public function test_panel_components_do_not_reference_removed_location_payload_fields(): void
     {
         $components = [
             resource_path('js/components/panel/AttendancePage.vue'),
@@ -79,10 +78,9 @@ class SidebarBranchSelectorUiTest extends TestCase
             $contents = file_get_contents($component);
 
             $this->assertNotFalse($contents);
-            $this->assertStringNotContainsString('branch_id', $contents, $component);
-            $this->assertStringNotContainsString('branch_name', $contents, $component);
-            $this->assertStringNotContainsString('branch_country_code', $contents, $component);
-            $this->assertStringNotContainsString('.branch', $contents, $component);
+            $this->assertStringNotContainsString('location_id', $contents, $component);
+            $this->assertStringNotContainsString('location_name', $contents, $component);
+            $this->assertStringNotContainsString('location_breakdown', $contents, $component);
         }
     }
 
@@ -98,7 +96,7 @@ class SidebarBranchSelectorUiTest extends TestCase
 
             $this->assertNotFalse($contents);
             $this->assertStringNotContainsString('{{ window.JPrime', $contents, $component);
-            $this->assertStringContainsString('currentLocationName', $contents, $component);
+            $this->assertStringNotContainsString('currentLocationName', $contents, $component);
         }
     }
 
@@ -131,7 +129,7 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString('v-if="pageError"', $notificationsContents);
 
         $this->assertNotFalse($settingsContents);
-        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Business Settings</h4>', $settingsContents);
+        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Settings</h4>', $settingsContents);
         $this->assertStringNotContainsString('Current Profile Snapshot', $settingsContents);
         $this->assertStringNotContainsString('BusinessInformationPage', $settingsContents);
     }
@@ -154,9 +152,9 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertNotFalse($styles);
         $this->assertStringContainsString('.form-control:disabled,', $styles);
         $this->assertStringContainsString('.form-control[readonly]', $styles);
-        $this->assertStringContainsString('background-color: #eef2f7;', $styles);
-        $this->assertStringContainsString('-webkit-text-fill-color: #475569;', $styles);
+        $this->assertStringContainsString('background-color: rgba(var(--bs-light-rgb)) !important;', $styles);
         $this->assertStringContainsString('.form-control[readonly]:focus', $styles);
+        $this->assertStringContainsString('background-color: #eef2f7;', $styles);
         $this->assertStringContainsString('box-shadow: none;', $styles);
         $this->assertStringContainsString('background-color: #1f2937;', $styles);
     }
@@ -190,11 +188,11 @@ class SidebarBranchSelectorUiTest extends TestCase
         $contents = file_get_contents(resource_path('views/panel/layouts/app.blade.php'));
 
         $this->assertNotFalse($contents);
-        $this->assertStringContainsString('<div class="sidebar-menu-heading">Business</div>', $contents);
+        $this->assertStringNotContainsString('<div class="sidebar-menu-heading">Business</div>', $contents);
         $this->assertStringNotContainsString("route('panel.business.cash-ledger')", $contents);
         $this->assertStringNotContainsString('<span class="sidebar-nav-label">Cash Ledger</span>', $contents);
         $this->assertStringContainsString("route('panel.business.settings')", $contents);
-        $this->assertStringContainsString('<span class="sidebar-nav-label">Business Settings</span>', $contents);
+        $this->assertStringNotContainsString('<span class="sidebar-nav-label">Business Settings</span>', $contents);
         $this->assertStringNotContainsString("route('panel.business.photos')", $contents);
         $this->assertStringNotContainsString('<span class="sidebar-nav-label">Photos</span>', $contents);
         $this->assertStringContainsString('<div class="sidebar-menu-heading">System</div>', $contents);
@@ -203,7 +201,7 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringNotContainsString("request()->routeIs('panel.programs.*')", $contents);
         $this->assertStringNotContainsString('<span class="sidebar-nav-label">Programs</span>', $contents);
         $this->assertStringNotContainsString("request()->routeIs('panel.settings')", $contents);
-        $this->assertStringNotContainsString('<span class="sidebar-nav-label">Settings</span>', $contents);
+        $this->assertStringContainsString('<span class="sidebar-nav-label">Settings</span>', $contents);
     }
 
     public function test_employee_payroll_page_contains_only_current_payroll_inputs(): void
@@ -215,7 +213,26 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringNotContainsString('Auto-fill', $contents);
     }
 
-    public function test_removed_branch_selector_files_are_gone(): void
+    public function test_employee_settings_page_splits_information_and_payroll_controls(): void
+    {
+        $contents = file_get_contents(resource_path('js/components/panel/vendor/EmployeeSettingsPage.vue'));
+
+        $this->assertNotFalse($contents);
+        $this->assertStringContainsString('<div class="col-xl-8">', $contents);
+        $this->assertStringContainsString('<div class="fw-semibold mb-1">Employee Information</div>', $contents);
+        $this->assertStringNotContainsString('currentLocationName', $contents);
+        $this->assertStringNotContainsString('value="currentLocationName"', $contents);
+        $this->assertStringNotContainsString('border rounded-3 p-3 bg-light h-100', $contents);
+        $this->assertStringContainsString('New Password', $contents);
+        $this->assertStringContainsString('<div class="col-xl-4">', $contents);
+        $this->assertStringContainsString('<section class="border rounded-3 p-3 bg-light">', $contents);
+        $this->assertStringContainsString('<div class="fw-semibold">Biometric Fingerprint</div>', $contents);
+        $this->assertStringContainsString('<section class="border rounded-3 p-3 bg-light" v-if="isPhilippinesPayroll">', $contents);
+        $this->assertStringContainsString('<div class="fw-semibold mb-1">Philippine Government Contributions</div>', $contents);
+        $this->assertStringNotContainsString('Biometric Attendance', $contents);
+    }
+
+    public function test_removed_panel_files_are_gone(): void
     {
         $this->assertFileDoesNotExist(resource_path('js/components/panel/_vendor/businessFormOptions.js'));
         $this->assertFileExists(resource_path('js/components/panel/vendor/AsyncSearchSelect.vue'));
@@ -223,9 +240,6 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertFileExists(resource_path('js/components/panel/vendor/MultiSelect.vue'));
         $this->assertFileExists(resource_path('js/components/panel/vendor/PanelNotifications.vue'));
         $this->assertDirectoryDoesNotExist(resource_path('js/components/panel/_vendor'));
-        $this->assertFileDoesNotExist(resource_path('js/components/panel/_vendor/BranchSelector.vue'));
-        $this->assertFileDoesNotExist(resource_path('js/components/panel/_vendor/BranchSelectorCollapsed.vue'));
-        $this->assertFileDoesNotExist(resource_path('js/components/panel/BranchesPage.vue'));
         $this->assertFileDoesNotExist(resource_path('js/components/panel/SettingsPage.vue'));
         $this->assertFileDoesNotExist(resource_path('views/panel/settings.blade.php'));
     }
