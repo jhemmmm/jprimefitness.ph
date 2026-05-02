@@ -23,7 +23,7 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('hikvision.helper_forward_token', 'forward-token');
+        config()->set('services.biometric.token', 'forward-token');
 
         BusinessProfile::factory()->create([
             'name' => 'J Prime Fitness',
@@ -48,8 +48,8 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
         $firstPayload = $this->forwardedPayload($profile->hikvision_employee_no, 186, '2026-04-13T23:19:21+08:00');
         $secondPayload = $this->forwardedPayload($profile->hikvision_employee_no, 187, '2026-04-14T07:00:00+08:00');
 
-        $this->postJson('/hikvision/callback', $firstPayload, [
-            'X-Hikvision-Token' => 'forward-token',
+        $this->postJson('/api/biometric/hikvision/callback', $firstPayload, [
+            'X-Biometric-Token' => 'forward-token',
         ])
             ->assertAccepted()
             ->assertJsonPath('status', 'processed')
@@ -61,8 +61,8 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
         $this->assertSame('DS-K1A802AEF', $attendance->source_device_serial);
         $this->assertNull($attendance->checked_out_at);
 
-        $this->postJson('/hikvision/callback', $secondPayload, [
-            'X-Hikvision-Token' => 'forward-token',
+        $this->postJson('/api/biometric/hikvision/callback', $secondPayload, [
+            'X-Biometric-Token' => 'forward-token',
         ])
             ->assertAccepted()
             ->assertJsonPath('status', 'processed')
@@ -72,8 +72,8 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
 
         $this->assertNotNull($attendance->checked_out_at);
 
-        $this->postJson('/hikvision/callback', $secondPayload, [
-            'X-Hikvision-Token' => 'forward-token',
+        $this->postJson('/api/biometric/hikvision/callback', $secondPayload, [
+            'X-Biometric-Token' => 'forward-token',
         ])
             ->assertOk()
             ->assertJsonPath('status', 'duplicate')
@@ -115,8 +115,8 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
         $stalePayload = $this->forwardedPayload($profile->hikvision_employee_no, 185, '2026-04-13T22:00:00+08:00');
         $checkOutPayload = $this->forwardedPayload($profile->hikvision_employee_no, 187, '2026-04-14T07:00:00+08:00');
 
-        $this->postJson('/hikvision/callback', $checkInPayload, [
-            'X-Hikvision-Token' => 'forward-token',
+        $this->postJson('/api/biometric/hikvision/callback', $checkInPayload, [
+            'X-Biometric-Token' => 'forward-token',
         ])
             ->assertAccepted()
             ->assertJsonPath('status', 'processed')
@@ -124,8 +124,8 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
 
         $attendance = Attendance::query()->where('user_id', $employee->id)->sole();
 
-        $this->postJson('/hikvision/callback', $stalePayload, [
-            'X-Hikvision-Token' => 'forward-token',
+        $this->postJson('/api/biometric/hikvision/callback', $stalePayload, [
+            'X-Biometric-Token' => 'forward-token',
         ])
             ->assertAccepted()
             ->assertJsonPath('status', 'ignored')
@@ -151,8 +151,8 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
             'attendance_id' => $attendance->id,
         ]);
 
-        $this->postJson('/hikvision/callback', $checkOutPayload, [
-            'X-Hikvision-Token' => 'forward-token',
+        $this->postJson('/api/biometric/hikvision/callback', $checkOutPayload, [
+            'X-Biometric-Token' => 'forward-token',
         ])
             ->assertAccepted()
             ->assertJsonPath('status', 'processed')
@@ -166,38 +166,27 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
 
     public function test_helper_forwarded_attendance_callback_rejects_invalid_forward_token(): void
     {
-        $this->postJson('/hikvision/callback', $this->forwardedPayload('00000001', 186), [
-            'X-Hikvision-Token' => 'wrong-token',
-        ])->assertForbidden();
+        $this->postJson('/api/biometric/hikvision/callback', $this->forwardedPayload('00000001', 186), [
+            'X-Biometric-Token' => 'wrong-token',
+        ])->assertUnauthorized();
     }
 
     public function test_helper_forwarded_attendance_callback_redacts_forward_tokens_from_logs(): void
     {
         Log::spy();
 
-        $this->postJson('/hikvision/callback?token=query-secret', $this->forwardedPayload('00000001', 186), [
-            'X-Hikvision-Token' => 'header-secret',
-        ])->assertForbidden();
+        $this->postJson('/api/biometric/hikvision/callback?token=query-secret', $this->forwardedPayload('00000001', 186), [
+            'X-Biometric-Token' => 'forward-token',
+        ])->assertAccepted();
 
         Log::shouldHaveReceived('info')
             ->with(
                 'Received Hikvision attendance callback',
                 Mockery::on(function (array $context): bool {
                     return ($context['query_params']['token'] ?? null) === '[redacted]'
-                        && ($context['headers']['x-hikvision-token'][0] ?? null) === '[redacted]'
+                        && ($context['headers']['x-biometric-token'][0] ?? null) === '[redacted]'
                         && ! str_contains(json_encode($context) ?: '', 'query-secret')
-                        && ! str_contains(json_encode($context) ?: '', 'header-secret');
-                })
-            )
-            ->once();
-
-        Log::shouldHaveReceived('warning')
-            ->with(
-                'Rejected Hikvision helper callback because of invalid token',
-                Mockery::on(function (array $context): bool {
-                    return ($context['query_params']['token'] ?? null) === '[redacted]'
-                        && ! str_contains(json_encode($context) ?: '', 'query-secret')
-                        && ! str_contains(json_encode($context) ?: '', 'header-secret');
+                        && ! str_contains(json_encode($context) ?: '', 'forward-token');
                 })
             )
             ->once();

@@ -26,10 +26,10 @@ class EmployeeBiometricIntegrationTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('hikvision.enabled', true);
-        config()->set('hikvision.helper_base_url', 'http://helper.test');
-        config()->set('hikvision.helper_timeout', 60);
-        config()->set('hikvision.helper_forward_token', 'expected-token');
+        config()->set('services.biometric.enabled', true);
+        config()->set('services.biometric.helper_base_url', 'http://helper.test');
+        config()->set('services.biometric.helper_timeout', 60);
+        config()->set('services.biometric.token', 'expected-token');
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
@@ -334,15 +334,16 @@ class EmployeeBiometricIntegrationTest extends TestCase
 
     public function test_hikvision_callback_rejects_invalid_token(): void
     {
-        config()->set('hikvision.helper_forward_token', 'expected-token');
+        config()->set('services.biometric.token', 'expected-token');
 
-        $this->postJson('/hikvision/callback?token=wrong-token', $this->forwardedPayload('SERIAL-1', '00000999', 'event-1'))
-            ->assertForbidden();
+        $this->postJson('/api/biometric/hikvision/callback', $this->forwardedPayload('SERIAL-1', '00000999', 'event-1'), [
+            'X-Biometric-Token' => 'wrong-token',
+        ])->assertUnauthorized();
     }
 
     public function test_hikvision_callback_toggles_employee_attendance_dedupes_duplicates_and_records_system_activities(): void
     {
-        config()->set('hikvision.helper_forward_token', 'expected-token');
+        config()->set('services.biometric.token', 'expected-token');
 
         $employee = $this->createUserWithRole('staff', 'Coach Kai');
         $profile = EmployeeProfile::query()->updateOrCreate(
@@ -358,7 +359,9 @@ class EmployeeBiometricIntegrationTest extends TestCase
         $firstPayload = $this->forwardedPayload('SERIAL-1', $profile->hikvision_employee_no, 'event-1', '2026-04-12T08:00:00+08:00');
         $secondPayload = $this->forwardedPayload('SERIAL-1', $profile->hikvision_employee_no, 'event-2', '2026-04-12T17:00:00+08:00');
 
-        $this->postJson('/hikvision/callback?token=expected-token', $firstPayload)
+        $this->postJson('/api/biometric/hikvision/callback', $firstPayload, [
+            'X-Biometric-Token' => 'expected-token',
+        ])
             ->assertAccepted()
             ->assertJsonPath('status', 'processed')
             ->assertJsonPath('action', 'check_in')
@@ -370,7 +373,9 @@ class EmployeeBiometricIntegrationTest extends TestCase
         $this->assertSame('SERIAL-1', $attendance->source_device_serial);
         $this->assertNull($attendance->checked_out_at);
 
-        $this->postJson('/hikvision/callback?token=expected-token', $secondPayload)
+        $this->postJson('/api/biometric/hikvision/callback', $secondPayload, [
+            'X-Biometric-Token' => 'expected-token',
+        ])
             ->assertAccepted()
             ->assertJsonPath('status', 'processed')
             ->assertJsonPath('action', 'check_out')
@@ -381,7 +386,9 @@ class EmployeeBiometricIntegrationTest extends TestCase
         $this->assertNotNull($attendance->checked_out_at);
         $this->assertSame(1, Attendance::query()->count());
 
-        $this->postJson('/hikvision/callback?token=expected-token', $secondPayload)
+        $this->postJson('/api/biometric/hikvision/callback', $secondPayload, [
+            'X-Biometric-Token' => 'expected-token',
+        ])
             ->assertOk()
             ->assertJsonPath('status', 'duplicate')
             ->assertJsonPath('action', 'duplicate')
@@ -424,7 +431,7 @@ class EmployeeBiometricIntegrationTest extends TestCase
 
     public function test_hikvision_callback_ignores_non_fingerprint_events(): void
     {
-        config()->set('hikvision.helper_forward_token', 'expected-token');
+        config()->set('services.biometric.token', 'expected-token');
 
         $employee = $this->createUserWithRole('staff', 'Coach Kai');
         EmployeeProfile::query()->updateOrCreate(
@@ -439,7 +446,9 @@ class EmployeeBiometricIntegrationTest extends TestCase
         $payload['event_sub_type'] = 1;
         $payload['raw']['AccessControllerEvent']['subEventType'] = 1;
 
-        $this->postJson('/hikvision/callback?token=expected-token', $payload)
+        $this->postJson('/api/biometric/hikvision/callback', $payload, [
+            'X-Biometric-Token' => 'expected-token',
+        ])
             ->assertAccepted()
             ->assertJsonPath('status', 'ignored')
             ->assertJsonPath('action', 'ignored')

@@ -20,6 +20,8 @@ class Attendance extends Model
 
     public const SOURCE_HIKVISION = 'hikvision';
 
+    public const SOURCE_KIOSK = 'kiosk';
+
     protected $fillable = [
         'attendee_type',
         'user_id',

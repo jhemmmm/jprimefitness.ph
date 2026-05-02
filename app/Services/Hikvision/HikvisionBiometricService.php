@@ -69,7 +69,7 @@ class HikvisionBiometricService
             'uuid' => (string) Str::uuid(),
             'employee_profile_id' => $profile->id,
             'status' => EmployeeBiometricSession::STATUS_PENDING,
-            'fingerprint_id' => (int) config('hikvision.fingerprint_id', 1),
+            'fingerprint_id' => (int) config('services.biometric.fingerprint_id', 1),
             'started_by' => $actor?->id,
         ]);
 
@@ -128,7 +128,7 @@ class HikvisionBiometricService
             $enrollment = $this->hikvisionHelperClient->enrollFingerprint(
                 $profile->fresh(),
                 (int) $session->fingerprint_id,
-                (int) config('hikvision.enrollment_timeout', 30),
+                (int) config('services.biometric.enrollment_timeout', 30),
             );
 
             if (! ($enrollment['savedToDevice'] ?? false)) {
@@ -196,7 +196,7 @@ class HikvisionBiometricService
             return $session->fresh(['employeeProfile.user', 'startedBy']);
         }
 
-        if ($session->created_at && $session->created_at->lt(now()->subSeconds((int) config('hikvision.enrollment_timeout', 30) + 5))) {
+        if ($session->created_at && $session->created_at->lt(now()->subSeconds((int) config('services.biometric.enrollment_timeout', 30) + 5))) {
             $session->update([
                 'status' => EmployeeBiometricSession::STATUS_EXPIRED,
                 'completed_at' => now(),

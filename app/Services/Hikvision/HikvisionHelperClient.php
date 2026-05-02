@@ -69,17 +69,17 @@ class HikvisionHelperClient
      */
     private function request(string $method, string $path, array $payload): Response
     {
-        if (! config('hikvision.enabled')) {
+        if (! config('services.biometric.enabled')) {
             throw new RuntimeException('The biometric enrollment service integration is disabled.');
         }
 
-        $baseUrl = trim((string) config('hikvision.helper_base_url', ''));
+        $baseUrl = trim((string) config('services.biometric.helper_base_url', ''));
 
         if ($baseUrl === '') {
             throw new RuntimeException('Biometric enrollment service base URL is not configured.');
         }
 
-        $timeout = max(1, (int) config('hikvision.helper_timeout', 60));
+        $timeout = max(1, (int) config('services.biometric.helper_timeout', 60));
 
         try {
             return $this->http

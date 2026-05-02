@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
 use App\Services\Hikvision\HikvisionAttendanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,15 +20,7 @@ class HikvisionCallbackController extends Controller
     {
         Log::info('Received Hikvision attendance callback', $this->requestLogContext($request));
 
-        $payload = $this->payload($request);
-
-        if (! $this->hasValidToken($request)) {
-            Log::warning('Rejected Hikvision helper callback because of invalid token', $this->requestLogContext($request));
-
-            abort(403, 'Invalid Hikvision helper forward token.');
-        }
-
-        $result = $hikvisionAttendanceService->ingest($payload);
+        $result = $hikvisionAttendanceService->ingest($this->payload($request));
         $statusCode = $result['status'] === 'duplicate' ? 200 : 202;
 
         Log::info('Hikvision attendance callback processed', [
@@ -56,25 +49,6 @@ class HikvisionCallbackController extends Controller
                 $result['occurred_at']
             ),
         ], $statusCode);
-    }
-
-    /**
-     * Determine whether the callback request token is valid.
-     *
-     * @return bool
-     */
-    private function hasValidToken(Request $request): bool
-    {
-        $expected = (string) config('hikvision.helper_forward_token', '');
-
-        if ($expected === '') {
-            return false;
-        }
-
-        return hash_equals(
-            $expected,
-            (string) ($request->query('token') ?: $request->header('X-Hikvision-Token', ''))
-        );
     }
 
     /**
@@ -121,6 +95,7 @@ class HikvisionCallbackController extends Controller
     {
         return in_array(Str::lower($key), [
             'token',
+            'x-biometric-token',
             'x-hikvision-token',
             'authorization',
             'cookie',

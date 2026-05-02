@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\HikvisionCallbackController;
 use App\Http\Controllers\Home\HomeController;
 use App\Http\Controllers\Panel\AttendanceController;
 use App\Http\Controllers\Panel\AttendanceReportsController;
@@ -17,14 +16,10 @@ use App\Http\Controllers\Panel\SalesController;
 use App\Http\Controllers\Panel\SalesReportsController;
 use App\Http\Controllers\Panel\SearchController;
 use App\Http\Controllers\Panel\SettingsController;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::post('/hikvision/callback', [HikvisionCallbackController::class, 'store'])
-    ->withoutMiddleware([ValidateCsrfToken::class])
-    ->name('hikvision.callback');
 
 Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');

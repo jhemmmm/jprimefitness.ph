@@ -16,9 +16,9 @@ class HikvisionIsapiClientTest extends TestCase
     {
         parent::setUp();
 
-        config()->set('hikvision.enabled', true);
-        config()->set('hikvision.helper_base_url', 'http://helper.test');
-        config()->set('hikvision.helper_timeout', 60);
+        config()->set('services.biometric.enabled', true);
+        config()->set('services.biometric.helper_base_url', 'http://helper.test');
+        config()->set('services.biometric.helper_timeout', 60);
     }
 
     public function test_upsert_employee_posts_expected_payload_to_the_helper(): void

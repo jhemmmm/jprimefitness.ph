@@ -85,6 +85,10 @@ class AttendanceObserver
             return 'Hikvision '.$attendance->source_device_serial;
         }
 
+        if ($attendance->source === Attendance::SOURCE_KIOSK && $attendance->source_device_serial) {
+            return 'Kiosk '.$attendance->source_device_serial;
+        }
+
         return null;
     }
 

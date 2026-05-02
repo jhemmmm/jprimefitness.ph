@@ -12,7 +12,7 @@ class HikvisionSdkBridgeTest extends TestCase
 {
     public function test_helper_client_requires_the_helper_to_be_enabled(): void
     {
-        config()->set('hikvision.enabled', false);
+        config()->set('services.biometric.enabled', false);
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('The biometric enrollment service integration is disabled.');
@@ -25,8 +25,8 @@ class HikvisionSdkBridgeTest extends TestCase
 
     public function test_helper_client_requires_a_base_url(): void
     {
-        config()->set('hikvision.enabled', true);
-        config()->set('hikvision.helper_base_url', '');
+        config()->set('services.biometric.enabled', true);
+        config()->set('services.biometric.helper_base_url', '');
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Biometric enrollment service base URL is not configured.');
