@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Jobs\RunEmployeeBiometricEnrollment;
 use App\Models\Attendance;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\BusinessProfile;
 use App\Models\EmployeeBiometricSession;
 use App\Models\EmployeeProfile;
@@ -133,7 +133,7 @@ class EmployeeBiometricIntegrationTest extends TestCase
         ]);
     }
 
-    public function test_successful_biometric_enrollment_updates_employee_profile_and_records_audit_events(): void
+    public function test_successful_biometric_enrollment_updates_employee_profile_and_records_system_activities(): void
     {
         Bus::fake();
 
@@ -162,14 +162,14 @@ class EmployeeBiometricIntegrationTest extends TestCase
             'biometric_fingerprint_id' => 1,
         ]);
 
-        $this->assertDatabaseHas('audit_events', [
-            'subject_type' => AuditEvent::SUBJECT_EMPLOYEE,
+        $this->assertDatabaseHas('system_activities', [
+            'subject_type' => SystemActivity::SUBJECT_EMPLOYEE,
             'subject_id' => $employee->id,
             'event' => 'biometric_enrollment_started',
         ]);
 
-        $this->assertDatabaseHas('audit_events', [
-            'subject_type' => AuditEvent::SUBJECT_EMPLOYEE,
+        $this->assertDatabaseHas('system_activities', [
+            'subject_type' => SystemActivity::SUBJECT_EMPLOYEE,
             'subject_id' => $employee->id,
             'event' => 'biometric_enrolled',
         ]);
@@ -325,8 +325,8 @@ class EmployeeBiometricIntegrationTest extends TestCase
             'biometric_fingerprint_id' => null,
         ]);
 
-        $this->assertDatabaseHas('audit_events', [
-            'subject_type' => AuditEvent::SUBJECT_EMPLOYEE,
+        $this->assertDatabaseHas('system_activities', [
+            'subject_type' => SystemActivity::SUBJECT_EMPLOYEE,
             'subject_id' => $employee->id,
             'event' => 'biometric_removed',
         ]);
@@ -340,7 +340,7 @@ class EmployeeBiometricIntegrationTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_hikvision_callback_toggles_employee_attendance_dedupes_duplicates_and_records_audit_events(): void
+    public function test_hikvision_callback_toggles_employee_attendance_dedupes_duplicates_and_records_system_activities(): void
     {
         config()->set('hikvision.helper_forward_token', 'expected-token');
 
@@ -402,9 +402,9 @@ class EmployeeBiometricIntegrationTest extends TestCase
         ]);
 
         $this->assertSame(
-            ['checked_in', 'checked_out'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_ATTENDANCE)
+            ['checked_in', 'updated', 'checked_out'],
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_ATTENDANCE)
                 ->where('subject_id', $attendance->id)
                 ->orderBy('id')
                 ->pluck('event')
@@ -412,9 +412,9 @@ class EmployeeBiometricIntegrationTest extends TestCase
         );
 
         $this->assertSame(
-            ['Hikvision SERIAL-1', 'Hikvision SERIAL-1'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_ATTENDANCE)
+            ['Hikvision SERIAL-1', null, 'Hikvision SERIAL-1'],
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_ATTENDANCE)
                 ->where('subject_id', $attendance->id)
                 ->orderBy('id')
                 ->pluck('actor_name')
@@ -446,7 +446,7 @@ class EmployeeBiometricIntegrationTest extends TestCase
             ->assertJsonPath('employee_no', $this->hikvisionEmployeeNo($employee->id));
 
         $this->assertSame(0, Attendance::query()->count());
-        $this->assertSame(0, AuditEvent::query()->where('subject_type', AuditEvent::SUBJECT_ATTENDANCE)->count());
+        $this->assertSame(0, SystemActivity::query()->where('subject_type', SystemActivity::SUBJECT_ATTENDANCE)->count());
     }
 
     private function fakeSuccessfulBiometricDependencies(): void

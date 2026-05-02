@@ -3,12 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\BusinessProfile;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\User;
-use App\Services\AuditHistoryService;
+use App\Services\SystemActivityService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -38,14 +38,14 @@ class SystemActivityTest extends TestCase
         BusinessProfile::factory()->create();
     }
 
-    public function test_users_with_manage_employees_permission_can_view_and_filter_audit_history(): void
+    public function test_users_with_manage_employees_permission_can_view_and_filter_system_activity(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $staff = $this->createUserWithRole('staff', 'Staff Sam');
         $employee = $this->createUserWithRole('employee', 'Employee Eli');
 
-        AuditEvent::factory()->create([
-            'subject_type' => AuditEvent::SUBJECT_PAYROLL,
+        SystemActivity::factory()->create([
+            'subject_type' => SystemActivity::SUBJECT_PAYROLL,
             'subject_id' => 11,
             'subject_label' => 'Payroll #11 - '.$employee->name,
             'event' => 'approved',
@@ -59,8 +59,8 @@ class SystemActivityTest extends TestCase
             'occurred_at' => '2026-04-05 09:00:00',
         ]);
 
-        AuditEvent::factory()->create([
-            'subject_type' => AuditEvent::SUBJECT_PAYROLL,
+        SystemActivity::factory()->create([
+            'subject_type' => SystemActivity::SUBJECT_PAYROLL,
             'subject_id' => 12,
             'subject_label' => 'Payroll #12 - '.$employee->name,
             'event' => 'created',
@@ -83,7 +83,7 @@ class SystemActivityTest extends TestCase
             ->getJson('/panel/system-activity/list?subject_type=payroll&subject_id=11&event=approved&search=approved&date_from=2026-04-01&date_to=2026-04-30&per_page=10')
             ->assertOk()
             ->assertJsonPath('events.total', 1)
-            ->assertJsonPath('events.data.0.subject_type', AuditEvent::SUBJECT_PAYROLL)
+            ->assertJsonPath('events.data.0.subject_type', SystemActivity::SUBJECT_PAYROLL)
             ->assertJsonPath('events.data.0.subject_id', 11)
             ->assertJsonPath('events.data.0.event', 'approved')
             ->assertJsonPath('events.data.0.subject_label', 'Payroll #11 - '.$employee->name)
@@ -99,12 +99,12 @@ class SystemActivityTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_audit_history_list_supports_sorting(): void
+    public function test_system_activity_list_supports_sorting(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
 
-        AuditEvent::factory()->create([
-            'subject_type' => AuditEvent::SUBJECT_MEMBER,
+        SystemActivity::factory()->create([
+            'subject_type' => SystemActivity::SUBJECT_MEMBER,
             'subject_id' => 101,
             'subject_label' => 'Member #101 - Zoe',
             'event' => 'updated',
@@ -113,8 +113,8 @@ class SystemActivityTest extends TestCase
             'occurred_at' => '2026-04-07 09:00:00',
         ]);
 
-        AuditEvent::factory()->create([
-            'subject_type' => AuditEvent::SUBJECT_MEMBER,
+        SystemActivity::factory()->create([
+            'subject_type' => SystemActivity::SUBJECT_MEMBER,
             'subject_id' => 102,
             'subject_label' => 'Member #102 - Ava',
             'event' => 'created',
@@ -123,8 +123,8 @@ class SystemActivityTest extends TestCase
             'occurred_at' => '2026-04-05 08:00:00',
         ]);
 
-        AuditEvent::factory()->create([
-            'subject_type' => AuditEvent::SUBJECT_MEMBER,
+        SystemActivity::factory()->create([
+            'subject_type' => SystemActivity::SUBJECT_MEMBER,
             'subject_id' => 103,
             'subject_label' => 'Member #103 - Mia',
             'event' => 'deleted',
@@ -148,7 +148,7 @@ class SystemActivityTest extends TestCase
             ->assertJsonPath('events.data.2.subject_id', 101);
     }
 
-    public function test_deleted_audit_events_expose_restore_state_for_supported_subjects(): void
+    public function test_deleted_system_activities_expose_restore_state_for_supported_subjects(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $member = $this->createUserWithRole('member', 'Member Max');
@@ -172,9 +172,9 @@ class SystemActivityTest extends TestCase
         ]);
         $inventoryItem->delete();
 
-        $this->makeAuditEvent(AuditEvent::SUBJECT_EMPLOYEE, $deletedEmployee->id, 'deleted', 'Employee #'.$deletedEmployee->id.' - '.$deletedEmployee->name, occurredAt: '2026-04-10 13:00:00');
-        $this->makeAuditEvent(AuditEvent::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$member->name, occurredAt: '2026-04-10 13:05:00');
-        $this->makeAuditEvent(AuditEvent::SUBJECT_INVENTORY_ITEM, $inventoryItem->id, 'deleted', 'Inventory Item #'.$inventoryItem->id.' - '.$inventoryItem->name, occurredAt: '2026-04-10 13:15:00');
+        $this->makeSystemActivity(SystemActivity::SUBJECT_EMPLOYEE, $deletedEmployee->id, 'deleted', 'Employee #'.$deletedEmployee->id.' - '.$deletedEmployee->name, occurredAt: '2026-04-10 13:00:00');
+        $this->makeSystemActivity(SystemActivity::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$member->name, occurredAt: '2026-04-10 13:05:00');
+        $this->makeSystemActivity(SystemActivity::SUBJECT_INVENTORY_ITEM, $inventoryItem->id, 'deleted', 'Inventory Item #'.$inventoryItem->id.' - '.$inventoryItem->name, occurredAt: '2026-04-10 13:15:00');
 
         $events = collect($this->actingAs($manager)
             ->getJson('/panel/system-activity/list?per_page=20')
@@ -182,9 +182,9 @@ class SystemActivityTest extends TestCase
             ->json('events.data'));
 
         foreach ([
-            [AuditEvent::SUBJECT_EMPLOYEE, $deletedEmployee->id],
-            [AuditEvent::SUBJECT_ATTENDANCE, $attendance->id],
-            [AuditEvent::SUBJECT_INVENTORY_ITEM, $inventoryItem->id],
+            [SystemActivity::SUBJECT_EMPLOYEE, $deletedEmployee->id],
+            [SystemActivity::SUBJECT_ATTENDANCE, $attendance->id],
+            [SystemActivity::SUBJECT_INVENTORY_ITEM, $inventoryItem->id],
         ] as [$subjectType, $subjectId]) {
             $event = $this->findSerializedEvent($events->all(), $subjectType, $subjectId, 'deleted');
 
@@ -195,21 +195,21 @@ class SystemActivityTest extends TestCase
         }
     }
 
-    public function test_audit_history_marks_non_restorable_deleted_events_and_non_deleted_events(): void
+    public function test_system_activity_marks_non_restorable_deleted_events_and_non_deleted_events(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $activeEmployee = $this->createUserWithRole('staff', 'Staff Active');
 
-        $missingDeletedEvent = $this->makeAuditEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $missingDeletedEvent = $this->makeSystemActivity(
+            SystemActivity::SUBJECT_EMPLOYEE,
             999999,
             'deleted',
             'Employee #999999 - Missing Person',
             occurredAt: '2026-04-10 08:00:00',
         );
 
-        $updatedEvent = $this->makeAuditEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $updatedEvent = $this->makeSystemActivity(
+            SystemActivity::SUBJECT_EMPLOYEE,
             $activeEmployee->id,
             'updated',
             'Employee #'.$activeEmployee->id.' - '.$activeEmployee->name,
@@ -241,7 +241,7 @@ class SystemActivityTest extends TestCase
 
         $employee = $this->createUserWithRole('staff', 'Staff Soft Delete');
         $employee->delete();
-        $employeeEvent = $this->makeAuditEvent(AuditEvent::SUBJECT_EMPLOYEE, $employee->id, 'deleted', 'Employee #'.$employee->id.' - '.$employee->name);
+        $employeeEvent = $this->makeSystemActivity(SystemActivity::SUBJECT_EMPLOYEE, $employee->id, 'deleted', 'Employee #'.$employee->id.' - '.$employee->name);
 
         $attendance = Attendance::create([
             'attendee_type' => Attendance::TYPE_MEMBER,
@@ -251,18 +251,18 @@ class SystemActivityTest extends TestCase
             'recorded_by' => $manager->id,
         ]);
         $attendance->delete();
-        $attendanceEvent = $this->makeAuditEvent(AuditEvent::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$member->name);
+        $attendanceEvent = $this->makeSystemActivity(SystemActivity::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$member->name);
 
         $inventoryItem = InventoryItem::factory()->create([
             'inventory_category_id' => $inventoryCategory->id,
             'name' => 'Jump Rope',
         ]);
         $inventoryItem->delete();
-        $inventoryEvent = $this->makeAuditEvent(AuditEvent::SUBJECT_INVENTORY_ITEM, $inventoryItem->id, 'deleted', 'Inventory Item #'.$inventoryItem->id.' - '.$inventoryItem->name);
+        $inventoryEvent = $this->makeSystemActivity(SystemActivity::SUBJECT_INVENTORY_ITEM, $inventoryItem->id, 'deleted', 'Inventory Item #'.$inventoryItem->id.' - '.$inventoryItem->name);
 
-        foreach ([$employeeEvent, $attendanceEvent, $inventoryEvent] as $auditEvent) {
+        foreach ([$employeeEvent, $attendanceEvent, $inventoryEvent] as $systemActivity) {
             $this->actingAs($manager)
-                ->postJson("/panel/system-activity/{$auditEvent->id}/restore")
+                ->postJson("/panel/system-activity/{$systemActivity->id}/restore")
                 ->assertOk()
                 ->assertJsonPath('message', 'Record restored successfully.');
         }
@@ -271,8 +271,8 @@ class SystemActivityTest extends TestCase
         $this->assertNull(Attendance::withTrashed()->findOrFail($attendance->id)->deleted_at);
         $this->assertNull(InventoryItem::withTrashed()->findOrFail($inventoryItem->id)->deleted_at);
 
-        $this->assertSame('restored', AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_EMPLOYEE)
+        $this->assertSame('restored', SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_EMPLOYEE)
             ->where('subject_id', $employee->id)
             ->latest('id')
             ->value('event'));
@@ -290,10 +290,10 @@ class SystemActivityTest extends TestCase
         ]);
         $attendance->delete();
 
-        $auditEvent = $this->makeAuditEvent(AuditEvent::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$attendance->name);
+        $systemActivity = $this->makeSystemActivity(SystemActivity::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$attendance->name);
 
         $this->actingAs($manager)
-            ->postJson("/panel/system-activity/{$auditEvent->id}/restore")
+            ->postJson("/panel/system-activity/{$systemActivity->id}/restore")
             ->assertOk();
 
         $this->assertNull(Attendance::withTrashed()->findOrFail($attendance->id)->deleted_at);
@@ -304,43 +304,43 @@ class SystemActivityTest extends TestCase
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $employee = $this->createUserWithRole('staff', 'Staff Active');
 
-        $updatedEvent = $this->makeAuditEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $updatedEvent = $this->makeSystemActivity(
+            SystemActivity::SUBJECT_EMPLOYEE,
             $employee->id,
             'updated',
             'Employee #'.$employee->id.' - '.$employee->name,
         );
 
-        $alreadyActiveDeletedEvent = $this->makeAuditEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $alreadyActiveDeletedEvent = $this->makeSystemActivity(
+            SystemActivity::SUBJECT_EMPLOYEE,
             $employee->id,
             'deleted',
             'Employee #'.$employee->id.' - '.$employee->name,
         );
 
-        $missingDeletedEvent = $this->makeAuditEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $missingDeletedEvent = $this->makeSystemActivity(
+            SystemActivity::SUBJECT_EMPLOYEE,
             999999,
             'deleted',
             'Employee #999999 - Missing Person',
         );
 
-        foreach ([$updatedEvent, $alreadyActiveDeletedEvent, $missingDeletedEvent] as $auditEvent) {
+        foreach ([$updatedEvent, $alreadyActiveDeletedEvent, $missingDeletedEvent] as $systemActivity) {
             $this->actingAs($manager)
-                ->postJson("/panel/system-activity/{$auditEvent->id}/restore")
+                ->postJson("/panel/system-activity/{$systemActivity->id}/restore")
                 ->assertUnprocessable()
                 ->assertJsonValidationErrors(['restore']);
         }
     }
 
-    public function test_deleted_employee_audit_links_remain_openable(): void
+    public function test_deleted_employee_activity_links_remain_openable(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $employee = $this->createUserWithRole('staff', 'Staff Soft Delete');
         $employee->delete();
 
-        $this->makeAuditEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $this->makeSystemActivity(
+            SystemActivity::SUBJECT_EMPLOYEE,
             $employee->id,
             'deleted',
             'Employee #'.$employee->id.' - '.$employee->name,
@@ -367,13 +367,13 @@ class SystemActivityTest extends TestCase
 
     }
 
-    public function test_sale_audit_subject_labels_are_trimmed_to_fit_the_column(): void
+    public function test_sale_activity_subject_labels_are_trimmed_to_fit_the_column(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
         $longName = str_repeat('S', 255);
 
-        app(AuditHistoryService::class)->recordSubjectEvent(
-            AuditEvent::SUBJECT_SALE_TRANSACTION,
+        app(SystemActivityService::class)->recordSubjectEvent(
+            SystemActivity::SUBJECT_SALE_TRANSACTION,
             999,
             'created',
             [
@@ -390,14 +390,14 @@ class SystemActivityTest extends TestCase
             now(),
         );
 
-        $auditEvent = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_SALE_TRANSACTION)
+        $systemActivity = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_SALE_TRANSACTION)
             ->where('subject_id', 999)
             ->where('event', 'created')
             ->firstOrFail();
 
-        $this->assertLessThanOrEqual(255, strlen($auditEvent->subject_label ?? ''));
-        $this->assertStringStartsWith('Sale #999 - ', (string) $auditEvent->subject_label);
+        $this->assertLessThanOrEqual(255, strlen($systemActivity->subject_label ?? ''));
+        $this->assertStringStartsWith('Sale #999 - ', (string) $systemActivity->subject_label);
     }
 
     private function createUserWithRole(string $role, string $name): User
@@ -416,15 +416,15 @@ class SystemActivityTest extends TestCase
     /**
      * @param  array<string, mixed>  $metadata
      */
-    private function makeAuditEvent(
+    private function makeSystemActivity(
         string $subjectType,
         int $subjectId,
         string $event,
         string $subjectLabel,
         array $metadata = [],
         ?string $occurredAt = null,
-    ): AuditEvent {
-        return AuditEvent::factory()->create([
+    ): SystemActivity {
+        return SystemActivity::factory()->create([
             'subject_type' => $subjectType,
             'subject_id' => $subjectId,
             'subject_label' => $subjectLabel,

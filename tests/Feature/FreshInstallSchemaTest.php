@@ -13,7 +13,7 @@ class FreshInstallSchemaTest extends TestCase
 
     public function test_fresh_install_uses_canonical_single_location_schema(): void
     {
-        $this->assertTrue(Schema::hasTable('audit_events'));
+        $this->assertTrue(Schema::hasTable('system_activities'));
         $this->assertTrue(Schema::hasTable('business_profiles'));
         $this->assertTrue(Schema::hasTable('member_profiles'));
         $this->assertTrue(Schema::hasTable('member_subscriptions'));
@@ -111,7 +111,7 @@ class FreshInstallSchemaTest extends TestCase
             'payroll_government_contributions_enabled',
         ]);
 
-        $this->assertTableHasColumns('audit_events', [
+        $this->assertTableHasColumns('system_activities', [
             'subject_type',
             'subject_id',
             'subject_label',

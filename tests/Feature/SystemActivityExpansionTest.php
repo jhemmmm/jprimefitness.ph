@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\BusinessProfile;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
@@ -46,7 +46,7 @@ class SystemActivityExpansionTest extends TestCase
         ]);
     }
 
-    public function test_super_admin_admin_and_manager_can_access_audit_history_with_registry_metadata(): void
+    public function test_super_admin_admin_and_manager_can_access_system_activity_with_registry_metadata(): void
     {
         $superAdmin = $this->createUserWithRole('super admin', 'Super Admin Sue');
         $admin = $this->createUserWithRole('admin', 'Admin Ava');
@@ -54,8 +54,8 @@ class SystemActivityExpansionTest extends TestCase
         $staff = $this->createUserWithRole('staff', 'Staff Sam');
         $member = $this->createUserWithRole('member', 'Member Max');
 
-        AuditEvent::factory()->create([
-            'subject_type' => AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+        SystemActivity::factory()->create([
+            'subject_type' => SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
             'subject_id' => 88,
             'subject_label' => 'Membership #88 - '.$member->name,
             'event' => 'created',
@@ -68,7 +68,7 @@ class SystemActivityExpansionTest extends TestCase
                 'rate_plan_name' => 'Monthly',
                 'status' => MemberSubscription::STATUS_ACTIVE,
                 'caused_by' => [
-                    'subject_type' => AuditEvent::SUBJECT_SALE_TRANSACTION,
+                    'subject_type' => SystemActivity::SUBJECT_SALE_TRANSACTION,
                     'subject_id' => 123,
                     'subject_label' => 'Sale #123 - '.$member->name,
                     'event' => 'created',
@@ -92,29 +92,29 @@ class SystemActivityExpansionTest extends TestCase
             ->assertOk();
 
         $this->assertSame([
-            AuditEvent::SUBJECT_BUSINESS_PROFILE,
-            AuditEvent::SUBJECT_EMPLOYEE,
-            AuditEvent::SUBJECT_PAYROLL,
-            AuditEvent::SUBJECT_PAYOUT,
-            AuditEvent::SUBJECT_MEMBER,
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
-            AuditEvent::SUBJECT_MEMBER_PT_PACKAGE,
-            AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE,
-            AuditEvent::SUBJECT_ATTENDANCE,
-            AuditEvent::SUBJECT_SALE_TRANSACTION,
-            AuditEvent::SUBJECT_INVENTORY_ITEM,
-            AuditEvent::SUBJECT_RATE_PLAN,
-            AuditEvent::SUBJECT_PT_PRODUCT,
+            SystemActivity::SUBJECT_BUSINESS_PROFILE,
+            SystemActivity::SUBJECT_EMPLOYEE,
+            SystemActivity::SUBJECT_PAYROLL,
+            SystemActivity::SUBJECT_PAYOUT,
+            SystemActivity::SUBJECT_MEMBER,
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE,
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE,
+            SystemActivity::SUBJECT_ATTENDANCE,
+            SystemActivity::SUBJECT_SALE_TRANSACTION,
+            SystemActivity::SUBJECT_INVENTORY_ITEM,
+            SystemActivity::SUBJECT_RATE_PLAN,
+            SystemActivity::SUBJECT_PT_PRODUCT,
         ], collect($response->json('meta.subject_types'))->pluck('value')->all());
 
         $this->assertContains('stock_deducted', collect($response->json('meta.event_options'))->pluck('value')->all());
 
         $response
             ->assertJsonPath('events.total', 1)
-            ->assertJsonPath('events.data.0.subject_type', AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION)
+            ->assertJsonPath('events.data.0.subject_type', SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION)
             ->assertJsonPath('events.data.0.subject_type_label', 'Memberships')
             ->assertJsonPath('events.data.0.action_url', route('panel.members.show', $member))
-            ->assertJsonPath('events.data.0.caused_by.subject_type', AuditEvent::SUBJECT_SALE_TRANSACTION)
+            ->assertJsonPath('events.data.0.caused_by.subject_type', SystemActivity::SUBJECT_SALE_TRANSACTION)
             ->assertJsonPath('events.data.0.caused_by.event_label', 'Created')
             ->assertJsonPath('events.data.0.caused_by.action_url', route('panel.sales.index'));
 
@@ -127,29 +127,29 @@ class SystemActivityExpansionTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_business_profile_changes_record_audit_events(): void
+    public function test_business_profile_changes_record_system_activities(): void
     {
         $admin = $this->createUserWithRole('admin', 'Admin Bea');
 
         $this->actingAs($admin)
             ->putJson('/panel/business/settings', $this->businessSettingsPayload([
-                'name' => 'JPrime Fitness Audit Hub',
+                'name' => 'JPrime Fitness System Activity Hub',
                 'city' => 'Naga City',
             ]))
             ->assertOk()
-            ->assertJsonPath('name', 'JPrime Fitness Audit Hub');
+            ->assertJsonPath('name', 'JPrime Fitness System Activity Hub');
 
         $this->assertSame(
             ['updated'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_BUSINESS_PROFILE)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_BUSINESS_PROFILE)
                 ->orderBy('id')
                 ->pluck('event')
                 ->all()
         );
     }
 
-    public function test_employee_payroll_payout_side_effects_record_audit_events(): void
+    public function test_employee_payroll_payout_side_effects_record_system_activities(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Pia');
         $coachRoleId = Role::findByName('coach')->id;
@@ -283,8 +283,8 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame(
             ['created', 'updated'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_EMPLOYEE)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_EMPLOYEE)
                 ->where('subject_id', $employeeId)
                 ->orderBy('id')
                 ->pluck('event')
@@ -293,8 +293,8 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame(
             ['created', 'deleted'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_EMPLOYEE)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_EMPLOYEE)
                 ->where('subject_id', $deleteEmployeeId)
                 ->orderBy('id')
                 ->pluck('event')
@@ -303,39 +303,39 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame(
             ['created', 'updated', 'approved'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_PAYROLL)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_PAYROLL)
                 ->where('subject_id', $payrollId)
                 ->orderBy('id')
                 ->pluck('event')
                 ->all()
         );
 
-        $payrollAuditEvents = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_PAYROLL)
+        $payrollSystemActivities = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_PAYROLL)
             ->where('subject_id', $payrollId)
             ->orderBy('id')
             ->get();
 
-        $this->assertSame(1725.0, (float) $payrollAuditEvents[0]->metadata['employee_contributions_total']);
-        $this->assertSame(2780.0, (float) $payrollAuditEvents[0]->metadata['employer_contributions_total']);
-        $this->assertSame(1000.0, (float) data_get($payrollAuditEvents[0]->metadata, 'employee_contributions.sss.lines.regular_ss.amount'));
-        $this->assertSame(30.0, (float) data_get($payrollAuditEvents[0]->metadata, 'employer_contributions.sss.lines.ec.amount'));
-        $this->assertArrayHasKey('employee_contributions', $payrollAuditEvents[1]->metadata);
-        $this->assertArrayHasKey('employer_contributions', $payrollAuditEvents[2]->metadata);
+        $this->assertSame(1725.0, (float) $payrollSystemActivities[0]->metadata['employee_contributions_total']);
+        $this->assertSame(2780.0, (float) $payrollSystemActivities[0]->metadata['employer_contributions_total']);
+        $this->assertSame(1000.0, (float) data_get($payrollSystemActivities[0]->metadata, 'employee_contributions.sss.lines.regular_ss.amount'));
+        $this->assertSame(30.0, (float) data_get($payrollSystemActivities[0]->metadata, 'employer_contributions.sss.lines.ec.amount'));
+        $this->assertArrayHasKey('employee_contributions', $payrollSystemActivities[1]->metadata);
+        $this->assertArrayHasKey('employer_contributions', $payrollSystemActivities[2]->metadata);
 
         $this->assertSame(
             ['created', 'cancelled'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_PAYROLL)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_PAYROLL)
                 ->where('subject_id', $cancelPayrollId)
                 ->orderBy('id')
                 ->pluck('event')
                 ->all()
         );
 
-        $this->assertDatabaseHas('audit_events', [
-            'subject_type' => AuditEvent::SUBJECT_PAYOUT,
+        $this->assertDatabaseHas('system_activities', [
+            'subject_type' => SystemActivity::SUBJECT_PAYOUT,
             'subject_id' => $payoutId,
             'event' => 'created',
         ]);
@@ -346,7 +346,7 @@ class SystemActivityExpansionTest extends TestCase
             ->assertJsonPath('events.data.0.action_url', route('panel.employees.show', $employee));
     }
 
-    public function test_member_membership_pt_package_and_pt_session_mutations_record_audit_events(): void
+    public function test_member_membership_pt_package_and_pt_session_mutations_record_system_activities(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Nia');
         $coach = $this->createUserWithRole('coach', 'Coach Rey');
@@ -409,7 +409,7 @@ class SystemActivityExpansionTest extends TestCase
                 'pt_product_id' => $ptProduct->id,
                 'coach_id' => $coach->id,
                 'assigned_at' => '2026-04-20',
-                'notes' => 'Audit trail package',
+                'notes' => 'System activity package',
             ])
             ->assertCreated();
 
@@ -429,16 +429,16 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame(
             ['created', 'updated'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_MEMBER)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_MEMBER)
                 ->where('subject_id', $member->id)
                 ->orderBy('id')
                 ->pluck('event')
                 ->all()
         );
 
-        $membershipEvents = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION)
+        $membershipEvents = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION)
             ->orderBy('id')
             ->pluck('event')
             ->all();
@@ -447,15 +447,15 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame(
             ['assigned'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_MEMBER_PT_PACKAGE)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_MEMBER_PT_PACKAGE)
                 ->where('subject_id', $package->id)
                 ->pluck('event')
                 ->all()
         );
 
-        $packageAssignedEvent = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_MEMBER_PT_PACKAGE)
+        $packageAssignedEvent = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_MEMBER_PT_PACKAGE)
             ->where('subject_id', $package->id)
             ->where('event', 'assigned')
             ->first();
@@ -465,8 +465,8 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame(
             ['recorded'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE)
                 ->where('subject_id', $usage->id)
                 ->pluck('event')
                 ->all()
@@ -478,7 +478,7 @@ class SystemActivityExpansionTest extends TestCase
             ->assertJsonPath('events.data.0.action_url', route('panel.members.show', $member));
     }
 
-    public function test_attendance_inventory_and_pricing_mutations_record_primary_audit_events(): void
+    public function test_attendance_inventory_and_pricing_mutations_record_primary_system_activities(): void
     {
         $admin = $this->createUserWithRole('admin', 'Admin Zee');
         $member = $this->createUserWithRole('member', 'Member Pax');
@@ -594,9 +594,9 @@ class SystemActivityExpansionTest extends TestCase
             ->assertNoContent();
 
         $this->assertSame(
-            ['checked_in', 'updated', 'checked_out', 'deleted'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_ATTENDANCE)
+            ['checked_in', 'updated', 'updated', 'checked_out', 'deleted'],
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_ATTENDANCE)
                 ->where('subject_id', $attendanceId)
                 ->orderBy('id')
                 ->pluck('event')
@@ -605,8 +605,8 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame(
             ['created', 'updated', 'deleted'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_INVENTORY_ITEM)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_INVENTORY_ITEM)
                 ->where('subject_id', $itemId)
                 ->orderBy('id')
                 ->pluck('event')
@@ -615,8 +615,8 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame(
             ['configured', 'updated', 'removed'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_RATE_PLAN)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_RATE_PLAN)
                 ->where('subject_id', $pricingRatePlan->id)
                 ->orderBy('id')
                 ->pluck('event')
@@ -625,8 +625,8 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame(
             ['configured', 'updated', 'removed'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_PT_PRODUCT)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_PT_PRODUCT)
                 ->where('subject_id', $pricingPtProduct->id)
                 ->orderBy('id')
                 ->pluck('event')
@@ -634,7 +634,7 @@ class SystemActivityExpansionTest extends TestCase
         );
     }
 
-    public function test_sales_record_primary_and_side_effect_audit_events_with_cause_chains(): void
+    public function test_sales_record_primary_and_side_effect_system_activities_with_cause_chains(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Sol');
         $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
@@ -670,7 +670,7 @@ class SystemActivityExpansionTest extends TestCase
                 'type' => SaleTransaction::TYPE_MEMBERSHIP,
                 'member_mode' => 'new',
                 'customer_name' => 'New Member Mia',
-                'customer_email' => 'mia.audit@example.com',
+                'customer_email' => 'mia.activity@example.com',
                 'customer_phone' => '09173334444',
                 'rate_plan_id' => $membershipPlan->id,
                 'start_date' => '2026-04-11',
@@ -680,7 +680,7 @@ class SystemActivityExpansionTest extends TestCase
             ])
             ->assertCreated();
 
-        $member = User::query()->where('email', 'mia.audit@example.com')->firstOrFail();
+        $member = User::query()->where('email', 'mia.activity@example.com')->firstOrFail();
 
         $this->actingAs($manager)
             ->postJson('/panel/sales', [
@@ -709,52 +709,52 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame(
             4,
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_SALE_TRANSACTION)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_SALE_TRANSACTION)
                 ->where('event', 'created')
                 ->count()
         );
 
-        $inventoryStockEvent = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_INVENTORY_ITEM)
+        $inventoryStockEvent = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_INVENTORY_ITEM)
             ->where('event', 'stock_deducted')
             ->first();
 
         $this->assertNotNull($inventoryStockEvent);
-        $this->assertSame(AuditEvent::SUBJECT_SALE_TRANSACTION, $inventoryStockEvent->metadata['caused_by']['subject_type'] ?? null);
+        $this->assertSame(SystemActivity::SUBJECT_SALE_TRANSACTION, $inventoryStockEvent->metadata['caused_by']['subject_type'] ?? null);
         $this->assertSame('2026-04-10 10:00:00', $inventoryStockEvent->occurred_at?->toDateTimeString());
 
-        $memberCreatedEvent = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_MEMBER)
+        $memberCreatedEvent = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_MEMBER)
             ->where('event', 'created')
             ->get()
-            ->first(fn (AuditEvent $auditEvent): bool => ($auditEvent->metadata['caused_by']['subject_type'] ?? null) === AuditEvent::SUBJECT_SALE_TRANSACTION);
+            ->first(fn (SystemActivity $systemActivity): bool => ($systemActivity->metadata['caused_by']['subject_type'] ?? null) === SystemActivity::SUBJECT_SALE_TRANSACTION);
 
         $this->assertNotNull($memberCreatedEvent);
         $this->assertSame($member->id, $memberCreatedEvent->subject_id);
         $this->assertSame('2026-04-10 11:00:00', $memberCreatedEvent->occurred_at?->toDateTimeString());
 
-        $membershipCreatedEvent = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION)
+        $membershipCreatedEvent = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION)
             ->where('event', 'created')
             ->get()
-            ->first(fn (AuditEvent $auditEvent): bool => ($auditEvent->metadata['caused_by']['subject_type'] ?? null) === AuditEvent::SUBJECT_SALE_TRANSACTION);
+            ->first(fn (SystemActivity $systemActivity): bool => ($systemActivity->metadata['caused_by']['subject_type'] ?? null) === SystemActivity::SUBJECT_SALE_TRANSACTION);
 
         $this->assertNotNull($membershipCreatedEvent);
         $this->assertSame('2026-04-10 11:00:00', $membershipCreatedEvent->occurred_at?->toDateTimeString());
 
-        $ptPackageCreatedEvent = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_MEMBER_PT_PACKAGE)
+        $ptPackageCreatedEvent = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_MEMBER_PT_PACKAGE)
             ->where('event', 'created')
             ->get()
-            ->first(fn (AuditEvent $auditEvent): bool => ($auditEvent->metadata['caused_by']['subject_type'] ?? null) === AuditEvent::SUBJECT_SALE_TRANSACTION);
+            ->first(fn (SystemActivity $systemActivity): bool => ($systemActivity->metadata['caused_by']['subject_type'] ?? null) === SystemActivity::SUBJECT_SALE_TRANSACTION);
 
         $this->assertNotNull($ptPackageCreatedEvent);
         $this->assertSame('2026-04-10 12:00:00', $ptPackageCreatedEvent->occurred_at?->toDateTimeString());
 
     }
 
-    public function test_read_only_and_failed_actions_do_not_create_extra_audit_events(): void
+    public function test_read_only_and_failed_actions_do_not_create_extra_system_activities(): void
     {
         $manager = $this->createUserWithRole('manager', 'Manager Dex');
         $staff = $this->createUserWithRole('staff', 'Staff Lee');
@@ -769,13 +769,13 @@ class SystemActivityExpansionTest extends TestCase
             ->postJson('/panel/notifications/read-all')
             ->assertOk();
 
-        $this->assertSame(0, AuditEvent::count());
+        $this->assertSame(0, SystemActivity::count());
 
         $this->actingAs($manager)
             ->getJson('/panel/sales/history')
             ->assertOk();
 
-        $this->assertSame(0, AuditEvent::count());
+        $this->assertSame(0, SystemActivity::count());
 
         $this->actingAs($manager)
             ->postJson('/panel/sales', [
@@ -790,7 +790,7 @@ class SystemActivityExpansionTest extends TestCase
             ])
             ->assertStatus(422);
 
-        $this->assertSame(0, AuditEvent::count());
+        $this->assertSame(0, SystemActivity::count());
 
         InventoryItem::factory()->create([
             'inventory_category_id' => $category->id,
@@ -799,6 +799,7 @@ class SystemActivityExpansionTest extends TestCase
             'selling_price' => 50,
             'status' => InventoryItem::STATUS_ACTIVE,
         ]);
+        $activityCountBeforeFailedStockSale = SystemActivity::count();
 
         $this->actingAs($manager)
             ->postJson('/panel/sales', [
@@ -813,7 +814,7 @@ class SystemActivityExpansionTest extends TestCase
             ])
             ->assertStatus(422);
 
-        $this->assertSame(0, AuditEvent::count());
+        $this->assertSame($activityCountBeforeFailedStockSale, SystemActivity::count());
 
         $payroll = Payroll::create([
             'employee_id' => $employee->id,
@@ -833,13 +834,13 @@ class SystemActivityExpansionTest extends TestCase
             ->postJson("/panel/employees/{$employee->id}/payrolls/{$payroll->id}/approve")
             ->assertOk();
 
-        $approvedAuditCount = AuditEvent::query()
-            ->where('subject_type', AuditEvent::SUBJECT_PAYROLL)
+        $approvedSystemActivityCount = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_PAYROLL)
             ->where('subject_id', $payroll->id)
             ->where('event', 'approved')
             ->count();
 
-        $this->assertSame(1, $approvedAuditCount);
+        $this->assertSame(1, $approvedSystemActivityCount);
 
         $this->actingAs($manager)
             ->postJson("/panel/employees/{$employee->id}/payrolls/{$payroll->id}/approve")
@@ -847,9 +848,9 @@ class SystemActivityExpansionTest extends TestCase
             ->assertJsonPath('message', 'Only draft payrolls can be approved.');
 
         $this->assertSame(
-            $approvedAuditCount,
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_PAYROLL)
+            $approvedSystemActivityCount,
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_PAYROLL)
                 ->where('subject_id', $payroll->id)
                 ->where('event', 'approved')
                 ->count()

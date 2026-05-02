@@ -3,8 +3,13 @@
 namespace App\Providers;
 
 use App\Models\BusinessProfile;
+use App\Models\Attendance;
+use App\Models\InventoryItem;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
+use App\Observers\AttendanceObserver;
+use App\Observers\BusinessProfileObserver;
+use App\Observers\InventoryItemObserver;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Role;
@@ -23,6 +28,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Attendance::observe(AttendanceObserver::class);
+        BusinessProfile::observe(BusinessProfileObserver::class);
+        InventoryItem::observe(InventoryItemObserver::class);
+
         View::composer('panel.*', function ($view) {
             $businessProfile = BusinessProfile::current();
             $ratePlans = RatePlan::where('is_active', true)->get();

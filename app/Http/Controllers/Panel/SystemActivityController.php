@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditEvent;
-use App\Services\AuditHistoryService;
+use App\Models\SystemActivity;
+use App\Services\SystemActivityService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -15,7 +15,7 @@ use Illuminate\Validation\Rule;
 class SystemActivityController extends Controller
 {
     public function __construct(
-        private AuditHistoryService $systemActivityService,
+        private SystemActivityService $systemActivityService,
     ) {
         $this->middleware(function (Request $request, \Closure $next) {
             abort_unless($this->systemActivityService->canViewSystemActivity($request->user()), 403);
@@ -47,7 +47,7 @@ class SystemActivityController extends Controller
         $sortBy = (string) ($data['sort_by'] ?? 'occurred_at');
         $sortDirection = (string) ($data['sort_direction'] ?? 'desc');
 
-        $auditEventsQuery = AuditEvent::query()
+        $systemActivitiesQuery = SystemActivity::query()
             ->when(! empty($data['subject_type']), fn ($query) => $query->where('subject_type', $data['subject_type']))
             ->when(! empty($data['subject_id']), fn ($query) => $query->where('subject_id', $data['subject_id']))
             ->when(! empty($data['event']), fn ($query) => $query->where('event', $data['event']))
@@ -64,20 +64,20 @@ class SystemActivityController extends Controller
                 });
             });
 
-        $this->applySorting($auditEventsQuery, $sortBy, $sortDirection);
+        $this->applySorting($systemActivitiesQuery, $sortBy, $sortDirection);
 
-        $auditEvents = $auditEventsQuery
+        $systemActivities = $systemActivitiesQuery
             ->paginate($perPage)
             ->withQueryString();
 
-        $auditEvents->setCollection(
-            $auditEvents->getCollection()->map(
-                fn (AuditEvent $auditEvent) => $this->serializeAuditEvent($auditEvent)
+        $systemActivities->setCollection(
+            $systemActivities->getCollection()->map(
+                fn (SystemActivity $systemActivity) => $this->serializeSystemActivity($systemActivity)
             )
         );
 
         return response()->json([
-            'events' => $auditEvents,
+            'events' => $systemActivities,
             'meta' => [
                 'subject_types' => $this->systemActivityService->subjectOptions(),
                 'event_options' => $this->systemActivityService->eventOptions(),
@@ -85,9 +85,9 @@ class SystemActivityController extends Controller
         ]);
     }
 
-    public function restore(Request $request, AuditEvent $auditEvent): JsonResponse
+    public function restore(Request $request, SystemActivity $systemActivity): JsonResponse
     {
-        $this->systemActivityService->restoreSubject($auditEvent, $request->user());
+        $this->systemActivityService->restoreSubject($systemActivity, $request->user());
 
         return response()->json([
             'message' => 'Record restored successfully.',
@@ -97,25 +97,25 @@ class SystemActivityController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function serializeAuditEvent(AuditEvent $auditEvent): array
+    private function serializeSystemActivity(SystemActivity $systemActivity): array
     {
         return [
-            'id' => $auditEvent->id,
-            'title' => $auditEvent->title,
-            'message' => $auditEvent->message,
-            'event' => $auditEvent->event,
-            'event_label' => $this->systemActivityService->eventLabel($auditEvent->event),
-            'subject_type' => $auditEvent->subject_type,
+            'id' => $systemActivity->id,
+            'title' => $systemActivity->title,
+            'message' => $systemActivity->message,
+            'event' => $systemActivity->event,
+            'event_label' => $this->systemActivityService->eventLabel($systemActivity->event),
+            'subject_type' => $systemActivity->subject_type,
             'subject_type_label' => collect($this->systemActivityService->subjectOptions())
-                ->firstWhere('value', $auditEvent->subject_type)['label'] ?? $auditEvent->subject_type,
-            'subject_id' => $auditEvent->subject_id,
-            'subject_label' => $auditEvent->subject_label,
-            'actor_name' => $auditEvent->actor_name,
-            'occurred_at' => $auditEvent->occurred_at?->toISOString(),
-            'action_url' => $this->systemActivityService->actionUrl($auditEvent),
-            'restore' => $this->systemActivityService->restoreDescriptor($auditEvent),
-            'metadata' => $auditEvent->metadata ?? [],
-            'caused_by' => $this->systemActivityService->normalizeCausedBy($auditEvent->metadata ?? []),
+                ->firstWhere('value', $systemActivity->subject_type)['label'] ?? $systemActivity->subject_type,
+            'subject_id' => $systemActivity->subject_id,
+            'subject_label' => $systemActivity->subject_label,
+            'actor_name' => $systemActivity->actor_name,
+            'occurred_at' => $systemActivity->occurred_at?->toISOString(),
+            'action_url' => $this->systemActivityService->actionUrl($systemActivity),
+            'restore' => $this->systemActivityService->restoreDescriptor($systemActivity),
+            'metadata' => $systemActivity->metadata ?? [],
+            'caused_by' => $this->systemActivityService->normalizeCausedBy($systemActivity->metadata ?? []),
         ];
     }
 

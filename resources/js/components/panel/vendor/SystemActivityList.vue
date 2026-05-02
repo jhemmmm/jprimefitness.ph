@@ -1,6 +1,6 @@
 <template>
    <div>
-      <div v-if="loading && events.length === 0" class="p-3 text-muted small">Loading audit history...</div>
+      <div v-if="loading && events.length === 0" class="p-3 text-muted small">Loading system activity...</div>
       <div v-else-if="events.length === 0" class="p-3 text-muted small">{{ emptyMessage }}</div>
 
       <div v-else class="d-flex flex-column gap-2">
@@ -48,7 +48,7 @@ export default {
       },
       emptyMessage: {
          type: String,
-         default: "No audit history found.",
+         default: "No system activity found.",
       },
       showSubject: {
          type: Boolean,

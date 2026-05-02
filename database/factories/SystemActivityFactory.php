@@ -2,13 +2,13 @@
 
 namespace Database\Factories;
 
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<AuditEvent>
+ * @extends Factory<SystemActivity>
  */
-class AuditEventFactory extends Factory
+class SystemActivityFactory extends Factory
 {
     /**
      * Define the model's default state.
@@ -18,7 +18,7 @@ class AuditEventFactory extends Factory
     public function definition(): array
     {
         return [
-            'subject_type' => AuditEvent::SUBJECT_PAYROLL,
+            'subject_type' => SystemActivity::SUBJECT_PAYROLL,
             'subject_id' => fake()->numberBetween(1, 9999),
             'subject_label' => 'Payroll #'.fake()->numberBetween(1, 9999).' - '.fake()->name(),
             'event' => 'created',

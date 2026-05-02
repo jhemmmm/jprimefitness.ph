@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\InventoryItem;
 use App\Models\MemberPtPackage;
 use App\Models\MemberSubscription;
@@ -22,7 +22,7 @@ class PosSaleService
 {
     public function __construct(
         private InventoryStockAlertService $inventoryStockAlertService,
-        private AuditHistoryService $auditHistoryService,
+        private SystemActivityService $systemActivityService,
     ) {}
 
     /**
@@ -196,10 +196,10 @@ class PosSaleService
                 ],
             ]);
 
-            $saleCause = $this->recordSaleTransactionAudit($saleTransaction, $processedBy);
+            $saleCause = $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
 
             foreach ($stockDeductions as $stockDeduction) {
-                $this->recordInventoryStockDeductionAudit(
+                $this->recordInventoryStockDeductionSystemActivity(
                     $stockDeduction['item'],
                     $stockDeduction['deducted_quantity'],
                     $stockDeduction['remaining_quantity'],
@@ -271,13 +271,13 @@ class PosSaleService
                 ],
             ]);
 
-            $saleCause = $this->recordSaleTransactionAudit($saleTransaction, $processedBy);
+            $saleCause = $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
 
             if ($memberCreated) {
-                $this->recordMemberCreatedAudit($member->fresh(), $processedBy, $saleCause, $saleTransaction->sold_at);
+                $this->recordMemberCreatedSystemActivity($member->fresh(), $processedBy, $saleCause, $saleTransaction->sold_at);
             }
 
-            $this->recordMembershipCreatedAudit(
+            $this->recordMembershipCreatedSystemActivity(
                 $subscription->fresh(['ratePlan', 'member']),
                 $processedBy,
                 $saleCause,
@@ -353,13 +353,13 @@ class PosSaleService
                 ],
             ]);
 
-            $saleCause = $this->recordSaleTransactionAudit($saleTransaction, $processedBy);
+            $saleCause = $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
 
             if ($memberCreated) {
-                $this->recordMemberCreatedAudit($member->fresh(), $processedBy, $saleCause, $saleTransaction->sold_at);
+                $this->recordMemberCreatedSystemActivity($member->fresh(), $processedBy, $saleCause, $saleTransaction->sold_at);
             }
 
-            $this->recordPtPackageAudit(
+            $this->recordPtPackageSystemActivity(
                 $package->fresh(['ptProduct', 'coach', 'member']),
                 'created',
                 $processedBy,
@@ -420,7 +420,7 @@ class PosSaleService
                 ],
             ]);
 
-            $this->recordSaleTransactionAudit($saleTransaction, $processedBy);
+            $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
 
             return $saleTransaction;
         });
@@ -468,11 +468,11 @@ class PosSaleService
     /**
      * @return array<string, mixed>
      */
-    private function recordSaleTransactionAudit(SaleTransaction $saleTransaction, User $processedBy): array
+    private function recordSaleTransactionSystemActivity(SaleTransaction $saleTransaction, User $processedBy): array
     {
-        $snapshot = $this->saleTransactionAuditSnapshot($saleTransaction);
-        $causedBy = $this->auditHistoryService->causedBy(
-            AuditEvent::SUBJECT_SALE_TRANSACTION,
+        $snapshot = $this->saleTransactionSystemActivitySnapshot($saleTransaction);
+        $causedBy = $this->systemActivityService->causedBy(
+            SystemActivity::SUBJECT_SALE_TRANSACTION,
             $saleTransaction->id,
             'created',
             $snapshot,
@@ -481,8 +481,8 @@ class PosSaleService
             ],
         );
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_SALE_TRANSACTION,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_SALE_TRANSACTION,
             $saleTransaction->id,
             'created',
             $snapshot,
@@ -495,18 +495,18 @@ class PosSaleService
         return $causedBy;
     }
 
-    private function recordMemberCreatedAudit(
+    private function recordMemberCreatedSystemActivity(
         User $member,
         User $processedBy,
         array $causedBy,
         DateTimeInterface|string|null $occurredAt = null,
     ): void
     {
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER,
             $member->id,
             'created',
-            $this->memberAuditSnapshot($member),
+            $this->memberSystemActivitySnapshot($member),
             [
                 'caused_by' => $causedBy,
             ],
@@ -516,18 +516,18 @@ class PosSaleService
         );
     }
 
-    private function recordMembershipCreatedAudit(
+    private function recordMembershipCreatedSystemActivity(
         MemberSubscription $subscription,
         User $processedBy,
         array $causedBy,
         DateTimeInterface|string|null $occurredAt = null,
     ): void
     {
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
             $subscription->id,
             'created',
-            $this->membershipAuditSnapshot($subscription),
+            $this->membershipSystemActivitySnapshot($subscription),
             [
                 'caused_by' => $causedBy,
             ],
@@ -537,7 +537,7 @@ class PosSaleService
         );
     }
 
-    private function recordPtPackageAudit(
+    private function recordPtPackageSystemActivity(
         MemberPtPackage $package,
         string $event,
         User $processedBy,
@@ -546,11 +546,11 @@ class PosSaleService
     ): void {
         $metadata = $causedBy ? ['caused_by' => $causedBy] : [];
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER_PT_PACKAGE,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE,
             $package->id,
             $event,
-            $this->ptPackageAuditSnapshot($package),
+            $this->ptPackageSystemActivitySnapshot($package),
             $metadata,
             $processedBy->id,
             $processedBy->name,
@@ -558,7 +558,7 @@ class PosSaleService
         );
     }
 
-    private function recordInventoryStockDeductionAudit(
+    private function recordInventoryStockDeductionSystemActivity(
         InventoryItem $item,
         int $deductedQuantity,
         float $remainingQuantity,
@@ -566,11 +566,11 @@ class PosSaleService
         array $causedBy,
         DateTimeInterface|string|null $occurredAt = null,
     ): void {
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_INVENTORY_ITEM,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_INVENTORY_ITEM,
             $item->id,
             'stock_deducted',
-            $this->inventoryAuditSnapshot($item),
+            $this->inventorySystemActivitySnapshot($item),
             [
                 'deducted_quantity' => $deductedQuantity,
                 'remaining_quantity' => round($remainingQuantity, 2),
@@ -585,7 +585,7 @@ class PosSaleService
     /**
      * @return array<string, mixed>
      */
-    private function saleTransactionAuditSnapshot(SaleTransaction $saleTransaction): array
+    private function saleTransactionSystemActivitySnapshot(SaleTransaction $saleTransaction): array
     {
         return [
             'id' => $saleTransaction->id,
@@ -601,7 +601,7 @@ class PosSaleService
     /**
      * @return array<string, mixed>
      */
-    private function memberAuditSnapshot(User $member): array
+    private function memberSystemActivitySnapshot(User $member): array
     {
         return [
             'id' => $member->id,
@@ -614,7 +614,7 @@ class PosSaleService
     /**
      * @return array<string, mixed>
      */
-    private function membershipAuditSnapshot(MemberSubscription $subscription): array
+    private function membershipSystemActivitySnapshot(MemberSubscription $subscription): array
     {
         return [
             'id' => $subscription->id,
@@ -631,7 +631,7 @@ class PosSaleService
     /**
      * @return array<string, mixed>
      */
-    private function ptPackageAuditSnapshot(MemberPtPackage $package): array
+    private function ptPackageSystemActivitySnapshot(MemberPtPackage $package): array
     {
         return [
             'id' => $package->id,
@@ -650,7 +650,7 @@ class PosSaleService
     /**
      * @return array<string, mixed>
      */
-    private function inventoryAuditSnapshot(InventoryItem $item): array
+    private function inventorySystemActivitySnapshot(InventoryItem $item): array
     {
         return [
             'id' => $item->id,

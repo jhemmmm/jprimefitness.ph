@@ -3,11 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\BusinessProfile;
 use App\Models\EmployeeProfile;
 use App\Models\User;
-use App\Services\AuditHistoryService;
+use App\Services\SystemActivityService;
 use App\Services\Hikvision\HikvisionAttendanceService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\Log;
@@ -127,8 +127,8 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
         $this->assertNull($attendance->checked_out_at);
         $this->assertSame(
             ['checked_in'],
-            AuditEvent::query()
-                ->where('subject_type', AuditEvent::SUBJECT_ATTENDANCE)
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_ATTENDANCE)
                 ->where('subject_id', $attendance->id)
                 ->orderBy('id')
                 ->pluck('event')
@@ -210,15 +210,15 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
 
         $payload = $this->forwardedPayload($profile->hikvision_employee_no, 186, '2026-04-13T23:19:21+08:00');
 
-        $auditHistoryService = Mockery::mock(AuditHistoryService::class);
-        $auditHistoryService->shouldReceive('recordSubjectEvent')
+        $systemActivityService = Mockery::mock(SystemActivityService::class);
+        $systemActivityService->shouldReceive('recordSubjectEvent')
             ->once()
-            ->andThrow(new RuntimeException('Audit write failed.'));
-        $auditHistoryService->shouldReceive('recordSubjectEvent')
+            ->andThrow(new RuntimeException('System activity write failed.'));
+        $systemActivityService->shouldReceive('recordSubjectEvent')
             ->once()
-            ->andReturn(new AuditEvent());
+            ->andReturn(new SystemActivity());
 
-        $this->app->instance(AuditHistoryService::class, $auditHistoryService);
+        $this->app->instance(SystemActivityService::class, $systemActivityService);
 
         $hikvisionAttendanceService = $this->app->make(HikvisionAttendanceService::class);
 
@@ -226,7 +226,7 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
             $hikvisionAttendanceService->ingest($payload);
             $this->fail('Expected the first attendance ingest attempt to fail.');
         } catch (RuntimeException $exception) {
-            $this->assertSame('Audit write failed.', $exception->getMessage());
+            $this->assertSame('System activity write failed.', $exception->getMessage());
         }
 
         $this->assertDatabaseCount('hikvision_event_logs', 0);

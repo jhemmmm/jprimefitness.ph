@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('audit_events', function (Blueprint $table) {
+        Schema::create('system_activities', function (Blueprint $table) {
             $table->id();
             $table->string('subject_type', 60);
             $table->unsignedBigInteger('subject_id');
@@ -36,6 +36,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('audit_events');
+        Schema::dropIfExists('system_activities');
     }
 };

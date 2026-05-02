@@ -2,11 +2,11 @@
 
 namespace App\Support;
 
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
-class AuditSubjectRegistry
+class SystemActivitySubjectRegistry
 {
     /**
      * @return array<int, array{value: string, label: string}>
@@ -14,19 +14,19 @@ class AuditSubjectRegistry
     public function subjectOptions(): array
     {
         return [
-            ['value' => AuditEvent::SUBJECT_BUSINESS_PROFILE, 'label' => 'Business Profile'],
-            ['value' => AuditEvent::SUBJECT_EMPLOYEE, 'label' => 'Employees'],
-            ['value' => AuditEvent::SUBJECT_PAYROLL, 'label' => 'Payrolls'],
-            ['value' => AuditEvent::SUBJECT_PAYOUT, 'label' => 'Payouts'],
-            ['value' => AuditEvent::SUBJECT_MEMBER, 'label' => 'Members'],
-            ['value' => AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION, 'label' => 'Memberships'],
-            ['value' => AuditEvent::SUBJECT_MEMBER_PT_PACKAGE, 'label' => 'PT Packages'],
-            ['value' => AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE, 'label' => 'PT Session Usage'],
-            ['value' => AuditEvent::SUBJECT_ATTENDANCE, 'label' => 'Attendance'],
-            ['value' => AuditEvent::SUBJECT_SALE_TRANSACTION, 'label' => 'Sales'],
-            ['value' => AuditEvent::SUBJECT_INVENTORY_ITEM, 'label' => 'Inventory'],
-            ['value' => AuditEvent::SUBJECT_RATE_PLAN, 'label' => 'Rate Plans'],
-            ['value' => AuditEvent::SUBJECT_PT_PRODUCT, 'label' => 'PT Products'],
+            ['value' => SystemActivity::SUBJECT_BUSINESS_PROFILE, 'label' => 'Business Profile'],
+            ['value' => SystemActivity::SUBJECT_EMPLOYEE, 'label' => 'Employees'],
+            ['value' => SystemActivity::SUBJECT_PAYROLL, 'label' => 'Payrolls'],
+            ['value' => SystemActivity::SUBJECT_PAYOUT, 'label' => 'Payouts'],
+            ['value' => SystemActivity::SUBJECT_MEMBER, 'label' => 'Members'],
+            ['value' => SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION, 'label' => 'Memberships'],
+            ['value' => SystemActivity::SUBJECT_MEMBER_PT_PACKAGE, 'label' => 'PT Packages'],
+            ['value' => SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE, 'label' => 'PT Session Usage'],
+            ['value' => SystemActivity::SUBJECT_ATTENDANCE, 'label' => 'Attendance'],
+            ['value' => SystemActivity::SUBJECT_SALE_TRANSACTION, 'label' => 'Sales'],
+            ['value' => SystemActivity::SUBJECT_INVENTORY_ITEM, 'label' => 'Inventory'],
+            ['value' => SystemActivity::SUBJECT_RATE_PLAN, 'label' => 'Rate Plans'],
+            ['value' => SystemActivity::SUBJECT_PT_PRODUCT, 'label' => 'PT Products'],
         ];
     }
 
@@ -76,12 +76,12 @@ class AuditSubjectRegistry
             ->toString();
     }
 
-    public function actionUrl(AuditEvent $auditEvent): ?string
+    public function actionUrl(SystemActivity $systemActivity): ?string
     {
         return $this->actionUrlFor(
-            $auditEvent->subject_type,
-            (int) $auditEvent->subject_id,
-            is_array($auditEvent->metadata) ? $auditEvent->metadata : [],
+            $systemActivity->subject_type,
+            (int) $systemActivity->subject_id,
+            is_array($systemActivity->metadata) ? $systemActivity->metadata : [],
         );
     }
 
@@ -94,19 +94,19 @@ class AuditSubjectRegistry
         $memberId = $this->integerValue($metadata, ['member_id', 'context.member_id']);
 
         return match ($subjectType) {
-            AuditEvent::SUBJECT_BUSINESS_PROFILE => route('panel.business.settings'),
-            AuditEvent::SUBJECT_EMPLOYEE => route('panel.employees.show', $subjectId),
-            AuditEvent::SUBJECT_PAYROLL,
-            AuditEvent::SUBJECT_PAYOUT => $employeeId ? route('panel.employees.show', $employeeId) : null,
-            AuditEvent::SUBJECT_MEMBER => route('panel.members.show', $subjectId),
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
-            AuditEvent::SUBJECT_MEMBER_PT_PACKAGE,
-            AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE => $memberId ? route('panel.members.show', $memberId) : null,
-            AuditEvent::SUBJECT_ATTENDANCE => route('panel.attendance.index'),
-            AuditEvent::SUBJECT_SALE_TRANSACTION => route('panel.sales.index'),
-            AuditEvent::SUBJECT_INVENTORY_ITEM => route('panel.inventory.index'),
-            AuditEvent::SUBJECT_RATE_PLAN,
-            AuditEvent::SUBJECT_PT_PRODUCT => route('panel.pricing.index'),
+            SystemActivity::SUBJECT_BUSINESS_PROFILE => route('panel.business.settings'),
+            SystemActivity::SUBJECT_EMPLOYEE => route('panel.employees.show', $subjectId),
+            SystemActivity::SUBJECT_PAYROLL,
+            SystemActivity::SUBJECT_PAYOUT => $employeeId ? route('panel.employees.show', $employeeId) : null,
+            SystemActivity::SUBJECT_MEMBER => route('panel.members.show', $subjectId),
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE,
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => $memberId ? route('panel.members.show', $memberId) : null,
+            SystemActivity::SUBJECT_ATTENDANCE => route('panel.attendance.index'),
+            SystemActivity::SUBJECT_SALE_TRANSACTION => route('panel.sales.index'),
+            SystemActivity::SUBJECT_INVENTORY_ITEM => route('panel.inventory.index'),
+            SystemActivity::SUBJECT_RATE_PLAN,
+            SystemActivity::SUBJECT_PT_PRODUCT => route('panel.pricing.index'),
             default => null,
         };
     }

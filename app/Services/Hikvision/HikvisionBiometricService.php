@@ -3,11 +3,11 @@
 namespace App\Services\Hikvision;
 
 use App\Jobs\RunEmployeeBiometricEnrollment;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\EmployeeBiometricSession;
 use App\Models\EmployeeProfile;
 use App\Models\User;
-use App\Services\AuditHistoryService;
+use App\Services\SystemActivityService;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -15,7 +15,7 @@ class HikvisionBiometricService
 {
     public function __construct(
         private HikvisionHelperClient $hikvisionHelperClient,
-        private AuditHistoryService $auditHistoryService,
+        private SystemActivityService $systemActivityService,
     ) {}
 
     public function ensureProfile(User $employee): EmployeeProfile
@@ -73,8 +73,8 @@ class HikvisionBiometricService
             'started_by' => $actor?->id,
         ]);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_EMPLOYEE,
             $employee->id,
             'biometric_enrollment_started',
             $this->employeeSnapshot($employee->fresh()->loadMissing('roles', 'employeeProfile')),
@@ -148,8 +148,8 @@ class HikvisionBiometricService
                 'error_message' => null,
             ]);
 
-            $this->auditHistoryService->recordSubjectEvent(
-                AuditEvent::SUBJECT_EMPLOYEE,
+            $this->systemActivityService->recordSubjectEvent(
+                SystemActivity::SUBJECT_EMPLOYEE,
                 $employee->id,
                 'biometric_enrolled',
                 $this->employeeSnapshot($employee->fresh()->loadMissing('roles', 'employeeProfile')),
@@ -175,8 +175,8 @@ class HikvisionBiometricService
                 'error_message' => $errorMessage,
             ]);
 
-            $this->auditHistoryService->recordSubjectEvent(
-                AuditEvent::SUBJECT_EMPLOYEE,
+            $this->systemActivityService->recordSubjectEvent(
+                SystemActivity::SUBJECT_EMPLOYEE,
                 $employee->id,
                 'biometric_failed',
                 $this->employeeSnapshot($employee->fresh()->loadMissing('roles', 'employeeProfile')),
@@ -261,8 +261,8 @@ class HikvisionBiometricService
             'biometric_last_error' => null,
         ]);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_EMPLOYEE,
             $employee->id,
             'biometric_removed',
             $this->employeeSnapshot($employee->fresh()->loadMissing('roles', 'employeeProfile')),

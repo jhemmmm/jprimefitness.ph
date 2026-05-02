@@ -3,10 +3,10 @@
 namespace App\Services\Hikvision;
 
 use App\Models\Attendance;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\EmployeeProfile;
 use App\Models\HikvisionEventLog;
-use App\Services\AuditHistoryService;
+use App\Services\SystemActivityService;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Arr;
@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 class HikvisionAttendanceService
 {
     public function __construct(
-        private AuditHistoryService $auditHistoryService,
+        private SystemActivityService $systemActivityService,
     ) {}
 
     /**
@@ -94,8 +94,8 @@ class HikvisionAttendanceService
                 $attendance = $latestAttendance->fresh(['user', 'recordedBy']);
                 $action = 'check_out';
 
-                $this->auditHistoryService->recordSubjectEvent(
-                    AuditEvent::SUBJECT_ATTENDANCE,
+                $this->systemActivityService->recordSubjectEvent(
+                    SystemActivity::SUBJECT_ATTENDANCE,
                     $attendance->id,
                     'checked_out',
                     $this->attendanceSnapshot($attendance),
@@ -117,8 +117,8 @@ class HikvisionAttendanceService
                 ])->fresh(['user', 'recordedBy']);
                 $action = 'check_in';
 
-                $this->auditHistoryService->recordSubjectEvent(
-                    AuditEvent::SUBJECT_ATTENDANCE,
+                $this->systemActivityService->recordSubjectEvent(
+                    SystemActivity::SUBJECT_ATTENDANCE,
                     $attendance->id,
                     'checked_in',
                     $this->attendanceSnapshot($attendance),

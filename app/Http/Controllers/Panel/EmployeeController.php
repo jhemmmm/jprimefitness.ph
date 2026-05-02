@@ -4,14 +4,14 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\BusinessProfile;
 use App\Models\EmployeeProfile;
 use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\User;
 use App\Notifications\PayrollApprovedNotification;
-use App\Services\AuditHistoryService;
+use App\Services\SystemActivityService;
 use App\Services\NotificationRecipientResolver;
 use App\Services\PayrollService;
 use Illuminate\Contracts\Support\Responsable;
@@ -28,7 +28,7 @@ class EmployeeController extends Controller
     public function __construct(
         private PayrollService $payrollService,
         private NotificationRecipientResolver $notificationRecipientResolver,
-        private AuditHistoryService $auditHistoryService,
+        private SystemActivityService $systemActivityService,
     ) {
         $this->middleware('can:manage employees');
     }
@@ -111,11 +111,11 @@ class EmployeeController extends Controller
         $this->ensureEmployeeProfile($employee, $data['employee_profile']);
         $employee = $employee->fresh()->load(['roles', 'employeeProfile']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_EMPLOYEE,
             $employee->id,
             'created',
-            $this->employeeAuditSnapshot($employee),
+            $this->employeeSystemActivitySnapshot($employee),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -167,11 +167,11 @@ class EmployeeController extends Controller
         $this->ensureEmployeeProfile($employee, $data['employee_profile']);
         $employee = $employee->fresh()->load(['roles', 'employeeProfile']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_EMPLOYEE,
             $employee->id,
             'updated',
-            $this->employeeAuditSnapshot($employee),
+            $this->employeeSystemActivitySnapshot($employee),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -184,12 +184,12 @@ class EmployeeController extends Controller
     public function destroy(User $employee): JsonResponse
     {
         abort_if($employee->id === auth()->id(), 403);
-        $snapshot = $this->employeeAuditSnapshot($employee->loadMissing('roles'));
+        $snapshot = $this->employeeSystemActivitySnapshot($employee->loadMissing('roles'));
 
         $employee->delete();
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_EMPLOYEE,
             $employee->id,
             'deleted',
             $snapshot,
@@ -337,11 +337,11 @@ class EmployeeController extends Controller
         $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_PAYROLL,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_PAYROLL,
             $payroll->id,
             'created',
-            $this->payrollAuditSnapshot($payroll, $employee),
+            $this->payrollSystemActivitySnapshot($payroll, $employee),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -421,11 +421,11 @@ class EmployeeController extends Controller
         $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_PAYROLL,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_PAYROLL,
             $payroll->id,
             'updated',
-            $this->payrollAuditSnapshot($payroll, $employee),
+            $this->payrollSystemActivitySnapshot($payroll, $employee),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -455,11 +455,11 @@ class EmployeeController extends Controller
         );
         $payroll = $payroll->fresh(['employee:id,name']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_PAYROLL,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_PAYROLL,
             $payroll->id,
             'approved',
-            $this->payrollAuditSnapshot($payroll, $employee),
+            $this->payrollSystemActivitySnapshot($payroll, $employee),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -482,11 +482,11 @@ class EmployeeController extends Controller
         $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_PAYROLL,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_PAYROLL,
             $payroll->id,
             'cancelled',
-            $this->payrollAuditSnapshot($payroll, $employee),
+            $this->payrollSystemActivitySnapshot($payroll, $employee),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -640,11 +640,11 @@ class EmployeeController extends Controller
         $this->payrollService->syncStatus($payroll);
         $payout = $payout->fresh(['payroll', 'releasedBy', 'employee:id,name']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_PAYOUT,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_PAYOUT,
             $payout->id,
             'created',
-            $this->payoutAuditSnapshot($payout),
+            $this->payoutSystemActivitySnapshot($payout),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -945,7 +945,7 @@ class EmployeeController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function employeeAuditSnapshot(User $employee): array
+    private function employeeSystemActivitySnapshot(User $employee): array
     {
         $employee->loadMissing(['roles', 'employeeProfile']);
 
@@ -971,7 +971,7 @@ class EmployeeController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function payrollAuditSnapshot(Payroll $payroll, User $employee): array
+    private function payrollSystemActivitySnapshot(Payroll $payroll, User $employee): array
     {
         return [
             'id' => $payroll->id,
@@ -996,7 +996,7 @@ class EmployeeController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function payoutAuditSnapshot(Payout $payout): array
+    private function payoutSystemActivitySnapshot(Payout $payout): array
     {
         $payrollPeriod = $payout->payroll && $payout->payroll->period_start && $payout->payroll->period_end
             ? $payout->payroll->period_start->format('Y-m-d').' - '.$payout->payroll->period_end->format('Y-m-d')

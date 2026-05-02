@@ -104,27 +104,27 @@ class SidebarBranchSelectorUiTest extends TestCase
 
     public function test_business_and_notifications_pages_use_standard_panel_page_headers(): void
     {
-        $auditHistoryContents = file_get_contents(resource_path('js/components/panel/SystemActivityPage.vue'));
+        $systemActivityContents = file_get_contents(resource_path('js/components/panel/SystemActivityPage.vue'));
         $notificationsContents = file_get_contents(resource_path('js/components/panel/NotificationsPage.vue'));
         $settingsContents = file_get_contents(resource_path('js/components/panel/BusinessSettingsPage.vue'));
 
-        $this->assertNotFalse($auditHistoryContents);
-        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">System Activity</h4>', $auditHistoryContents);
-        $this->assertStringContainsString('/panel/system-activity/list', $auditHistoryContents);
-        $this->assertStringContainsString('/panel/system-activity/${this.restoreTarget.id}/restore', $auditHistoryContents);
-        $this->assertStringContainsString('table table-hover table-striped align-middle mb-0 panel-table', $auditHistoryContents);
-        $this->assertStringContainsString("['m-badge', auditEventBadgeClass(event.event)]", $auditHistoryContents);
-        $this->assertStringNotContainsString('class="dropdown d-flex justify-content-end"', $auditHistoryContents);
-        $this->assertStringContainsString('bi bi-box-arrow-up-right tbl-icon', $auditHistoryContents);
-        $this->assertStringContainsString('bi bi-arrow-counterclockwise tbl-icon', $auditHistoryContents);
-        $this->assertStringContainsString('btn-icon-sm" data-bs-toggle="dropdown"', $auditHistoryContents);
-        $this->assertStringContainsString('dropdown-menu dropdown-menu-end', $auditHistoryContents);
-        $this->assertStringContainsString('hasEventActionMenu: function (event)', $auditHistoryContents);
-        $this->assertStringContainsString('class="d-md-none"', $auditHistoryContents);
-        $this->assertStringContainsString('class="member-card" v-for="event in events"', $auditHistoryContents);
-        $this->assertStringContainsString('toggleSort', $auditHistoryContents);
-        $this->assertStringContainsString('Restore Record', $auditHistoryContents);
-        $this->assertStringContainsString('Not recoverable', $auditHistoryContents);
+        $this->assertNotFalse($systemActivityContents);
+        $this->assertStringContainsString('<h4 class="panel-page-title mb-0">System Activity</h4>', $systemActivityContents);
+        $this->assertStringContainsString('/panel/system-activity/list', $systemActivityContents);
+        $this->assertStringContainsString('/panel/system-activity/${this.restoreTarget.id}/restore', $systemActivityContents);
+        $this->assertStringContainsString('table table-hover table-striped align-middle mb-0 panel-table', $systemActivityContents);
+        $this->assertStringContainsString("['m-badge', systemActivityBadgeClass(event.event)]", $systemActivityContents);
+        $this->assertStringNotContainsString('class="dropdown d-flex justify-content-end"', $systemActivityContents);
+        $this->assertStringContainsString('bi bi-box-arrow-up-right tbl-icon', $systemActivityContents);
+        $this->assertStringContainsString('bi bi-arrow-counterclockwise tbl-icon', $systemActivityContents);
+        $this->assertStringContainsString('btn-icon-sm" data-bs-toggle="dropdown"', $systemActivityContents);
+        $this->assertStringContainsString('dropdown-menu dropdown-menu-end', $systemActivityContents);
+        $this->assertStringContainsString('hasEventActionMenu: function (event)', $systemActivityContents);
+        $this->assertStringContainsString('class="d-md-none"', $systemActivityContents);
+        $this->assertStringContainsString('class="member-card" v-for="event in events"', $systemActivityContents);
+        $this->assertStringContainsString('toggleSort', $systemActivityContents);
+        $this->assertStringContainsString('Restore Record', $systemActivityContents);
+        $this->assertStringContainsString('Not recoverable', $systemActivityContents);
 
         $this->assertNotFalse($notificationsContents);
         $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Notifications</h4>', $notificationsContents);

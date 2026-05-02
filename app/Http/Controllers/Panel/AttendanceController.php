@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\User;
-use App\Services\AuditHistoryService;
+use App\Services\SystemActivityService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +17,7 @@ use Illuminate\View\View;
 class AttendanceController extends Controller
 {
     public function __construct(
-        private AuditHistoryService $auditHistoryService,
+        private SystemActivityService $systemActivityService,
     ) {}
 
     /**
@@ -90,11 +90,11 @@ class AttendanceController extends Controller
         ]));
         $attendance = $attendance->fresh(['user', 'recordedBy']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_ATTENDANCE,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_ATTENDANCE,
             $attendance->id,
             'checked_in',
-            $this->attendanceAuditSnapshot($attendance),
+            $this->attendanceSystemActivitySnapshot($attendance),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -121,17 +121,6 @@ class AttendanceController extends Controller
         $attendance->update($data);
         $attendance = $attendance->fresh(['user', 'recordedBy']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_ATTENDANCE,
-            $attendance->id,
-            'updated',
-            $this->attendanceAuditSnapshot($attendance),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            now(),
-        );
-
         return response()->json($this->serializeAttendance($attendance));
     }
 
@@ -144,11 +133,11 @@ class AttendanceController extends Controller
         $attendance->update(['checked_out_at' => now()]);
         $attendance = $attendance->fresh(['user', 'recordedBy']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_ATTENDANCE,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_ATTENDANCE,
             $attendance->id,
             'checked_out',
-            $this->attendanceAuditSnapshot($attendance),
+            $this->attendanceSystemActivitySnapshot($attendance),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -160,20 +149,7 @@ class AttendanceController extends Controller
 
     public function destroy(Attendance $attendance): JsonResponse
     {
-        $snapshot = $this->attendanceAuditSnapshot($attendance->loadMissing(['user', 'recordedBy']));
-
         $attendance->delete();
-
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_ATTENDANCE,
-            $attendance->id,
-            'deleted',
-            $snapshot,
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            now(),
-        );
 
         return response()->json(null, 204);
     }
@@ -216,7 +192,7 @@ class AttendanceController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function attendanceAuditSnapshot(Attendance $attendance): array
+    private function attendanceSystemActivitySnapshot(Attendance $attendance): array
     {
         return [
             'id' => $attendance->id,

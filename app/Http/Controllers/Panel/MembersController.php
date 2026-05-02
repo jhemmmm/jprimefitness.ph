@@ -4,14 +4,14 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\BusinessProfile;
 use App\Models\MemberPtPackage;
 use App\Models\MemberPtSessionUsage;
 use App\Models\MemberSubscription;
 use App\Models\PTProduct;
 use App\Models\User;
-use App\Services\AuditHistoryService;
+use App\Services\SystemActivityService;
 use App\Services\MemberPtPackageAlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +23,7 @@ class MembersController extends Controller
 {
     public function __construct(
         private MemberPtPackageAlertService $memberPtPackageAlertService,
-        private AuditHistoryService $auditHistoryService,
+        private SystemActivityService $systemActivityService,
     ) {}
 
     public function index(): View
@@ -128,21 +128,21 @@ class MembersController extends Controller
         );
         $member = $member->fresh();
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER,
             $member->id,
             'created',
-            $this->memberAuditSnapshot($member),
+            $this->memberSystemActivitySnapshot($member),
             [],
             auth()->id(),
             auth()->user()?->name,
             now(),
         );
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
             $subscription->id,
             'created',
-            $this->membershipAuditSnapshot($subscription->fresh(['ratePlan', 'member'])),
+            $this->membershipSystemActivitySnapshot($subscription->fresh(['ratePlan', 'member'])),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -208,11 +208,11 @@ class MembersController extends Controller
 
         $membership = $member->changeMembershipPlan((int) $data['rate_plan_id'], $data['start_date']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
             $membership->id,
             'plan_changed',
-            $this->membershipAuditSnapshot($membership->fresh(['ratePlan', 'member'])),
+            $this->membershipSystemActivitySnapshot($membership->fresh(['ratePlan', 'member'])),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -247,11 +247,11 @@ class MembersController extends Controller
         $member->updateCurrentMembershipStatus($data['status']);
         $membership = $membershipToUpdate->fresh(['ratePlan', 'member']);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
             $membership->id,
             'status_updated',
-            $this->membershipAuditSnapshot($membership),
+            $this->membershipSystemActivitySnapshot($membership),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -312,11 +312,11 @@ class MembersController extends Controller
             'created_by' => auth()->id(),
         ]);
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER_PT_PACKAGE,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE,
             $package->id,
             'assigned',
-            $this->ptPackageAuditSnapshot($package->fresh(['ptProduct', 'coach', 'member'])),
+            $this->ptPackageSystemActivitySnapshot($package->fresh(['ptProduct', 'coach', 'member'])),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -381,11 +381,11 @@ class MembersController extends Controller
         $package = $package->fresh(['member:id,name']);
         $usage->loadMissing('coach:id,name');
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE,
             $usage->id,
             'recorded',
-            $this->ptSessionUsageAuditSnapshot($usage, $package),
+            $this->ptSessionUsageSystemActivitySnapshot($usage, $package),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -446,11 +446,11 @@ class MembersController extends Controller
         );
         $member = $member->fresh();
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER,
             $member->id,
             'updated',
-            $this->memberAuditSnapshot($member),
+            $this->memberSystemActivitySnapshot($member),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -465,11 +465,11 @@ class MembersController extends Controller
             || (int) $previousMembership->rate_plan_id !== (int) $currentMembership->rate_plan_id
             || optional($previousMembership->start_date)->toDateString() !== optional($currentMembership->start_date)->toDateString()
         )) {
-            $this->auditHistoryService->recordSubjectEvent(
-                AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
+            $this->systemActivityService->recordSubjectEvent(
+                SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
                 $currentMembership->id,
                 'plan_changed',
-                $this->membershipAuditSnapshot($currentMembership->fresh(['ratePlan', 'member'])),
+                $this->membershipSystemActivitySnapshot($currentMembership->fresh(['ratePlan', 'member'])),
                 [],
                 auth()->id(),
                 auth()->user()?->name,
@@ -609,7 +609,7 @@ class MembersController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function memberAuditSnapshot(User $member): array
+    private function memberSystemActivitySnapshot(User $member): array
     {
         return [
             'id' => $member->id,
@@ -622,7 +622,7 @@ class MembersController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function membershipAuditSnapshot(MemberSubscription $subscription): array
+    private function membershipSystemActivitySnapshot(MemberSubscription $subscription): array
     {
         return [
             'id' => $subscription->id,
@@ -639,7 +639,7 @@ class MembersController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function ptPackageAuditSnapshot(MemberPtPackage $package): array
+    private function ptPackageSystemActivitySnapshot(MemberPtPackage $package): array
     {
         return [
             'id' => $package->id,
@@ -658,7 +658,7 @@ class MembersController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function ptSessionUsageAuditSnapshot(MemberPtSessionUsage $usage, MemberPtPackage $package): array
+    private function ptSessionUsageSystemActivitySnapshot(MemberPtSessionUsage $usage, MemberPtPackage $package): array
     {
         return [
             'id' => $usage->id,

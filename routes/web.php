@@ -32,7 +32,7 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/search', [SearchController::class, 'index'])->name('search');
     Route::get('/system-activity', [SystemActivityController::class, 'index'])->name('system-activity');
     Route::get('/system-activity/list', [SystemActivityController::class, 'list'])->name('system-activity.list');
-    Route::post('/system-activity/{auditEvent}/restore', [SystemActivityController::class, 'restore'])->name('system-activity.restore')->whereNumber('auditEvent');
+    Route::post('/system-activity/{systemActivity}/restore', [SystemActivityController::class, 'restore'])->name('system-activity.restore')->whereNumber('systemActivity');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
     Route::prefix('business')->name('business.')->group(function () {
         Route::get('/settings', [SettingsController::class, 'settingsPage'])->name('settings');

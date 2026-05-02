@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
-use App\Services\AuditHistoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,10 +11,6 @@ use Illuminate\View\View;
 
 class SettingsController extends Controller
 {
-    public function __construct(
-        private AuditHistoryService $auditHistoryService,
-    ) {}
-
     public function index(): RedirectResponse
     {
         return to_route('panel.business.settings');
@@ -54,31 +48,7 @@ class SettingsController extends Controller
         $profile = BusinessProfile::current();
         $profile->update($data);
         $profile = $profile->fresh();
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_BUSINESS_PROFILE,
-            $profile->id,
-            'updated',
-            $this->businessProfileAuditSnapshot($profile),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            now(),
-        );
 
         return response()->json($profile);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function businessProfileAuditSnapshot(BusinessProfile $profile): array
-    {
-        return [
-            'id' => $profile->id,
-            'name' => $profile->name,
-            'pay_overwork_hours' => (bool) $profile->pay_overwork_hours,
-            'payroll_income_tax_enabled' => (bool) $profile->payroll_income_tax_enabled,
-            'payroll_government_contributions_enabled' => (bool) $profile->payroll_government_contributions_enabled,
-        ];
     }
 }

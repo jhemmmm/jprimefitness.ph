@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
-use App\Services\AuditHistoryService;
+use App\Services\SystemActivityService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,7 +14,7 @@ use Illuminate\Http\Request;
 class PricingController extends Controller
 {
     public function __construct(
-        private AuditHistoryService $auditHistoryService,
+        private SystemActivityService $systemActivityService,
     ) {}
 
     public function index(): View
@@ -97,11 +97,11 @@ class PricingController extends Controller
         $ratePlan->update($this->validatedRatePlanPayload($request));
         $ratePlan = $ratePlan->fresh();
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_RATE_PLAN,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_RATE_PLAN,
             $ratePlan->id,
             'configured',
-            $this->ratePlanAuditSnapshot($ratePlan),
+            $this->ratePlanSystemActivitySnapshot($ratePlan),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -118,11 +118,11 @@ class PricingController extends Controller
         $ratePlan->update($this->validatedRatePlanPayload($request));
         $ratePlan = $ratePlan->fresh();
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_RATE_PLAN,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_RATE_PLAN,
             $ratePlan->id,
             'updated',
-            $this->ratePlanAuditSnapshot($ratePlan),
+            $this->ratePlanSystemActivitySnapshot($ratePlan),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -135,15 +135,15 @@ class PricingController extends Controller
     public function destroyRatePlan(RatePlan $ratePlan): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
-        $snapshot = $this->ratePlanAuditSnapshot($ratePlan);
+        $snapshot = $this->ratePlanSystemActivitySnapshot($ratePlan);
 
         $ratePlan->update([
             'price' => null,
             'effective_from' => null,
             'effective_until' => null,
         ]);
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_RATE_PLAN,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_RATE_PLAN,
             $ratePlan->id,
             'removed',
             $snapshot,
@@ -164,11 +164,11 @@ class PricingController extends Controller
         $ptProduct->update($this->validatedPtProductPayload($request));
         $ptProduct = $ptProduct->fresh();
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_PT_PRODUCT,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_PT_PRODUCT,
             $ptProduct->id,
             'configured',
-            $this->ptProductAuditSnapshot($ptProduct),
+            $this->ptProductSystemActivitySnapshot($ptProduct),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -185,11 +185,11 @@ class PricingController extends Controller
         $ptProduct->update($this->validatedPtProductPayload($request));
         $ptProduct = $ptProduct->fresh();
 
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_PT_PRODUCT,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_PT_PRODUCT,
             $ptProduct->id,
             'updated',
-            $this->ptProductAuditSnapshot($ptProduct),
+            $this->ptProductSystemActivitySnapshot($ptProduct),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -202,15 +202,15 @@ class PricingController extends Controller
     public function destroyPtProduct(PTProduct $ptProduct): JsonResponse
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
-        $snapshot = $this->ptProductAuditSnapshot($ptProduct);
+        $snapshot = $this->ptProductSystemActivitySnapshot($ptProduct);
 
         $ptProduct->update([
             'price' => null,
             'effective_from' => null,
             'effective_until' => null,
         ]);
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_PT_PRODUCT,
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_PT_PRODUCT,
             $ptProduct->id,
             'removed',
             $snapshot,
@@ -301,7 +301,7 @@ class PricingController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function ratePlanAuditSnapshot(RatePlan $ratePlan): array
+    private function ratePlanSystemActivitySnapshot(RatePlan $ratePlan): array
     {
         return [
             'id' => $ratePlan->id,
@@ -314,7 +314,7 @@ class PricingController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function ptProductAuditSnapshot(PTProduct $ptProduct): array
+    private function ptProductSystemActivitySnapshot(PTProduct $ptProduct): array
     {
         return [
             'id' => $ptProduct->id,

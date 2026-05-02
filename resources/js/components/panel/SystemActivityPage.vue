@@ -71,7 +71,7 @@
                      </tr>
                   </thead>
                   <tbody>
-                     <tr v-for="index in 6" :key="'audit-sk-' + index">
+                     <tr v-for="index in 6" :key="'activity-sk-' + index">
                         <td><div class="skeleton-box" style="width: 132px; height: 12px; border-radius: 4px"></div></td>
                         <td><div class="skeleton-box" style="width: 88px; height: 22px; border-radius: 999px"></div></td>
                         <td>
@@ -91,7 +91,7 @@
             </div>
 
             <div class="d-md-none">
-               <div class="member-card" v-for="index in 4" :key="'audit-mobile-sk-' + index">
+               <div class="member-card" v-for="index in 4" :key="'activity-mobile-sk-' + index">
                   <div class="member-card-top">
                      <div>
                         <div class="skeleton-box mb-1" style="width: 150px; height: 14px; border-radius: 4px"></div>
@@ -162,7 +162,7 @@
                      <tr v-for="event in events" :key="event.id">
                         <td class="text-muted small text-nowrap">{{ formatDateTime(event.occurred_at) }}</td>
                         <td>
-                           <span :class="['m-badge', auditEventBadgeClass(event.event)]">{{ event.event_label }}</span>
+                           <span :class="['m-badge', systemActivityBadgeClass(event.event)]">{{ event.event_label }}</span>
                         </td>
                         <td>
                            <div class="member-name">{{ event.subject_label || event.subject_type_label }}</div>
@@ -210,14 +210,14 @@
             </div>
 
             <div class="d-md-none">
-               <div class="member-card" v-for="event in events" :key="'audit-mobile-' + event.id">
+               <div class="member-card" v-for="event in events" :key="'activity-mobile-' + event.id">
                   <div class="member-card-top">
                      <div>
                         <div class="member-card-name">{{ event.title }}</div>
                         <div class="member-card-sub">{{ formatDateTime(event.occurred_at) }}</div>
                      </div>
                      <div class="d-flex align-items-start gap-2">
-                        <span :class="['m-badge', auditEventBadgeClass(event.event)]">{{ event.event_label }}</span>
+                        <span :class="['m-badge', systemActivityBadgeClass(event.event)]">{{ event.event_label }}</span>
                         <div v-if="hasEventActionMenu(event)" class="dropdown">
                            <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
                               <i class="bi bi-three-dots-vertical"></i>
@@ -422,7 +422,7 @@ export default {
          return Boolean(this.canRestoreEvent(event) || event.action_url);
       },
 
-      auditEventBadgeClass: function (eventName) {
+      systemActivityBadgeClass: function (eventName) {
          const normalizedEvent = String(eventName ?? "")
             .trim()
             .toLowerCase()

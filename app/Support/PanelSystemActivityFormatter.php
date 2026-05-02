@@ -2,11 +2,11 @@
 
 namespace App\Support;
 
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\SaleTransaction;
 use Illuminate\Support\Str;
 
-class PanelAuditEventFormatter
+class PanelSystemActivityFormatter
 {
     private const SUBJECT_LABEL_MAX_LENGTH = 255;
 
@@ -49,19 +49,19 @@ class PanelAuditEventFormatter
     private function subjectLabel(string $subjectType, int $subjectId, array $snapshot): string
     {
         $label = match ($subjectType) {
-            AuditEvent::SUBJECT_BUSINESS_PROFILE => (string) ($snapshot['name'] ?? 'Business Profile'),
-            AuditEvent::SUBJECT_EMPLOYEE => sprintf('Employee #%d - %s', $subjectId, $snapshot['name'] ?? 'Unknown Employee'),
-            AuditEvent::SUBJECT_PAYROLL => sprintf('Payroll #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
-            AuditEvent::SUBJECT_PAYOUT => sprintf('Payout #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
-            AuditEvent::SUBJECT_MEMBER => sprintf('Member #%d - %s', $subjectId, $snapshot['name'] ?? 'Unknown Member'),
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION => sprintf('Membership #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
-            AuditEvent::SUBJECT_MEMBER_PT_PACKAGE => sprintf('PT Package #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
-            AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE => sprintf('PT Session Usage #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
-            AuditEvent::SUBJECT_ATTENDANCE => sprintf('Attendance #%d - %s', $subjectId, $snapshot['name'] ?? 'Attendance Record'),
-            AuditEvent::SUBJECT_SALE_TRANSACTION => sprintf('Sale #%d - %s', $subjectId, $snapshot['customer_name'] ?? ($snapshot['item_name'] ?? 'Transaction')),
-            AuditEvent::SUBJECT_INVENTORY_ITEM => sprintf('Inventory Item #%d - %s', $subjectId, $snapshot['name'] ?? 'Unnamed Item'),
-            AuditEvent::SUBJECT_RATE_PLAN => sprintf('Rate Plan #%d - %s', $subjectId, $snapshot['name'] ?? 'Rate Plan'),
-            AuditEvent::SUBJECT_PT_PRODUCT => sprintf('PT Product #%d - %s', $subjectId, $snapshot['name'] ?? 'PT Product'),
+            SystemActivity::SUBJECT_BUSINESS_PROFILE => (string) ($snapshot['name'] ?? 'Business Profile'),
+            SystemActivity::SUBJECT_EMPLOYEE => sprintf('Employee #%d - %s', $subjectId, $snapshot['name'] ?? 'Unknown Employee'),
+            SystemActivity::SUBJECT_PAYROLL => sprintf('Payroll #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
+            SystemActivity::SUBJECT_PAYOUT => sprintf('Payout #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
+            SystemActivity::SUBJECT_MEMBER => sprintf('Member #%d - %s', $subjectId, $snapshot['name'] ?? 'Unknown Member'),
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => sprintf('Membership #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => sprintf('PT Package #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => sprintf('PT Session Usage #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
+            SystemActivity::SUBJECT_ATTENDANCE => sprintf('Attendance #%d - %s', $subjectId, $snapshot['name'] ?? 'Attendance Record'),
+            SystemActivity::SUBJECT_SALE_TRANSACTION => sprintf('Sale #%d - %s', $subjectId, $snapshot['customer_name'] ?? ($snapshot['item_name'] ?? 'Transaction')),
+            SystemActivity::SUBJECT_INVENTORY_ITEM => sprintf('Inventory Item #%d - %s', $subjectId, $snapshot['name'] ?? 'Unnamed Item'),
+            SystemActivity::SUBJECT_RATE_PLAN => sprintf('Rate Plan #%d - %s', $subjectId, $snapshot['name'] ?? 'Rate Plan'),
+            SystemActivity::SUBJECT_PT_PRODUCT => sprintf('PT Product #%d - %s', $subjectId, $snapshot['name'] ?? 'PT Product'),
             default => sprintf('Activity #%d', $subjectId),
         };
 
@@ -75,8 +75,8 @@ class PanelAuditEventFormatter
     private function title(string $subjectType, string $event): string
     {
         return match ($subjectType) {
-            AuditEvent::SUBJECT_BUSINESS_PROFILE => 'Business profile updated',
-            AuditEvent::SUBJECT_EMPLOYEE => match ($event) {
+            SystemActivity::SUBJECT_BUSINESS_PROFILE => 'Business profile updated',
+            SystemActivity::SUBJECT_EMPLOYEE => match ($event) {
                 'created' => 'Employee created',
                 'deleted' => 'Employee deleted',
                 'restored' => 'Employee restored',
@@ -86,50 +86,50 @@ class PanelAuditEventFormatter
                 'biometric_failed' => 'Employee fingerprint enrollment failed',
                 default => 'Employee updated',
             },
-            AuditEvent::SUBJECT_PAYROLL => match ($event) {
+            SystemActivity::SUBJECT_PAYROLL => match ($event) {
                 'created' => 'Payroll created',
                 'approved' => 'Payroll approved',
                 'cancelled' => 'Payroll cancelled',
                 default => 'Payroll updated',
             },
-            AuditEvent::SUBJECT_PAYOUT => 'Payout created',
-            AuditEvent::SUBJECT_MEMBER => match ($event) {
+            SystemActivity::SUBJECT_PAYOUT => 'Payout created',
+            SystemActivity::SUBJECT_MEMBER => match ($event) {
                 'created' => 'Member created',
                 default => 'Member updated',
             },
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION => match ($event) {
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => match ($event) {
                 'created' => 'Membership created',
                 'plan_changed' => 'Membership plan changed',
                 'status_updated' => 'Membership status updated',
                 'manager_assigned' => 'Membership manager assigned',
                 default => 'Membership updated',
             },
-            AuditEvent::SUBJECT_MEMBER_PT_PACKAGE => match ($event) {
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => match ($event) {
                 'assigned' => 'PT package assigned',
                 default => 'PT package created',
             },
-            AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE => 'PT session usage recorded',
-            AuditEvent::SUBJECT_ATTENDANCE => match ($event) {
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => 'PT session usage recorded',
+            SystemActivity::SUBJECT_ATTENDANCE => match ($event) {
                 'checked_in' => 'Attendance checked in',
                 'checked_out' => 'Attendance checked out',
                 'deleted' => 'Attendance deleted',
                 'restored' => 'Attendance restored',
                 default => 'Attendance updated',
             },
-            AuditEvent::SUBJECT_SALE_TRANSACTION => 'Sale created',
-            AuditEvent::SUBJECT_INVENTORY_ITEM => match ($event) {
+            SystemActivity::SUBJECT_SALE_TRANSACTION => 'Sale created',
+            SystemActivity::SUBJECT_INVENTORY_ITEM => match ($event) {
                 'created' => 'Inventory item created',
                 'deleted' => 'Inventory item deleted',
                 'restored' => 'Inventory item restored',
                 'stock_deducted' => 'Inventory stock deducted',
                 default => 'Inventory item updated',
             },
-            AuditEvent::SUBJECT_RATE_PLAN => match ($event) {
+            SystemActivity::SUBJECT_RATE_PLAN => match ($event) {
                 'configured' => 'Rate plan configured',
                 'removed' => 'Rate plan removed',
                 default => 'Rate plan updated',
             },
-            AuditEvent::SUBJECT_PT_PRODUCT => match ($event) {
+            SystemActivity::SUBJECT_PT_PRODUCT => match ($event) {
                 'configured' => 'PT product configured',
                 'removed' => 'PT product removed',
                 default => 'PT product updated',
@@ -145,19 +145,19 @@ class PanelAuditEventFormatter
     private function message(string $subjectType, string $event, array $snapshot, array $metadata): string
     {
         return match ($subjectType) {
-            AuditEvent::SUBJECT_BUSINESS_PROFILE => $this->businessProfileMessage($event, $snapshot),
-            AuditEvent::SUBJECT_EMPLOYEE => $this->employeeMessage($event, $snapshot),
-            AuditEvent::SUBJECT_PAYROLL => $this->payrollMessage($event, $snapshot),
-            AuditEvent::SUBJECT_PAYOUT => $this->payoutMessage($snapshot),
-            AuditEvent::SUBJECT_MEMBER => $this->memberMessage($event, $snapshot),
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION => $this->membershipMessage($event, $snapshot),
-            AuditEvent::SUBJECT_MEMBER_PT_PACKAGE => $this->ptPackageMessage($event, $snapshot),
-            AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE => $this->ptSessionUsageMessage($snapshot),
-            AuditEvent::SUBJECT_ATTENDANCE => $this->attendanceMessage($event, $snapshot),
-            AuditEvent::SUBJECT_SALE_TRANSACTION => $this->saleMessage($snapshot),
-            AuditEvent::SUBJECT_INVENTORY_ITEM => $this->inventoryMessage($event, $snapshot, $metadata),
-            AuditEvent::SUBJECT_RATE_PLAN => $this->ratePlanMessage($event, $snapshot),
-            AuditEvent::SUBJECT_PT_PRODUCT => $this->ptProductMessage($event, $snapshot),
+            SystemActivity::SUBJECT_BUSINESS_PROFILE => $this->businessProfileMessage($event, $snapshot),
+            SystemActivity::SUBJECT_EMPLOYEE => $this->employeeMessage($event, $snapshot),
+            SystemActivity::SUBJECT_PAYROLL => $this->payrollMessage($event, $snapshot),
+            SystemActivity::SUBJECT_PAYOUT => $this->payoutMessage($snapshot),
+            SystemActivity::SUBJECT_MEMBER => $this->memberMessage($event, $snapshot),
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => $this->membershipMessage($event, $snapshot),
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => $this->ptPackageMessage($event, $snapshot),
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => $this->ptSessionUsageMessage($snapshot),
+            SystemActivity::SUBJECT_ATTENDANCE => $this->attendanceMessage($event, $snapshot),
+            SystemActivity::SUBJECT_SALE_TRANSACTION => $this->saleMessage($snapshot),
+            SystemActivity::SUBJECT_INVENTORY_ITEM => $this->inventoryMessage($event, $snapshot, $metadata),
+            SystemActivity::SUBJECT_RATE_PLAN => $this->ratePlanMessage($event, $snapshot),
+            SystemActivity::SUBJECT_PT_PRODUCT => $this->ptProductMessage($event, $snapshot),
             default => 'A system activity was recorded.',
         };
     }
@@ -170,11 +170,11 @@ class PanelAuditEventFormatter
     private function metadata(string $subjectType, array $snapshot, array $metadata): array
     {
         $base = match ($subjectType) {
-            AuditEvent::SUBJECT_BUSINESS_PROFILE => [
+            SystemActivity::SUBJECT_BUSINESS_PROFILE => [
                 'business_profile_id' => $snapshot['id'] ?? null,
                 'business_name' => $snapshot['name'] ?? null,
             ],
-            AuditEvent::SUBJECT_EMPLOYEE => [
+            SystemActivity::SUBJECT_EMPLOYEE => [
                 'employee_id' => $snapshot['id'] ?? null,
                 'employee_name' => $snapshot['name'] ?? null,
                 'status' => $snapshot['status'] ?? null,
@@ -191,7 +191,7 @@ class PanelAuditEventFormatter
                 'biometric_fingerprint_id' => $snapshot['biometric_fingerprint_id'] ?? null,
                 'biometric_enrolled_at' => $snapshot['biometric_enrolled_at'] ?? null,
             ],
-            AuditEvent::SUBJECT_PAYROLL => [
+            SystemActivity::SUBJECT_PAYROLL => [
                 'employee_id' => $snapshot['employee_id'] ?? null,
                 'employee_name' => $snapshot['employee_name'] ?? null,
                 'period_start' => $snapshot['period_start'] ?? null,
@@ -204,7 +204,7 @@ class PanelAuditEventFormatter
                 'net_amount' => $this->nullableMoney($snapshot['net_amount'] ?? null),
                 'status' => $snapshot['status'] ?? null,
             ],
-            AuditEvent::SUBJECT_PAYOUT => [
+            SystemActivity::SUBJECT_PAYOUT => [
                 'employee_id' => $snapshot['employee_id'] ?? null,
                 'employee_name' => $snapshot['employee_name'] ?? null,
                 'payroll_id' => $snapshot['payroll_id'] ?? null,
@@ -212,13 +212,13 @@ class PanelAuditEventFormatter
                 'amount' => $this->nullableMoney($snapshot['amount'] ?? null),
                 'method' => $snapshot['method'] ?? null,
             ],
-            AuditEvent::SUBJECT_MEMBER => [
+            SystemActivity::SUBJECT_MEMBER => [
                 'member_id' => $snapshot['id'] ?? null,
                 'member_name' => $snapshot['name'] ?? null,
                 'status' => $snapshot['status'] ?? null,
                 'email' => $snapshot['email'] ?? null,
             ],
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION => [
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => [
                 'member_id' => $snapshot['member_id'] ?? null,
                 'member_name' => $snapshot['member_name'] ?? null,
                 'rate_plan_id' => $snapshot['rate_plan_id'] ?? null,
@@ -227,7 +227,7 @@ class PanelAuditEventFormatter
                 'start_date' => $snapshot['start_date'] ?? null,
                 'end_date' => $snapshot['end_date'] ?? null,
             ],
-            AuditEvent::SUBJECT_MEMBER_PT_PACKAGE => [
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => [
                 'member_id' => $snapshot['member_id'] ?? null,
                 'member_name' => $snapshot['member_name'] ?? null,
                 'pt_product_id' => $snapshot['pt_product_id'] ?? null,
@@ -238,7 +238,7 @@ class PanelAuditEventFormatter
                 'remaining_sessions' => $snapshot['remaining_sessions'] ?? null,
                 'assigned_at' => $snapshot['assigned_at'] ?? null,
             ],
-            AuditEvent::SUBJECT_MEMBER_PT_SESSION_USAGE => [
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => [
                 'member_id' => $snapshot['member_id'] ?? null,
                 'member_name' => $snapshot['member_name'] ?? null,
                 'package_id' => $snapshot['package_id'] ?? null,
@@ -248,7 +248,7 @@ class PanelAuditEventFormatter
                 'coach_id' => $snapshot['coach_id'] ?? null,
                 'coach_name' => $snapshot['coach_name'] ?? null,
             ],
-            AuditEvent::SUBJECT_ATTENDANCE => [
+            SystemActivity::SUBJECT_ATTENDANCE => [
                 'user_id' => $snapshot['user_id'] ?? null,
                 'name' => $snapshot['name'] ?? null,
                 'attendee_type' => $snapshot['attendee_type'] ?? null,
@@ -257,7 +257,7 @@ class PanelAuditEventFormatter
                 'source' => $snapshot['source'] ?? null,
                 'source_device_serial' => $snapshot['source_device_serial'] ?? null,
             ],
-            AuditEvent::SUBJECT_SALE_TRANSACTION => [
+            SystemActivity::SUBJECT_SALE_TRANSACTION => [
                 'sale_type' => $snapshot['type'] ?? null,
                 'customer_name' => $snapshot['customer_name'] ?? null,
                 'item_name' => $snapshot['item_name'] ?? null,
@@ -265,7 +265,7 @@ class PanelAuditEventFormatter
                 'member_id' => $snapshot['member_id'] ?? null,
                 'total' => $this->nullableMoney($snapshot['total'] ?? null),
             ],
-            AuditEvent::SUBJECT_INVENTORY_ITEM => [
+            SystemActivity::SUBJECT_INVENTORY_ITEM => [
                 'inventory_name' => $snapshot['name'] ?? null,
                 'category_name' => $snapshot['category_name'] ?? null,
                 'quantity' => $this->nullableNumber($snapshot['quantity'] ?? null),
@@ -273,12 +273,12 @@ class PanelAuditEventFormatter
                 'deducted_quantity' => $this->nullableNumber($snapshot['deducted_quantity'] ?? null),
                 'remaining_quantity' => $this->nullableNumber($snapshot['remaining_quantity'] ?? null),
             ],
-            AuditEvent::SUBJECT_RATE_PLAN => [
+            SystemActivity::SUBJECT_RATE_PLAN => [
                 'rate_plan_name' => $snapshot['name'] ?? null,
                 'duration_days' => $snapshot['duration_days'] ?? null,
                 'price' => $this->nullableMoney($snapshot['price'] ?? null),
             ],
-            AuditEvent::SUBJECT_PT_PRODUCT => [
+            SystemActivity::SUBJECT_PT_PRODUCT => [
                 'pt_product_name' => $snapshot['name'] ?? null,
                 'session_count' => $snapshot['session_count'] ?? null,
                 'price' => $this->nullableMoney($snapshot['price'] ?? null),

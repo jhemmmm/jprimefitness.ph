@@ -3,21 +3,21 @@
 namespace App\Services;
 
 use App\Models\Attendance;
-use App\Models\AuditEvent;
+use App\Models\SystemActivity;
 use App\Models\InventoryItem;
 use App\Models\User;
-use App\Support\AuditSubjectRegistry;
-use App\Support\PanelAuditEventFormatter;
+use App\Support\SystemActivitySubjectRegistry;
+use App\Support\PanelSystemActivityFormatter;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-class AuditHistoryService
+class SystemActivityService
 {
     public function __construct(
-        private AuditSubjectRegistry $auditSubjectRegistry,
-        private PanelAuditEventFormatter $panelAuditEventFormatter,
+        private SystemActivitySubjectRegistry $systemActivitySubjectRegistry,
+        private PanelSystemActivityFormatter $panelSystemActivityFormatter,
     ) {}
 
     /**
@@ -34,9 +34,9 @@ class AuditHistoryService
      *     occurred_at?: DateTimeInterface|string|null
      * }  $payload
      */
-    public function record(array $payload): AuditEvent
+    public function record(array $payload): SystemActivity
     {
-        return AuditEvent::create([
+        return SystemActivity::create([
             'subject_type' => $payload['subject_type'],
             'subject_id' => $payload['subject_id'],
             'subject_label' => $payload['subject_label'] ?? null,
@@ -61,7 +61,7 @@ class AuditHistoryService
         array $snapshot = [],
         array $metadata = [],
     ): array {
-        return $this->panelAuditEventFormatter->format($subjectType, $subjectId, $event, $snapshot, $metadata);
+        return $this->panelSystemActivityFormatter->format($subjectType, $subjectId, $event, $snapshot, $metadata);
     }
 
     /**
@@ -77,7 +77,7 @@ class AuditHistoryService
         ?int $actorUserId = null,
         ?string $actorName = null,
         DateTimeInterface|string|null $occurredAt = null,
-    ): AuditEvent {
+    ): SystemActivity {
         $payload = $this->formatSubjectEvent($subjectType, $subjectId, $event, $snapshot, $metadata);
 
         return $this->record([
@@ -116,7 +116,7 @@ class AuditHistoryService
      */
     public function subjectOptions(): array
     {
-        return $this->auditSubjectRegistry->subjectOptions();
+        return $this->systemActivitySubjectRegistry->subjectOptions();
     }
 
     /**
@@ -124,17 +124,17 @@ class AuditHistoryService
      */
     public function eventOptions(): array
     {
-        return $this->auditSubjectRegistry->eventOptions();
+        return $this->systemActivitySubjectRegistry->eventOptions();
     }
 
     public function eventLabel(string $event): string
     {
-        return $this->auditSubjectRegistry->eventLabel($event);
+        return $this->systemActivitySubjectRegistry->eventLabel($event);
     }
 
-    public function actionUrl(AuditEvent $auditEvent): ?string
+    public function actionUrl(SystemActivity $systemActivity): ?string
     {
-        return $this->auditSubjectRegistry->actionUrl($auditEvent);
+        return $this->systemActivitySubjectRegistry->actionUrl($systemActivity);
     }
 
     /**
@@ -143,7 +143,7 @@ class AuditHistoryService
      */
     public function normalizeCausedBy(array $metadata): ?array
     {
-        return $this->auditSubjectRegistry->normalizeCausedBy($metadata);
+        return $this->systemActivitySubjectRegistry->normalizeCausedBy($metadata);
     }
 
     public function canViewSystemActivity(mixed $user): bool
@@ -155,9 +155,9 @@ class AuditHistoryService
     /**
      * @return array{available: bool, label: ?string, reason: ?string}
      */
-    public function restoreDescriptor(AuditEvent $auditEvent): array
+    public function restoreDescriptor(SystemActivity $systemActivity): array
     {
-        if ($auditEvent->event !== 'deleted') {
+        if ($systemActivity->event !== 'deleted') {
             return [
                 'available' => false,
                 'label' => null,
@@ -165,7 +165,7 @@ class AuditHistoryService
             ];
         }
 
-        $subject = $this->restorableSubject($auditEvent);
+        $subject = $this->restorableSubject($systemActivity);
 
         if ($subject === null) {
             return [
@@ -198,9 +198,9 @@ class AuditHistoryService
         ];
     }
 
-    public function restoreSubject(AuditEvent $auditEvent, mixed $actor): void
+    public function restoreSubject(SystemActivity $systemActivity, mixed $actor): void
     {
-        $restoreDescriptor = $this->restoreDescriptor($auditEvent);
+        $restoreDescriptor = $this->restoreDescriptor($systemActivity);
 
         if (! $restoreDescriptor['available']) {
             throw ValidationException::withMessages([
@@ -208,7 +208,7 @@ class AuditHistoryService
             ]);
         }
 
-        $subject = $this->restorableSubject($auditEvent);
+        $subject = $this->restorableSubject($systemActivity);
 
         if (! $subject instanceof Model) {
             throw ValidationException::withMessages([
@@ -216,11 +216,11 @@ class AuditHistoryService
             ]);
         }
 
-        DB::transaction(function () use ($auditEvent, $subject, $actor): void {
-            match ($auditEvent->subject_type) {
-                AuditEvent::SUBJECT_EMPLOYEE => $this->restoreEmployee($subject, $actor),
-                AuditEvent::SUBJECT_ATTENDANCE => $this->restoreAttendance($subject, $actor),
-                AuditEvent::SUBJECT_INVENTORY_ITEM => $this->restoreInventoryItem($subject, $actor),
+        DB::transaction(function () use ($systemActivity, $subject, $actor): void {
+            match ($systemActivity->subject_type) {
+                SystemActivity::SUBJECT_EMPLOYEE => $this->restoreEmployee($subject, $actor),
+                SystemActivity::SUBJECT_ATTENDANCE => $this->restoreAttendance($subject, $actor),
+                SystemActivity::SUBJECT_INVENTORY_ITEM => $this->restoreInventoryItem($subject, $actor),
                 default => throw ValidationException::withMessages([
                     'restore' => 'This deleted activity cannot be restored from System Activity.',
                 ]),
@@ -243,7 +243,7 @@ class AuditHistoryService
         $employeeProfile = $employee->employeeProfile;
 
         $this->recordSubjectEvent(
-            AuditEvent::SUBJECT_EMPLOYEE,
+            SystemActivity::SUBJECT_EMPLOYEE,
             $employee->id,
             'restored',
             [
@@ -277,7 +277,7 @@ class AuditHistoryService
         $attendance->refresh()->load(['user', 'recordedBy']);
 
         $this->recordSubjectEvent(
-            AuditEvent::SUBJECT_ATTENDANCE,
+            SystemActivity::SUBJECT_ATTENDANCE,
             $attendance->id,
             'restored',
             [
@@ -309,7 +309,7 @@ class AuditHistoryService
         $inventoryItem->refresh()->load('category:id,name');
 
         $this->recordSubjectEvent(
-            AuditEvent::SUBJECT_INVENTORY_ITEM,
+            SystemActivity::SUBJECT_INVENTORY_ITEM,
             $inventoryItem->id,
             'restored',
             [
@@ -326,12 +326,12 @@ class AuditHistoryService
         );
     }
 
-    private function restorableSubject(AuditEvent $auditEvent): ?Model
+    private function restorableSubject(SystemActivity $systemActivity): ?Model
     {
-        return match ($auditEvent->subject_type) {
-            AuditEvent::SUBJECT_EMPLOYEE => User::withTrashed()->find($auditEvent->subject_id),
-            AuditEvent::SUBJECT_ATTENDANCE => Attendance::withTrashed()->find($auditEvent->subject_id),
-            AuditEvent::SUBJECT_INVENTORY_ITEM => InventoryItem::withTrashed()->find($auditEvent->subject_id),
+        return match ($systemActivity->subject_type) {
+            SystemActivity::SUBJECT_EMPLOYEE => User::withTrashed()->find($systemActivity->subject_id),
+            SystemActivity::SUBJECT_ATTENDANCE => Attendance::withTrashed()->find($systemActivity->subject_id),
+            SystemActivity::SUBJECT_INVENTORY_ITEM => InventoryItem::withTrashed()->find($systemActivity->subject_id),
             default => null,
         };
     }
