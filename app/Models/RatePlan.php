@@ -11,7 +11,6 @@ class RatePlan extends Model
         'name',
         'duration_days',
         'price',
-        'manager_commission_rate',
         'is_active',
         'description',
         'effective_from',
@@ -21,7 +20,6 @@ class RatePlan extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'price' => 'decimal:2',
-        'manager_commission_rate' => 'decimal:2',
         'effective_from' => 'date',
         'effective_until' => 'date',
     ];

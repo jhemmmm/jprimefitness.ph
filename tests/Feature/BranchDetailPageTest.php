@@ -24,7 +24,6 @@ class BranchDetailPageTest extends TestCase
             'name' => 'Monthly',
             'duration_days' => 30,
             'price' => 1500,
-            'manager_commission_rate' => 10,
             'is_active' => true,
         ]);
 
@@ -33,7 +32,6 @@ class BranchDetailPageTest extends TestCase
             'session_count' => 12,
             'category' => PTProduct::CATEGORY_PACKAGE,
             'price' => 2400,
-            'coach_commission_rate' => 40,
             'is_active' => true,
         ]);
 

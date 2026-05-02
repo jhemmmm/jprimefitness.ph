@@ -15,7 +15,6 @@ class MemberSeeder extends Seeder
     public function run(): void
     {
         $plans = RatePlan::query()->get()->keyBy('name');
-        $manager = User::role('manager')->first();
 
         $members = [
             [
@@ -146,22 +145,15 @@ class MemberSeeder extends Seeder
             $endDate = $ratePlan->duration_days > 1
                 ? $startDate->copy()->addDays($ratePlan->duration_days - 1)
                 : null;
-            $commissionRate = (float) ($ratePlan->manager_commission_rate ?? 0);
             $soldPrice = (float) ($ratePlan->price ?? 0);
-            $managerId = $commissionRate > 0 ? $manager?->id : null;
 
             $user->memberSubscriptions()->delete();
             $user->memberSubscriptions()->create([
                 'rate_plan_id' => $ratePlan->id,
                 'sold_price' => $soldPrice,
-                'manager_id' => $managerId,
-                'manager_commission_rate' => $commissionRate,
-                'manager_commission_amount' => MemberSubscription::calculateCommissionAmount($soldPrice, $commissionRate),
                 'start_date' => $startDate->toDateString(),
                 'end_date' => $endDate?->toDateString(),
                 'status' => MemberSubscription::STATUS_ACTIVE,
-                'manager_commission_status' => MemberSubscription::defaultCommissionStatus($managerId),
-                'manager_commission_earned_at' => $managerId ? $startDate->copy()->startOfDay() : null,
             ]);
         }
     }

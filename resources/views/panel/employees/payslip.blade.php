@@ -473,20 +473,6 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="breakdown-label">PT commission</td>
-                                    <td
-                                        class="breakdown-amount {{ (float) $payroll->pt_commission_amount > 0 ? 'amount-positive' : '' }}">
-                                        {{ (float) $payroll->pt_commission_amount > 0 ? '+ PHP ' . number_format((float) $payroll->pt_commission_amount, 2) : '-' }}
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td class="breakdown-label">Membership commission</td>
-                                    <td
-                                        class="breakdown-amount {{ (float) $payroll->membership_commission_amount > 0 ? 'amount-positive' : '' }}">
-                                        {{ (float) $payroll->membership_commission_amount > 0 ? '+ PHP ' . number_format((float) $payroll->membership_commission_amount, 2) : '-' }}
-                                    </td>
-                                </tr>
-                                <tr>
                                     <td class="breakdown-label">Income tax</td>
                                     <td
                                         class="breakdown-amount {{ (float) $payroll->income_tax > 0 ? 'amount-negative' : '' }}">

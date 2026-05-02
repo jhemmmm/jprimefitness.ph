@@ -20,11 +20,22 @@ class AttendanceController extends Controller
         private AuditHistoryService $auditHistoryService,
     ) {}
 
+    /**
+     * Display the attendance index page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
     public function index(): View
     {
         return view('panel.attendance');
     }
 
+    /**
+     * Display a list of attendance records.
+     *
+     * @param  Request  $request
+     * @return JsonResponse
+     */
     public function list(Request $request): JsonResponse
     {
         $records = Attendance::with(['user', 'walkIn', 'recordedBy'])

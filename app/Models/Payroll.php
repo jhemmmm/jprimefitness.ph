@@ -32,10 +32,6 @@ class Payroll extends Model
         'income_tax',
         'employee_contributions',
         'employer_contributions',
-        'pt_commission_amount',
-        'pt_commission_items',
-        'membership_commission_amount',
-        'membership_commission_items',
         'manual_deductions',
         'cash_advance_deduction',
         'net_amount',
@@ -58,10 +54,6 @@ class Payroll extends Model
         'gross_amount' => 'decimal:2',
         'bonus' => 'decimal:2',
         'income_tax' => 'decimal:2',
-        'pt_commission_amount' => 'decimal:2',
-        'pt_commission_items' => 'array',
-        'membership_commission_amount' => 'decimal:2',
-        'membership_commission_items' => 'array',
         'manual_deductions' => 'decimal:2',
         'cash_advance_deduction' => 'decimal:2',
         'employee_contributions' => 'array',
@@ -77,16 +69,6 @@ class Payroll extends Model
     public function payouts(): HasMany
     {
         return $this->hasMany(Payout::class);
-    }
-
-    public function ptCommissionPackages(): HasMany
-    {
-        return $this->hasMany(MemberPtPackage::class, 'commission_payroll_id');
-    }
-
-    public function membershipCommissionSubscriptions(): HasMany
-    {
-        return $this->hasMany(MemberSubscription::class, 'commission_payroll_id');
     }
 
     public function generatedBy(): BelongsTo
@@ -163,9 +145,7 @@ class Payroll extends Model
     {
         return round(
             (float) $this->gross_amount
-            + (float) $this->bonus
-            + (float) $this->pt_commission_amount
-            + (float) $this->membership_commission_amount,
+            + (float) $this->bonus,
             2
         );
     }

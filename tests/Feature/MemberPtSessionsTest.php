@@ -43,19 +43,13 @@ class MemberPtSessionsTest extends TestCase
             ->assertJsonPath('member_pt_packages.0.total_sessions', 12)
             ->assertJsonPath('member_pt_packages.0.remaining_sessions', 12)
             ->assertJsonPath('member_pt_packages.0.coach.name', $coach->name)
-            ->assertJsonPath('member_pt_packages.0.sold_price', 500)
-            ->assertJsonPath('member_pt_packages.0.coach_commission_rate', 40)
-            ->assertJsonPath('member_pt_packages.0.coach_commission_amount', 200)
-            ->assertJsonPath('member_pt_packages.0.coach_commission_status', MemberPtPackage::COMMISSION_STATUS_PENDING);
+            ->assertJsonPath('member_pt_packages.0.sold_price', 500);
 
         $this->assertDatabaseHas('member_pt_packages', [
             'user_id' => $member->id,
             'pt_product_id' => $product->id,
             'coach_id' => $coach->id,
             'sold_price' => 500,
-            'coach_commission_rate' => 40,
-            'coach_commission_amount' => 200,
-            'coach_commission_status' => MemberPtPackage::COMMISSION_STATUS_PENDING,
             'total_sessions' => 12,
             'remaining_sessions' => 12,
             'status' => MemberPtPackage::STATUS_ACTIVE,
@@ -102,11 +96,10 @@ class MemberPtSessionsTest extends TestCase
             'id' => $package->id,
             'remaining_sessions' => 10,
             'status' => MemberPtPackage::STATUS_ACTIVE,
-            'coach_commission_status' => MemberPtPackage::COMMISSION_STATUS_PENDING,
         ]);
     }
 
-    public function test_consuming_last_session_marks_pt_commission_as_earned(): void
+    public function test_consuming_last_session_marks_package_as_consumed(): void
     {
         $product = $this->createPtProduct('Per Session', 1);
         $manager = $this->createUserWithRole('manager');
@@ -118,9 +111,6 @@ class MemberPtSessionsTest extends TestCase
             'pt_product_id' => $product->id,
             'coach_id' => $coach->id,
             'sold_price' => 500,
-            'coach_commission_rate' => 40,
-            'coach_commission_amount' => 200,
-            'coach_commission_status' => MemberPtPackage::COMMISSION_STATUS_PENDING,
             'total_sessions' => 1,
             'remaining_sessions' => 1,
             'assigned_at' => '2026-04-01',
@@ -134,18 +124,16 @@ class MemberPtSessionsTest extends TestCase
                 'used_at' => '2026-04-02 09:30:00',
             ])
             ->assertCreated()
-            ->assertJsonPath('member_pt_packages.0.status', MemberPtPackage::STATUS_CONSUMED)
-            ->assertJsonPath('member_pt_packages.0.coach_commission_status', MemberPtPackage::COMMISSION_STATUS_EARNED);
+            ->assertJsonPath('member_pt_packages.0.status', MemberPtPackage::STATUS_CONSUMED);
 
         $this->assertDatabaseHas('member_pt_packages', [
             'id' => $package->id,
             'remaining_sessions' => 0,
             'status' => MemberPtPackage::STATUS_CONSUMED,
-            'coach_commission_status' => MemberPtPackage::COMMISSION_STATUS_EARNED,
         ]);
     }
 
-    public function test_logging_usage_with_a_late_coach_assignment_updates_the_package_commission_state(): void
+    public function test_logging_usage_with_a_late_coach_assignment_updates_the_package_coach(): void
     {
         $product = $this->createPtProduct('Per Session', 1);
         $manager = $this->createUserWithRole('manager');
@@ -156,9 +144,6 @@ class MemberPtSessionsTest extends TestCase
         $package = $member->memberPtPackages()->create([
             'pt_product_id' => $product->id,
             'sold_price' => 500,
-            'coach_commission_rate' => 40,
-            'coach_commission_amount' => 200,
-            'coach_commission_status' => MemberPtPackage::COMMISSION_STATUS_UNASSIGNED,
             'total_sessions' => 1,
             'remaining_sessions' => 1,
             'assigned_at' => '2026-04-01',
@@ -173,13 +158,11 @@ class MemberPtSessionsTest extends TestCase
                 'used_at' => '2026-04-02 09:30:00',
             ])
             ->assertCreated()
-            ->assertJsonPath('member_pt_packages.0.coach.name', $coach->name)
-            ->assertJsonPath('member_pt_packages.0.coach_commission_status', MemberPtPackage::COMMISSION_STATUS_EARNED);
+            ->assertJsonPath('member_pt_packages.0.coach.name', $coach->name);
 
         $this->assertDatabaseHas('member_pt_packages', [
             'id' => $package->id,
             'coach_id' => $coach->id,
-            'coach_commission_status' => MemberPtPackage::COMMISSION_STATUS_EARNED,
         ]);
 
         $this->assertDatabaseHas('member_pt_session_usages', [
@@ -268,7 +251,6 @@ class MemberPtSessionsTest extends TestCase
             'session_count' => $sessionCount,
             'category' => $sessionCount === 1 ? PTProduct::CATEGORY_SINGLE : PTProduct::CATEGORY_PACKAGE,
             'price' => 500,
-            'coach_commission_rate' => 40,
             'is_active' => true,
         ]);
     }

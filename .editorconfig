@@ -20,3 +20,9 @@ indent_size = 4
 
 [*.{js,vue,json}]
 indent_size = 3
+
+[*.php]
+php_diagnostic_php0406 = false
+php_diagnostic_php0418 = false
+php_diagnostic_php2422 = false
+php_diagnostic_php6508 = false

@@ -191,10 +191,6 @@ class DashboardPageTest extends TestCase
             'gross_amount' => 1200,
             'bonus' => 0,
             'income_tax' => 0,
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
-            'membership_commission_amount' => 0,
-            'membership_commission_items' => [],
             'manual_deductions' => 0,
             'cash_advance_deduction' => 0,
             'net_amount' => 1200,
@@ -299,7 +295,6 @@ class DashboardPageTest extends TestCase
             'name' => $name,
             'duration_days' => $durationDays,
             'price' => 1500,
-            'manager_commission_rate' => 10,
             'is_active' => true,
         ]);
     }

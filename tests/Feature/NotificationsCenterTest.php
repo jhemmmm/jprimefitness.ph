@@ -134,10 +134,6 @@ class NotificationsCenterTest extends TestCase
             'gross_amount' => 10000,
             'bonus' => 0,
             'income_tax' => 0,
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
-            'membership_commission_amount' => 0,
-            'membership_commission_items' => [],
             'manual_deductions' => 0,
             'cash_advance_deduction' => 0,
             'net_amount' => 10000,
@@ -523,7 +519,6 @@ class NotificationsCenterTest extends TestCase
             'name' => $name,
             'duration_days' => $durationDays,
             'price' => 1500,
-            'manager_commission_rate' => 8,
             'is_active' => true,
         ]);
     }
@@ -535,7 +530,6 @@ class NotificationsCenterTest extends TestCase
             'session_count' => $sessionCount,
             'category' => $sessionCount === 1 ? PTProduct::CATEGORY_SINGLE : PTProduct::CATEGORY_PACKAGE,
             'price' => 500,
-            'coach_commission_rate' => 40,
             'is_active' => true,
         ]);
     }

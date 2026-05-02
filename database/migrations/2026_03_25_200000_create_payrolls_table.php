@@ -20,10 +20,6 @@ return new class extends Migration
             $table->decimal('income_tax', 10, 2)->default(0);
             $table->json('employee_contributions')->nullable();
             $table->json('employer_contributions')->nullable();
-            $table->decimal('pt_commission_amount', 10, 2)->default(0);
-            $table->json('pt_commission_items')->nullable();
-            $table->decimal('membership_commission_amount', 10, 2)->default(0);
-            $table->json('membership_commission_items')->nullable();
             $table->decimal('manual_deductions', 10, 2)->default(0);
             $table->decimal('cash_advance_deduction', 10, 2)->default(0);
             $table->decimal('net_amount', 10, 2)->default(0);

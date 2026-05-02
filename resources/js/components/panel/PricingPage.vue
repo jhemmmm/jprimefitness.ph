@@ -46,7 +46,6 @@
                         <th>Plan</th>
                         <th>Duration</th>
                         <th>Price</th>
-                        <th>Manager Commission</th>
                         <th>Status</th>
                         <th>Effectivity</th>
                         <th class="col-actions"></th>
@@ -60,7 +59,6 @@
                         </td>
                         <td class="small">{{ membershipDurationLabel(rate.duration_days) }}</td>
                         <td class="fw-semibold">₱{{ $filters.formatMoney(rate.price) }}</td>
-                        <td class="small">{{ $filters.formatMoney(rate.manager_commission_rate) }}%</td>
                         <td>
                            <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
                         </td>
@@ -110,7 +108,6 @@
                   </div>
 
                   <div class="small text-muted">Price: ₱{{ $filters.formatMoney(rate.price) }}</div>
-                  <div class="small text-muted mt-1">Manager Commission: {{ $filters.formatMoney(rate.manager_commission_rate) }}%</div>
                   <div class="small text-muted mt-1">From: {{ formatDate(rate.effective_from) }}</div>
                   <div class="small text-muted mt-1">Until: {{ formatDate(rate.effective_until) }}</div>
 
@@ -145,7 +142,6 @@
                         <th>Package</th>
                         <th>Sessions</th>
                         <th>Price</th>
-                        <th>Coach Commission</th>
                         <th>Status</th>
                         <th>Effectivity</th>
                         <th class="col-actions"></th>
@@ -159,7 +155,6 @@
                         </td>
                         <td class="small">{{ rate.session_count }} session{{ rate.session_count !== 1 ? "s" : "" }}</td>
                         <td class="fw-semibold">₱{{ $filters.formatMoney(rate.price) }}</td>
-                        <td class="small">{{ $filters.formatMoney(rate.coach_commission_rate) }}%</td>
                         <td>
                            <span :class="['m-badge', rate.is_active ? 'm-badge--active' : 'm-badge--inactive']">{{ rate.is_active ? "Active" : "Inactive" }}</span>
                         </td>
@@ -209,7 +204,6 @@
                   </div>
 
                   <div class="small text-muted">Price: ₱{{ $filters.formatMoney(rate.price) }}</div>
-                  <div class="small text-muted mt-1">Coach Commission: {{ $filters.formatMoney(rate.coach_commission_rate) }}%</div>
                   <div class="small text-muted mt-1">From: {{ formatDate(rate.effective_from) }}</div>
                   <div class="small text-muted mt-1">Until: {{ formatDate(rate.effective_until) }}</div>
 
@@ -244,15 +238,10 @@
                      <input type="text" class="form-control" :value="membershipForm.name" disabled />
                   </div>
                   <div class="row g-3">
-                     <div class="col-md-6">
+                     <div class="col-md-12">
                         <label class="form-label form-label-sm">Price <span class="text-danger">*</span></label>
                         <input type="number" min="0" step="0.01" class="form-control" v-model="membershipForm.price" :class="{ 'is-invalid': membershipFormErrors.price }" />
                         <div class="invalid-feedback" v-if="membershipFormErrors.price">{{ membershipFormErrors.price }}</div>
-                     </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Manager Commission Rate</label>
-                        <input type="number" min="0" max="100" step="0.01" class="form-control" v-model="membershipForm.manager_commission_rate" :class="{ 'is-invalid': membershipFormErrors.manager_commission_rate }" />
-                        <div class="invalid-feedback" v-if="membershipFormErrors.manager_commission_rate">{{ membershipFormErrors.manager_commission_rate }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Effective From</label>
@@ -303,15 +292,10 @@
                      <input type="text" class="form-control" :value="ptForm.name" disabled />
                   </div>
                   <div class="row g-3">
-                     <div class="col-md-6">
+                     <div class="col-md-12">
                         <label class="form-label form-label-sm">Price <span class="text-danger">*</span></label>
                         <input type="number" min="0" step="0.01" class="form-control" v-model="ptForm.price" :class="{ 'is-invalid': ptFormErrors.price }" />
                         <div class="invalid-feedback" v-if="ptFormErrors.price">{{ ptFormErrors.price }}</div>
-                     </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Coach Commission Rate</label>
-                        <input type="number" min="0" max="100" step="0.01" class="form-control" v-model="ptForm.coach_commission_rate" :class="{ 'is-invalid': ptFormErrors.coach_commission_rate }" />
-                        <div class="invalid-feedback" v-if="ptFormErrors.coach_commission_rate">{{ ptFormErrors.coach_commission_rate }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Effective From</label>
@@ -434,7 +418,6 @@ export default {
             id: "",
             name: "",
             price: "",
-            manager_commission_rate: "0.00",
             is_active: true,
             effective_from: "",
             effective_until: "",
@@ -445,7 +428,6 @@ export default {
             id: "",
             name: "",
             price: "",
-            coach_commission_rate: "40.00",
             is_active: true,
             effective_from: "",
             effective_until: "",
@@ -491,7 +473,6 @@ export default {
             id: rate.id,
             name: rate.name,
             price: rate.price,
-            manager_commission_rate: rate.manager_commission_rate,
             is_active: !!rate.is_active,
             effective_from: rate.effective_from || "",
             effective_until: rate.effective_until || "",
@@ -513,7 +494,6 @@ export default {
             id: rate.id,
             name: rate.name,
             price: rate.price,
-            coach_commission_rate: rate.coach_commission_rate,
             is_active: !!rate.is_active,
             effective_from: rate.effective_from || "",
             effective_until: rate.effective_until || "",
@@ -532,7 +512,6 @@ export default {
 
          const payload = {
             price: this.membershipForm.price,
-            manager_commission_rate: this.membershipForm.manager_commission_rate,
             is_active: this.membershipForm.is_active,
             effective_from: this.membershipForm.effective_from || null,
             effective_until: this.membershipForm.effective_until || null,
@@ -571,7 +550,6 @@ export default {
 
          const payload = {
             price: this.ptForm.price,
-            coach_commission_rate: this.ptForm.coach_commission_rate,
             is_active: this.ptForm.is_active,
             effective_from: this.ptForm.effective_from || null,
             effective_until: this.ptForm.effective_until || null,

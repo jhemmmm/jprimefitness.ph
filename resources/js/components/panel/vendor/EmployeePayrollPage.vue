@@ -54,8 +54,6 @@
                      <th>Period</th>
                      <th class="text-end">Gross</th>
                      <th class="text-end">Bonus</th>
-                     <th class="text-end">PT Comm.</th>
-                     <th class="text-end">Mbr Comm.</th>
                      <th class="text-end">Deductions</th>
                      <th class="text-end">CA Deduction</th>
                      <th class="text-end fw-bold">Net</th>
@@ -89,8 +87,6 @@
                      </td>
                      <td class="text-end small">₱{{ $filters.formatMoney(p.gross_amount) }}</td>
                      <td class="text-end small text-success">{{ p.bonus > 0 ? "+₱" + $filters.formatMoney(p.bonus) : "-" }}</td>
-                     <td class="text-end small text-success">{{ p.pt_commission_amount > 0 ? "+₱" + $filters.formatMoney(p.pt_commission_amount) : "-" }}</td>
-                     <td class="text-end small text-success">{{ p.membership_commission_amount > 0 ? "+₱" + $filters.formatMoney(p.membership_commission_amount) : "-" }}</td>
                      <td class="text-end small text-danger">{{ p.employee_deductions_total > 0 ? "-₱" + $filters.formatMoney(p.employee_deductions_total) : "-" }}</td>
                      <td class="text-end small text-warning">{{ p.cash_advance_deduction > 0 ? "-₱" + $filters.formatMoney(p.cash_advance_deduction) : "-" }}</td>
                      <td class="text-end fw-bold small">₱{{ $filters.formatMoney(p.net_amount) }}</td>
@@ -168,8 +164,6 @@
                      · Adj:
                      {{ p.manual_gross_adjustment_amount > 0 ? "+" : "-" }}₱{{ $filters.formatMoney(Math.abs(Number(p.manual_gross_adjustment_amount || 0))) }}
                   </span>
-                  <span class="small text-success" v-if="p.pt_commission_amount > 0"> · PT: +₱{{ $filters.formatMoney(p.pt_commission_amount) }}</span>
-                  <span class="small text-success" v-if="p.membership_commission_amount > 0"> · Membership: +₱{{ $filters.formatMoney(p.membership_commission_amount) }}</span>
                   <span class="small text-danger" v-if="p.employee_contributions_total > 0"> · Gov't ded.: ₱{{ $filters.formatMoney(p.employee_contributions_total) }}</span>
                   <span class="small text-muted" v-if="p.employer_contributions_total > 0"> · Employer share: ₱{{ $filters.formatMoney(p.employer_contributions_total) }}</span>
                   <span class="small text-danger" v-if="p.remaining_balance > 0"> · Balance: ₱{{ $filters.formatMoney(p.remaining_balance) }}</span>
@@ -207,8 +201,6 @@
                         <template v-else> &mdash; <span class="text-warning fw-semibold">No daily rate set.</span> Set it on the employee profile to auto-compute gross. </template>
                         <span v-if="suggestion.pending_ca_total > 0"> &nbsp;· Pending CA: ₱{{ $filters.formatMoney(suggestion.pending_ca_total) }}</span>
                         <span v-if="suggestion.max_cash_advance_deduction < suggestion.pending_ca_total"> &nbsp;· Eligible CA this payroll: ₱{{ $filters.formatMoney(suggestion.suggested_ca) }}</span>
-                        <span v-if="suggestion.pt_commission_amount > 0"> &nbsp;· PT commissions: ₱{{ $filters.formatMoney(suggestion.pt_commission_amount) }}</span>
-                        <span v-if="suggestion.membership_commission_amount > 0"> &nbsp;· Membership commissions: ₱{{ $filters.formatMoney(suggestion.membership_commission_amount) }}</span>
                         <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_non_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-gift me-1"></i>PH exempt bonus applied this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }} </span>
                         <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-calculator me-1"></i>Taxable bonus excess this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }} </span>
                         <span v-if="!payrollIncomeTaxEnabled" class="d-block text-muted mt-1"><i class="bi bi-slash-circle me-1"></i>Payroll wage tax is disabled in Business Settings.</span>
@@ -221,8 +213,6 @@
                         <span v-if="!payrollGovernmentContributionsEnabled" class="d-block text-muted mt-1"><i class="bi bi-slash-circle me-1"></i>Government contributions are disabled in Business Settings.</span>
                         <span v-if="suggestion.days_worked === 0" class="d-block text-muted mt-1"><i class="bi bi-info-circle me-1"></i>No attendance records found for this period.</span>
                         <span v-if="suggestion.open_attendance_count > 0" class="d-block text-muted mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ suggestion.open_attendance_count }} open attendance record{{ suggestion.open_attendance_count !== 1 ? "s are" : " is" }} excluded until checkout.</span>
-                        <span v-if="suggestion.pt_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-stopwatch me-1"></i>{{ suggestion.pt_commission_items.length }} completed PT package{{ suggestion.pt_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
-                        <span v-if="suggestion.membership_commission_items?.length" class="d-block text-muted mt-1"> <i class="bi bi-person-check me-1"></i>{{ suggestion.membership_commission_items.length }} membership sale commission{{ suggestion.membership_commission_items.length !== 1 ? "s" : "" }} will be added to this payroll. </span>
                      </div>
                      <div v-else-if="!form.period_start || !form.period_end" class="alert alert-secondary py-2 small text-muted"><i class="bi bi-info-circle me-1"></i>Set the period dates to auto-compute from attendance.</div>
                   </div>
@@ -271,22 +261,6 @@
                            <span v-if="suggestion.remaining_bonus_exemption > 0"> Available exempt balance before this payroll: ₱{{ $filters.formatMoney(suggestion.remaining_bonus_exemption) }}.</span>
                            <span v-if="suggestion.bonus_non_taxable_amount > 0"> Exempt this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }}.</span>
                            <span v-if="suggestion.bonus_taxable_amount > 0"> Taxable excess: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}.</span>
-                        </div>
-                     </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">PT Commission (₱)</label>
-                        <input type="number" class="form-control" :value="form.pt_commission_amount" readonly />
-                        <div class="form-text">
-                           Auto-added from completed PT packages in this payroll period.
-                           <span v-if="form.pt_commission_items?.length">({{ form.pt_commission_items.length }} item{{ form.pt_commission_items.length !== 1 ? "s" : "" }})</span>
-                        </div>
-                     </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Membership Commission (₱)</label>
-                        <input type="number" class="form-control" :value="form.membership_commission_amount" readonly />
-                        <div class="form-text">
-                           Auto-added from membership sales that you processed in this payroll period.
-                           <span v-if="form.membership_commission_items?.length">({{ form.membership_commission_items.length }} item{{ form.membership_commission_items.length !== 1 ? "s" : "" }})</span>
                         </div>
                      </div>
                      <div class="col-md-6">
@@ -667,10 +641,6 @@ export default {
             gross_amount: p.gross_amount,
             bonus: p.bonus,
             income_tax: p.income_tax,
-            pt_commission_amount: p.pt_commission_amount,
-            pt_commission_items: p.pt_commission_items || [],
-            membership_commission_amount: p.membership_commission_amount,
-            membership_commission_items: p.membership_commission_items || [],
             manual_deductions: p.manual_deductions,
             cash_advance_deduction: p.cash_advance_deduction,
             employee_contributions: p.employee_contributions || {},
@@ -708,10 +678,6 @@ export default {
                this.form.overwork_hours = res.data.overwork_hours || 0;
                this.form.overwork_pay_amount = res.data.overwork_pay_amount || 0;
                this.form.income_tax = res.data.income_tax || 0;
-               this.form.pt_commission_amount = res.data.pt_commission_amount || 0;
-               this.form.pt_commission_items = res.data.pt_commission_items || [];
-               this.form.membership_commission_amount = res.data.membership_commission_amount || 0;
-               this.form.membership_commission_items = res.data.membership_commission_items || [];
                this.applyContributionState(res.data);
 
                if (this.shouldAutofillSuggestedAmounts) {
@@ -842,10 +808,6 @@ export default {
             gross_amount: "",
             bonus: 0,
             income_tax: 0,
-            pt_commission_amount: 0,
-            pt_commission_items: [],
-            membership_commission_amount: 0,
-            membership_commission_items: [],
             manual_deductions: 0,
             cash_advance_deduction: 0,
             employee_contributions: {},

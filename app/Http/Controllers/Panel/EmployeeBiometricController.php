@@ -16,6 +16,14 @@ class EmployeeBiometricController extends Controller
         $this->middleware('can:manage employees');
     }
 
+    /**
+     * Start a new biometric enrollment session for an employee.
+     *
+     * @param  Request  $request
+     * @param  User  $employee
+     * @param  HikvisionBiometricService  $hikvisionBiometricService
+     * @return JsonResponse
+     */
     public function store(Request $request, User $employee, HikvisionBiometricService $hikvisionBiometricService): JsonResponse
     {
         $session = $hikvisionBiometricService->startEnrollment($employee, $request->user());

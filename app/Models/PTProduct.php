@@ -19,7 +19,6 @@ class PTProduct extends Model
         'session_count',
         'category',
         'price',
-        'coach_commission_rate',
         'is_active',
         'description',
         'effective_from',
@@ -29,7 +28,6 @@ class PTProduct extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'price' => 'decimal:2',
-        'coach_commission_rate' => 'decimal:2',
         'effective_from' => 'date',
         'effective_until' => 'date',
     ];

@@ -7,8 +7,6 @@ use App\Models\AuditEvent;
 use App\Models\BusinessProfile;
 use App\Models\CashAdvance;
 use App\Models\EmployeeProfile;
-use App\Models\MemberPtPackage;
-use App\Models\MemberSubscription;
 use App\Models\Payroll;
 use App\Models\User;
 use App\Services\Payroll\Contracts\PayrollTaxProfile;
@@ -33,10 +31,8 @@ class PayrollService
     public function computeNet(
         float $gross,
         float $bonus,
-        float $ptCommission,
         float $manualDed,
         float $caDed,
-        float $membershipCommission = 0,
         float $incomeTax = 0,
         float $employeeContributionTotal = 0
     ): float {
@@ -45,9 +41,7 @@ class PayrollService
                 0,
                 $this->totalEarnings(
                     $gross,
-                    $bonus,
-                    $ptCommission,
-                    $membershipCommission
+                    $bonus
                 )
                 - $this->totalEmployeeDeductionsBeforeCashAdvance(
                     $incomeTax,
@@ -64,8 +58,7 @@ class PayrollService
         float $incomeTax,
         float $manualDed,
         float $employeeContributionTotal = 0
-    ): float
-    {
+    ): float {
         return round(
             max(0, $incomeTax)
             + max(0, $manualDed)
@@ -76,17 +69,13 @@ class PayrollService
 
     public function totalEarnings(
         float $gross,
-        float $bonus,
-        float $ptCommission,
-        float $membershipCommission = 0
+        float $bonus
     ): float {
         return round(
             max(
                 0,
                 $gross
                 + $bonus
-                + $ptCommission
-                + $membershipCommission
             ),
             2
         );
@@ -94,17 +83,13 @@ class PayrollService
 
     public function taxableEarnings(
         float $gross,
-        float $taxableBonus,
-        float $ptCommission,
-        float $membershipCommission = 0
+        float $taxableBonus
     ): float {
         return round(
             max(
                 0,
                 $gross
                 + $taxableBonus
-                + $ptCommission
-                + $membershipCommission
             ),
             2
         );
@@ -133,10 +118,8 @@ class PayrollService
         ?string $payFrequency,
         float $gross,
         float $bonus,
-        float $ptCommission,
         float $manualDed,
         float $caDed,
-        float $membershipCommission = 0,
         array $context = []
     ): array {
         $bonusBreakdown = $this->bonusTaxBreakdown($countryCode, $bonus, $context);
@@ -144,9 +127,7 @@ class PayrollService
         $payrollCalculationSettings = $this->payrollCalculationSettings($context);
         $taxableEarnings = $this->taxableEarnings(
             $gross,
-            $bonusBreakdown['bonus_taxable_amount'],
-            $ptCommission,
-            $membershipCommission
+            $bonusBreakdown['bonus_taxable_amount']
         );
         $governmentContributions = $payrollCalculationSettings['payroll_government_contributions_enabled']
             ? $taxProfile->calculateGovernmentContributions(
@@ -181,10 +162,8 @@ class PayrollService
             'net_amount' => $this->computeNet(
                 $gross,
                 $bonus,
-                $ptCommission,
                 $manualDed,
                 $caDed,
-                $membershipCommission,
                 $incomeTax,
                 $governmentContributions['employee_contributions_total']
             ),
@@ -227,10 +206,8 @@ class PayrollService
             $payroll->pay_frequency,
             (float) $payroll->gross_amount,
             (float) $payroll->bonus,
-            (float) $payroll->pt_commission_amount,
             (float) $payroll->manual_deductions,
             (float) $payroll->cash_advance_deduction,
-            (float) $payroll->membership_commission_amount,
             $context
         );
 
@@ -252,9 +229,7 @@ class PayrollService
         ?string $payFrequency,
         float $gross,
         float $bonus,
-        float $ptCommission,
         float $manualDed,
-        float $membershipCommission = 0,
         array $context = []
     ): float {
         $payableBeforeCa = $this->calculatePayrollTotals(
@@ -262,10 +237,8 @@ class PayrollService
             $payFrequency,
             $gross,
             $bonus,
-            $ptCommission,
             $manualDed,
             0,
-            $membershipCommission,
             $context
         );
         $pendingCa = $this->pendingCaTotal($employeeId);
@@ -284,9 +257,7 @@ class PayrollService
             $payroll->pay_frequency,
             (float) $payroll->gross_amount,
             (float) $payroll->bonus,
-            (float) $payroll->pt_commission_amount,
             (float) $payroll->manual_deductions,
-            (float) $payroll->membership_commission_amount,
             [
                 'employee_id' => $payroll->employee_id,
                 'exclude_payroll_id' => $payroll->id,
@@ -480,7 +451,6 @@ class PayrollService
             return;
         }
 
-        $previousStatus = $payroll->status;
         $totalPaid = (float) $payroll->payouts()->sum('amount');
 
         $payroll->status = match (true) {
@@ -491,101 +461,6 @@ class PayrollService
         };
 
         $payroll->save();
-
-        if ($payroll->status === Payroll::STATUS_PAID && $previousStatus !== Payroll::STATUS_PAID) {
-            $this->markPtCommissionsAsPaid($payroll);
-            $this->markMembershipCommissionsAsPaid($payroll);
-        }
-    }
-
-    /**
-     * @return array{amount: float, items: array<int, array<string, mixed>>}
-     */
-    public function previewPtCommissions(
-        User $employee,
-        string $periodStart,
-        string $periodEnd,
-        ?Payroll $payroll = null
-    ): array {
-        $packages = $this->ptCommissionPackageQuery($employee, $periodStart, $periodEnd, $payroll)
-            ->with(['member:id,name', 'ptProduct:id,name'])
-            ->orderBy('coach_commission_earned_at')
-            ->get();
-
-        return [
-            'amount' => round($packages->sum('coach_commission_amount'), 2),
-            'items' => $packages->map(fn (MemberPtPackage $package) => $this->serializePtCommissionItem($package))->values()->all(),
-        ];
-    }
-
-    public function syncPtCommissions(Payroll $payroll): void
-    {
-        $payroll->loadMissing('employee');
-
-        if (! $payroll->employee) {
-            return;
-        }
-
-        $this->releasePtCommissions($payroll);
-
-        $summary = $this->previewPtCommissions(
-            $payroll->employee,
-            $payroll->period_start->format('Y-m-d'),
-            $payroll->period_end->format('Y-m-d'),
-            $payroll
-        );
-
-        $packageIds = collect($summary['items'])
-            ->pluck('package_id')
-            ->filter()
-            ->all();
-
-        if ($packageIds !== []) {
-            MemberPtPackage::query()
-                ->whereIn('id', $packageIds)
-                ->update([
-                    'commission_payroll_id' => $payroll->id,
-                ]);
-        }
-
-        $payroll->pt_commission_amount = $summary['amount'];
-        $payroll->pt_commission_items = $summary['items'];
-        $this->syncCalculatedAmounts($payroll);
-    }
-
-    public function syncMembershipCommissions(Payroll $payroll): void
-    {
-        $payroll->loadMissing('employee');
-
-        if (! $payroll->employee) {
-            return;
-        }
-
-        $this->releaseMembershipCommissions($payroll);
-
-        $summary = $this->previewMembershipCommissions(
-            $payroll->employee,
-            $payroll->period_start->format('Y-m-d'),
-            $payroll->period_end->format('Y-m-d'),
-            $payroll
-        );
-
-        $subscriptionIds = collect($summary['items'])
-            ->pluck('subscription_id')
-            ->filter()
-            ->all();
-
-        if ($subscriptionIds !== []) {
-            MemberSubscription::query()
-                ->whereIn('id', $subscriptionIds)
-                ->update([
-                    'commission_payroll_id' => $payroll->id,
-                ]);
-        }
-
-        $payroll->membership_commission_amount = $summary['amount'];
-        $payroll->membership_commission_items = $summary['items'];
-        $this->syncCalculatedAmounts($payroll);
     }
 
     public function syncMonthlyGovernmentContributionAllocation(Payroll $payroll): void
@@ -629,149 +504,6 @@ class PayrollService
                     'force_government_contributions' => $forceGovernmentContributions,
                 ]);
             });
-    }
-
-    public function releasePtCommissions(Payroll $payroll): void
-    {
-        MemberPtPackage::query()
-            ->where('commission_payroll_id', $payroll->id)
-            ->whereIn('coach_commission_status', [
-                MemberPtPackage::COMMISSION_STATUS_EARNED,
-                MemberPtPackage::COMMISSION_STATUS_PENDING,
-            ])
-            ->update([
-                'commission_payroll_id' => null,
-            ]);
-    }
-
-    public function markPtCommissionsAsPaid(Payroll $payroll): void
-    {
-        MemberPtPackage::query()
-            ->where('commission_payroll_id', $payroll->id)
-            ->where('coach_commission_status', MemberPtPackage::COMMISSION_STATUS_EARNED)
-            ->update([
-                'coach_commission_status' => MemberPtPackage::COMMISSION_STATUS_PAID,
-            ]);
-    }
-
-    /**
-     * @return array{amount: float, items: array<int, array<string, mixed>>}
-     */
-    public function previewMembershipCommissions(
-        User $employee,
-        string $periodStart,
-        string $periodEnd,
-        ?Payroll $payroll = null
-    ): array {
-        $subscriptions = $this->membershipCommissionSubscriptionQuery($employee, $periodStart, $periodEnd, $payroll)
-            ->with(['member:id,name', 'ratePlan:id,name'])
-            ->orderBy('manager_commission_earned_at')
-            ->get();
-
-        return [
-            'amount' => round($subscriptions->sum('manager_commission_amount'), 2),
-            'items' => $subscriptions->map(
-                fn (MemberSubscription $subscription) => $this->serializeMembershipCommissionItem($subscription)
-            )->values()->all(),
-        ];
-    }
-
-    public function releaseMembershipCommissions(Payroll $payroll): void
-    {
-        MemberSubscription::query()
-            ->where('commission_payroll_id', $payroll->id)
-            ->where('manager_commission_status', MemberSubscription::COMMISSION_STATUS_EARNED)
-            ->update([
-                'commission_payroll_id' => null,
-            ]);
-    }
-
-    public function markMembershipCommissionsAsPaid(Payroll $payroll): void
-    {
-        MemberSubscription::query()
-            ->where('commission_payroll_id', $payroll->id)
-            ->where('manager_commission_status', MemberSubscription::COMMISSION_STATUS_EARNED)
-            ->update([
-                'manager_commission_status' => MemberSubscription::COMMISSION_STATUS_PAID,
-            ]);
-    }
-
-    private function ptCommissionPackageQuery(
-        User $employee,
-        string $periodStart,
-        string $periodEnd,
-        ?Payroll $payroll = null
-    ) {
-        $start = Carbon::parse($periodStart)->startOfDay();
-        $end = Carbon::parse($periodEnd)->endOfDay();
-
-        return MemberPtPackage::query()
-            ->where('coach_id', $employee->id)
-            ->where('coach_commission_status', MemberPtPackage::COMMISSION_STATUS_EARNED)
-            ->whereBetween('coach_commission_earned_at', [$start, $end])
-            ->where(function ($query) use ($payroll) {
-                $query->whereNull('commission_payroll_id');
-
-                if ($payroll) {
-                    $query->orWhere('commission_payroll_id', $payroll->id);
-                }
-            });
-    }
-
-    private function membershipCommissionSubscriptionQuery(
-        User $employee,
-        string $periodStart,
-        string $periodEnd,
-        ?Payroll $payroll = null
-    ) {
-        $start = Carbon::parse($periodStart)->startOfDay();
-        $end = Carbon::parse($periodEnd)->endOfDay();
-
-        return MemberSubscription::query()
-            ->where('manager_id', $employee->id)
-            ->where('manager_commission_status', MemberSubscription::COMMISSION_STATUS_EARNED)
-            ->whereBetween('manager_commission_earned_at', [$start, $end])
-            ->where(function ($query) use ($payroll) {
-                $query->whereNull('commission_payroll_id');
-
-                if ($payroll) {
-                    $query->orWhere('commission_payroll_id', $payroll->id);
-                }
-            });
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function serializePtCommissionItem(MemberPtPackage $package): array
-    {
-        return [
-            'package_id' => $package->id,
-            'member_id' => $package->user_id,
-            'member_name' => $package->member?->name,
-            'product_name' => $package->ptProduct?->name,
-            'earned_at' => $package->coach_commission_earned_at?->toISOString(),
-            'sold_price' => round((float) $package->sold_price, 2),
-            'commission_rate' => round((float) $package->coach_commission_rate, 2),
-            'commission_amount' => round((float) $package->coach_commission_amount, 2),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function serializeMembershipCommissionItem(MemberSubscription $subscription): array
-    {
-        return [
-            'subscription_id' => $subscription->id,
-            'member_id' => $subscription->user_id,
-            'member_name' => $subscription->member?->name,
-            'product_name' => $subscription->ratePlan?->name,
-            'earned_at' => $subscription->manager_commission_earned_at?->toISOString(),
-            'sold_price' => round((float) $subscription->sold_price, 2),
-            'commission_rate' => round((float) $subscription->manager_commission_rate, 2),
-            'commission_amount' => round((float) $subscription->manager_commission_amount, 2),
-        ];
     }
 
     /**

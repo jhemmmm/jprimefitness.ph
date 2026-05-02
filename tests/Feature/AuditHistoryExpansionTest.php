@@ -357,15 +357,12 @@ class AuditHistoryExpansionTest extends TestCase
         $coach = $this->createUserWithRole('coach', 'Coach Rey');
         $planA = $this->createRatePlan('Monthly', 30, [
             'price' => 1500,
-            'manager_commission_rate' => 8,
         ]);
         $planB = $this->createRatePlan('Quarterly', 90, [
             'price' => 3900,
-            'manager_commission_rate' => 10,
         ]);
         $ptProduct = $this->createPtProduct('12 Sessions', 12, [
             'price' => 6000,
-            'coach_commission_rate' => 40,
         ]);
 
         $this->actingAs($manager)
@@ -410,16 +407,7 @@ class AuditHistoryExpansionTest extends TestCase
 
         $membership->update([
             'sold_price' => 3900,
-            'manager_commission_rate' => 10,
-            'manager_commission_amount' => 390,
-            'manager_commission_status' => MemberSubscription::COMMISSION_STATUS_UNASSIGNED,
         ]);
-
-        $this->actingAs($manager)
-            ->putJson("/panel/members/{$member->id}/membership/manager", [
-                'manager_id' => $manager->id,
-            ])
-            ->assertOk();
 
         $this->actingAs($manager)
             ->postJson("/panel/members/{$member->id}/pt-packages", [
@@ -460,7 +448,7 @@ class AuditHistoryExpansionTest extends TestCase
             ->pluck('event')
             ->all();
 
-        $this->assertSame(['created', 'plan_changed', 'status_updated', 'manager_assigned'], $membershipEvents);
+        $this->assertSame(['created', 'plan_changed', 'status_updated'], $membershipEvents);
 
         $this->assertSame(
             ['assigned'],
@@ -503,11 +491,9 @@ class AuditHistoryExpansionTest extends TestCase
         $ratePlan = $this->createRatePlan('Walk-in Plus', 1);
         $pricingRatePlan = $this->createRatePlan('Annual', 365, [
             'price' => null,
-            'manager_commission_rate' => null,
         ]);
         $pricingPtProduct = $this->createPtProduct('24 Sessions', 24, [
             'price' => null,
-            'coach_commission_rate' => null,
         ]);
 
         $attendanceId = $this->actingAs($admin)
@@ -599,7 +585,6 @@ class AuditHistoryExpansionTest extends TestCase
         $this->actingAs($admin)
             ->postJson("/panel/pricing/rate-plans/{$pricingRatePlan->id}", [
                 'price' => 9999,
-                'manager_commission_rate' => 12,
                 'is_active' => true,
                 'effective_from' => '2026-04-01',
                 'effective_until' => null,
@@ -609,7 +594,6 @@ class AuditHistoryExpansionTest extends TestCase
         $this->actingAs($admin)
             ->putJson("/panel/pricing/rate-plans/{$pricingRatePlan->id}", [
                 'price' => 10999,
-                'manager_commission_rate' => 14,
                 'is_active' => false,
                 'effective_from' => '2026-04-01',
                 'effective_until' => '2026-12-31',
@@ -623,7 +607,6 @@ class AuditHistoryExpansionTest extends TestCase
         $this->actingAs($admin)
             ->postJson("/panel/pricing/pt-products/{$pricingPtProduct->id}", [
                 'price' => 4800,
-                'coach_commission_rate' => 40,
                 'is_active' => true,
                 'effective_from' => '2026-04-01',
                 'effective_until' => null,
@@ -633,7 +616,6 @@ class AuditHistoryExpansionTest extends TestCase
         $this->actingAs($admin)
             ->putJson("/panel/pricing/pt-products/{$pricingPtProduct->id}", [
                 'price' => 5200,
-                'coach_commission_rate' => 45,
                 'is_active' => false,
                 'effective_from' => '2026-04-01',
                 'effective_until' => null,
@@ -708,11 +690,9 @@ class AuditHistoryExpansionTest extends TestCase
         ]);
         $membershipPlan = $this->createRatePlan('6 Months', 180, [
             'price' => 4999.50,
-            'manager_commission_rate' => 12,
         ]);
         $ptProduct = $this->createPtProduct('24 Sessions', 24, [
             'price' => 7200,
-            'coach_commission_rate' => 40,
         ]);
 
         $this->actingAs($manager)
@@ -886,10 +866,6 @@ class AuditHistoryExpansionTest extends TestCase
             'gross_amount' => 1000,
             'bonus' => 0,
             'income_tax' => 0,
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
-            'membership_commission_amount' => 0,
-            'membership_commission_items' => [],
             'manual_deductions' => 0,
             'cash_advance_deduction' => 0,
             'net_amount' => 1000,

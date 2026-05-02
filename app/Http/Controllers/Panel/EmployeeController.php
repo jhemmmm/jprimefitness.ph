@@ -308,25 +308,13 @@ class EmployeeController extends Controller
             'period_end' => $data['period_end'],
         ];
 
-        $ptCommissionSummary = $this->payrollService->previewPtCommissions(
-            $employee,
-            $data['period_start'],
-            $data['period_end'],
-        );
-        $membershipCommissionSummary = $this->payrollService->previewMembershipCommissions(
-            $employee,
-            $data['period_start'],
-            $data['period_end'],
-        );
         $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
             $employee->id,
             $countryCode,
             $payFrequency,
             $gross,
             $bonus,
-            $ptCommissionSummary['amount'],
             $manualDeductions,
-            $membershipCommissionSummary['amount'],
             $payrollTaxContext
         );
         $payrollTotals = $this->payrollService->calculatePayrollTotals(
@@ -334,10 +322,8 @@ class EmployeeController extends Controller
             $payFrequency,
             $gross,
             $bonus,
-            $ptCommissionSummary['amount'],
             $manualDeductions,
             $cashAdvanceDeduction,
-            $membershipCommissionSummary['amount'],
             $payrollTaxContext
         );
 
@@ -364,10 +350,6 @@ class EmployeeController extends Controller
             'income_tax' => $payrollTotals['income_tax'],
             'employee_contributions' => $payrollTotals['employee_contributions'],
             'employer_contributions' => $payrollTotals['employer_contributions'],
-            'pt_commission_amount' => $ptCommissionSummary['amount'],
-            'pt_commission_items' => $ptCommissionSummary['items'],
-            'membership_commission_amount' => $membershipCommissionSummary['amount'],
-            'membership_commission_items' => $membershipCommissionSummary['items'],
             'manual_deductions' => $manualDeductions,
             'cash_advance_deduction' => $cashAdvanceDeduction,
             'net_amount' => $payrollTotals['net_amount'],
@@ -376,8 +358,6 @@ class EmployeeController extends Controller
             'generated_by' => auth()->id(),
         ]);
 
-        $this->payrollService->syncPtCommissions($payroll);
-        $this->payrollService->syncMembershipCommissions($payroll);
         $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
@@ -437,27 +417,13 @@ class EmployeeController extends Controller
             'period_end' => $data['period_end'],
         ];
 
-        $ptCommissionSummary = $this->payrollService->previewPtCommissions(
-            $employee,
-            $data['period_start'],
-            $data['period_end'],
-            $payroll,
-        );
-        $membershipCommissionSummary = $this->payrollService->previewMembershipCommissions(
-            $employee,
-            $data['period_start'],
-            $data['period_end'],
-            $payroll,
-        );
         $maxCashAdvanceDeduction = $this->payrollService->maxCashAdvanceDeduction(
             $employee->id,
             $countryCode,
             $payFrequency,
             $gross,
             $bonus,
-            $ptCommissionSummary['amount'],
             $manualDeductions,
-            $membershipCommissionSummary['amount'],
             $payrollTaxContext
         );
         $payrollTotals = $this->payrollService->calculatePayrollTotals(
@@ -465,10 +431,8 @@ class EmployeeController extends Controller
             $payFrequency,
             $gross,
             $bonus,
-            $ptCommissionSummary['amount'],
             $manualDeductions,
             $cashAdvanceDeduction,
-            $membershipCommissionSummary['amount'],
             $payrollTaxContext
         );
 
@@ -494,18 +458,12 @@ class EmployeeController extends Controller
             'income_tax' => $payrollTotals['income_tax'],
             'employee_contributions' => $payrollTotals['employee_contributions'],
             'employer_contributions' => $payrollTotals['employer_contributions'],
-            'pt_commission_amount' => $ptCommissionSummary['amount'],
-            'pt_commission_items' => $ptCommissionSummary['items'],
-            'membership_commission_amount' => $membershipCommissionSummary['amount'],
-            'membership_commission_items' => $membershipCommissionSummary['items'],
             'manual_deductions' => $manualDeductions,
             'cash_advance_deduction' => $cashAdvanceDeduction,
             'net_amount' => $payrollTotals['net_amount'],
             'notes' => $data['notes'] ?? null,
         ]);
 
-        $this->payrollService->syncPtCommissions($payroll);
-        $this->payrollService->syncMembershipCommissions($payroll);
         $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
@@ -567,8 +525,6 @@ class EmployeeController extends Controller
             return response()->json(['message' => 'Only draft payrolls can be canceled.'], 422);
         }
 
-        $this->payrollService->releasePtCommissions($payroll);
-        $this->payrollService->releaseMembershipCommissions($payroll);
         $payroll->status = Payroll::STATUS_CANCELED;
         $payroll->save();
         $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
@@ -621,18 +577,6 @@ class EmployeeController extends Controller
 
         $businessProfile = BusinessProfile::current();
         $countryCode = $businessProfile->country_code;
-        $ptCommissionSummary = $this->payrollService->previewPtCommissions(
-            $employee,
-            $data['period_start'],
-            $data['period_end'],
-            $payroll,
-        );
-        $membershipCommissionSummary = $this->payrollService->previewMembershipCommissions(
-            $employee,
-            $data['period_start'],
-            $data['period_end'],
-            $payroll,
-        );
         $attendanceSuggestion = $this->payrollService->suggestFromAttendance(
             $employee,
             $data['period_start'],
@@ -663,9 +607,7 @@ class EmployeeController extends Controller
             $payFrequency,
             $grossAmount,
             $bonusAmount,
-            $ptCommissionSummary['amount'],
             $manualDeductions,
-            $membershipCommissionSummary['amount'],
             $payrollTaxContext
         );
         $payrollTotals = $this->payrollService->calculatePayrollTotals(
@@ -673,20 +615,14 @@ class EmployeeController extends Controller
             $payFrequency,
             $grossAmount,
             $bonusAmount,
-            $ptCommissionSummary['amount'],
             $manualDeductions,
             $cashAdvanceDeduction,
-            $membershipCommissionSummary['amount'],
             $payrollTaxContext
         );
 
         return response()->json(array_merge(
             $attendanceSuggestion,
             [
-                'pt_commission_amount' => $ptCommissionSummary['amount'],
-                'pt_commission_items' => $ptCommissionSummary['items'],
-                'membership_commission_amount' => $membershipCommissionSummary['amount'],
-                'membership_commission_items' => $membershipCommissionSummary['items'],
                 'bonus_non_taxable_amount' => $payrollTotals['bonus_non_taxable_amount'],
                 'bonus_taxable_amount' => $payrollTotals['bonus_taxable_amount'],
                 'employee_contributions' => $payrollTotals['employee_contributions'],
@@ -1244,10 +1180,6 @@ class EmployeeController extends Controller
             'gross_amount' => (float) $payroll->gross_amount,
             'bonus' => (float) $payroll->bonus,
             'pay_frequency' => $payroll->pay_frequency,
-            'pt_commission_amount' => (float) $payroll->pt_commission_amount,
-            'pt_commission_items' => $payroll->pt_commission_items ?? [],
-            'membership_commission_amount' => (float) $payroll->membership_commission_amount,
-            'membership_commission_items' => $payroll->membership_commission_items ?? [],
             'employee_contributions' => $payroll->employee_contributions ?? [],
             'employee_contributions_total' => $payroll->employeeContributionsTotal(),
             'employee_deductions_total' => $payroll->employeeDeductionsTotal(),

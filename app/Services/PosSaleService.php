@@ -65,7 +65,6 @@ class PosSaleService
                 'duration_days' => $ratePlan->duration_days,
                 'description' => $ratePlan->description,
                 'price' => round((float) $ratePlan->price, 2),
-                'manager_commission_rate' => round((float) ($ratePlan->manager_commission_rate ?? 0), 2),
             ])
             ->values()
             ->all();
@@ -82,7 +81,6 @@ class PosSaleService
                 'session_count' => $ptProduct->session_count,
                 'description' => $ptProduct->description,
                 'price' => round((float) $ptProduct->price, 2),
-                'coach_commission_rate' => round((float) ($ptProduct->coach_commission_rate ?? 0), 2),
             ])
             ->values()
             ->all();
@@ -239,19 +237,9 @@ class PosSaleService
             $member = $memberResult['member'];
             $memberCreated = (bool) $memberResult['created'];
             $saleTotal = round((float) $ratePlan->price, 2);
-            $managerProcessedSale = $processedBy->hasRole('manager');
-            $managerCommissionRate = round((float) ($ratePlan->manager_commission_rate ?? 0), 2);
-            $managerCommissionAmount = MemberSubscription::calculateCommissionAmount($saleTotal, $managerCommissionRate);
 
             $subscription = $member->sellMembershipPlan($ratePlan->id, $data['start_date'], [
                 'sold_price' => $saleTotal,
-                'manager_id' => $managerProcessedSale ? $processedBy->id : null,
-                'manager_commission_rate' => $managerCommissionRate,
-                'manager_commission_amount' => $managerCommissionAmount,
-                'manager_commission_status' => $managerProcessedSale
-                    ? MemberSubscription::COMMISSION_STATUS_EARNED
-                    : MemberSubscription::COMMISSION_STATUS_UNASSIGNED,
-                'manager_commission_earned_at' => $managerProcessedSale ? $data['sold_at'] : null,
             ]);
 
             $payment = $this->resolvePayment($saleTotal, $data);
@@ -270,13 +258,6 @@ class PosSaleService
                     'subscription_id' => $subscription->id,
                     'duration_days' => $ratePlan->duration_days,
                     'start_date' => $data['start_date'],
-                    'manager_commission' => [
-                        'manager_id' => $managerProcessedSale ? $processedBy->id : null,
-                        'manager_name' => $managerProcessedSale ? $processedBy->name : null,
-                        'commission_rate' => $managerCommissionRate,
-                        'commission_amount' => $managerCommissionAmount,
-                        'status' => $subscription->manager_commission_status,
-                    ],
                     'line_items' => [[
                         'name' => $ratePlan->name,
                         'description' => $ratePlan->description,
@@ -298,7 +279,7 @@ class PosSaleService
             }
 
             $this->recordMembershipCreatedAudit(
-                $subscription->fresh(['ratePlan', 'manager', 'member']),
+                $subscription->fresh(['ratePlan', 'member']),
                 $processedBy,
                 $saleCause,
                 $saleTransaction->sold_at,
@@ -330,20 +311,16 @@ class PosSaleService
             $member = $memberResult['member'];
             $memberCreated = (bool) $memberResult['created'];
             $soldPrice = round((float) $ptProduct->price, 2);
-            $coachCommissionRate = round((float) ($ptProduct->coach_commission_rate ?? 40), 2);
             $payment = $this->resolvePayment($soldPrice, $data);
 
             $package = $member->memberPtPackages()->create([
                 'pt_product_id' => $ptProduct->id,
                 'sold_price' => $soldPrice,
-                'coach_commission_rate' => $coachCommissionRate,
-                'coach_commission_amount' => MemberPtPackage::calculateCommissionAmount($soldPrice, $coachCommissionRate),
                 'coach_id' => null,
                 'total_sessions' => $ptProduct->session_count,
                 'remaining_sessions' => $ptProduct->session_count,
                 'assigned_at' => $data['assigned_at'],
                 'expires_at' => $data['expires_at'] ?? null,
-                'coach_commission_status' => MemberPtPackage::defaultCommissionStatus(null),
                 'notes' => $data['notes'] ?? null,
                 'created_by' => $processedBy->id,
             ]);
@@ -676,8 +653,6 @@ class PosSaleService
             'status' => $subscription->status,
             'start_date' => $subscription->start_date?->toDateString(),
             'end_date' => $subscription->end_date?->toDateString(),
-            'manager_id' => $subscription->manager_id,
-            'manager_name' => $subscription->manager?->name,
         ];
     }
 

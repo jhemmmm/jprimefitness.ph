@@ -131,18 +131,9 @@ class EmployeePayslipTest extends TestCase
                     ],
                 ],
             ],
-            'pt_commission_amount' => 320,
-            'pt_commission_items' => [
-                [
-                    'package_id' => 99,
-                    'member_name' => 'Member Ana',
-                    'product_name' => '8 Sessions',
-                    'commission_amount' => 320,
-                ],
-            ],
             'manual_deductions' => 100,
             'cash_advance_deduction' => 200,
-            'net_amount' => 17471.90,
+            'net_amount' => 17151.90,
             'status' => Payroll::STATUS_APPROVED,
             'notes' => 'Includes holiday bonus.',
             'generated_by' => $manager->id,
@@ -194,8 +185,7 @@ class EmployeePayslipTest extends TestCase
             $this->assertSame('Juan Dela Cruz', $pdf->viewData['employee']->name);
             $this->assertSame('Includes holiday bonus.', $pdf->viewData['payroll']->notes);
             $this->assertSame(1323.1, (float) $pdf->viewData['payroll']->income_tax);
-            $this->assertSame(17471.9, (float) $pdf->viewData['payroll']->net_amount);
-            $this->assertSame(320.0, (float) $pdf->viewData['payroll']->pt_commission_amount);
+            $this->assertSame(17151.9, (float) $pdf->viewData['payroll']->net_amount);
             $this->assertSame(1725.0, $pdf->viewData['payroll']->employeeContributionsTotal());
             $this->assertSame(2780.0, $pdf->viewData['payroll']->employerContributionsTotal());
             $this->assertSame('Payroll Manager', $pdf->viewData['payroll']->generatedBy?->name);
@@ -226,8 +216,6 @@ class EmployeePayslipTest extends TestCase
             'gross_amount' => 500,
             'bonus' => 0,
             'income_tax' => 0,
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
             'manual_deductions' => 0,
             'cash_advance_deduction' => 0,
             'net_amount' => 500,
@@ -270,8 +258,6 @@ class EmployeePayslipTest extends TestCase
             'gross_amount' => 562.5,
             'bonus' => 0,
             'income_tax' => 0,
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
             'manual_deductions' => 0,
             'cash_advance_deduction' => 0,
             'net_amount' => 562.5,
@@ -309,8 +295,6 @@ class EmployeePayslipTest extends TestCase
             'gross_amount' => 500,
             'bonus' => 0,
             'income_tax' => 0,
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
             'manual_deductions' => 0,
             'cash_advance_deduction' => 0,
             'net_amount' => 500,

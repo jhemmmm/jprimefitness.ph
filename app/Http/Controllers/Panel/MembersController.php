@@ -37,7 +37,7 @@ class MembersController extends Controller
             ->with([
                 'profile',
                 'memberSubscriptions' => fn ($query) => $query
-                    ->with(['ratePlan:id,name,duration_days', 'manager:id,name', 'commissionPayroll:id,period_start,period_end,status'])
+                    ->with(['ratePlan:id,name,duration_days'])
                     ->orderByDesc('start_date'),
                 'memberPtPackages' => fn ($query) => $query
                     ->with([
@@ -142,7 +142,7 @@ class MembersController extends Controller
             AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
             $subscription->id,
             'created',
-            $this->membershipAuditSnapshot($subscription->fresh(['ratePlan', 'manager', 'member'])),
+            $this->membershipAuditSnapshot($subscription->fresh(['ratePlan', 'member'])),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -201,12 +201,6 @@ class MembersController extends Controller
         abort_unless($member->hasRole('member'), 404);
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
-        $currentMembership = $member->currentMembership();
-
-        if ($currentMembership && $currentMembership->isManagerCommissionLocked()) {
-            return $this->membershipCommissionLockedResponse($currentMembership);
-        }
-
         $data = $request->validate([
             'rate_plan_id' => ['required', 'exists:rate_plans,id'],
             'start_date' => ['required', 'date'],
@@ -218,7 +212,7 @@ class MembersController extends Controller
             AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
             $membership->id,
             'plan_changed',
-            $this->membershipAuditSnapshot($membership->fresh(['ratePlan', 'manager', 'member'])),
+            $this->membershipAuditSnapshot($membership->fresh(['ratePlan', 'member'])),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -232,12 +226,6 @@ class MembersController extends Controller
     {
         abort_unless($member->hasRole('member'), 404);
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
-
-        $currentMembership = $member->currentMembership();
-
-        if ($currentMembership && $currentMembership->isManagerCommissionLocked()) {
-            return $this->membershipCommissionLockedResponse($currentMembership);
-        }
 
         $data = $request->validate([
             'status' => [
@@ -257,78 +245,13 @@ class MembersController extends Controller
         }
 
         $member->updateCurrentMembershipStatus($data['status']);
-        $membership = $membershipToUpdate->fresh(['ratePlan', 'manager', 'member']);
+        $membership = $membershipToUpdate->fresh(['ratePlan', 'member']);
 
         $this->auditHistoryService->recordSubjectEvent(
             AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
             $membership->id,
             'status_updated',
             $this->membershipAuditSnapshot($membership),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            now(),
-        );
-
-        return response()->json($this->memberPayload($member->fresh(), detailed: true));
-    }
-
-    public function assignMembershipManager(Request $request, User $member): JsonResponse
-    {
-        abort_unless($member->hasRole('member'), 404);
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
-
-        $currentMembership = $member->currentMembership();
-
-        if (! $currentMembership) {
-            return response()->json(['message' => 'No current membership found.'], 422);
-        }
-
-        if (! $currentMembership->canAssignManagerCommission()) {
-            return $this->membershipCommissionAssignmentUnavailableResponse($currentMembership);
-        }
-
-        $data = $request->validate([
-            'manager_id' => ['required', 'integer', 'exists:users,id'],
-        ]);
-
-        if (
-            auth()->user()->hasRole('manager')
-            && ! auth()->user()->hasAnyRole(['super admin', 'admin'])
-            && (int) $data['manager_id'] !== (int) auth()->id()
-        ) {
-            return response()->json([
-                'message' => 'Managers may only assign membership commissions to themselves.',
-                'errors' => [
-                    'manager_id' => ['Managers may only assign membership commissions to themselves.'],
-                ],
-            ], 422);
-        }
-
-        if (! $this->managerIsAssignable((int) $data['manager_id'])) {
-            return response()->json([
-                'message' => 'The selected manager is not available for membership commissions.',
-                'errors' => [
-                    'manager_id' => ['The selected manager is not available for membership commissions.'],
-                ],
-            ], 422);
-        }
-
-        $currentMembership->update([
-            'manager_id' => (int) $data['manager_id'],
-            'manager_commission_amount' => MemberSubscription::calculateCommissionAmount(
-                (float) $currentMembership->sold_price,
-                (float) $currentMembership->manager_commission_rate
-            ),
-            'manager_commission_status' => MemberSubscription::COMMISSION_STATUS_EARNED,
-            'manager_commission_earned_at' => now(),
-        ]);
-
-        $this->auditHistoryService->recordSubjectEvent(
-            AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
-            $currentMembership->id,
-            'manager_assigned',
-            $this->membershipAuditSnapshot($currentMembership->fresh(['ratePlan', 'manager', 'member'])),
             [],
             auth()->id(),
             auth()->user()?->name,
@@ -376,19 +299,15 @@ class MembersController extends Controller
         }
 
         $soldPrice = round((float) ($ptProduct->price ?? 0), 2);
-        $coachCommissionRate = round((float) ($ptProduct->coach_commission_rate ?? 40), 2);
 
         $package = $member->memberPtPackages()->create([
             'pt_product_id' => $ptProduct->id,
             'sold_price' => $soldPrice,
-            'coach_commission_rate' => $coachCommissionRate,
-            'coach_commission_amount' => MemberPtPackage::calculateCommissionAmount($soldPrice, $coachCommissionRate),
             'coach_id' => $data['coach_id'] ?? null,
             'total_sessions' => $ptProduct->session_count,
             'remaining_sessions' => $ptProduct->session_count,
             'assigned_at' => $data['assigned_at'],
             'expires_at' => $data['expires_at'] ?? null,
-            'coach_commission_status' => MemberPtPackage::defaultCommissionStatus(isset($data['coach_id']) ? (int) $data['coach_id'] : null),
             'notes' => $data['notes'] ?? null,
             'created_by' => auth()->id(),
         ]);
@@ -550,7 +469,7 @@ class MembersController extends Controller
                 AuditEvent::SUBJECT_MEMBER_SUBSCRIPTION,
                 $currentMembership->id,
                 'plan_changed',
-                $this->membershipAuditSnapshot($currentMembership->fresh(['ratePlan', 'manager', 'member'])),
+                $this->membershipAuditSnapshot($currentMembership->fresh(['ratePlan', 'member'])),
                 [],
                 auth()->id(),
                 auth()->user()?->name,
@@ -569,7 +488,7 @@ class MembersController extends Controller
         $member->loadMissing([
             'profile',
             'memberSubscriptions' => fn ($query) => $query
-                ->with(['ratePlan:id,name,duration_days', 'manager:id,name', 'commissionPayroll:id,period_start,period_end,status'])
+                ->with(['ratePlan:id,name,duration_days'])
                 ->orderByDesc('start_date'),
             'memberPtPackages' => fn ($query) => $query
                 ->with([
@@ -605,7 +524,6 @@ class MembersController extends Controller
                 ->map(fn (MemberPtPackage $package) => $this->serializeMemberPtPackage($package))
                 ->values()
                 ->all(),
-            'available_managers' => $detailed ? $this->availableManagers() : [],
             'available_coaches' => $detailed ? $this->availableCoaches() : [],
         ];
     }
@@ -615,15 +533,6 @@ class MembersController extends Controller
      */
     private function serializeMemberSubscription(MemberSubscription $subscription): array
     {
-        $commissionStatus = $subscription->effectiveManagerCommissionStatus();
-        $isCommissionLocked = $subscription->isManagerCommissionLocked();
-        $commissionPayroll = $subscription->commissionPayroll;
-        $commissionPayrollLabel = null;
-
-        if ($commissionPayroll && $commissionPayroll->period_start && $commissionPayroll->period_end) {
-            $commissionPayrollLabel = $commissionPayroll->period_start->format('Y-m-d').' – '.$commissionPayroll->period_end->format('Y-m-d');
-        }
-
         return [
             'id' => $subscription->id,
             'rate_plan_id' => $subscription->rate_plan_id,
@@ -632,51 +541,19 @@ class MembersController extends Controller
                 'name' => $subscription->ratePlan->name,
                 'duration_days' => $subscription->ratePlan->duration_days,
             ] : null,
-            'manager' => $subscription->manager ? [
-                'id' => $subscription->manager->id,
-                'name' => $subscription->manager->name,
-            ] : null,
             'status' => $subscription->status,
             'start_date' => $subscription->start_date?->toDateString(),
             'end_date' => $subscription->end_date?->toDateString(),
             'created_at' => $subscription->created_at?->toISOString(),
             'sold_price' => round((float) $subscription->sold_price, 2),
-            'manager_commission_rate' => round((float) $subscription->manager_commission_rate, 2),
-            'manager_commission_amount' => round((float) $subscription->manager_commission_amount, 2),
-            'manager_commission_status' => $commissionStatus,
-            'manager_commission_earned_at' => $subscription->manager_commission_earned_at?->toISOString(),
-            'commission_payroll' => $commissionPayroll ? [
-                'id' => $commissionPayroll->id,
-                'status' => $commissionPayroll->status,
-                'period_start' => $commissionPayroll->period_start?->toDateString(),
-                'period_end' => $commissionPayroll->period_end?->toDateString(),
-                'period_label' => $commissionPayrollLabel,
-            ] : null,
-            'commission_summary' => [
-                'is_tracked' => $subscription->hasTrackedManagerCommission(),
-                'is_locked' => $isCommissionLocked,
-                'lock_reason' => $subscription->managerCommissionLockReason(),
-                'is_assignable' => $subscription->canAssignManagerCommission(),
-                'assignment_reason' => $subscription->managerCommissionAssignmentReason(),
-                'status' => $commissionStatus,
-                'sold_price' => round((float) $subscription->sold_price, 2),
-                'commission_rate' => round((float) $subscription->manager_commission_rate, 2),
-                'commission_amount' => round((float) $subscription->manager_commission_amount, 2),
-                'earned_at' => $subscription->manager_commission_earned_at?->toISOString(),
-                'manager_name' => $subscription->manager?->name,
-                'payroll_label' => $commissionPayrollLabel,
-            ],
             'action_state' => [
-                'is_locked' => $isCommissionLocked,
-                'can_change_plan' => ! $isCommissionLocked,
-                'can_change_status' => ! $isCommissionLocked
-                    && in_array($subscription->status, [
+                'is_locked' => false,
+                'can_change_plan' => true,
+                'can_change_status' => in_array($subscription->status, [
                         MemberSubscription::STATUS_ACTIVE,
                         MemberSubscription::STATUS_PAUSED,
                     ], true),
-                'can_assign_manager' => $subscription->canAssignManagerCommission(),
-                'assign_manager_reason' => $subscription->managerCommissionAssignmentReason(),
-                'reason' => $subscription->managerCommissionLockReason(),
+                'reason' => null,
             ],
         ];
     }
@@ -696,8 +573,6 @@ class MembersController extends Controller
                 'category' => $package->ptProduct->category,
             ] : null,
             'sold_price' => round((float) $package->sold_price, 2),
-            'coach_commission_rate' => round((float) $package->coach_commission_rate, 2),
-            'coach_commission_amount' => round((float) $package->coach_commission_amount, 2),
             'coach_id' => $package->coach_id,
             'coach' => $package->coach ? [
                 'id' => $package->coach->id,
@@ -708,8 +583,6 @@ class MembersController extends Controller
             'assigned_at' => $package->assigned_at?->toDateString(),
             'expires_at' => $package->expires_at?->toDateString(),
             'status' => $package->status,
-            'coach_commission_status' => $package->coach_commission_status,
-            'coach_commission_earned_at' => $package->coach_commission_earned_at?->toISOString(),
             'notes' => $package->notes,
             'created_by_name' => $package->createdBy?->name,
             'usages' => $package->usages
@@ -760,8 +633,6 @@ class MembersController extends Controller
             'status' => $subscription->status,
             'start_date' => $subscription->start_date?->toDateString(),
             'end_date' => $subscription->end_date?->toDateString(),
-            'manager_id' => $subscription->manager_id,
-            'manager_name' => $subscription->manager?->name,
         ];
     }
 
@@ -827,45 +698,12 @@ class MembersController extends Controller
                 'description' => $ptProduct->description,
                 'pivot' => [
                     'price' => round((float) $ptProduct->price, 2),
-                    'coach_commission_rate' => round((float) ($ptProduct->coach_commission_rate ?? 0), 2),
                 ],
             ])
             ->values()
             ->all();
 
         return $payload;
-    }
-
-    private function membershipCommissionLockedResponse(MemberSubscription $subscription): JsonResponse
-    {
-        $message = $subscription->managerCommissionLockReason() ?? 'This membership can no longer be edited because commission processing has already started.';
-
-        return response()->json([
-            'message' => $message,
-            'errors' => [
-                'membership' => [$message],
-            ],
-        ], 422);
-    }
-
-    private function membershipCommissionAssignmentUnavailableResponse(MemberSubscription $subscription): JsonResponse
-    {
-        $message = $subscription->managerCommissionAssignmentReason() ?? 'This membership sale commission cannot be assigned right now.';
-
-        return response()->json([
-            'message' => $message,
-            'errors' => [
-                'membership' => [$message],
-            ],
-        ], 422);
-    }
-
-    private function managerIsAssignable(int $managerId): bool
-    {
-        return User::role('manager')
-            ->whereKey($managerId)
-            ->where('status', User::STATUS_ACTIVE)
-            ->exists();
     }
 
     private function coachIsAssignable(int $coachId): bool
@@ -894,27 +732,4 @@ class MembersController extends Controller
             ->all();
     }
 
-    /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function availableManagers(): array
-    {
-        $query = User::role('manager')
-            ->where('status', User::STATUS_ACTIVE)
-            ->orderBy('name');
-
-        if (auth()->user()->hasRole('manager') && ! auth()->user()->hasAnyRole(['super admin', 'admin'])) {
-            $query->whereKey(auth()->id());
-        }
-
-        return $query
-            ->get(['users.id', 'users.name', 'users.status'])
-            ->map(fn (User $manager) => [
-                'id' => $manager->id,
-                'name' => $manager->name,
-                'status' => $manager->status,
-            ])
-            ->values()
-            ->all();
-    }
 }

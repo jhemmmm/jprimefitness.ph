@@ -26,14 +26,12 @@ class FreshInstallSchemaTest extends TestCase
 
         $this->assertTableHasColumns('rate_plans', [
             'price',
-            'manager_commission_rate',
             'effective_from',
             'effective_until',
         ]);
 
         $this->assertTableHasColumns('pt_products', [
             'price',
-            'coach_commission_rate',
             'effective_from',
             'effective_until',
         ]);
@@ -83,23 +81,12 @@ class FreshInstallSchemaTest extends TestCase
 
         $this->assertTableHasColumns('member_subscriptions', [
             'sold_price',
-            'manager_id',
-            'manager_commission_rate',
-            'manager_commission_amount',
-            'manager_commission_status',
-            'manager_commission_earned_at',
-            'commission_payroll_id',
             'expiration_notification_sent_for_date',
         ]);
 
         $this->assertTableHasColumns('member_pt_packages', [
             'sold_price',
-            'coach_commission_rate',
-            'coach_commission_amount',
             'coach_id',
-            'coach_commission_status',
-            'coach_commission_earned_at',
-            'commission_payroll_id',
         ]);
 
         $this->assertTableHasColumns('member_pt_session_usages', [
@@ -115,10 +102,6 @@ class FreshInstallSchemaTest extends TestCase
             'regular_pay_amount',
             'overwork_hours',
             'overwork_pay_amount',
-            'pt_commission_amount',
-            'pt_commission_items',
-            'membership_commission_amount',
-            'membership_commission_items',
         ]);
 
         $this->assertTableHasColumns('business_profiles', [

@@ -58,8 +58,6 @@ class PayrollReportsController extends Controller
             fputcsv($handle, ['Payroll Runs', $report['summary']['payroll_count']]);
             fputcsv($handle, ['Gross Payroll', $report['summary']['gross_payroll']]);
             fputcsv($handle, ['Bonuses', $report['summary']['total_bonus']]);
-            fputcsv($handle, ['PT Commission', $report['summary']['pt_commission']]);
-            fputcsv($handle, ['Membership Commission', $report['summary']['membership_commission']]);
             fputcsv($handle, ['Income Tax', $report['summary']['income_tax']]);
             fputcsv($handle, ['Employee Government Contributions', $report['summary']['employee_government_contributions']]);
             fputcsv($handle, ['Employer Government Contributions', $report['summary']['employer_government_contributions']]);
@@ -167,8 +165,6 @@ class PayrollReportsController extends Controller
 
         $grossPayroll = round((float) (clone $payrollQuery)->sum('gross_amount'), 2);
         $totalBonus = round((float) (clone $payrollQuery)->sum('bonus'), 2);
-        $ptCommission = round((float) (clone $payrollQuery)->sum('pt_commission_amount'), 2);
-        $membershipCommission = round((float) (clone $payrollQuery)->sum('membership_commission_amount'), 2);
         $incomeTax = round((float) (clone $payrollQuery)->sum('income_tax'), 2);
         $manualDeductions = round((float) (clone $payrollQuery)->sum('manual_deductions'), 2);
         $cashAdvanceDeductions = round((float) (clone $payrollQuery)->sum('cash_advance_deduction'), 2);
@@ -215,8 +211,6 @@ class PayrollReportsController extends Controller
                 'payroll_count' => $payrollCount,
                 'gross_payroll' => $grossPayroll,
                 'total_bonus' => $totalBonus,
-                'pt_commission' => $ptCommission,
-                'membership_commission' => $membershipCommission,
                 'income_tax' => $incomeTax,
                 'employee_government_contributions' => $employeeGovernmentContributions,
                 'employer_government_contributions' => $employerGovernmentContributions,
@@ -408,7 +402,6 @@ class PayrollReportsController extends Controller
                     'status_label' => $this->statusLabel($payroll->status),
                     'gross_amount' => round((float) $payroll->gross_amount, 2),
                     'bonus' => round((float) $payroll->bonus, 2),
-                    'pt_commission_amount' => round((float) $payroll->pt_commission_amount, 2),
                     'total_deductions' => round(
                         $payroll->employeeDeductionsTotal() + (float) $payroll->cash_advance_deduction,
                         2

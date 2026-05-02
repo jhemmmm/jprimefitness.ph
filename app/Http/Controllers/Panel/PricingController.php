@@ -139,7 +139,6 @@ class PricingController extends Controller
 
         $ratePlan->update([
             'price' => null,
-            'manager_commission_rate' => null,
             'effective_from' => null,
             'effective_until' => null,
         ]);
@@ -207,7 +206,6 @@ class PricingController extends Controller
 
         $ptProduct->update([
             'price' => null,
-            'coach_commission_rate' => null,
             'effective_from' => null,
             'effective_until' => null,
         ]);
@@ -226,13 +224,12 @@ class PricingController extends Controller
     }
 
     /**
-     * @return array{effective_from:mixed,effective_until:mixed,is_active:bool,manager_commission_rate:float|null,price:float}
+     * @return array{effective_from:mixed,effective_until:mixed,is_active:bool,price:float}
      */
     private function validatedRatePlanPayload(Request $request): array
     {
         $data = $request->validate([
             'price' => ['required', 'numeric', 'min:0'],
-            'manager_commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['required', 'boolean'],
             'effective_from' => ['nullable', 'date'],
             'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
@@ -240,9 +237,6 @@ class PricingController extends Controller
 
         return [
             'price' => round((float) $data['price'], 2),
-            'manager_commission_rate' => array_key_exists('manager_commission_rate', $data) && $data['manager_commission_rate'] !== null
-                ? round((float) $data['manager_commission_rate'], 2)
-                : null,
             'is_active' => (bool) $data['is_active'],
             'effective_from' => $data['effective_from'] ?? null,
             'effective_until' => $data['effective_until'] ?? null,
@@ -250,13 +244,12 @@ class PricingController extends Controller
     }
 
     /**
-     * @return array{coach_commission_rate:float|null,effective_from:mixed,effective_until:mixed,is_active:bool,price:float}
+     * @return array{effective_from:mixed,effective_until:mixed,is_active:bool,price:float}
      */
     private function validatedPtProductPayload(Request $request): array
     {
         $data = $request->validate([
             'price' => ['required', 'numeric', 'min:0'],
-            'coach_commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'is_active' => ['required', 'boolean'],
             'effective_from' => ['nullable', 'date'],
             'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
@@ -264,9 +257,6 @@ class PricingController extends Controller
 
         return [
             'price' => round((float) $data['price'], 2),
-            'coach_commission_rate' => array_key_exists('coach_commission_rate', $data) && $data['coach_commission_rate'] !== null
-                ? round((float) $data['coach_commission_rate'], 2)
-                : null,
             'is_active' => (bool) $data['is_active'],
             'effective_from' => $data['effective_from'] ?? null,
             'effective_until' => $data['effective_until'] ?? null,
@@ -285,7 +275,6 @@ class PricingController extends Controller
             'description' => $ratePlan->description,
             'is_active' => (bool) $ratePlan->is_active,
             'price' => round((float) $ratePlan->price, 2),
-            'manager_commission_rate' => round((float) ($ratePlan->manager_commission_rate ?? 0), 2),
             'effective_from' => $ratePlan->effective_from,
             'effective_until' => $ratePlan->effective_until,
         ];
@@ -304,7 +293,6 @@ class PricingController extends Controller
             'description' => $ptProduct->description,
             'is_active' => (bool) $ptProduct->is_active,
             'price' => round((float) $ptProduct->price, 2),
-            'coach_commission_rate' => round((float) ($ptProduct->coach_commission_rate ?? 0), 2),
             'effective_from' => $ptProduct->effective_from,
             'effective_until' => $ptProduct->effective_until,
         ];

@@ -10,8 +10,7 @@ class CashAdvanceStatusChangedNotification extends PanelDatabaseNotification
     public function __construct(
         private readonly CashAdvance $cashAdvance,
         private readonly User $employee,
-    ) {
-    }
+    ) {}
 
     protected function typeSlug(): string
     {
@@ -48,14 +47,14 @@ class CashAdvanceStatusChangedNotification extends PanelDatabaseNotification
 
     private function message(): string
     {
-        $amount = '₱' . number_format((float) $this->cashAdvance->amount, 2);
+        $amount = '₱'.number_format((float) $this->cashAdvance->amount, 2);
 
         return match ($this->cashAdvance->status) {
-            CashAdvance::STATUS_REQUESTED => $this->employee->name . ' requested a cash advance of ' . $amount . '.',
-            CashAdvance::STATUS_APPROVED => 'The cash advance for ' . $this->employee->name . ' amounting to ' . $amount . ' was approved.',
-            CashAdvance::STATUS_RELEASED => 'The cash advance for ' . $this->employee->name . ' amounting to ' . $amount . ' was released.',
-            CashAdvance::STATUS_CANCELLED => 'The cash advance for ' . $this->employee->name . ' amounting to ' . $amount . ' was cancelled.',
-            default => 'The cash advance for ' . $this->employee->name . ' was updated.',
+            CashAdvance::STATUS_REQUESTED => $this->employee->name.' requested a cash advance of '.$amount.'.',
+            CashAdvance::STATUS_APPROVED => 'The cash advance for '.$this->employee->name.' amounting to '.$amount.' was approved.',
+            CashAdvance::STATUS_RELEASED => 'The cash advance for '.$this->employee->name.' amounting to '.$amount.' was released.',
+            CashAdvance::STATUS_CANCELLED => 'The cash advance for '.$this->employee->name.' amounting to '.$amount.' was cancelled.',
+            default => 'The cash advance for '.$this->employee->name.' was updated.',
         };
     }
 

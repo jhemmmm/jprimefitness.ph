@@ -61,11 +61,9 @@ class SalesPageTest extends TestCase
         ]);
         $ratePlan = $this->createRatePlan('Monthly', 30, [
             'price' => 1499,
-            'manager_commission_rate' => 10,
         ]);
         $ptProduct = $this->createPtProduct('12 Sessions', 12, [
             'price' => 3600,
-            'coach_commission_rate' => 40,
         ]);
 
         $this->actingAs($staff)
@@ -74,9 +72,7 @@ class SalesPageTest extends TestCase
             ->assertJsonPath('location.name', 'JPrime Fitness Naga')
             ->assertJsonPath('options.inventory_items.0.id', $inventoryItem->id)
             ->assertJsonPath('options.membership_rates.0.id', $ratePlan->id)
-            ->assertJsonPath('options.membership_rates.0.manager_commission_rate', 10)
-            ->assertJsonPath('options.pt_rates.0.id', $ptProduct->id)
-            ->assertJsonPath('options.pt_rates.0.coach_commission_rate', 40);
+            ->assertJsonPath('options.pt_rates.0.id', $ptProduct->id);
     }
 
     public function test_members_list_can_search_members_by_phone_for_sales_selection(): void
@@ -195,7 +191,6 @@ class SalesPageTest extends TestCase
         $staff = $this->createUserWithRole('staff', 'Staff Ben');
         $ratePlan = $this->createRatePlan('6 Months', 180, [
             'price' => 4999.50,
-            'manager_commission_rate' => 12,
         ]);
 
         $this->actingAs($staff)
@@ -226,17 +221,12 @@ class SalesPageTest extends TestCase
         $this->assertSame($ratePlan->id, $subscription->rate_plan_id);
         $this->assertSame(MemberSubscription::STATUS_ACTIVE, $subscription->status);
         $this->assertSame('2026-04-01', $subscription->start_date?->toDateString());
-        $this->assertNull($subscription->manager_id);
-        $this->assertSame('12.00', $subscription->manager_commission_rate);
-        $this->assertSame('599.94', $subscription->manager_commission_amount);
-        $this->assertSame(MemberSubscription::COMMISSION_STATUS_UNASSIGNED, $subscription->manager_commission_status);
 
         $this->assertDatabaseHas('sale_transactions', [
             'member_id' => $member->id,
             'type' => SaleTransaction::TYPE_MEMBERSHIP,
             'total' => 4999.50,
         ]);
-
     }
 
     public function test_membership_sale_can_reuse_email_from_a_soft_deleted_member(): void
@@ -244,7 +234,6 @@ class SalesPageTest extends TestCase
         $staff = $this->createUserWithRole('staff', 'Staff Ben');
         $ratePlan = $this->createRatePlan('Monthly', 30, [
             'price' => 1499,
-            'manager_commission_rate' => 10,
         ]);
 
         $archivedMember = $this->createUserWithRole('member', 'Archived Member');
@@ -270,50 +259,13 @@ class SalesPageTest extends TestCase
         $this->assertSoftDeleted('users', [
             'id' => $archivedMember->id,
         ]);
+        $this->assertDatabaseHas('sale_transactions', [
+            'type' => SaleTransaction::TYPE_MEMBERSHIP,
+            'customer_name' => 'New Member Mia',
+        ]);
         $this->assertDatabaseHas('users', [
             'email' => 'archived-sale@example.com',
             'deleted_at' => null,
-        ]);
-    }
-
-    public function test_manager_processed_membership_sale_tracks_membership_commission(): void
-    {
-        $manager = $this->createUserWithRole('manager', 'Manager Cole');
-        $ratePlan = $this->createRatePlan('Monthly', 30, [
-            'price' => 2000,
-            'manager_commission_rate' => 7.5,
-        ]);
-
-        $response = $this->actingAs($manager)
-            ->postJson('/panel/sales', [
-                'type' => SaleTransaction::TYPE_MEMBERSHIP,
-                'member_mode' => 'new',
-                'customer_name' => 'Manager Sale Member',
-                'customer_email' => 'manager-sale@example.com',
-                'customer_phone' => '09175550000',
-                'rate_plan_id' => $ratePlan->id,
-                'start_date' => '2026-04-02',
-                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
-                'amount_received' => 2000,
-                'sold_at' => '2026-04-02 10:15:00',
-            ])
-            ->assertCreated()
-            ->assertJsonPath('details.manager_commission.commission_rate', 7.5)
-            ->assertJsonPath('details.manager_commission.commission_amount', 150);
-
-        $member = User::where('email', 'manager-sale@example.com')->firstOrFail();
-        $subscription = MemberSubscription::where('user_id', $member->id)->latest('id')->firstOrFail();
-
-        $this->assertSame($manager->id, $subscription->manager_id);
-        $this->assertSame('2000.00', $subscription->sold_price);
-        $this->assertSame('7.50', $subscription->manager_commission_rate);
-        $this->assertSame('150.00', $subscription->manager_commission_amount);
-        $this->assertSame(MemberSubscription::COMMISSION_STATUS_EARNED, $subscription->manager_commission_status);
-        $this->assertSame('2026-04-02 10:15:00', $subscription->manager_commission_earned_at?->format('Y-m-d H:i:s'));
-
-        $this->assertDatabaseHas('sale_transactions', [
-            'id' => $response->json('id'),
-            'processed_by' => $manager->id,
         ]);
     }
 
@@ -323,7 +275,6 @@ class SalesPageTest extends TestCase
         $member = $this->createUserWithRole('member', 'Member Zoe');
         $ptProduct = $this->createPtProduct('24 Sessions', 24, [
             'price' => 7200,
-            'coach_commission_rate' => 40,
         ]);
 
         $this->actingAs($staff)
@@ -347,7 +298,6 @@ class SalesPageTest extends TestCase
         $package = MemberPtPackage::where('user_id', $member->id)->firstOrFail();
 
         $this->assertNull($package->coach_id);
-        $this->assertSame(MemberPtPackage::COMMISSION_STATUS_UNASSIGNED, $package->coach_commission_status);
 
         $this->assertDatabaseHas('sale_transactions', [
             'member_id' => $member->id,

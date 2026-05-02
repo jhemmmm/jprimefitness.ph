@@ -56,14 +56,12 @@ class PricingPageTest extends TestCase
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
         $configuredRatePlan = $this->createRatePlan('Monthly', 30, [
             'price' => 1499,
-            'manager_commission_rate' => 12.5,
             'effective_from' => '2026-04-01',
             'effective_until' => '2026-04-30',
         ]);
         $availableRatePlan = $this->createRatePlan('3 Months', 90);
         $configuredPtProduct = $this->createPtProduct('12 Sessions', 12, [
             'price' => 3600,
-            'coach_commission_rate' => 40,
             'effective_from' => '2026-04-01',
             'effective_until' => '2026-04-30',
         ]);
@@ -80,13 +78,11 @@ class PricingPageTest extends TestCase
             ->assertJsonCount(1, 'available_pt_products')
             ->assertJsonPath('membership_rates.0.id', $configuredRatePlan->id)
             ->assertJsonPath('membership_rates.0.price', 1499)
-            ->assertJsonPath('membership_rates.0.manager_commission_rate', 12.5)
             ->assertJsonPath('membership_rates.0.effective_from', $configuredRatePlan->effective_from?->toJSON())
             ->assertJsonPath('membership_rates.0.effective_until', $configuredRatePlan->effective_until?->toJSON())
             ->assertJsonPath('available_membership_rate_plans.0.id', $availableRatePlan->id)
             ->assertJsonPath('pt_rates.0.id', $configuredPtProduct->id)
             ->assertJsonPath('pt_rates.0.price', 3600)
-            ->assertJsonPath('pt_rates.0.coach_commission_rate', 40)
             ->assertJsonPath('pt_rates.0.effective_from', $configuredPtProduct->effective_from?->toJSON())
             ->assertJsonPath('pt_rates.0.effective_until', $configuredPtProduct->effective_until?->toJSON())
             ->assertJsonPath('available_pt_products.0.id', $availablePtProduct->id)
@@ -116,7 +112,6 @@ class PricingPageTest extends TestCase
         $this->actingAs($admin)
             ->postJson('/panel/pricing/pt-products/'.$inactivePtProduct->id, [
                 'price' => 3999,
-                'coach_commission_rate' => 40,
                 'is_active' => true,
             ])
             ->assertNotFound();
@@ -130,7 +125,6 @@ class PricingPageTest extends TestCase
         $this->actingAs($admin)
             ->postJson('/panel/pricing/rate-plans/'.$ratePlan->id, [
                 'price' => 4999.50,
-                'manager_commission_rate' => 15,
                 'is_active' => true,
                 'effective_from' => '2026-04-01',
                 'effective_until' => null,
@@ -140,7 +134,6 @@ class PricingPageTest extends TestCase
         $this->actingAs($admin)
             ->putJson('/panel/pricing/rate-plans/'.$ratePlan->id, [
                 'price' => 5499.50,
-                'manager_commission_rate' => 17.5,
                 'is_active' => false,
                 'effective_from' => '2026-04-01',
                 'effective_until' => '2026-06-30',
@@ -150,7 +143,6 @@ class PricingPageTest extends TestCase
         $this->assertDatabaseHas('rate_plans', [
             'id' => $ratePlan->id,
             'price' => 5499.50,
-            'manager_commission_rate' => 17.5,
             'is_active' => false,
             'effective_from' => '2026-04-01 00:00:00',
             'effective_until' => '2026-06-30 00:00:00',
@@ -163,7 +155,6 @@ class PricingPageTest extends TestCase
         $this->assertDatabaseHas('rate_plans', [
             'id' => $ratePlan->id,
             'price' => null,
-            'manager_commission_rate' => null,
             'effective_from' => null,
             'effective_until' => null,
         ]);
@@ -177,7 +168,6 @@ class PricingPageTest extends TestCase
         $this->actingAs($admin)
             ->postJson('/panel/pricing/pt-products/'.$ptProduct->id, [
                 'price' => 6800,
-                'coach_commission_rate' => 40,
                 'is_active' => true,
                 'effective_from' => '2026-04-01',
                 'effective_until' => null,
@@ -187,7 +177,6 @@ class PricingPageTest extends TestCase
         $this->actingAs($admin)
             ->putJson('/panel/pricing/pt-products/'.$ptProduct->id, [
                 'price' => 7200,
-                'coach_commission_rate' => 45,
                 'is_active' => false,
                 'effective_from' => '2026-04-01',
                 'effective_until' => null,
@@ -197,7 +186,6 @@ class PricingPageTest extends TestCase
         $this->assertDatabaseHas('pt_products', [
             'id' => $ptProduct->id,
             'price' => 7200.00,
-            'coach_commission_rate' => 45.0,
             'is_active' => false,
             'effective_from' => '2026-04-01 00:00:00',
             'effective_until' => null,
@@ -210,7 +198,6 @@ class PricingPageTest extends TestCase
         $this->assertDatabaseHas('pt_products', [
             'id' => $ptProduct->id,
             'price' => null,
-            'coach_commission_rate' => null,
             'effective_from' => null,
             'effective_until' => null,
         ]);
@@ -239,7 +226,6 @@ class PricingPageTest extends TestCase
         $this->actingAs($manager)
             ->putJson('/panel/pricing/pt-products/'.$ptProduct->id, [
                 'price' => 9200,
-                'coach_commission_rate' => 40,
                 'is_active' => true,
             ])
             ->assertForbidden();
@@ -247,19 +233,16 @@ class PricingPageTest extends TestCase
         $this->actingAs($manager)
             ->postJson('/panel/pricing/pt-products/'.$ptProduct->id, [
                 'price' => 9200,
-                'coach_commission_rate' => 40,
                 'is_active' => true,
             ])
             ->assertForbidden();
 
         $ratePlan->update([
             'price' => 9999,
-            'manager_commission_rate' => 12,
             'effective_from' => '2026-04-01',
         ]);
         $ptProduct->update([
             'price' => 9200,
-            'coach_commission_rate' => 40,
             'effective_from' => '2026-04-01',
         ]);
 

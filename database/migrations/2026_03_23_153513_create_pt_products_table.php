@@ -18,7 +18,6 @@ return new class extends Migration
             $table->integer('session_count');
             $table->enum('category', [PTProduct::CATEGORY_SINGLE, PTProduct::CATEGORY_PACKAGE])->default(PTProduct::CATEGORY_SINGLE);
             $table->decimal('price', 10, 2)->nullable();
-            $table->decimal('coach_commission_rate', 5, 2)->nullable();
             $table->boolean('is_active')->default(true);
             $table->text('description')->nullable();
             $table->date('effective_from')->nullable();

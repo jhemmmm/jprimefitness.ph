@@ -102,8 +102,6 @@ class PayrollReportsPageTest extends TestCase
                     ],
                 ],
             ],
-            'pt_commission_amount' => 200,
-            'pt_commission_items' => [],
             'manual_deductions' => 50,
             'cash_advance_deduction' => 100,
             'net_amount' => 1050,
@@ -165,8 +163,6 @@ class PayrollReportsPageTest extends TestCase
                     ],
                 ],
             ],
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
             'manual_deductions' => 0,
             'cash_advance_deduction' => 0,
             'net_amount' => 2000,
@@ -184,8 +180,6 @@ class PayrollReportsPageTest extends TestCase
             'gross_amount' => 999,
             'bonus' => 0,
             'income_tax' => 0,
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
             'manual_deductions' => 0,
             'cash_advance_deduction' => 0,
             'net_amount' => 999,
@@ -224,7 +218,6 @@ class PayrollReportsPageTest extends TestCase
         $response->assertJsonPath('summary.payroll_count', 2);
         $response->assertJsonPath('summary.gross_payroll', 3000);
         $response->assertJsonPath('summary.total_bonus', 100);
-        $response->assertJsonPath('summary.pt_commission', 200);
         $response->assertJsonPath('summary.income_tax', 100);
         $response->assertJsonPath('summary.employee_government_contributions', 900);
         $response->assertJsonPath('summary.employer_government_contributions', 1400);
@@ -289,8 +282,6 @@ class PayrollReportsPageTest extends TestCase
                     ],
                 ],
             ],
-            'pt_commission_amount' => 0,
-            'pt_commission_items' => [],
             'manual_deductions' => 50,
             'cash_advance_deduction' => 0,
             'net_amount' => 1375,

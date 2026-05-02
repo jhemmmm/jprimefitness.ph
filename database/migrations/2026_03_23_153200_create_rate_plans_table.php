@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('name');
             $table->integer('duration_days')->nullable();
             $table->decimal('price', 10, 2)->nullable();
-            $table->decimal('manager_commission_rate', 5, 2)->nullable();
             $table->boolean('is_active')->default(true);
             $table->text('description')->nullable();
             $table->date('effective_from')->nullable();

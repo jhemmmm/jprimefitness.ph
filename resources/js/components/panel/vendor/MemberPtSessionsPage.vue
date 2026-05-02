@@ -33,7 +33,6 @@
                      <th>Product</th>
                      <th>Coach</th>
                      <th>Balance</th>
-                     <th>Commission</th>
                      <th>Status</th>
                      <th>Assigned</th>
                      <th>Created By</th>
@@ -49,10 +48,6 @@
                      <td class="small">
                         <span class="fw-semibold">{{ pkg.remaining_sessions }}</span>
                         <span class="text-muted"> / {{ pkg.total_sessions }}</span>
-                     </td>
-                     <td class="small">
-                        <div class="fw-semibold">₱{{ $filters.formatMoney(pkg.coach_commission_amount || 0) }}</div>
-                        <div class="text-muted small">{{ commissionLabel(pkg) }}</div>
                      </td>
                      <td>
                         <span class="m-badge" :class="packageStatusClass(pkg.status)">{{ $filters.capitalize(pkg.status) }}</span>
@@ -73,7 +68,6 @@
                   <div>
                      <div class="fw-semibold">{{ pkg.pt_product?.name || "-" }}</div>
                      <div class="text-muted small" v-if="pkg.coach?.name">Coach: {{ pkg.coach.name }}</div>
-                     <div class="text-muted small">Commission: ₱{{ $filters.formatMoney(pkg.coach_commission_amount || 0) }} · {{ commissionLabel(pkg) }}</div>
                   </div>
                   <span class="m-badge" :class="packageStatusClass(pkg.status)">{{ $filters.capitalize(pkg.status) }}</span>
                </div>
@@ -151,8 +145,7 @@
                         </select>
                         <div class="invalid-feedback" v-if="packageErrors.pt_product_id">{{ packageErrors.pt_product_id }}</div>
                         <div class="form-text" v-if="selectedPackageProduct">
-                           Price: ₱{{ $filters.formatMoney(selectedPackageProduct.pivot?.price || 0) }} · Coach commission: ₱{{ $filters.formatMoney(packageCommissionPreview) }}
-                           <span class="text-muted">({{ Number(selectedPackageProduct.pivot?.coach_commission_rate || 0) }}%)</span>
+                           Price: ₱{{ $filters.formatMoney(selectedPackageProduct.pivot?.price || 0) }}
                         </div>
                      </div>
                      <div class="col-md-6">
@@ -337,13 +330,6 @@ export default {
          return this.availableProducts.find((product) => product.id === this.packageForm.pt_product_id) || null;
       },
 
-      packageCommissionPreview: function () {
-         const price = Number(this.selectedPackageProduct?.pivot?.price || 0);
-         const rate = Number(this.selectedPackageProduct?.pivot?.coach_commission_rate || 0);
-
-         return Math.max(0, (price * rate) / 100);
-      },
-
       packages: function () {
          return [...(this.member.member_pt_packages || [])].sort((left, right) => {
             const leftDate = left.assigned_at || left.created_at || "";
@@ -502,16 +488,6 @@ export default {
          );
       },
 
-      commissionLabel: function (pkg) {
-         const labels = {
-            unassigned: "Awaiting coach assignment",
-            pending: "Earns after all sessions are used",
-            earned: "Ready for payroll payout",
-            paid: "Already paid out",
-         };
-
-         return labels[pkg.coach_commission_status] || "Not tracked";
-      },
    },
 };
 </script>

@@ -37,7 +37,7 @@
       <div v-if="membershipLockReason" class="alert alert-warning py-2 small mb-4"><i class="bi bi-lock me-1"></i>{{ membershipLockReason }}</div>
 
       <div class="row g-3 mb-4">
-         <div class="col-lg-6">
+         <div class="col-12">
             <div class="border rounded-3 p-3 h-100 bg-light">
                <div class="d-flex align-items-start justify-content-between gap-3">
                   <div>
@@ -62,53 +62,7 @@
                      <div class="fw-semibold">{{ formatDateTime(currentMembership.created_at) }}</div>
                   </div>
                </div>
-               <div v-else class="text-muted small mt-3">Assign a new plan to start tracking membership activity and commission status here.</div>
-            </div>
-         </div>
-
-         <div class="col-lg-6">
-            <div class="border rounded-3 p-3 h-100 bg-light">
-               <div class="d-flex align-items-start justify-content-between gap-3">
-                  <div>
-                     <div class="text-muted text-uppercase small fw-semibold">Manager Commission</div>
-                     <div v-if="currentCommissionSummary.is_tracked" class="fw-semibold fs-6 mt-1">₱{{ $filters.formatMoney(currentCommissionSummary.commission_amount || 0) }}</div>
-                     <div v-else class="fw-semibold fs-6 mt-1">Not tracked</div>
-                  </div>
-                  <span v-if="currentCommissionSummary.is_tracked" class="m-badge" :class="commissionStatusClass(currentCommissionSummary.status)">{{ commissionStatusLabel(currentCommissionSummary.status) }}</span>
-               </div>
-
-               <div v-if="currentCommissionSummary.is_tracked" class="row g-3 mt-1 small">
-                  <div class="col-sm-6">
-                     <div class="text-muted">Sold Price</div>
-                     <div class="fw-semibold">₱{{ $filters.formatMoney(currentCommissionSummary.sold_price || 0) }}</div>
-                  </div>
-                  <div class="col-sm-6">
-                     <div class="text-muted">Rate</div>
-                     <div class="fw-semibold">{{ Number(currentCommissionSummary.commission_rate || 0) }}%</div>
-                  </div>
-                  <div class="col-sm-6">
-                     <div class="text-muted">Manager</div>
-                     <div class="fw-semibold">{{ currentCommissionSummary.manager_name || "Unassigned" }}</div>
-                  </div>
-                  <div class="col-sm-6">
-                     <div class="text-muted">Earned At</div>
-                     <div class="fw-semibold">{{ formatDateTime(currentCommissionSummary.earned_at) }}</div>
-                  </div>
-                  <div class="col-12" v-if="currentCommissionSummary.payroll_label">
-                     <div class="text-muted">Payroll</div>
-                     <div class="fw-semibold">{{ currentCommissionSummary.payroll_label }}</div>
-                  </div>
-                  <div class="col-12" v-if="currentCommissionSummary.status === 'unassigned'">
-                     <div class="d-flex flex-wrap align-items-center gap-2">
-                        <button v-if="canManageMembership" type="button" class="btn btn-outline-primary btn-sm" @click="openManagerModal" :disabled="savingManager || !canAssignManager">
-                           <span class="spinner-border spinner-border-sm me-1" v-if="savingManager"></span>
-                           {{ assignManagerButtonLabel }}
-                        </button>
-                        <div class="text-muted" v-if="managerAssignmentReason">{{ managerAssignmentReason }}</div>
-                     </div>
-                  </div>
-               </div>
-               <div v-else class="text-muted small mt-3">This membership does not currently have a manager commission record attached to it.</div>
+               <div v-else class="text-muted small mt-3">Assign a new plan to start tracking membership activity here.</div>
             </div>
          </div>
       </div>
@@ -146,37 +100,6 @@
          </div>
       </div>
 
-      <div class="modal fade" tabindex="-1" ref="managerModal">
-         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-               <div class="modal-header">
-                  <h5 class="modal-title fw-bold">Assign Manager Commission</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-               </div>
-               <div class="modal-body">
-                  <div class="small text-muted mb-3">Assign this unclaimed membership commission to a manager. It will move from <strong>Unassigned</strong> to <strong>Earned</strong> once saved.</div>
-                  <div class="row g-3">
-                     <div class="col-12">
-                        <label class="form-label form-label-sm fw-semibold">Manager</label>
-                        <select class="form-select" v-model="managerForm.manager_id">
-                           <option disabled value="">Select a manager...</option>
-                           <option v-for="manager in availableManagers" :key="manager.id" :value="String(manager.id)">{{ manager.name }}</option>
-                        </select>
-                     </div>
-                     <div class="col-12 small text-muted" v-if="currentCommissionSummary.commission_amount">Commission amount: ₱{{ $filters.formatMoney(currentCommissionSummary.commission_amount || 0) }}</div>
-                  </div>
-               </div>
-               <div class="modal-footer">
-                  <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-primary btn-sm" @click="saveManagerAssignment" :disabled="savingManager || !managerForm.manager_id || !canAssignManager">
-                     <span class="spinner-border spinner-border-sm me-1" v-if="savingManager"></span>
-                     Assign Manager
-                  </button>
-               </div>
-            </div>
-         </div>
-      </div>
-
       <div v-if="memberships.length === 0" class="text-center py-5 text-muted">
          <i class="bi bi-postcard fs-1 d-block mb-2 opacity-25"></i>
          <div>No membership history found.</div>
@@ -187,7 +110,6 @@
             <thead class="table-light">
                <tr>
                   <th>Plan</th>
-                  <th>Commission</th>
                   <th>Status</th>
                   <th>Start Date</th>
                   <th>End Date</th>
@@ -197,19 +119,6 @@
             <tbody>
                <tr v-for="membership in memberships" :key="membership.id">
                   <td class="fw-semibold">{{ membership.rate_plan.name }}</td>
-                  <td class="small">
-                     <template v-if="membership.commission_summary?.is_tracked">
-                        <div class="fw-semibold text-success">₱{{ $filters.formatMoney(membership.commission_summary.commission_amount || 0) }}</div>
-                        <div class="text-muted">{{ Number(membership.commission_summary.commission_rate || 0) }}% · {{ membership.commission_summary.manager_name || "Unassigned" }}</div>
-                        <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
-                           <span class="m-badge" :class="commissionStatusClass(membership.commission_summary.status)">{{ commissionStatusLabel(membership.commission_summary.status) }}</span>
-                           <span class="text-muted" v-if="membership.commission_summary.earned_at">{{ formatDateTime(membership.commission_summary.earned_at) }}</span>
-                        </div>
-                        <div class="text-muted mt-1" v-if="membership.commission_summary.assignment_reason && membership.commission_summary.status === 'unassigned'">{{ membership.commission_summary.assignment_reason }}</div>
-                        <div class="text-muted mt-1" v-if="membership.commission_summary.payroll_label">Payroll {{ membership.commission_summary.payroll_label }}</div>
-                     </template>
-                     <span v-else class="text-muted">Not tracked</span>
-                  </td>
                   <td>
                      <span class="m-badge" :class="planStatusClass(membership.status)">{{ $filters.capitalize(membership.status) }}</span>
                   </td>
@@ -230,17 +139,6 @@
                </div>
                <span class="m-badge" :class="planStatusClass(membership.status)">{{ $filters.capitalize(membership.status) }}</span>
             </div>
-            <div class="small mt-3" v-if="membership.commission_summary?.is_tracked">
-               <div class="fw-semibold text-success">Commission ₱{{ $filters.formatMoney(membership.commission_summary.commission_amount || 0) }}</div>
-               <div class="text-muted">{{ Number(membership.commission_summary.commission_rate || 0) }}% · {{ membership.commission_summary.manager_name || "Unassigned" }}</div>
-               <div class="d-flex align-items-center gap-2 flex-wrap mt-1">
-                  <span class="m-badge" :class="commissionStatusClass(membership.commission_summary.status)">{{ commissionStatusLabel(membership.commission_summary.status) }}</span>
-                  <span class="text-muted" v-if="membership.commission_summary.earned_at">{{ formatDateTime(membership.commission_summary.earned_at) }}</span>
-               </div>
-               <div class="text-muted mt-1" v-if="membership.commission_summary.assignment_reason && membership.commission_summary.status === 'unassigned'">{{ membership.commission_summary.assignment_reason }}</div>
-               <div class="text-muted mt-1" v-if="membership.commission_summary.payroll_label">Payroll {{ membership.commission_summary.payroll_label }}</div>
-            </div>
-            <div class="small text-muted mt-3" v-else>No manager commission tracked.</div>
             <div class="member-card-footer">
                <span><i class="bi bi-calendar3 me-1"></i>{{ formatDate(membership.end_date) }}</span>
                <span class="text-muted small">{{ formatDateTime(membership.created_at) }}</span>
@@ -266,24 +164,18 @@ export default {
       return {
          savingPlan: false,
          savingStatus: false,
-         savingManager: false,
          saved: false,
          generalError: "",
          planModalInst: null,
-         managerModalInst: null,
          form: {
             rate_plan_id: "",
             start_date: toDateInputValue(),
-         },
-         managerForm: {
-            manager_id: "",
          },
       };
    },
 
    mounted: function () {
       this.planModalInst = new Modal(this.$refs.planModal);
-      this.managerModalInst = new Modal(this.$refs.managerModal);
    },
 
    watch: {
@@ -294,9 +186,6 @@ export default {
                rate_plan_id: this.currentMembership?.rate_plan_id || "",
                start_date: this.currentMembership?.start_date || toDateInputValue(),
             };
-            this.managerForm = {
-               manager_id: this.defaultManagerId,
-            };
          },
       },
    },
@@ -306,30 +195,12 @@ export default {
          return this.memberships.find((membership) => ["active", "paused"].includes(membership.status)) || null;
       },
 
-      currentCommissionSummary: function () {
-         return (
-            this.currentMembership?.commission_summary || {
-               is_tracked: false,
-               is_locked: false,
-               status: "unassigned",
-               commission_amount: 0,
-               commission_rate: 0,
-               sold_price: 0,
-               manager_name: null,
-               earned_at: null,
-               payroll_label: null,
-            }
-         );
-      },
-
       currentMembershipActionState: function () {
          return (
             this.currentMembership?.action_state || {
                is_locked: false,
                can_change_plan: true,
                can_change_status: true,
-               can_assign_manager: false,
-               assign_manager_reason: "",
                reason: "",
             }
          );
@@ -343,40 +214,8 @@ export default {
          return this.currentMembershipActionState.reason || "";
       },
 
-      canAssignManager: function () {
-         return Boolean(this.currentMembershipActionState.can_assign_manager) && this.availableManagers.length > 0;
-      },
-
-      managerAssignmentReason: function () {
-         if (this.currentMembershipActionState.can_assign_manager && !this.availableManagers.length) {
-            return "No active manager is available for this membership.";
-         }
-
-         return this.currentMembershipActionState.assign_manager_reason || this.currentCommissionSummary.assignment_reason || "";
-      },
-
       canManageMembership: function () {
          return this.is("super admin") || this.is("admin") || this.is("manager");
-      },
-
-      availableManagers: function () {
-         return this.member.available_managers || [];
-      },
-
-      defaultManagerId: function () {
-         if (!this.availableManagers.length) {
-            return "";
-         }
-
-         return String(this.availableManagers[0].id || "");
-      },
-
-      assignManagerButtonLabel: function () {
-         if (this.availableManagers.length === 1 && this.is("manager") && !this.is("admin") && !this.is("super admin")) {
-            return "Assign To Me";
-         }
-
-         return "Assign Manager";
       },
 
       memberships: function () {
@@ -427,19 +266,6 @@ export default {
          this.planModalInst.show();
       },
 
-      openManagerModal: function () {
-         if (!this.canAssignManager) {
-            this.generalError = this.managerAssignmentReason;
-            return;
-         }
-
-         this.generalError = "";
-         this.managerForm = {
-            manager_id: this.defaultManagerId,
-         };
-         this.managerModalInst.show();
-      },
-
       savePlanChange: function () {
          if (this.isCurrentMembershipLocked) {
             this.generalError = this.membershipLockReason;
@@ -459,29 +285,6 @@ export default {
             })
             .catch((err) => (this.generalError = err.response?.data?.message || "Failed to update membership plan."))
             .finally(() => (this.savingPlan = false));
-      },
-
-      saveManagerAssignment: function () {
-         if (!this.canAssignManager) {
-            this.generalError = this.managerAssignmentReason;
-            return;
-         }
-
-         this.savingManager = true;
-         this.saved = false;
-         this.generalError = "";
-         axios
-            .put(`/panel/members/${this.member.id}/membership/manager`, {
-               manager_id: Number(this.managerForm.manager_id),
-            })
-            .then((res) => {
-               this.saved = true;
-               this.$emit("updated", res.data);
-               this.managerModalInst.hide();
-               setTimeout(() => (this.saved = false), 3000);
-            })
-            .catch((err) => (this.generalError = err.response?.data?.message || "Failed to assign membership commission manager."))
-            .finally(() => (this.savingManager = false));
       },
 
       updateStatus: function (status) {
@@ -515,25 +318,6 @@ export default {
          );
       },
 
-      commissionStatusClass: function (status) {
-         return (
-            {
-               unassigned: "m-badge--draft",
-               earned: "m-badge--partial",
-               paid: "m-badge--active",
-            }[status] || "m-badge--draft"
-         );
-      },
-
-      commissionStatusLabel: function (status) {
-         return (
-            {
-               unassigned: "Unassigned",
-               earned: "Earned",
-               paid: "Paid",
-            }[status] || this.$filters.capitalize(status || "unassigned")
-         );
-      },
    },
 };
 </script>

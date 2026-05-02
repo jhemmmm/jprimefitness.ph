@@ -234,8 +234,6 @@ class PanelAuditEventFormatter
                 'status' => $snapshot['status'] ?? null,
                 'start_date' => $snapshot['start_date'] ?? null,
                 'end_date' => $snapshot['end_date'] ?? null,
-                'manager_id' => $snapshot['manager_id'] ?? null,
-                'manager_name' => $snapshot['manager_name'] ?? null,
             ],
             AuditEvent::SUBJECT_MEMBER_PT_PACKAGE => [
                 'member_id' => $snapshot['member_id'] ?? null,
