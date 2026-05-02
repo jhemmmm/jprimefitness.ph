@@ -392,17 +392,6 @@ class EmployeeController extends Controller
         $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_PAYROLL,
-            $payroll->id,
-            'created',
-            $this->payrollSystemActivitySnapshot($payroll, $employee),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            now(),
-        );
-
         return response()->json($this->serializePayroll($payroll), 201);
     }
 
@@ -729,17 +718,6 @@ class EmployeeController extends Controller
 
         $this->payrollService->syncStatus($payroll);
         $payout = $payout->fresh(['payroll', 'releasedBy', 'employee:id,name']);
-
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_PAYOUT,
-            $payout->id,
-            'created',
-            $this->payoutSystemActivitySnapshot($payout),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            $payout->paid_at ?? now(),
-        );
 
         return response()->json($this->serializePayout($payout), 201);
     }
@@ -1107,23 +1085,4 @@ class EmployeeController extends Controller
         ];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function payoutSystemActivitySnapshot(Payout $payout): array
-    {
-        $payrollPeriod = $payout->payroll && $payout->payroll->period_start && $payout->payroll->period_end
-            ? $payout->payroll->period_start->format('Y-m-d').' - '.$payout->payroll->period_end->format('Y-m-d')
-            : null;
-
-        return [
-            'id' => $payout->id,
-            'employee_id' => $payout->employee_id,
-            'employee_name' => $payout->employee?->name ?? 'Unknown Employee',
-            'payroll_id' => $payout->payroll_id,
-            'payroll_period' => $payrollPeriod,
-            'amount' => round((float) $payout->amount, 2),
-            'method' => $payout->method,
-        ];
-    }
 }

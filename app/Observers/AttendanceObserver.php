@@ -9,6 +9,21 @@ use DateTimeInterface;
 
 class AttendanceObserver
 {
+    /**
+     * Record a new attendance check-in activity.
+     *
+     * @return void
+     */
+    public function created(Attendance $attendance): void
+    {
+        $this->record($attendance, 'checked_in', $attendance->checked_in_at ?? now());
+    }
+
+    /**
+     * Record attendance update activity.
+     *
+     * @return void
+     */
     public function updated(Attendance $attendance): void
     {
         if (
@@ -24,11 +39,21 @@ class AttendanceObserver
         $this->record($attendance, 'updated');
     }
 
+    /**
+     * Record attendance deletion activity.
+     *
+     * @return void
+     */
     public function deleted(Attendance $attendance): void
     {
         $this->record($attendance, 'deleted');
     }
 
+    /**
+     * Record an attendance system activity.
+     *
+     * @return void
+     */
     private function record(Attendance $attendance, string $event, DateTimeInterface|string|null $occurredAt = null): void
     {
         $attendance->loadMissing(['user', 'recordedBy']);
@@ -40,9 +65,27 @@ class AttendanceObserver
             $this->snapshot($attendance),
             [],
             auth()->id(),
-            auth()->user()?->name,
+            $this->actorName($attendance),
             $occurredAt ?? now(),
         );
+    }
+
+    /**
+     * Resolve the activity actor name.
+     *
+     * @return string|null
+     */
+    private function actorName(Attendance $attendance): ?string
+    {
+        if (auth()->user()?->name) {
+            return auth()->user()->name;
+        }
+
+        if ($attendance->source === Attendance::SOURCE_HIKVISION && $attendance->source_device_serial) {
+            return 'Hikvision '.$attendance->source_device_serial;
+        }
+
+        return null;
     }
 
     /**

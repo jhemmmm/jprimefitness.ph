@@ -413,7 +413,7 @@ class MembersController extends Controller
 
         $previousRemainingSessions = (int) $package->remaining_sessions;
 
-        $usage = $package->consumeSessions(
+        $package->consumeSessions(
             (int) $data['sessions_used'],
             $data['used_at'],
             auth()->id(),
@@ -426,19 +426,6 @@ class MembersController extends Controller
             $package->fresh(),
             $previousRemainingSessions,
             $data['used_at']
-        );
-        $package = $package->fresh(['member:id,name']);
-        $usage->loadMissing('coach:id,name');
-
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE,
-            $usage->id,
-            'recorded',
-            $this->ptSessionUsageSystemActivitySnapshot($usage, $package),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            $usage->used_at ?? now(),
         );
 
         return response()->json($this->memberPayload($member->fresh(), detailed: true), 201);
@@ -706,24 +693,6 @@ class MembersController extends Controller
             'total_sessions' => $package->total_sessions,
             'remaining_sessions' => $package->remaining_sessions,
             'assigned_at' => $package->assigned_at?->toDateString(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function ptSessionUsageSystemActivitySnapshot(MemberPtSessionUsage $usage, MemberPtPackage $package): array
-    {
-        return [
-            'id' => $usage->id,
-            'member_id' => $package->user_id,
-            'member_name' => $package->member?->name ?? 'Unknown Member',
-            'package_id' => $package->id,
-            'sessions_used' => $usage->sessions_used,
-            'remaining_sessions' => $package->remaining_sessions,
-            'used_at' => $usage->used_at?->toISOString(),
-            'coach_id' => $usage->coach_id,
-            'coach_name' => $usage->coach?->name,
         ];
     }
 

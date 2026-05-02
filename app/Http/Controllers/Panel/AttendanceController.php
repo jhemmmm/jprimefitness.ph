@@ -4,9 +4,7 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
-use App\Models\SystemActivity;
 use App\Models\User;
-use App\Services\SystemActivityService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,15 +14,6 @@ use Illuminate\View\View;
 
 class AttendanceController extends Controller
 {
-    /**
-     * Create a new attendance controller instance.
-     *
-     * @return void
-     */
-    public function __construct(
-        private SystemActivityService $systemActivityService,
-    ) {}
-
     /**
      * Display the attendance index page.
      *
@@ -99,17 +88,6 @@ class AttendanceController extends Controller
             'source_device_serial' => null,
         ]));
         $attendance = $attendance->fresh(['user', 'recordedBy']);
-
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_ATTENDANCE,
-            $attendance->id,
-            'checked_in',
-            $this->attendanceSystemActivitySnapshot($attendance),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            $attendance->checked_in_at ?? now(),
-        );
 
         return response()->json($this->serializeAttendance($attendance), 201);
     }
@@ -203,20 +181,4 @@ class AttendanceController extends Controller
         ];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function attendanceSystemActivitySnapshot(Attendance $attendance): array
-    {
-        return [
-            'id' => $attendance->id,
-            'user_id' => $attendance->user_id,
-            'name' => $attendance->name ?: $attendance->user?->name,
-            'attendee_type' => $attendance->attendee_type,
-            'checked_in_at' => $attendance->checked_in_at?->toISOString(),
-            'checked_out_at' => $attendance->checked_out_at?->toISOString(),
-            'source' => $attendance->source,
-            'source_device_serial' => $attendance->source_device_serial,
-        ];
-    }
 }

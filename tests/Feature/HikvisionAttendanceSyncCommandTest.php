@@ -84,6 +84,16 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
             'event_serial_no' => '186',
             'attendance_id' => $attendance->id,
         ]);
+
+        $this->assertSame(
+            ['Hikvision DS-K1A802AEF', 'Hikvision DS-K1A802AEF'],
+            SystemActivity::query()
+                ->where('subject_type', SystemActivity::SUBJECT_ATTENDANCE)
+                ->where('subject_id', $attendance->id)
+                ->orderBy('id')
+                ->pluck('actor_name')
+                ->all()
+        );
     }
 
     public function test_helper_forwarded_attendance_callback_ignores_stale_event_before_open_attendance(): void

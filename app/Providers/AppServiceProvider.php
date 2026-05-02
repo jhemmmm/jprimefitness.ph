@@ -2,14 +2,20 @@
 
 namespace App\Providers;
 
-use App\Models\BusinessProfile;
 use App\Models\Attendance;
+use App\Models\BusinessProfile;
 use App\Models\InventoryItem;
+use App\Models\MemberPtSessionUsage;
 use App\Models\PTProduct;
+use App\Models\Payout;
+use App\Models\Payroll;
 use App\Models\RatePlan;
 use App\Observers\AttendanceObserver;
 use App\Observers\BusinessProfileObserver;
 use App\Observers\InventoryItemObserver;
+use App\Observers\MemberPtSessionUsageObserver;
+use App\Observers\PayoutObserver;
+use App\Observers\PayrollObserver;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Role;
@@ -31,6 +37,9 @@ class AppServiceProvider extends ServiceProvider
         Attendance::observe(AttendanceObserver::class);
         BusinessProfile::observe(BusinessProfileObserver::class);
         InventoryItem::observe(InventoryItemObserver::class);
+        MemberPtSessionUsage::observe(MemberPtSessionUsageObserver::class);
+        Payout::observe(PayoutObserver::class);
+        Payroll::observe(PayrollObserver::class);
 
         View::composer('panel.*', function ($view) {
             $businessProfile = BusinessProfile::current();

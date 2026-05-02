@@ -3,10 +3,8 @@
 namespace App\Services\Hikvision;
 
 use App\Models\Attendance;
-use App\Models\SystemActivity;
 use App\Models\EmployeeProfile;
 use App\Models\HikvisionEventLog;
-use App\Services\SystemActivityService;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Arr;
@@ -15,10 +13,6 @@ use Illuminate\Support\Str;
 
 class HikvisionAttendanceService
 {
-    public function __construct(
-        private SystemActivityService $systemActivityService,
-    ) {}
-
     /**
      * @param  array<string, mixed>  $payload
      * @return array{attendance: ?Attendance, status: string, action: string, employee_no: string, event_serial_no: string, event_type: string, occurred_at: string}
@@ -68,8 +62,6 @@ class HikvisionAttendanceService
             }
 
             $eventTime = Carbon::parse($normalized['occurred_at']);
-            $actorName = 'Hikvision '.($normalized['device_name'] ?: $normalized['device_serial']);
-
             $latestAttendance = Attendance::query()
                 ->where('attendee_type', Attendance::TYPE_EMPLOYEE)
                 ->where('user_id', $profile->user->id)
@@ -105,17 +97,6 @@ class HikvisionAttendanceService
                     'source_device_serial' => $normalized['device_serial'],
                 ])->fresh(['user', 'recordedBy']);
                 $action = 'check_in';
-
-                $this->systemActivityService->recordSubjectEvent(
-                    SystemActivity::SUBJECT_ATTENDANCE,
-                    $attendance->id,
-                    'checked_in',
-                    $this->attendanceSnapshot($attendance),
-                    [],
-                    null,
-                    $actorName,
-                    $eventTime,
-                );
             }
 
             $eventLog->update([
@@ -183,23 +164,6 @@ class HikvisionAttendanceService
             'is_fingerprint_employee_event' => $employeeNo !== ''
                 && Str::lower($eventType) === 'accesscontrollerevent'
                 && in_array($eventSubType, ['38', '49'], true),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function attendanceSnapshot(Attendance $attendance): array
-    {
-        return [
-            'id' => $attendance->id,
-            'user_id' => $attendance->user_id,
-            'name' => $attendance->name ?: $attendance->user?->name,
-            'attendee_type' => $attendance->attendee_type,
-            'checked_in_at' => $attendance->checked_in_at?->toISOString(),
-            'checked_out_at' => $attendance->checked_out_at?->toISOString(),
-            'source' => $attendance->source,
-            'source_device_serial' => $attendance->source_device_serial,
         ];
     }
 
