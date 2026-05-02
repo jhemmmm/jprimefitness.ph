@@ -178,7 +178,7 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
             'period_end' => '2026-03-15',
             'gross_amount' => 500,
             'bonus' => 0,
-            'income_tax' => 0,
+            'withholding_tax' => 0,
             'manual_deductions' => 0,
             'net_amount' => 500,
             'status' => Payroll::STATUS_APPROVED,

@@ -29,7 +29,7 @@ class EmployeePayrollTaxTest extends TestCase
         $staffRole->givePermissionTo($permission);
     }
 
-    public function test_philippines_semi_monthly_payroll_uses_income_tax_in_preview_and_saved_totals(): void
+    public function test_philippines_semi_monthly_payroll_uses_withholding_tax_in_preview_and_saved_totals(): void
     {
         $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES);
         $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
@@ -45,7 +45,7 @@ class EmployeePayrollTaxTest extends TestCase
             ->assertOk()
             ->assertJsonPath('bonus_non_taxable_amount', 500)
             ->assertJsonPath('bonus_taxable_amount', 0)
-            ->assertJsonPath('income_tax', 1604.1)
+            ->assertJsonPath('withholding_tax', 1604.1)
             ->assertJsonPath('taxable_earnings', 20000)
             ->assertJsonPath('employee_contributions_total', 0)
             ->assertJsonPath('employer_contributions_total', 0)
@@ -62,7 +62,7 @@ class EmployeePayrollTaxTest extends TestCase
                 'notes' => 'Semi-monthly Philippines payroll.',
             ])
             ->assertCreated()
-            ->assertJsonPath('income_tax', 1604.1)
+            ->assertJsonPath('withholding_tax', 1604.1)
             ->assertJsonPath('employee_contributions_total', 0)
             ->assertJsonPath('employer_contributions_total', 0)
             ->assertJsonPath('employee_deductions_total', 1804.1)
@@ -72,7 +72,7 @@ class EmployeePayrollTaxTest extends TestCase
         $this->assertDatabaseHas('payrolls', [
             'id' => $response->json('id'),
             'employee_id' => $employee->id,
-            'income_tax' => '1604.10',
+            'withholding_tax' => '1604.10',
             'manual_deductions' => '200.00',
             'net_amount' => '18695.90',
         ]);
@@ -101,7 +101,7 @@ class EmployeePayrollTaxTest extends TestCase
             ->assertJsonPath('employer_contributions.pagibig.total', 200)
             ->assertJsonPath('employer_contributions_total', 2780)
             ->assertJsonPath('taxable_earnings', 18275)
-            ->assertJsonPath('income_tax', 1259.1)
+            ->assertJsonPath('withholding_tax', 1259.1)
             ->assertJsonPath('employee_deductions_total', 3184.1)
             ->assertJsonPath('net_amount_preview', 17315.9);
 
@@ -115,7 +115,7 @@ class EmployeePayrollTaxTest extends TestCase
                 'notes' => 'Second half with statutory deductions.',
             ])
             ->assertCreated()
-            ->assertJsonPath('income_tax', 1259.1)
+            ->assertJsonPath('withholding_tax', 1259.1)
             ->assertJsonPath('employee_contributions_total', 1725)
             ->assertJsonPath('employer_contributions_total', 2780)
             ->assertJsonPath('employee_deductions_total', 3184.1)
@@ -414,7 +414,7 @@ class EmployeePayrollTaxTest extends TestCase
             'period_end' => '2026-02-15',
                 'gross_amount' => 0,
                 'bonus' => 89500,
-                'income_tax' => 0,
+                'withholding_tax' => 0,
                 'manual_deductions' => 0,
             'net_amount' => 89500,
             'status' => Payroll::STATUS_APPROVED,
@@ -430,11 +430,11 @@ class EmployeePayrollTaxTest extends TestCase
             ->assertJsonPath('bonus_non_taxable_amount', 500)
             ->assertJsonPath('bonus_taxable_amount', 1000)
             ->assertJsonPath('taxable_earnings', 21000)
-            ->assertJsonPath('income_tax', 1804.1)
+            ->assertJsonPath('withholding_tax', 1804.1)
             ->assertJsonPath('net_amount_preview', 19695.9);
     }
 
-    public function test_philippines_monthly_payroll_uses_monthly_income_tax_table(): void
+    public function test_philippines_monthly_payroll_uses_monthly_withholding_tax_table(): void
     {
         $this->setBusinessProfile('Legazpi', BusinessProfile::COUNTRY_PHILIPPINES);
         $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
@@ -450,14 +450,14 @@ class EmployeePayrollTaxTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('pay_frequency', 'monthly')
-            ->assertJsonPath('income_tax', 5208.4)
+            ->assertJsonPath('withholding_tax', 5208.4)
             ->assertJsonPath('employee_deductions_total', 5208.4)
             ->assertJsonPath('net_amount', 44791.6);
 
         $this->assertDatabaseHas('payrolls', [
             'employee_id' => $employee->id,
             'pay_frequency' => 'monthly',
-            'income_tax' => '5208.40',
+            'withholding_tax' => '5208.40',
             'net_amount' => '44791.60',
         ]);
     }
@@ -465,7 +465,7 @@ class EmployeePayrollTaxTest extends TestCase
     public function test_business_toggle_can_disable_payroll_wage_tax(): void
     {
         $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES, [
-            'payroll_income_tax_enabled' => false,
+            'payroll_withholding_tax_enabled' => false,
         ]);
         $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
         $employee = $this->createEmployeeWithRole(
@@ -478,7 +478,7 @@ class EmployeePayrollTaxTest extends TestCase
         $this->actingAs($manager)
             ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&bonus=500&manual_deductions=200")
             ->assertOk()
-            ->assertJsonPath('income_tax', 0)
+            ->assertJsonPath('withholding_tax', 0)
             ->assertJsonPath('employee_contributions_total', 1725)
             ->assertJsonPath('employee_deductions_total', 1925)
             ->assertJsonPath('net_amount_preview', 18575);
@@ -500,7 +500,7 @@ class EmployeePayrollTaxTest extends TestCase
         $this->actingAs($manager)
             ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&bonus=500&manual_deductions=200")
             ->assertOk()
-            ->assertJsonPath('income_tax', 1604.1)
+            ->assertJsonPath('withholding_tax', 1604.1)
             ->assertJsonPath('employee_contributions', [])
             ->assertJsonPath('employee_contributions_total', 0)
             ->assertJsonPath('employer_contributions', [])
@@ -512,7 +512,7 @@ class EmployeePayrollTaxTest extends TestCase
     public function test_business_toggles_can_disable_wage_tax_and_government_contributions_together(): void
     {
         $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES, [
-            'payroll_income_tax_enabled' => false,
+            'payroll_withholding_tax_enabled' => false,
             'payroll_government_contributions_enabled' => false,
         ]);
         $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
@@ -526,14 +526,14 @@ class EmployeePayrollTaxTest extends TestCase
         $this->actingAs($manager)
             ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&bonus=500&manual_deductions=200")
             ->assertOk()
-            ->assertJsonPath('income_tax', 0)
+            ->assertJsonPath('withholding_tax', 0)
             ->assertJsonPath('employee_contributions_total', 0)
             ->assertJsonPath('employer_contributions_total', 0)
             ->assertJsonPath('employee_deductions_total', 200)
             ->assertJsonPath('net_amount_preview', 20300);
     }
 
-    public function test_non_ph_business_profiles_default_to_zero_income_tax(): void
+    public function test_non_ph_business_profiles_default_to_zero_withholding_tax(): void
     {
         $this->setBusinessProfile('Singapore', 'SG');
         $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
@@ -553,7 +553,7 @@ class EmployeePayrollTaxTest extends TestCase
                 'manual_deductions' => 200,
             ])
             ->assertCreated()
-            ->assertJsonPath('income_tax', 0)
+            ->assertJsonPath('withholding_tax', 0)
             ->assertJsonPath('employee_contributions_total', 0)
             ->assertJsonPath('employer_contributions_total', 0)
             ->assertJsonPath('employee_deductions_total', 200)
@@ -580,7 +580,7 @@ class EmployeePayrollTaxTest extends TestCase
                 'manual_deductions' => 200,
             ])
             ->assertCreated()
-            ->assertJsonPath('income_tax', 1259.1)
+            ->assertJsonPath('withholding_tax', 1259.1)
             ->assertJsonPath('employee_contributions_total', 1725)
             ->assertJsonPath('employer_contributions_total', 2780)
             ->json('id');
@@ -597,7 +597,7 @@ class EmployeePayrollTaxTest extends TestCase
                 'name' => $profile->name,
                 'country_code' => $profile->country_code,
                 'pay_overwork_hours' => (bool) $profile->pay_overwork_hours,
-                'payroll_income_tax_enabled' => false,
+                'payroll_withholding_tax_enabled' => false,
                 'payroll_government_contributions_enabled' => false,
                 'city' => $profile->city,
                 'province' => $profile->province,
@@ -608,13 +608,13 @@ class EmployeePayrollTaxTest extends TestCase
                 'closing_time' => $profile->closing_time,
             ])
             ->assertOk()
-            ->assertJsonPath('payroll_income_tax_enabled', false)
+            ->assertJsonPath('payroll_withholding_tax_enabled', false)
             ->assertJsonPath('payroll_government_contributions_enabled', false);
 
         $payroll->refresh();
 
         $this->assertSame(Payroll::STATUS_APPROVED, $payroll->status);
-        $this->assertSame(1259.1, (float) $payroll->income_tax);
+        $this->assertSame(1259.1, (float) $payroll->withholding_tax);
         $this->assertSame(1725.0, $payroll->employeeContributionsTotal());
         $this->assertSame(2780.0, $payroll->employerContributionsTotal());
         $this->assertSame(17315.9, (float) $payroll->net_amount);
@@ -648,7 +648,7 @@ class EmployeePayrollTaxTest extends TestCase
         return BusinessProfile::factory()->create([
             'name' => $name,
             'country_code' => $countryCode,
-            'payroll_income_tax_enabled' => true,
+            'payroll_withholding_tax_enabled' => true,
             'payroll_government_contributions_enabled' => true,
             'city' => 'Naga City',
             'province' => 'Camarines Sur',

@@ -29,7 +29,7 @@ class Payroll extends Model
         'overwork_pay_amount',
         'gross_amount',
         'bonus',
-        'income_tax',
+        'withholding_tax',
         'employee_contributions',
         'employer_contributions',
         'manual_deductions',
@@ -52,7 +52,7 @@ class Payroll extends Model
         'overwork_pay_amount' => 'decimal:2',
         'gross_amount' => 'decimal:2',
         'bonus' => 'decimal:2',
-        'income_tax' => 'decimal:2',
+        'withholding_tax' => 'decimal:2',
         'manual_deductions' => 'decimal:2',
         'employee_contributions' => 'array',
         'employer_contributions' => 'array',
@@ -92,7 +92,7 @@ class Payroll extends Model
     public function employeeDeductionsTotal(): float
     {
         return round(
-            (float) $this->income_tax
+            (float) $this->withholding_tax
             + (float) $this->manual_deductions
             + $this->employeeContributionsTotal(),
             2

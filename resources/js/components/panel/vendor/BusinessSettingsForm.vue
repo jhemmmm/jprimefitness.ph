@@ -48,14 +48,14 @@
                            <div class="business-settings-toggle-card">
                               <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
                                  <div>
-                                    <div class="fw-semibold">Payroll wage tax</div>
+                                    <div class="fw-semibold">Withholding tax</div>
                                     <div class="text-muted small">
-                                       When enabled, new payrolls and recalculated drafts will apply the app's calculated income tax withholding.
+                                       When enabled, new payrolls and recalculated drafts will apply the app's calculated withholding tax.
                                     </div>
                                  </div>
                                  <div class="form-check form-switch m-0">
-                                    <input id="payrollIncomeTaxEnabled" class="form-check-input" type="checkbox" v-model="form.payroll_income_tax_enabled" />
-                                    <label class="form-check-label visually-hidden" for="payrollIncomeTaxEnabled">Payroll wage tax</label>
+                                    <input id="payrollWithholdingTaxEnabled" class="form-check-input" type="checkbox" v-model="form.payroll_withholding_tax_enabled" />
+                                    <label class="form-check-label visually-hidden" for="payrollWithholdingTaxEnabled">Withholding tax</label>
                                  </div>
                               </div>
                            </div>
@@ -340,7 +340,7 @@ export default {
             name: profile.name || "",
             country_code: profile.country_code || "PH",
             pay_overwork_hours: Boolean(profile.pay_overwork_hours),
-            payroll_income_tax_enabled: Boolean(profile.payroll_income_tax_enabled),
+            payroll_withholding_tax_enabled: Boolean(profile.payroll_withholding_tax_enabled),
             payroll_government_contributions_enabled: Boolean(profile.payroll_government_contributions_enabled),
             city: profile.city || "",
             province: profile.province || "",
@@ -357,7 +357,7 @@ export default {
             name: source.name || "",
             country_code: String(source.country_code || "PH").toUpperCase(),
             pay_overwork_hours: Boolean(source.pay_overwork_hours),
-            payroll_income_tax_enabled: Boolean(source.payroll_income_tax_enabled),
+            payroll_withholding_tax_enabled: Boolean(source.payroll_withholding_tax_enabled),
             payroll_government_contributions_enabled: Boolean(source.payroll_government_contributions_enabled),
             city: source.city || "",
             province: source.province || "",

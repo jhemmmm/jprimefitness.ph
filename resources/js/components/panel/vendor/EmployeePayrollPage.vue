@@ -199,7 +199,7 @@
                         <template v-else> &mdash; <span class="text-warning fw-semibold">No daily rate set.</span> Set it on the employee profile to auto-compute gross. </template>
 	                        <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_non_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-gift me-1"></i>PH exempt bonus applied this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_non_taxable_amount) }} </span>
                         <span v-if="payrollCountryCode === 'PH' && suggestion.bonus_taxable_amount > 0" class="d-block text-muted mt-1"> <i class="bi bi-calculator me-1"></i>Taxable bonus excess this payroll: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }} </span>
-                        <span v-if="!payrollIncomeTaxEnabled" class="d-block text-muted mt-1"><i class="bi bi-slash-circle me-1"></i>Payroll wage tax is disabled in Business Settings.</span>
+                        <span v-if="!payrollWithholdingTaxEnabled" class="d-block text-muted mt-1"><i class="bi bi-slash-circle me-1"></i>Withholding tax is disabled in Business Settings.</span>
                         <span v-if="suggestion.employee_contributions_total > 0" class="d-block text-muted mt-1">
                            <i class="bi bi-shield-check me-1"></i>Employee government contributions: ₱{{ $filters.formatMoney(suggestion.employee_contributions_total) }} · {{ formatContributionSummary(suggestion.employee_contributions) }}
                         </span>
@@ -260,9 +260,9 @@
                         </div>
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Income Tax (₱)</label>
-                        <input type="number" class="form-control" :value="form.income_tax" readonly />
-                        <div class="form-text" v-if="!payrollIncomeTaxEnabled">Payroll wage tax is disabled in Business Settings.</div>
+                        <label class="form-label form-label-sm">Withholding Tax (₱)</label>
+                        <input type="number" class="form-control" :value="form.withholding_tax" readonly />
+                        <div class="form-text" v-if="!payrollWithholdingTaxEnabled">Withholding tax is disabled in Business Settings.</div>
                         <div class="form-text" v-else-if="suggestion && suggestion.taxable_earnings > 0">
                            Calculated from ₱{{ $filters.formatMoney(suggestion.taxable_earnings) }} taxable earnings.
                            <span v-if="suggestion.bonus_taxable_amount > 0">Taxable bonus portion: ₱{{ $filters.formatMoney(suggestion.bonus_taxable_amount) }}.</span>
@@ -503,8 +503,8 @@ export default {
       payOverworkHours: function () {
          return Boolean(globalThis.JPrime?.profile?.pay_overwork_hours);
       },
-      payrollIncomeTaxEnabled: function () {
-         return Boolean(globalThis.JPrime?.profile?.payroll_income_tax_enabled);
+      payrollWithholdingTaxEnabled: function () {
+         return Boolean(globalThis.JPrime?.profile?.payroll_withholding_tax_enabled);
       },
       payrollGovernmentContributionsEnabled: function () {
          return Boolean(globalThis.JPrime?.profile?.payroll_government_contributions_enabled);
@@ -571,7 +571,7 @@ export default {
       queueSuggestionFetch: function () {
          if (!this.form.period_start || !this.form.period_end) {
             this.suggestion = null;
-            this.form.income_tax = 0;
+            this.form.withholding_tax = 0;
             this.form.regular_hours = 0;
             this.form.regular_pay_amount = 0;
             this.form.overwork_hours = 0;
@@ -624,7 +624,7 @@ export default {
             overwork_pay_amount: p.overwork_pay_amount,
             gross_amount: p.gross_amount,
 	            bonus: p.bonus,
-	            income_tax: p.income_tax,
+	            withholding_tax: p.withholding_tax,
 	            manual_deductions: p.manual_deductions,
 	            employee_contributions: p.employee_contributions || {},
             employee_contributions_total: Number(p.employee_contributions_total || 0),
@@ -659,7 +659,7 @@ export default {
                this.form.regular_pay_amount = res.data.regular_pay_amount || 0;
                this.form.overwork_hours = res.data.overwork_hours || 0;
                this.form.overwork_pay_amount = res.data.overwork_pay_amount || 0;
-               this.form.income_tax = res.data.income_tax || 0;
+               this.form.withholding_tax = res.data.withholding_tax || 0;
                this.applyContributionState(res.data);
 
 	               if (this.shouldAutofillSuggestedAmounts) {
@@ -786,7 +786,7 @@ export default {
             overwork_pay_amount: 0,
             gross_amount: "",
 	            bonus: 0,
-	            income_tax: 0,
+	            withholding_tax: 0,
 	            manual_deductions: 0,
 	            employee_contributions: {},
             employee_contributions_total: 0,

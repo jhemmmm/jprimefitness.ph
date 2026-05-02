@@ -324,7 +324,7 @@ class EmployeeController extends Controller
             'overwork_pay_amount' => $attendanceSuggestion['overwork_pay_amount'],
             'gross_amount' => $gross,
             'bonus' => $bonus,
-            'income_tax' => $payrollTotals['income_tax'],
+            'withholding_tax' => $payrollTotals['withholding_tax'],
             'employee_contributions' => $payrollTotals['employee_contributions'],
             'employer_contributions' => $payrollTotals['employer_contributions'],
             'manual_deductions' => $manualDeductions,
@@ -410,7 +410,7 @@ class EmployeeController extends Controller
             'overwork_pay_amount' => $attendanceSuggestion['overwork_pay_amount'],
             'gross_amount' => $gross,
             'bonus' => $bonus,
-            'income_tax' => $payrollTotals['income_tax'],
+            'withholding_tax' => $payrollTotals['withholding_tax'],
             'employee_contributions' => $payrollTotals['employee_contributions'],
             'employer_contributions' => $payrollTotals['employer_contributions'],
             'manual_deductions' => $manualDeductions,
@@ -562,7 +562,7 @@ class EmployeeController extends Controller
                 'employee_contributions_total' => $payrollTotals['employee_contributions_total'],
                 'employer_contributions' => $payrollTotals['employer_contributions'],
                 'employer_contributions_total' => $payrollTotals['employer_contributions_total'],
-                'income_tax' => $payrollTotals['income_tax'],
+                'withholding_tax' => $payrollTotals['withholding_tax'],
                 'taxable_earnings' => $payrollTotals['taxable_earnings'],
                 'employee_deductions_total' => $payrollTotals['employee_deductions_total'],
                 'net_amount_preview' => $payrollTotals['net_amount'],
@@ -776,12 +776,12 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @return array{payroll_income_tax_enabled: bool, payroll_government_contributions_enabled: bool}
+     * @return array{payroll_withholding_tax_enabled: bool, payroll_government_contributions_enabled: bool}
      */
     private function serializeBusinessProfilePayrollSettings(BusinessProfile $businessProfile): array
     {
         return [
-            'payroll_income_tax_enabled' => (bool) $businessProfile->payroll_income_tax_enabled,
+            'payroll_withholding_tax_enabled' => (bool) $businessProfile->payroll_withholding_tax_enabled,
             'payroll_government_contributions_enabled' => (bool) $businessProfile->payroll_government_contributions_enabled,
         ];
     }
@@ -906,7 +906,7 @@ class EmployeeController extends Controller
             'employer_contributions' => $payroll->employer_contributions ?? [],
             'employer_contributions_total' => $payroll->employerContributionsTotal(),
             'total_earnings' => $payroll->totalEarnings(),
-            'income_tax' => (float) $payroll->income_tax,
+            'withholding_tax' => (float) $payroll->withholding_tax,
             'manual_deductions' => (float) $payroll->manual_deductions,
             'net_amount' => (float) $payroll->net_amount,
             'status' => $payroll->status,
@@ -983,7 +983,7 @@ class EmployeeController extends Controller
             'regular_pay_amount' => round((float) $payroll->regular_pay_amount, 2),
             'overwork_hours' => round((float) $payroll->overwork_hours, 2),
             'overwork_pay_amount' => round((float) $payroll->overwork_pay_amount, 2),
-            'income_tax' => round((float) $payroll->income_tax, 2),
+            'withholding_tax' => round((float) $payroll->withholding_tax, 2),
             'employee_contributions' => $payroll->employee_contributions ?? [],
             'employee_contributions_total' => $payroll->employeeContributionsTotal(),
             'employer_contributions' => $payroll->employer_contributions ?? [],

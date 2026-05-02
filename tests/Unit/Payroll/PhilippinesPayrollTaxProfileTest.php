@@ -10,21 +10,21 @@ use PHPUnit\Framework\TestCase;
 class PhilippinesPayrollTaxProfileTest extends TestCase
 {
     #[DataProvider('incomeTaxProvider')]
-    public function test_it_calculates_income_tax_for_supported_pay_frequencies(
+    public function test_it_calculates_withholding_tax_for_supported_pay_frequencies(
         string $payFrequency,
         float $taxableEarnings,
-        float $expectedIncomeTax
+        float $expectedWithholdingTax
     ): void {
         $profile = new PhilippinesPayrollTaxProfile();
 
-        $this->assertSame($expectedIncomeTax, $profile->calculateIncomeTax($payFrequency, $taxableEarnings));
+        $this->assertSame($expectedWithholdingTax, $profile->calculateWithholdingTax($payFrequency, $taxableEarnings));
     }
 
     public function test_it_returns_zero_for_unsupported_pay_frequency(): void
     {
         $profile = new PhilippinesPayrollTaxProfile();
 
-        $this->assertSame(0.0, $profile->calculateIncomeTax('weekly', 50000));
+        $this->assertSame(0.0, $profile->calculateWithholdingTax('weekly', 50000));
     }
 
     public function test_it_calculates_sss_contributions_below_the_mpf_threshold(): void

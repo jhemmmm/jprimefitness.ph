@@ -26,7 +26,7 @@ class PayrollService
         float $gross,
         float $bonus,
         float $manualDed,
-        float $incomeTax = 0,
+        float $withholdingTax = 0,
         float $employeeContributionTotal = 0
     ): float {
         return round(
@@ -37,7 +37,7 @@ class PayrollService
                     $bonus
                 )
                 - $this->totalEmployeeDeductions(
-                    $incomeTax,
+                    $withholdingTax,
                     $manualDed,
                     $employeeContributionTotal
                 )
@@ -47,12 +47,12 @@ class PayrollService
     }
 
     public function totalEmployeeDeductions(
-        float $incomeTax,
+        float $withholdingTax,
         float $manualDed,
         float $employeeContributionTotal = 0
     ): float {
         return round(
-            max(0, $incomeTax)
+            max(0, $withholdingTax)
             + max(0, $manualDed)
             + max(0, $employeeContributionTotal),
             2
@@ -99,7 +99,7 @@ class PayrollService
      *     employee_deductions_total: float,
      *     employer_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
      *     employer_contributions_total: float,
-     *     income_tax: float,
+     *     withholding_tax: float,
      *     net_amount: float,
      *     remaining_bonus_exemption: float,
      *     taxable_earnings: float
@@ -130,11 +130,11 @@ class PayrollService
             max(0, $taxableEarnings - $governmentContributions['employee_contributions_total']),
             2
         );
-        $incomeTax = $payrollCalculationSettings['payroll_income_tax_enabled']
-            ? $taxProfile->calculateIncomeTax($payFrequency, $taxableEarnings)
+        $withholdingTax = $payrollCalculationSettings['payroll_withholding_tax_enabled']
+            ? $taxProfile->calculateWithholdingTax($payFrequency, $taxableEarnings)
             : 0.0;
         $employeeDeductionsTotal = $this->totalEmployeeDeductions(
-            $incomeTax,
+            $withholdingTax,
             $manualDed,
             $governmentContributions['employee_contributions_total']
         );
@@ -147,14 +147,14 @@ class PayrollService
             'employer_contributions' => $governmentContributions['employer_contributions'],
             'employer_contributions_total' => $governmentContributions['employer_contributions_total'],
             'taxable_earnings' => $taxableEarnings,
-            'income_tax' => $incomeTax,
+            'withholding_tax' => $withholdingTax,
             'employee_deductions_total' => $employeeDeductionsTotal,
             'remaining_bonus_exemption' => $bonusBreakdown['remaining_bonus_exemption'],
             'net_amount' => $this->computeNet(
                 $gross,
                 $bonus,
                 $manualDed,
-                $incomeTax,
+                $withholdingTax,
                 $governmentContributions['employee_contributions_total']
             ),
         ];
@@ -171,7 +171,7 @@ class PayrollService
      *     employee_deductions_total: float,
      *     employer_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
      *     employer_contributions_total: float,
-     *     income_tax: float,
+     *     withholding_tax: float,
      *     net_amount: float,
      *     remaining_bonus_exemption: float,
      *     taxable_earnings: float
@@ -200,7 +200,7 @@ class PayrollService
             $context
         );
 
-        $payroll->income_tax = $totals['income_tax'];
+        $payroll->withholding_tax = $totals['withholding_tax'];
         $payroll->employee_contributions = $totals['employee_contributions'];
         $payroll->employer_contributions = $totals['employer_contributions'];
         $payroll->net_amount = $totals['net_amount'];
@@ -411,9 +411,9 @@ class PayrollService
 
     /**
      * @param  array{
-     *     business_profile?: array{payroll_income_tax_enabled?: bool, payroll_government_contributions_enabled?: bool}|BusinessProfile|null
+     *     business_profile?: array{payroll_withholding_tax_enabled?: bool, payroll_government_contributions_enabled?: bool}|BusinessProfile|null
      * }  $context
-     * @return array{payroll_income_tax_enabled: bool, payroll_government_contributions_enabled: bool}
+     * @return array{payroll_withholding_tax_enabled: bool, payroll_government_contributions_enabled: bool}
      */
     private function payrollCalculationSettings(array $context = []): array
     {
@@ -428,20 +428,20 @@ class PayrollService
         }
 
         return [
-            'payroll_income_tax_enabled' => (bool) ($businessProfile['payroll_income_tax_enabled'] ?? false),
+            'payroll_withholding_tax_enabled' => (bool) ($businessProfile['payroll_withholding_tax_enabled'] ?? false),
             'payroll_government_contributions_enabled' => (bool) ($businessProfile['payroll_government_contributions_enabled'] ?? false),
         ];
     }
 
     /**
-     * @return array{payroll_income_tax_enabled: bool, payroll_government_contributions_enabled: bool}
+     * @return array{payroll_withholding_tax_enabled: bool, payroll_government_contributions_enabled: bool}
      */
     private function businessProfilePayrollSettings(?BusinessProfile $businessProfile): array
     {
         $profile = $businessProfile ?? BusinessProfile::current();
 
         return [
-            'payroll_income_tax_enabled' => (bool) $profile->payroll_income_tax_enabled,
+            'payroll_withholding_tax_enabled' => (bool) $profile->payroll_withholding_tax_enabled,
             'payroll_government_contributions_enabled' => (bool) $profile->payroll_government_contributions_enabled,
         ];
     }

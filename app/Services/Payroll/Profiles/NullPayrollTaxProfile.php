@@ -6,7 +6,7 @@ use App\Services\Payroll\Contracts\PayrollTaxProfile;
 
 class NullPayrollTaxProfile implements PayrollTaxProfile
 {
-    public function calculateIncomeTax(?string $payFrequency, float $taxableEarnings): float
+    public function calculateWithholdingTax(?string $payFrequency, float $taxableEarnings): float
     {
         return 0.0;
     }

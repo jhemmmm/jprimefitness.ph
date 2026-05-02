@@ -33,7 +33,7 @@ class EmployeePayrollMembershipEarningsTest extends TestCase
                 'city' => 'Naga',
                 'country_code' => BusinessProfile::COUNTRY_PHILIPPINES,
                 'timezone' => 'Asia/Manila',
-                'payroll_income_tax_enabled' => false,
+                'payroll_withholding_tax_enabled' => false,
                 'payroll_government_contributions_enabled' => false,
             ]
         );

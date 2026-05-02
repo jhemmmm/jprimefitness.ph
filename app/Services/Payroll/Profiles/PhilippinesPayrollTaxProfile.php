@@ -62,7 +62,7 @@ class PhilippinesPayrollTaxProfile implements PayrollTaxProfile
         ],
     ];
 
-    public function calculateIncomeTax(?string $payFrequency, float $taxableEarnings): float
+    public function calculateWithholdingTax(?string $payFrequency, float $taxableEarnings): float
     {
         if (! is_string($payFrequency) || ! array_key_exists($payFrequency, self::BRACKETS)) {
             return 0.0;

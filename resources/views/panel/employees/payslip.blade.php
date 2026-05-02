@@ -473,10 +473,10 @@
                                     </td>
                                 </tr>
                                 <tr>
-                                    <td class="breakdown-label">Income tax</td>
+                                    <td class="breakdown-label">Withholding tax</td>
                                     <td
-                                        class="breakdown-amount {{ (float) $payroll->income_tax > 0 ? 'amount-negative' : '' }}">
-                                        {{ (float) $payroll->income_tax > 0 ? '- PHP ' . number_format((float) $payroll->income_tax, 2) : '-' }}
+                                        class="breakdown-amount {{ (float) $payroll->withholding_tax > 0 ? 'amount-negative' : '' }}">
+                                        {{ (float) $payroll->withholding_tax > 0 ? '- PHP ' . number_format((float) $payroll->withholding_tax, 2) : '-' }}
                                     </td>
                                 </tr>
                                 @foreach ($employeeContributionPrograms as $programKey => $program)

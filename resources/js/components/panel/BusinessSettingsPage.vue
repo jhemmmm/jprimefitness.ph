@@ -7,27 +7,15 @@
          </div>
       </div>
 
-      <div class="panel-card mb-4">
-         <div class="panel-card-header">
-            <div>
-               <div class="panel-card-title">Current Profile Snapshot</div>
-               <div class="panel-card-sub">Review the live business information before updating anything below.</div>
-            </div>
-         </div>
-         <business-information-page :profile="localProfile" />
-      </div>
-
       <business-settings-form :profile="localProfile" @updated="onProfileUpdated" />
    </div>
 </template>
 
 <script>
-import BusinessInformationPage from "./vendor/BusinessInformationPage.vue";
 import BusinessSettingsForm from "./vendor/BusinessSettingsForm.vue";
 
 export default {
    components: {
-      BusinessInformationPage,
       BusinessSettingsForm,
    },
 

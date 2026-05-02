@@ -53,7 +53,7 @@ class PayrollReportsPageTest extends TestCase
             'period_end' => '2026-03-15',
             'gross_amount' => 1000,
             'bonus' => 100,
-            'income_tax' => 100,
+            'withholding_tax' => 100,
             'employee_contributions' => [
                 'sss' => [
                     'label' => 'SSS',
@@ -117,7 +117,7 @@ class PayrollReportsPageTest extends TestCase
             'period_end' => '2026-03-31',
             'gross_amount' => 2000,
             'bonus' => 0,
-            'income_tax' => 0,
+            'withholding_tax' => 0,
             'employee_contributions' => [
                 'pagibig' => [
                     'label' => 'Pag-IBIG',
@@ -177,7 +177,7 @@ class PayrollReportsPageTest extends TestCase
             'period_end' => '2026-02-28',
             'gross_amount' => 999,
             'bonus' => 0,
-            'income_tax' => 0,
+            'withholding_tax' => 0,
             'manual_deductions' => 0,
             'net_amount' => 999,
             'status' => Payroll::STATUS_CANCELED,
@@ -215,7 +215,7 @@ class PayrollReportsPageTest extends TestCase
         $response->assertJsonPath('summary.payroll_count', 2);
         $response->assertJsonPath('summary.gross_payroll', 3000);
         $response->assertJsonPath('summary.total_bonus', 100);
-        $response->assertJsonPath('summary.income_tax', 100);
+        $response->assertJsonPath('summary.withholding_tax', 100);
         $response->assertJsonPath('summary.employee_government_contributions', 900);
         $response->assertJsonPath('summary.employer_government_contributions', 1400);
         $response->assertJsonPath('summary.total_deductions', 1050);
@@ -250,7 +250,7 @@ class PayrollReportsPageTest extends TestCase
             'period_end' => '2026-03-15',
             'gross_amount' => 1400,
             'bonus' => 100,
-            'income_tax' => 75,
+            'withholding_tax' => 75,
             'employee_contributions' => [
                 'sss' => [
                     'label' => 'SSS',
@@ -298,7 +298,7 @@ class PayrollReportsPageTest extends TestCase
         $this->assertStringContainsString('Period End From', $content);
         $this->assertStringContainsString('Payout Scope', $content);
         $this->assertStringContainsString('Summary', $content);
-        $this->assertStringContainsString('Income Tax', $content);
+        $this->assertStringContainsString('Withholding Tax', $content);
         $this->assertStringContainsString("Employee Government Contributions", $content);
         $this->assertStringContainsString("Employer Government Contributions", $content);
         $this->assertStringContainsString('Paid Out To Date', $content);

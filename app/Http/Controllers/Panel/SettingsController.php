@@ -31,7 +31,7 @@ class SettingsController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'country_code' => ['required', 'string', 'size:2'],
             'pay_overwork_hours' => ['sometimes', 'boolean'],
-            'payroll_income_tax_enabled' => ['sometimes', 'boolean'],
+            'payroll_withholding_tax_enabled' => ['sometimes', 'boolean'],
             'payroll_government_contributions_enabled' => ['sometimes', 'boolean'],
             'city' => ['required', 'string', 'max:255'],
             'province' => ['nullable', 'string', 'max:255'],

@@ -132,6 +132,8 @@ class SidebarBranchSelectorUiTest extends TestCase
 
         $this->assertNotFalse($settingsContents);
         $this->assertStringContainsString('<h4 class="panel-page-title mb-0">Business Settings</h4>', $settingsContents);
+        $this->assertStringNotContainsString('Current Profile Snapshot', $settingsContents);
+        $this->assertStringNotContainsString('BusinessInformationPage', $settingsContents);
     }
 
     public function test_members_mobile_cards_keep_link_styling_and_remove_view_details_menu_action(): void
@@ -171,10 +173,10 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringNotContainsString('Amenities & media', $contents);
         $this->assertStringNotContainsString('Website copy', $contents);
         $this->assertStringNotContainsString('Manage Photos', $contents);
-        $this->assertStringContainsString('Payroll wage tax', $contents);
+        $this->assertStringContainsString('Withholding tax', $contents);
         $this->assertStringContainsString('Government contributions', $contents);
         $this->assertStringContainsString('business-settings-shortcut', $contents);
-        $this->assertStringContainsString('payroll_income_tax_enabled', $contents);
+        $this->assertStringContainsString('payroll_withholding_tax_enabled', $contents);
         $this->assertStringContainsString('payroll_government_contributions_enabled', $contents);
         $this->assertStringNotContainsString('Current Gallery Size', $contents);
 
@@ -198,8 +200,10 @@ class SidebarBranchSelectorUiTest extends TestCase
         $this->assertStringContainsString('<div class="sidebar-menu-heading">System</div>', $contents);
         $this->assertStringContainsString("route('panel.system-activity')", $contents);
         $this->assertStringContainsString('<span class="sidebar-nav-label">System Activity</span>', $contents);
-        $this->assertStringContainsString("route('panel.settings')", $contents);
-        $this->assertStringContainsString('<span class="sidebar-nav-label">Settings</span>', $contents);
+        $this->assertStringNotContainsString("request()->routeIs('panel.programs.*')", $contents);
+        $this->assertStringNotContainsString('<span class="sidebar-nav-label">Programs</span>', $contents);
+        $this->assertStringNotContainsString("request()->routeIs('panel.settings')", $contents);
+        $this->assertStringNotContainsString('<span class="sidebar-nav-label">Settings</span>', $contents);
     }
 
     public function test_employee_payroll_page_contains_only_current_payroll_inputs(): void

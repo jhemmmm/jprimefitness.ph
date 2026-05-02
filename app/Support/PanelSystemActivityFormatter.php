@@ -196,7 +196,7 @@ class PanelSystemActivityFormatter
                 'employee_name' => $snapshot['employee_name'] ?? null,
                 'period_start' => $snapshot['period_start'] ?? null,
                 'period_end' => $snapshot['period_end'] ?? null,
-                'income_tax' => $this->nullableMoney($snapshot['income_tax'] ?? null),
+                'withholding_tax' => $this->nullableMoney($snapshot['withholding_tax'] ?? null),
                 'employee_contributions' => $snapshot['employee_contributions'] ?? null,
                 'employee_contributions_total' => $this->nullableMoney($snapshot['employee_contributions_total'] ?? null),
                 'employer_contributions' => $snapshot['employer_contributions'] ?? null,

@@ -105,12 +105,6 @@
                         <span class="sidebar-nav-label">Inventory</span>
                     </a>
                 </div>
-                <div class="sidebar-nav-item">
-                    <a href="#" @class(['active' => request()->routeIs('panel.programs.*')])>
-                        <i class="bi bi-journal-bookmark-fill"></i>
-                        <span class="sidebar-nav-label">Programs</span>
-                    </a>
-                </div>
 
                 {{-- Reports --}}
                 <div class="sidebar-menu-heading">Reports</div>
@@ -154,12 +148,6 @@
                         </a>
                     </div>
                 @endif
-                <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.settings') }}" @class(['active' => request()->routeIs('panel.settings')])>
-                        <i class="bi bi-gear"></i>
-                        <span class="sidebar-nav-label">Settings</span>
-                    </a>
-                </div>
 
             </nav>
 

@@ -17,7 +17,7 @@ class BusinessProfile extends Model
         'name',
         'country_code',
         'pay_overwork_hours',
-        'payroll_income_tax_enabled',
+        'payroll_withholding_tax_enabled',
         'payroll_government_contributions_enabled',
         'city',
         'province',
@@ -31,7 +31,7 @@ class BusinessProfile extends Model
 
     protected $casts = [
         'pay_overwork_hours' => 'boolean',
-        'payroll_income_tax_enabled' => 'boolean',
+        'payroll_withholding_tax_enabled' => 'boolean',
         'payroll_government_contributions_enabled' => 'boolean',
         'amenities' => 'array',
         'operating_hours' => 'array',
@@ -46,7 +46,7 @@ class BusinessProfile extends Model
             'name' => 'JPrime Fitness',
             'country_code' => self::COUNTRY_PHILIPPINES,
             'pay_overwork_hours' => false,
-            'payroll_income_tax_enabled' => false,
+            'payroll_withholding_tax_enabled' => false,
             'payroll_government_contributions_enabled' => false,
             'city' => 'Naga City',
             'province' => 'Camarines Sur',
@@ -78,7 +78,7 @@ class BusinessProfile extends Model
     }
 
     /**
-     * @return array{id:int, name:string, city:?string, province:?string, country_code:?string, pay_overwork_hours:bool, payroll_income_tax_enabled:bool, payroll_government_contributions_enabled:bool}
+     * @return array{id:int, name:string, city:?string, province:?string, country_code:?string, pay_overwork_hours:bool, payroll_withholding_tax_enabled:bool, payroll_government_contributions_enabled:bool}
      */
     public function panelShellPayload(): array
     {
@@ -86,7 +86,7 @@ class BusinessProfile extends Model
             ...$this->locationSummary(),
             'country_code' => $this->country_code,
             'pay_overwork_hours' => (bool) $this->pay_overwork_hours,
-            'payroll_income_tax_enabled' => (bool) $this->payroll_income_tax_enabled,
+            'payroll_withholding_tax_enabled' => (bool) $this->payroll_withholding_tax_enabled,
             'payroll_government_contributions_enabled' => (bool) $this->payroll_government_contributions_enabled,
         ];
     }

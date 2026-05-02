@@ -54,7 +54,7 @@ class EmployeePayslipTest extends TestCase
             'overwork_pay_amount' => 2500,
             'gross_amount' => 20000,
             'bonus' => 500,
-            'income_tax' => 1323.10,
+            'withholding_tax' => 1323.10,
             'employee_contributions' => [
                 'sss' => [
                     'label' => 'SSS',
@@ -169,7 +169,7 @@ class EmployeePayslipTest extends TestCase
         $this->assertStringContainsString('Regular pay', $html);
         $this->assertStringContainsString('Overwork pay', $html);
         $this->assertStringContainsString('Manual gross adjustment', $html);
-        $this->assertStringContainsString('Income tax', $html);
+        $this->assertStringContainsString('Withholding tax', $html);
         $this->assertStringContainsString('Employee government contributions', $html);
         $this->assertStringContainsString('SSS - Regular SS', $html);
         $this->assertStringContainsString('Employer Contributions', $html);
@@ -183,7 +183,7 @@ class EmployeePayslipTest extends TestCase
             $this->assertSame("payslip-employee-{$employee->id}-payroll-{$payroll->id}.pdf", $pdf->downloadName);
             $this->assertSame('Juan Dela Cruz', $pdf->viewData['employee']->name);
             $this->assertSame('Includes holiday bonus.', $pdf->viewData['payroll']->notes);
-            $this->assertSame(1323.1, (float) $pdf->viewData['payroll']->income_tax);
+            $this->assertSame(1323.1, (float) $pdf->viewData['payroll']->withholding_tax);
             $this->assertSame(17351.9, (float) $pdf->viewData['payroll']->net_amount);
             $this->assertSame(1725.0, $pdf->viewData['payroll']->employeeContributionsTotal());
             $this->assertSame(2780.0, $pdf->viewData['payroll']->employerContributionsTotal());
@@ -214,7 +214,7 @@ class EmployeePayslipTest extends TestCase
             'overwork_pay_amount' => 0,
             'gross_amount' => 500,
             'bonus' => 0,
-            'income_tax' => 0,
+            'withholding_tax' => 0,
             'manual_deductions' => 0,
             'net_amount' => 500,
             'status' => Payroll::STATUS_APPROVED,
@@ -255,7 +255,7 @@ class EmployeePayslipTest extends TestCase
             'overwork_pay_amount' => 62.5,
             'gross_amount' => 562.5,
             'bonus' => 0,
-            'income_tax' => 0,
+            'withholding_tax' => 0,
             'manual_deductions' => 0,
             'net_amount' => 562.5,
             'status' => Payroll::STATUS_APPROVED,
@@ -291,7 +291,7 @@ class EmployeePayslipTest extends TestCase
             'period_end' => '2026-03-15',
             'gross_amount' => 500,
             'bonus' => 0,
-            'income_tax' => 0,
+            'withholding_tax' => 0,
             'manual_deductions' => 0,
             'net_amount' => 500,
             'status' => Payroll::STATUS_APPROVED,

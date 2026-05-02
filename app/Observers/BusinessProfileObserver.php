@@ -31,7 +31,7 @@ class BusinessProfileObserver
             'id' => $businessProfile->id,
             'name' => $businessProfile->name,
             'pay_overwork_hours' => (bool) $businessProfile->pay_overwork_hours,
-            'payroll_income_tax_enabled' => (bool) $businessProfile->payroll_income_tax_enabled,
+            'payroll_withholding_tax_enabled' => (bool) $businessProfile->payroll_withholding_tax_enabled,
             'payroll_government_contributions_enabled' => (bool) $businessProfile->payroll_government_contributions_enabled,
         ];
     }

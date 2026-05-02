@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('business_profiles', function (Blueprint $table) {
-            $table->boolean('payroll_income_tax_enabled')->default(false);
+            $table->boolean('payroll_withholding_tax_enabled')->default(false);
             $table->boolean('payroll_government_contributions_enabled')->default(false);
         });
     }
@@ -24,7 +24,7 @@ return new class extends Migration
     {
         Schema::table('business_profiles', function (Blueprint $table) {
             $table->dropColumn([
-                'payroll_income_tax_enabled',
+                'payroll_withholding_tax_enabled',
                 'payroll_government_contributions_enabled',
             ]);
         });

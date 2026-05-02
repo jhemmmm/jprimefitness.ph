@@ -96,7 +96,7 @@ class FreshInstallSchemaTest extends TestCase
 
         $this->assertTableHasColumns('payrolls', [
             'pay_frequency',
-            'income_tax',
+            'withholding_tax',
             'employee_contributions',
             'employer_contributions',
             'regular_hours',
@@ -107,7 +107,7 @@ class FreshInstallSchemaTest extends TestCase
 
         $this->assertTableHasColumns('business_profiles', [
             'pay_overwork_hours',
-            'payroll_income_tax_enabled',
+            'payroll_withholding_tax_enabled',
             'payroll_government_contributions_enabled',
         ]);
 
