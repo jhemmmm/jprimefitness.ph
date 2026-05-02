@@ -11,6 +11,7 @@ use App\Models\MemberSubscription;
 use App\Models\PTProduct;
 use App\Models\User;
 use App\Services\SystemActivityService;
+use App\Services\MembershipQrService;
 use App\Services\MemberPtPackageAlertService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -27,6 +28,7 @@ class MembersController extends Controller
      */
     public function __construct(
         private MemberPtPackageAlertService $memberPtPackageAlertService,
+        private MembershipQrService $membershipQrService,
         private SystemActivityService $systemActivityService,
     ) {}
 
@@ -167,6 +169,7 @@ class MembersController extends Controller
             auth()->user()?->name,
             now(),
         );
+        $this->membershipQrService->sendEmail($subscription);
 
         return response()->json($this->memberPayload($member, detailed: true), 201);
     }
@@ -241,6 +244,7 @@ class MembersController extends Controller
         ]);
 
         $membership = $member->changeMembershipPlan((int) $data['rate_plan_id'], $data['start_date']);
+        $membershipWasCreated = $membership->wasRecentlyCreated;
 
         $this->systemActivityService->recordSubjectEvent(
             SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
@@ -252,6 +256,10 @@ class MembersController extends Controller
             auth()->user()?->name,
             now(),
         );
+
+        if ($membershipWasCreated) {
+            $this->membershipQrService->sendEmail($membership);
+        }
 
         return response()->json($this->memberPayload($member->fresh(), detailed: true));
     }
@@ -298,6 +306,19 @@ class MembersController extends Controller
         );
 
         return response()->json($this->memberPayload($member->fresh(), detailed: true));
+    }
+
+    /**
+     * Return a membership QR code payload.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function membershipQr(User $member, MemberSubscription $membership): JsonResponse
+    {
+        abort_unless($member->hasRole('member'), 404);
+        abort_unless((int) $membership->user_id === (int) $member->id, 404);
+
+        return response()->json($this->membershipQrService->modalPayload($membership));
     }
 
     /**
@@ -587,6 +608,7 @@ class MembersController extends Controller
             'end_date' => $subscription->end_date?->toDateString(),
             'created_at' => $subscription->created_at?->toISOString(),
             'sold_price' => round((float) $subscription->sold_price, 2),
+            'qr_url' => route('panel.members.memberships.qr', [$subscription->user_id, $subscription->id]),
             'action_state' => [
                 'is_locked' => false,
                 'can_change_plan' => true,

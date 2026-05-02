@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\KioskPayment;
-use App\Models\User;
+use App\Services\MembershipQrAntiFraudService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +13,20 @@ use Illuminate\Validation\Rule;
 
 class KioskAttendanceController extends Controller
 {
+    /**
+     * Create a new kiosk attendance controller instance.
+     *
+     * @return void
+     */
+    public function __construct(
+        private MembershipQrAntiFraudService $membershipQrAntiFraudService,
+    ) {}
+
+    /**
+     * Store a kiosk attendance entry.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function store(Request $request): JsonResponse
     {
         $type = $request->input('type');
@@ -31,6 +45,11 @@ class KioskAttendanceController extends Controller
         ], 422);
     }
 
+    /**
+     * Store a kiosk walk-in attendance entry.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     private function storeWalkIn(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -79,13 +98,18 @@ class KioskAttendanceController extends Controller
         ], 201);
     }
 
+    /**
+     * Store a kiosk member attendance entry from an encrypted membership QR.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     private function storeMember(Request $request): JsonResponse
     {
         $data = $request->validate([
             'type' => ['required', Rule::in(['member'])],
             'status' => ['required', Rule::in(['success', 'failed'])],
             'action' => ['required', Rule::in(['time_in', 'time_out'])],
-            'qr_payload' => ['required', 'string', 'max:255'],
+            'qr_payload' => ['required', 'string', 'max:2000'],
             'reason' => ['nullable', Rule::in(['unknown_qr', 'expired'])],
             'occurred_at' => ['nullable', 'date'],
         ]);
@@ -94,16 +118,23 @@ class KioskAttendanceController extends Controller
             ? Carbon::parse($data['occurred_at'])
             : Carbon::now();
 
-        // Resolve the member from the QR payload regardless of the kiosk's
-        // claimed status — the server is the source of truth.
-        $user = $this->resolveMemberFromQr($data['qr_payload']);
+        $decision = $this->membershipQrAntiFraudService->validate(
+            $data['qr_payload'],
+            $data['action'],
+            $occurredAt,
+            $request->header('X-Kiosk-Device'),
+        );
 
-        if (! $user) {
+        if (! $decision['allowed']) {
             return response()->json([
                 'ok' => false,
-                'message' => 'QR code not recognized.',
+                'member_name' => $decision['member']?->name,
+                'reason' => $decision['reason'],
+                'message' => $decision['message'],
             ]);
         }
+
+        $user = $decision['member'];
 
         if ($data['action'] === 'time_in') {
             $attendance = Attendance::create([
@@ -126,21 +157,7 @@ class KioskAttendanceController extends Controller
             ], 201);
         }
 
-        // time_out: close the latest open attendance for this member
-        $open = Attendance::where('user_id', $user->id)
-            ->where('attendee_type', Attendance::TYPE_MEMBER)
-            ->whereNull('checked_out_at')
-            ->orderByDesc('checked_in_at')
-            ->first();
-
-        if (! $open) {
-            return response()->json([
-                'ok' => false,
-                'member_name' => $user->name,
-                'message' => 'No open session was found for this member.',
-            ]);
-        }
-
+        $open = $decision['open_attendance'];
         $open->update(['checked_out_at' => $occurredAt]);
 
         return response()->json([
@@ -151,23 +168,11 @@ class KioskAttendanceController extends Controller
         ]);
     }
 
-    private function resolveMemberFromQr(string $payload): ?User
-    {
-        if (! preg_match('/^JPRIME:MEMBER:(\d+)$/', $payload, $m)) {
-            return null;
-        }
-
-        $user = User::query()->find((int) $m[1]);
-
-        if (! $user || ! $user->hasRole('member')) {
-            return null;
-        }
-
-        return $user;
-    }
-
     /**
+     * Mark a referenced successful online kiosk payment as paid.
+     *
      * @param  array<string, mixed>  $data
+     * @return \App\Models\KioskPayment|null
      */
     private function markSuccessfulOnlinePayment(array $data, Carbon $paidAt): ?KioskPayment
     {
@@ -192,7 +197,10 @@ class KioskAttendanceController extends Controller
     }
 
     /**
+     * Encode kiosk walk-in metadata into attendance notes.
+     *
      * @param  array<string, mixed>  $data
+     * @return string
      */
     private function encodeWalkInNotes(array $data, ?KioskPayment $kioskPayment = null): string
     {
@@ -213,7 +221,10 @@ class KioskAttendanceController extends Controller
     }
 
     /**
+     * Return the kiosk walk-in success message.
+     *
      * @param  array<string, mixed>  $data
+     * @return string
      */
     private function walkInSuccessMessage(array $data): string
     {
@@ -223,7 +234,10 @@ class KioskAttendanceController extends Controller
     }
 
     /**
+     * Return the kiosk walk-in failure message.
+     *
      * @param  array<string, mixed>  $data
+     * @return string
      */
     private function walkInFailureMessage(array $data): string
     {

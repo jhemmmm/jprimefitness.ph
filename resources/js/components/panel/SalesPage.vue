@@ -12,7 +12,11 @@
       <div v-if="successMessage" class="alert alert-success py-2 small mb-3">
          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
             <div>{{ successMessage }}</div>
-            <div class="d-flex gap-2" v-if="lastCompletedSale && lastCompletedSale.receipt_url">
+            <div class="d-flex gap-2" v-if="lastCompletedSale">
+               <button type="button" class="btn btn-sm btn-outline-secondary" v-if="lastCompletedSale.membership_qr_url" @click="openMembershipQr(lastCompletedSale)">
+                  <i class="bi bi-qr-code me-1"></i>
+                  View QR
+               </button>
                <a class="btn btn-sm btn-danger" :href="lastCompletedSale.receipt_url" target="_blank" rel="noopener">
                   <i class="bi bi-printer me-1"></i>
                   Download Receipt
@@ -108,8 +112,7 @@
                         </div>
 
                         <template v-if="saleType === 'membership' || saleType === 'pt_package'">
-                           <div class="border rounded-3 p-3 mb-3">
-                              <div class="fw-semibold mb-3">Member</div>
+                           <div class="mb-3">
                               <div class="row g-3">
                                  <div class="col-12">
                                     <label class="form-label">Search Member <span class="text-danger">*</span></label>
@@ -483,6 +486,9 @@
                                  <a class="btn btn-sm btn-outline-info" :href="transaction.receipt_url" target="_blank" rel="noopener" title="Download receipt">
                                     <i class="bi bi-printer tbl-icon"></i>
                                  </a>
+                                 <button type="button" class="btn btn-sm btn-outline-secondary" v-if="transaction.membership_qr_url" title="View membership QR" @click="openMembershipQr(transaction)">
+                                    <i class="bi bi-qr-code tbl-icon"></i>
+                                 </button>
                                  <a class="btn btn-sm btn-outline-dark" :href="transaction.source_url" v-if="transaction.source_url" title="Open source record">
                                     <i class="bi bi-box-arrow-up-right tbl-icon"></i>
                                  </a>
@@ -515,6 +521,7 @@
                      </div>
                      <div class="d-flex gap-2 mt-3">
                         <a class="btn btn-sm btn-outline-info" :href="transaction.receipt_url" target="_blank" rel="noopener">Download Receipt</a>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" v-if="transaction.membership_qr_url" @click="openMembershipQr(transaction)">QR</button>
                         <a class="btn btn-sm btn-outline-primary" :href="transaction.source_url" v-if="transaction.source_url">Open Record</a>
                      </div>
                   </div>
@@ -532,11 +539,36 @@
             </div>
          </div>
       </template>
+
+      <div class="modal fade" tabindex="-1" ref="membershipQrModal">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">Membership QR Code</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+               </div>
+               <div class="modal-body">
+                  <div v-if="qrError" class="alert alert-danger py-2 small">{{ qrError }}</div>
+                  <div v-if="loadingQr" class="text-center py-4 text-muted">
+                     <span class="spinner-border spinner-border-sm me-2"></span>
+                     Loading QR code...
+                  </div>
+                  <div v-else-if="selectedQr" class="text-center">
+                     <img :src="selectedQr.qr_data_uri" alt="Membership QR Code" class="img-fluid mb-3 membership-qr-image" />
+                     <div class="fw-semibold">{{ selectedQr.member_name }}</div>
+                     <div class="small text-muted">{{ selectedQr.plan_name }}</div>
+                     <div class="small text-muted mt-1">Valid {{ formatDate(selectedQr.start_date) }} - {{ selectedQr.end_date ? formatDate(selectedQr.end_date) : "Open-ended" }}</div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
    </div>
 </template>
 
 <script>
-import { formatDateTime, nowTimestamp, todayDate, toDateTimeInputValue } from "../../dates";
+import { Modal } from "bootstrap";
+import { formatDate, formatDateTime, nowTimestamp, todayDate, toDateTimeInputValue } from "../../dates";
 
 export default {
    props: {
@@ -557,6 +589,10 @@ export default {
          successMessage: "",
          lastCompletedSale: null,
          historySearchTimer: null,
+         membershipQrModal: null,
+         loadingQr: false,
+         selectedQr: null,
+         qrError: "",
          context: {
             inventory_items: [],
             membership_rates: [],
@@ -606,6 +642,7 @@ export default {
       };
    },
    mounted: function () {
+      this.membershipQrModal = new Modal(this.$refs.membershipQrModal);
       this.form = this.defaultForm();
       this.fetchContext();
       this.fetchHistory();
@@ -761,6 +798,7 @@ export default {
       },
    },
    methods: {
+      formatDate,
       formatDateTime,
       defaultInventoryLine: function () {
          return {
@@ -1031,6 +1069,28 @@ export default {
          var page = parseInt(new URL(link.url).searchParams.get("page") || "1", 10);
          this.fetchHistory(page);
       },
+      openMembershipQr: function (transaction) {
+         if (!transaction.membership_qr_url) {
+            return;
+         }
+
+         this.selectedQr = null;
+         this.qrError = "";
+         this.loadingQr = true;
+         this.membershipQrModal.show();
+
+         axios
+            .get(transaction.membership_qr_url)
+            .then((response) => {
+               this.selectedQr = response.data;
+            })
+            .catch((error) => {
+               this.qrError = error.response?.data?.message || "Failed to load membership QR code.";
+            })
+            .finally(() => {
+               this.loadingQr = false;
+            });
+      },
    },
    beforeUnmount: function () {
       clearTimeout(this.historySearchTimer);
@@ -1072,5 +1132,10 @@ export default {
       border-top-right-radius: 0.375rem !important;
       border-bottom-right-radius: 0.375rem !important;
    }
+}
+
+.membership-qr-image {
+   width: 260px;
+   max-width: 100%;
 }
 </style>

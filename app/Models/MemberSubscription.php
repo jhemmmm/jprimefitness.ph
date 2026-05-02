@@ -22,6 +22,9 @@ class MemberSubscription extends Model
         'start_date',
         'end_date',
         'status',
+        'qr_payload',
+        'qr_generated_at',
+        'qr_emailed_at',
     ];
 
     protected $casts = [
@@ -29,6 +32,8 @@ class MemberSubscription extends Model
         'end_date' => 'date',
         'sold_price' => 'decimal:2',
         'expiration_notification_sent_for_date' => 'date',
+        'qr_generated_at' => 'datetime',
+        'qr_emailed_at' => 'datetime',
     ];
 
     public function member(): BelongsTo

@@ -14,25 +14,12 @@ class HikvisionCallbackController extends Controller
     /**
      * Handle the Hikvision attendance callback.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(Request $request, HikvisionAttendanceService $hikvisionAttendanceService): JsonResponse
     {
-        Log::info('Received Hikvision attendance callback', $this->requestLogContext($request));
-
         $result = $hikvisionAttendanceService->ingest($this->payload($request));
         $statusCode = $result['status'] === 'duplicate' ? 200 : 202;
-
-        Log::info('Hikvision attendance callback processed', [
-            'status' => $result['status'],
-            'action' => $result['action'],
-            'employee_no' => $result['employee_no'],
-            'event_serial_no' => $result['event_serial_no'],
-            'event_type' => $result['event_type'],
-            'occurred_at' => $result['occurred_at'],
-            'attendance_id' => $result['attendance']?->id,
-            'source_ip' => $request->ip(),
-        ]);
 
         return response()->json([
             'status' => $result['status'],

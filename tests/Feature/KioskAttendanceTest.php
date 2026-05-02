@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Attendance;
 use App\Models\KioskPayment;
+use App\Models\MemberSubscription;
+use App\Models\RatePlan;
 use App\Models\SystemActivity;
 use App\Models\User;
+use App\Services\MembershipQrService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -136,13 +139,14 @@ class KioskAttendanceTest extends TestCase
 
     public function test_member_time_in_succeeds_for_known_member(): void
     {
-        $member = $this->createMember('Jheamuel Panuelos');
+        $membership = $this->createActiveMembership('Jheamuel Panuelos');
+        $member = $membership->member;
 
         $response = $this->postJson('/api/kiosk/attendance', [
             'type' => 'member',
             'status' => 'success',
             'action' => 'time_in',
-            'qr_payload' => 'JPRIME:MEMBER:'.$member->id,
+            'qr_payload' => $membership->qr_payload,
             'reason' => null,
         ], ['X-Kiosk-Token' => 'test-kiosk-token']);
 
@@ -160,7 +164,8 @@ class KioskAttendanceTest extends TestCase
 
     public function test_member_time_out_closes_open_attendance(): void
     {
-        $member = $this->createMember('Anna Cruz');
+        $membership = $this->createActiveMembership('Anna Cruz');
+        $member = $membership->member;
 
         $open = Attendance::create([
             'attendee_type' => Attendance::TYPE_MEMBER,
@@ -174,7 +179,7 @@ class KioskAttendanceTest extends TestCase
             'type' => 'member',
             'status' => 'success',
             'action' => 'time_out',
-            'qr_payload' => 'JPRIME:MEMBER:'.$member->id,
+            'qr_payload' => $membership->qr_payload,
             'occurred_at' => '2026-05-03T10:00:00+08:00',
         ], ['X-Kiosk-Token' => 'test-kiosk-token']);
 
@@ -187,16 +192,18 @@ class KioskAttendanceTest extends TestCase
 
     public function test_member_time_out_without_open_session_returns_failure(): void
     {
-        $member = $this->createMember('Ben Lopez');
+        $membership = $this->createActiveMembership('Ben Lopez');
 
         $response = $this->postJson('/api/kiosk/attendance', [
             'type' => 'member',
             'status' => 'success',
             'action' => 'time_out',
-            'qr_payload' => 'JPRIME:MEMBER:'.$member->id,
+            'qr_payload' => $membership->qr_payload,
         ], ['X-Kiosk-Token' => 'test-kiosk-token']);
 
-        $response->assertOk()->assertJsonPath('ok', false);
+        $response->assertOk()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('reason', 'missing_open_attendance');
     }
 
     public function test_member_unknown_qr_returns_failure(): void
@@ -211,6 +218,90 @@ class KioskAttendanceTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('ok', false)
             ->assertJsonPath('message', 'QR code not recognized.');
+    }
+
+    public function test_member_time_in_rejects_expired_membership(): void
+    {
+        $membership = $this->createActiveMembership('Expired Member', [
+            'start_date' => '2026-04-01',
+            'end_date' => '2026-04-30',
+        ]);
+
+        $this->postJson('/api/kiosk/attendance', [
+            'type' => 'member',
+            'status' => 'success',
+            'action' => 'time_in',
+            'qr_payload' => $membership->qr_payload,
+            'occurred_at' => '2026-05-03T08:00:00+08:00',
+        ], ['X-Kiosk-Token' => 'test-kiosk-token'])
+            ->assertOk()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('reason', 'membership_expired');
+
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
+    public function test_member_time_in_rejects_inactive_membership_status(): void
+    {
+        $membership = $this->createActiveMembership('Paused Member', [
+            'status' => MemberSubscription::STATUS_PAUSED,
+        ]);
+
+        $this->postJson('/api/kiosk/attendance', [
+            'type' => 'member',
+            'status' => 'success',
+            'action' => 'time_in',
+            'qr_payload' => $membership->qr_payload,
+        ], ['X-Kiosk-Token' => 'test-kiosk-token'])
+            ->assertOk()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('reason', 'membership_inactive');
+
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
+    public function test_member_time_in_rejects_inactive_member_account(): void
+    {
+        $membership = $this->createActiveMembership('Inactive Member');
+        $membership->member->update(['status' => User::STATUS_INACTIVE]);
+
+        $this->postJson('/api/kiosk/attendance', [
+            'type' => 'member',
+            'status' => 'success',
+            'action' => 'time_in',
+            'qr_payload' => $membership->qr_payload,
+        ], ['X-Kiosk-Token' => 'test-kiosk-token'])
+            ->assertOk()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('reason', 'member_inactive');
+
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
+    public function test_member_time_in_rejects_duplicate_open_attendance(): void
+    {
+        $membership = $this->createActiveMembership('Duplicate Member');
+        $member = $membership->member;
+
+        Attendance::create([
+            'attendee_type' => Attendance::TYPE_MEMBER,
+            'user_id' => $member->id,
+            'name' => $member->name,
+            'checked_in_at' => '2026-05-03 08:00:00',
+            'source' => Attendance::SOURCE_KIOSK,
+        ]);
+
+        $this->postJson('/api/kiosk/attendance', [
+            'type' => 'member',
+            'status' => 'success',
+            'action' => 'time_in',
+            'qr_payload' => $membership->qr_payload,
+        ], ['X-Kiosk-Token' => 'test-kiosk-token'])
+            ->assertOk()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('reason', 'duplicate_time_in');
+
+        $this->assertDatabaseCount('attendances', 1);
     }
 
     public function test_endpoint_rejects_missing_or_wrong_token(): void
@@ -255,5 +346,30 @@ class KioskAttendanceTest extends TestCase
         $user->assignRole('member');
 
         return $user;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createActiveMembership(string $memberName, array $attributes = []): MemberSubscription
+    {
+        $member = $this->createMember($memberName);
+        $ratePlan = RatePlan::create([
+            'name' => $memberName.' Plan',
+            'duration_days' => 30,
+            'description' => $memberName.' membership',
+            'price' => 1500,
+            'is_active' => true,
+        ]);
+
+        $membership = $member->memberSubscriptions()->create(array_merge([
+            'rate_plan_id' => $ratePlan->id,
+            'sold_price' => 1500,
+            'start_date' => '2026-05-01',
+            'end_date' => '2026-05-30',
+            'status' => MemberSubscription::STATUS_ACTIVE,
+        ], $attributes));
+
+        return app(MembershipQrService::class)->ensurePayload($membership)->fresh(['member', 'ratePlan']);
     }
 }

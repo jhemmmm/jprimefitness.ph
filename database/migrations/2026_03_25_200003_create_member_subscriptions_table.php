@@ -17,6 +17,9 @@ return new class extends Migration
             $table->date('start_date');
             $table->date('end_date')->nullable();
             $table->date('expiration_notification_sent_for_date')->nullable();
+            $table->text('qr_payload')->nullable();
+            $table->timestamp('qr_generated_at')->nullable();
+            $table->timestamp('qr_emailed_at')->nullable();
             $table->enum('status', [
                 MemberSubscription::STATUS_ACTIVE,
                 MemberSubscription::STATUS_EXPIRED,

@@ -47,6 +47,7 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/members/{member}/attendance', [MembersController::class, 'attendance'])->name('members.attendance')->whereNumber('member');
     Route::put('/members/{member}/membership', [MembersController::class, 'updateMembership'])->name('members.membership.update')->whereNumber('member');
     Route::put('/members/{member}/membership/status', [MembersController::class, 'updateMembershipStatus'])->name('members.membership.status')->whereNumber('member');
+    Route::get('/members/{member}/memberships/{membership}/qr', [MembersController::class, 'membershipQr'])->name('members.memberships.qr')->whereNumber('member')->whereNumber('membership');
     Route::post('/members/{member}/pt-packages', [MembersController::class, 'storePtPackage'])->name('members.pt-packages.store')->whereNumber('member');
     Route::post('/members/{member}/pt-session-usages', [MembersController::class, 'storePtSessionUsage'])->name('members.pt-session-usages.store')->whereNumber('member');
     Route::get('/members/{member}', [MembersController::class, 'show'])->name('members.show')->whereNumber('member');
@@ -74,6 +75,7 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/sales/context', [SalesController::class, 'context'])->name('sales.context');
     Route::get('/sales/history', [SalesController::class, 'history'])->name('sales.history');
     Route::post('/sales', [SalesController::class, 'store'])->name('sales.store');
+    Route::get('/sales/{saleTransaction}/membership-qr', [SalesController::class, 'membershipQr'])->name('sales.membership-qr')->whereNumber('saleTransaction');
     Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
 
     // Reports

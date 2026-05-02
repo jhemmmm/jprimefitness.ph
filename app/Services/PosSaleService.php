@@ -20,6 +20,7 @@ class PosSaleService
 {
     public function __construct(
         private InventoryStockAlertService $inventoryStockAlertService,
+        private MembershipQrService $membershipQrService,
         private SystemActivityService $systemActivityService,
     ) {}
 
@@ -274,6 +275,8 @@ class PosSaleService
                 $saleCause,
                 $saleTransaction->sold_at,
             );
+            $this->membershipQrService->sendEmail($subscription);
+
             return $saleTransaction;
         });
     }

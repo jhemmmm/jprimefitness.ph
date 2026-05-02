@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessProfile;
+use App\Models\MemberSubscription;
 use App\Models\SaleTransaction;
+use App\Services\MembershipQrService;
 use App\Services\PosSaleService;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Contracts\View\View;
@@ -23,6 +25,7 @@ class SalesController extends Controller
      * @return void
      */
     public function __construct(
+        private MembershipQrService $membershipQrService,
         private PosSaleService $posSaleService,
     ) {}
 
@@ -121,6 +124,26 @@ class SalesController extends Controller
             ->format('a4')
             ->margins(8, 8, 8, 8)
             ->download($fileName);
+    }
+
+    /**
+     * Return a membership sale QR code payload.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function membershipQr(SaleTransaction $saleTransaction): JsonResponse
+    {
+        abort_unless($saleTransaction->type === SaleTransaction::TYPE_MEMBERSHIP, 404);
+
+        $subscriptionId = (int) data_get($saleTransaction->details, 'subscription_id');
+        abort_unless($subscriptionId > 0, 404);
+
+        $subscription = MemberSubscription::query()
+            ->whereKey($subscriptionId)
+            ->where('user_id', $saleTransaction->member_id)
+            ->firstOrFail();
+
+        return response()->json($this->membershipQrService->modalPayload($subscription));
     }
 
     /**
@@ -254,6 +277,10 @@ class SalesController extends Controller
             'item_name' => $transaction->item_name,
             'details' => $details,
             'receipt_url' => route('panel.sales.receipt', $transaction),
+            'membership_qr_url' => $transaction->type === SaleTransaction::TYPE_MEMBERSHIP
+                && filled(data_get($details, 'subscription_id'))
+                    ? route('panel.sales.membership-qr', $transaction)
+                    : null,
             'source_url' => match ($transaction->type) {
                 SaleTransaction::TYPE_MEMBERSHIP, SaleTransaction::TYPE_PT_PACKAGE => $transaction->member_id
                     ? route('panel.members.show', $transaction->member_id)

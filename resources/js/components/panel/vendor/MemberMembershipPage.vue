@@ -114,6 +114,7 @@
                   <th>Start Date</th>
                   <th>End Date</th>
                   <th>Assigned</th>
+                  <th class="text-end">QR</th>
                </tr>
             </thead>
             <tbody>
@@ -125,6 +126,11 @@
                   <td class="small">{{ formatDate(membership.start_date) }}</td>
                   <td class="small">{{ formatDate(membership.end_date) }}</td>
                   <td class="small text-muted">{{ formatDateTime(membership.created_at) }}</td>
+                  <td class="text-end">
+                     <button type="button" class="btn btn-sm btn-outline-secondary" v-if="membership.qr_url" @click="openMembershipQr(membership)" title="View membership QR">
+                        <i class="bi bi-qr-code tbl-icon"></i>
+                     </button>
+                  </td>
                </tr>
             </tbody>
          </table>
@@ -142,6 +148,31 @@
             <div class="member-card-footer">
                <span><i class="bi bi-calendar3 me-1"></i>{{ formatDate(membership.end_date) }}</span>
                <span class="text-muted small">{{ formatDateTime(membership.created_at) }}</span>
+               <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" v-if="membership.qr_url" @click="openMembershipQr(membership)">QR</button>
+            </div>
+         </div>
+      </div>
+
+      <div class="modal fade" tabindex="-1" ref="membershipQrModal">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">Membership QR Code</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+               </div>
+               <div class="modal-body">
+                  <div v-if="qrError" class="alert alert-danger py-2 small">{{ qrError }}</div>
+                  <div v-if="loadingQr" class="text-center py-4 text-muted">
+                     <span class="spinner-border spinner-border-sm me-2"></span>
+                     Loading QR code...
+                  </div>
+                  <div v-else-if="selectedQr" class="text-center">
+                     <img :src="selectedQr.qr_data_uri" alt="Membership QR Code" class="img-fluid mb-3 membership-qr-image" />
+                     <div class="fw-semibold">{{ selectedQr.member_name }}</div>
+                     <div class="small text-muted">{{ selectedQr.plan_name }}</div>
+                     <div class="small text-muted mt-1">Valid {{ formatDate(selectedQr.start_date) }} - {{ selectedQr.end_date ? formatDate(selectedQr.end_date) : "Open-ended" }}</div>
+                  </div>
+               </div>
             </div>
          </div>
       </div>
@@ -167,6 +198,10 @@ export default {
          saved: false,
          generalError: "",
          planModalInst: null,
+         qrModalInst: null,
+         loadingQr: false,
+         selectedQr: null,
+         qrError: "",
          form: {
             rate_plan_id: "",
             start_date: toDateInputValue(),
@@ -176,6 +211,7 @@ export default {
 
    mounted: function () {
       this.planModalInst = new Modal(this.$refs.planModal);
+      this.qrModalInst = new Modal(this.$refs.membershipQrModal);
    },
 
    watch: {
@@ -307,6 +343,29 @@ export default {
             .finally(() => (this.savingStatus = false));
       },
 
+      openMembershipQr: function (membership) {
+         if (!membership.qr_url) {
+            return;
+         }
+
+         this.selectedQr = null;
+         this.qrError = "";
+         this.loadingQr = true;
+         this.qrModalInst.show();
+
+         axios
+            .get(membership.qr_url)
+            .then((response) => {
+               this.selectedQr = response.data;
+            })
+            .catch((err) => {
+               this.qrError = err.response?.data?.message || "Failed to load membership QR code.";
+            })
+            .finally(() => {
+               this.loadingQr = false;
+            });
+      },
+
       planStatusClass: function (status) {
          return (
             {
@@ -321,3 +380,10 @@ export default {
    },
 };
 </script>
+
+<style scoped>
+.membership-qr-image {
+   width: 260px;
+   max-width: 100%;
+}
+</style>
