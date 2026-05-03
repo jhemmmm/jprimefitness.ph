@@ -25,7 +25,7 @@ class KioskAttendanceController extends Controller
     /**
      * Store a kiosk attendance entry.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     public function store(Request $request): JsonResponse
     {
@@ -48,7 +48,7 @@ class KioskAttendanceController extends Controller
     /**
      * Store a kiosk walk-in attendance entry.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     private function storeWalkIn(Request $request): JsonResponse
     {
@@ -60,12 +60,9 @@ class KioskAttendanceController extends Controller
             'payment_method' => ['required', Rule::in(['counter', 'online'])],
             'payment_status' => ['required', Rule::in(['pending', 'paid', 'timeout', 'cancelled'])],
             'payment_reference' => ['nullable', 'string', 'max:64'],
-            'occurred_at' => ['nullable', 'date'],
         ]);
 
-        $occurredAt = isset($data['occurred_at'])
-            ? Carbon::parse($data['occurred_at'])
-            : Carbon::now();
+        $occurredAt = Carbon::now();
 
         // Failed walk-ins are not recorded as attendance — they're audited via logs
         // and (for online) the kiosk_payments row itself. We acknowledge the call.
@@ -101,22 +98,18 @@ class KioskAttendanceController extends Controller
     /**
      * Store a kiosk member attendance entry from an encrypted membership QR.
      *
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
     private function storeMember(Request $request): JsonResponse
     {
         $data = $request->validate([
             'type' => ['required', Rule::in(['member'])],
-            'status' => ['required', Rule::in(['success', 'failed'])],
             'action' => ['required', Rule::in(['time_in', 'time_out'])],
             'qr_payload' => ['required', 'string', 'max:2000'],
             'reason' => ['nullable', Rule::in(['unknown_qr', 'expired'])],
-            'occurred_at' => ['nullable', 'date'],
         ]);
 
-        $occurredAt = isset($data['occurred_at'])
-            ? Carbon::parse($data['occurred_at'])
-            : Carbon::now();
+        $occurredAt = Carbon::now();
 
         $decision = $this->membershipQrAntiFraudService->validate(
             $data['qr_payload'],
@@ -172,7 +165,7 @@ class KioskAttendanceController extends Controller
      * Mark a referenced successful online kiosk payment as paid.
      *
      * @param  array<string, mixed>  $data
-     * @return \App\Models\KioskPayment|null
+     * @return KioskPayment|null
      */
     private function markSuccessfulOnlinePayment(array $data, Carbon $paidAt): ?KioskPayment
     {

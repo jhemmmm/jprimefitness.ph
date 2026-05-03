@@ -1,9 +1,12 @@
 <?php
 
 use App\Http\Controllers\Api\KioskAttendanceController;
+use App\Http\Controllers\Api\KioskDiscoveryController;
 use App\Http\Controllers\Api\KioskPaymentController;
 use App\Http\Controllers\Api\HikvisionCallbackController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('kiosk/discover', [KioskDiscoveryController::class, 'show']);
 
 Route::prefix('kiosk')
     ->middleware('kiosk')

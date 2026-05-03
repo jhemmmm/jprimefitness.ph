@@ -179,9 +179,7 @@
                                  {{ sourceLabel(r.source) }}
                               </span>
                            </div>
-                           <div v-if="r.source_device_serial" class="small text-muted mt-1">
-                              Device {{ r.source_device_serial }}
-                           </div>
+                           <div v-if="r.source_device_serial" class="small text-muted mt-1">Device {{ r.source_device_serial }}</div>
                         </td>
                         <td class="text-muted small">{{ formatDateTime(r.checked_in_at) }}</td>
                         <td>
@@ -251,9 +249,7 @@
                      <span v-if="r.checked_out_at" class="text-muted small"> <i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(r.checked_out_at) }} </span>
                      <button v-if="!r.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                   </div>
-                  <div v-if="r.source_device_serial" class="small text-muted mt-2 px-1">
-                     Device {{ r.source_device_serial }}
-                  </div>
+                  <div v-if="r.source_device_serial" class="small text-muted mt-2 px-1">Device {{ r.source_device_serial }}</div>
                </div>
             </div>
          </div>
@@ -611,10 +607,14 @@ export default {
             .finally(() => (this.submitting = false));
       },
       sourceLabel: function (source) {
-         return source === "hikvision" ? "Hikvision" : "Manual";
+         if (source === "hikvision") return "Hikvision";
+         if (source === "kiosk") return "Kiosk";
+         return "Manual";
       },
       sourceBadgeClass: function (source) {
-         return source === "hikvision" ? "m-badge--open" : "m-badge--draft";
+         if (source === "hikvision") return "m-badge--open";
+         if (source === "kiosk") return "m-badge--approved";
+         return "m-badge--draft";
       },
    },
 

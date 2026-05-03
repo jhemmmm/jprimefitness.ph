@@ -9,8 +9,8 @@ use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\RoundBlockSizeMode;
 use Endroid\QrCode\Writer\SvgWriter;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 class MembershipQrService
 {
@@ -19,7 +19,7 @@ class MembershipQrService
     /**
      * Ensure a membership subscription has a QR payload.
      *
-     * @return \App\Models\MemberSubscription
+     * @return MemberSubscription
      */
     public function ensurePayload(MemberSubscription $subscription): MemberSubscription
     {
@@ -28,7 +28,7 @@ class MembershipQrService
         }
 
         $subscription->forceFill([
-            'qr_payload' => self::PAYLOAD_PREFIX.Crypt::encryptString((string) $subscription->id),
+            'qr_payload' => self::PAYLOAD_PREFIX.Str::random(40),
             'qr_generated_at' => now(),
         ])->save();
 
@@ -89,7 +89,7 @@ class MembershipQrService
     {
         $subscription = $this->ensurePayload($subscription);
 
-        $writer = new SvgWriter();
+        $writer = new SvgWriter;
         $qrCode = new QrCode(
             data: (string) $subscription->qr_payload,
             encoding: new Encoding('UTF-8'),

@@ -6,40 +6,39 @@ use App\Models\Attendance;
 use App\Models\MemberSubscription;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Contracts\Encryption\DecryptException;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class MembershipQrAntiFraudService
 {
     /**
-     * Validate an encrypted membership QR payload for a kiosk action.
+     * Validate a membership QR payload for a kiosk action.
      *
      * @return array{
      *     allowed: bool,
      *     reason: ?string,
      *     message: string,
-     *     membership: ?\App\Models\MemberSubscription,
-     *     member: ?\App\Models\User,
-     *     open_attendance: ?\App\Models\Attendance
+     *     membership: ?MemberSubscription,
+     *     member: ?User,
+     *     open_attendance: ?Attendance
      * }
      */
     public function validate(string $payload, string $action, Carbon $occurredAt, ?string $deviceSerial = null): array
     {
-        $membershipId = $this->decryptMembershipId($payload);
-
-        if (! $membershipId) {
+        if (! Str::startsWith($payload, MembershipQrService::PAYLOAD_PREFIX)) {
             return $this->reject('invalid_qr', 'QR code not recognized.', $action, $deviceSerial);
         }
 
         $membership = MemberSubscription::query()
             ->with(['member', 'ratePlan'])
-            ->find($membershipId);
+            ->where('qr_payload', $payload)
+            ->first();
 
         if (! $membership) {
-            return $this->reject('membership_missing', 'Membership was not found.', $action, $deviceSerial, $membershipId);
+            return $this->reject('membership_missing', 'Membership was not found.', $action, $deviceSerial);
         }
+
+        $membershipId = $membership->id;
 
         $member = $membership->member;
 
@@ -89,41 +88,15 @@ class MembershipQrAntiFraudService
     }
 
     /**
-     * Decrypt the membership subscription ID from a QR payload.
-     *
-     * @return int|null
-     */
-    private function decryptMembershipId(string $payload): ?int
-    {
-        if (! Str::startsWith($payload, MembershipQrService::PAYLOAD_PREFIX)) {
-            return null;
-        }
-
-        $ciphertext = Str::after($payload, MembershipQrService::PAYLOAD_PREFIX);
-
-        try {
-            $decrypted = Crypt::decryptString($ciphertext);
-        } catch (DecryptException) {
-            return null;
-        }
-
-        if (! ctype_digit($decrypted)) {
-            return null;
-        }
-
-        return (int) $decrypted;
-    }
-
-    /**
      * Build and log a rejected anti-fraud decision.
      *
      * @return array{
      *     allowed: false,
      *     reason: string,
      *     message: string,
-     *     membership: ?\App\Models\MemberSubscription,
-     *     member: ?\App\Models\User,
-     *     open_attendance: ?\App\Models\Attendance
+     *     membership: ?MemberSubscription,
+     *     member: ?User,
+     *     open_attendance: ?Attendance
      * }
      */
     private function reject(

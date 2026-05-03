@@ -10,7 +10,6 @@ use App\Models\SaleTransaction;
 use App\Models\User;
 use App\Services\MembershipQrService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -66,8 +65,6 @@ class MembershipQrCodeTest extends TestCase
         $this->assertNotNull($subscription->qr_generated_at);
         $this->assertNotNull($subscription->qr_emailed_at);
         $this->assertStringStartsWith(MembershipQrService::PAYLOAD_PREFIX, $subscription->qr_payload);
-        $ciphertext = substr($subscription->qr_payload, strlen(MembershipQrService::PAYLOAD_PREFIX));
-        $this->assertSame((string) $subscription->id, Crypt::decryptString($ciphertext));
         $this->assertNotEmpty($response->json('membership_qr_url'));
 
         Mail::assertSent(MembershipQrCodeMail::class, function (MembershipQrCodeMail $mail) use ($member) {
