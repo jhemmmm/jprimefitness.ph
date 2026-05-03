@@ -230,12 +230,12 @@
                      </div>
                      <div class="plan-meta-item">
                         <div class="plan-meta-label">Per day</div>
-                        <div class="plan-meta-value">&#8369;{{ formatMoney(perDay(plan)) }}</div>
+                        <div class="plan-meta-value">&#8369;{{ $filters.formatMoney(perDay(plan)) }}</div>
                      </div>
                   </div>
 
                   <div class="plan-row-price">
-                     <div class="plan-price-amount">&#8369;{{ formatMoney(plan.price) }}</div>
+                     <div class="plan-price-amount">&#8369;{{ $filters.formatMoney(plan.price) }}</div>
                      <a :href="`#register?plan=${plan.id}`" class="btn btn-danger rounded-1 fw-semibold btn-sm py-2 px-3 mt-2" @click.prevent="selectPlanForRegister(plan.id)">Become a member</a>
                   </div>
                </div>
@@ -260,7 +260,7 @@
                         <p class="text-muted small mb-3" v-else><i class="bi bi-stopwatch me-1"></i>{{ pt.session_count }} coached session<span v-if="pt.session_count > 1">s</span></p>
                         <div class="pricing-row">
                            <span class="pricing-label">Price</span>
-                           <span class="pricing-value">&#8369;{{ formatMoney(pt.price) }}</span>
+                           <span class="pricing-value">&#8369;{{ $filters.formatMoney(pt.price) }}</span>
                         </div>
                         <div class="pricing-row">
                            <span class="pricing-label">Sessions</span>
@@ -268,7 +268,7 @@
                         </div>
                         <div class="pricing-row">
                            <span class="pricing-label">Per session</span>
-                           <span class="pricing-value">&#8369;{{ formatMoney(perSession(pt)) }}</span>
+                           <span class="pricing-value">&#8369;{{ $filters.formatMoney(perSession(pt)) }}</span>
                         </div>
                      </div>
                      <div class="card-footer">
@@ -566,7 +566,7 @@
                                  <select v-model="register.form.rate_plan_id" class="form-select rounded-1" :class="{ 'is-invalid': registerErrors.rate_plan_id }">
                                     <option value="">Choose a plan</option>
                                     <option v-for="plan in membershipPlans" :key="'reg-rp-' + plan.id" :value="plan.id">
-                                       {{ plan.name }} — &#8369;{{ formatMoney(plan.price) }} / {{ plan.duration_days }}d
+                                       {{ plan.name }} — &#8369;{{ $filters.formatMoney(plan.price) }} / {{ plan.duration_days }}d
                                     </option>
                                  </select>
                                  <div class="invalid-feedback" v-if="registerErrors.rate_plan_id">{{ registerErrors.rate_plan_id[0] }}</div>
@@ -786,31 +786,17 @@ export default {
       ratePlans: { type: Array, default: () => [] },
       ptProducts: { type: Array, default: () => [] },
    },
-   data() {
+   data: function () {
       return {
          form: { name: "", contact: "", topic: "Membership", message: "" },
          register: {
-            form: {
-               name: "",
-               email: "",
-               phone: "",
-               date_of_birth: "",
-               gender: "",
-               emergency_contact_name: "",
-               emergency_contact_phone: "",
-               rate_plan_id: "",
-               preferred_start_date: "",
-               notes: "",
-               payment_method: "online",
-               terms_accepted: false,
-            },
+            form: this.emptyRegisterForm(),
             submitting: false,
             success: null,
             bannerError: null,
          },
          registerErrors: {},
          registerSuccessModal: null,
-         // Swap these for /images/home/*.jpg once local photos are added.
          images: {
             about: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=1200&q=80",
             programs: {
@@ -828,101 +814,56 @@ export default {
       };
    },
    computed: {
-      addressLine() {
+      addressLine: function () {
          const parts = [this.business.address, this.business.city, this.business.province].filter(Boolean);
          return parts.join(", ");
       },
-      amenities() {
+      amenities: function () {
          return Array.isArray(this.business.amenities) ? this.business.amenities.filter(Boolean) : [];
       },
-      hoursLong() {
-         const o = this.formatTime(this.business.opening_time);
-         const c = this.formatTime(this.business.closing_time);
+      hoursLong: function () {
+         const o = this.$filters.formatTime(this.business.opening_time);
+         const c = this.$filters.formatTime(this.business.closing_time);
          if (o && c) return `${o} – ${c}`;
          return "Hours to be announced";
       },
-      hoursShort() {
-         const o = this.formatTime(this.business.opening_time, true);
-         const c = this.formatTime(this.business.closing_time, true);
+      hoursShort: function () {
+         const o = this.$filters.formatTime(this.business.opening_time, true);
+         const c = this.$filters.formatTime(this.business.closing_time, true);
          if (o && c) return `${o}–${c}`;
          return "Open daily";
       },
-      openHoursPerDay() {
+      openHoursPerDay: function () {
          const open = this.parseClock(this.business.opening_time);
          const close = this.parseClock(this.business.closing_time);
          if (open == null || close == null) return "–";
          const diff = (close - open) / 60;
          return diff > 0 ? Math.round(diff) : "–";
       },
-      heroBadge() {
+      heroBadge: function () {
          const loc = this.business.city || this.business.province;
          return loc ? `Your neighborhood gym in ${loc}` : "Your neighborhood gym";
       },
-      directionsUrl() {
+      directionsUrl: function () {
          const q = this.addressLine || this.business.name || "JPRIME Fitness";
          return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
       },
-      indexedRatePlans() {
+      indexedRatePlans: function () {
          return this.ratePlans.map((p, idx) => ({ ...p, _idx: idx }));
       },
-      membershipPlans() {
-         return this.ratePlans.filter(p => !p.is_walk_in_only);
+      membershipPlans: function () {
+         return this.ratePlans.filter((p) => !p.is_walk_in_only);
       },
    },
-   mounted() {
+   mounted: function () {
       this.registerSuccessModal = new Modal(this.$refs.registerSuccessModal);
    },
-   beforeUnmount() {
+   beforeUnmount: function () {
       this.registerSuccessModal?.dispose();
    },
    methods: {
-      formatMoney(value) {
-         if (value === null || value === undefined || value === "") return "0";
-         return parseFloat(value).toLocaleString("en-PH", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-      },
-      perDay(plan) {
-         const price = parseFloat(plan.price || 0);
-         const days = parseInt(plan.duration_days || 0, 10);
-         return days > 0 ? price / days : 0;
-      },
-      perSession(pt) {
-         const price = parseFloat(pt.price || 0);
-         const n = parseInt(pt.session_count || 0, 10);
-         return n > 0 ? price / n : 0;
-      },
-      formatTime(value, short = false) {
-         if (!value) return "";
-         const [hStr, mStr] = String(value).split(":");
-         let h = parseInt(hStr, 10);
-         const m = parseInt(mStr || "0", 10);
-         if (isNaN(h)) return "";
-         const am = h < 12;
-         const display = h % 12 === 0 ? 12 : h % 12;
-         if (short) return `${display}${am ? "am" : "pm"}`;
-         const mm = m.toString().padStart(2, "0");
-         return `${display}:${mm} ${am ? "AM" : "PM"}`;
-      },
-      parseClock(value) {
-         if (!value) return null;
-         const [h, m] = String(value).split(":").map((x) => parseInt(x, 10));
-         if (isNaN(h)) return null;
-         return h * 60 + (isNaN(m) ? 0 : m);
-      },
-      ptImage(idx) {
-         const list = this.images.pt;
-         return list[idx % list.length];
-      },
-      onSubmit() {
-         alert("Thanks! We'll get back to you shortly.");
-      },
-      selectPlanForRegister(planId) {
-         this.register.form.rate_plan_id = planId;
-         this.register.success = null;
-         const target = document.getElementById("register");
-         if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-      },
-      resetRegister() {
-         this.register.form = {
+      emptyRegisterForm: function () {
+         return {
             name: "",
             email: "",
             phone: "",
@@ -936,86 +877,112 @@ export default {
             payment_method: "online",
             terms_accepted: false,
          };
+      },
+      perDay: function (plan) {
+         const price = parseFloat(plan.price || 0);
+         const days = parseInt(plan.duration_days || 0, 10);
+         return days > 0 ? price / days : 0;
+      },
+      perSession: function (pt) {
+         const price = parseFloat(pt.price || 0);
+         const n = parseInt(pt.session_count || 0, 10);
+         return n > 0 ? price / n : 0;
+      },
+      parseClock: function (value) {
+         if (!value) return null;
+         const [h, m] = String(value).split(":").map((x) => parseInt(x, 10));
+         if (isNaN(h)) return null;
+         return h * 60 + (isNaN(m) ? 0 : m);
+      },
+      ptImage: function (idx) {
+         return this.images.pt[idx % this.images.pt.length];
+      },
+      onSubmit: function () {
+         alert("Thanks! We'll get back to you shortly.");
+      },
+      selectPlanForRegister: function (planId) {
+         this.register.form.rate_plan_id = planId;
+         this.register.success = null;
+         const target = document.getElementById("register");
+         if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      },
+      resetRegister: function () {
+         this.register.form = this.emptyRegisterForm();
          this.register.success = null;
          this.register.bannerError = null;
          this.registerErrors = {};
-         if (this.registerSuccessModal) {
-            this.registerSuccessModal.hide();
-         }
+         this.registerSuccessModal?.hide();
       },
-      async getRecaptchaToken() {
+      getRecaptchaToken: function () {
          const siteKey = window.JPrime && window.JPrime.recaptchaSiteKey;
-         if (!siteKey || !window.grecaptcha) return "";
+         if (!siteKey || !window.grecaptcha) return Promise.resolve("");
          return new Promise((resolve) => {
-            window.grecaptcha.ready(async () => {
-               try {
-                  const token = await window.grecaptcha.execute(siteKey, { action: "register" });
-                  resolve(token || "");
-               } catch (e) {
-                  resolve("");
-               }
+            window.grecaptcha.ready(function () {
+               window.grecaptcha
+                  .execute(siteKey, { action: "register" })
+                  .then((token) => resolve(token || ""))
+                  .catch(() => resolve(""));
             });
          });
       },
-      async submitRegistration() {
+      submitRegistration: function () {
          this.register.submitting = true;
          this.register.bannerError = null;
          this.registerErrors = {};
 
          const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-         const recaptchaToken = await this.getRecaptchaToken();
 
-         const payload = {
-            ...this.register.form,
-            // Send empty optionals as null so Laravel's nullable rules pass cleanly.
-            date_of_birth: this.register.form.date_of_birth || null,
-            gender: this.register.form.gender || null,
-            emergency_contact_name: this.register.form.emergency_contact_name || null,
-            emergency_contact_phone: this.register.form.emergency_contact_phone || null,
-            preferred_start_date: this.register.form.preferred_start_date || null,
-            notes: this.register.form.notes || null,
-            recaptcha_token: recaptchaToken,
-         };
+         this.getRecaptchaToken()
+            .then((recaptchaToken) => {
+               const payload = {
+                  ...this.register.form,
+                  date_of_birth: this.register.form.date_of_birth || null,
+                  gender: this.register.form.gender || null,
+                  emergency_contact_name: this.register.form.emergency_contact_name || null,
+                  emergency_contact_phone: this.register.form.emergency_contact_phone || null,
+                  preferred_start_date: this.register.form.preferred_start_date || null,
+                  notes: this.register.form.notes || null,
+                  recaptcha_token: recaptchaToken,
+               };
 
-         try {
-            const res = await fetch("/register", {
-               method: "POST",
-               headers: {
-                  "Content-Type": "application/json",
-                  Accept: "application/json",
-                  "X-CSRF-TOKEN": csrf,
-                  "X-Requested-With": "XMLHttpRequest",
-               },
-               body: JSON.stringify(payload),
+               return fetch("/register", {
+                  method: "POST",
+                  headers: {
+                     "Content-Type": "application/json",
+                     Accept: "application/json",
+                     "X-CSRF-TOKEN": csrf,
+                     "X-Requested-With": "XMLHttpRequest",
+                  },
+                  body: JSON.stringify(payload),
+               });
+            })
+            .then((res) => res.json().catch(() => ({})).then((body) => ({ res, body })))
+            .then(({ res, body }) => {
+               if (res.status === 422) {
+                  this.registerErrors = body.errors || {};
+                  this.register.bannerError = body.message || "Please correct the highlighted fields.";
+                  return;
+               }
+
+               if (!res.ok) {
+                  this.register.bannerError = body.message || "Something went wrong. Please try again.";
+                  return;
+               }
+
+               if (body.payment && body.payment.checkout_url) {
+                  window.location.assign(body.payment.checkout_url);
+                  return;
+               }
+
+               this.register.success = body.message || "We received your registration.";
+               this.registerSuccessModal?.show();
+            })
+            .catch(() => {
+               this.register.bannerError = "Network error — please check your connection and try again.";
+            })
+            .finally(() => {
+               this.register.submitting = false;
             });
-
-            const body = await res.json().catch(() => ({}));
-
-            if (res.status === 422) {
-               this.registerErrors = body.errors || {};
-               this.register.bannerError = body.message || "Please correct the highlighted fields.";
-               return;
-            }
-
-            if (!res.ok) {
-               this.register.bannerError = body.message || "Something went wrong. Please try again.";
-               return;
-            }
-
-            if (body.payment && body.payment.checkout_url) {
-               window.location.assign(body.payment.checkout_url);
-               return;
-            }
-
-            this.register.success = body.message || "We received your registration.";
-            if (this.registerSuccessModal) {
-               this.registerSuccessModal.show();
-            }
-         } catch (e) {
-            this.register.bannerError = "Network error — please check your connection and try again.";
-         } finally {
-            this.register.submitting = false;
-         }
       },
    },
 };
