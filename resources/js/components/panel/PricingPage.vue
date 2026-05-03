@@ -27,7 +27,7 @@
       <div class="panel-card mb-4">
          <div class="panel-card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
             <span class="panel-card-title">Membership Rates</span>
-            <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreateMembershipModal" :disabled="pricing.available_membership_rate_plans.length === 0">
+            <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreateMembershipModal">
                <i class="bi bi-plus-lg me-1"></i>
                Add Membership Rate
             </button>
@@ -123,7 +123,7 @@
       <div class="panel-card">
          <div class="panel-card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
             <span class="panel-card-title">PT Rates</span>
-            <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreatePtModal" :disabled="pricing.available_pt_products.length === 0">
+            <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreatePtModal">
                <i class="bi bi-plus-lg me-1"></i>
                Add PT Rate
             </button>
@@ -225,17 +225,15 @@
                </div>
                <div class="modal-body">
                   <div v-if="membershipFormError" class="alert alert-danger py-2 small mb-3">{{ membershipFormError }}</div>
-                  <div class="mb-3" v-if="membershipModalMode === 'create'">
-                     <label class="form-label form-label-sm">Plan <span class="text-danger">*</span></label>
-                     <select class="form-select" v-model="membershipForm.id" :class="{ 'is-invalid': membershipFormErrors.rate_plan_id }">
-                        <option value="" disabled>Select rate plan</option>
-                        <option v-for="option in pricing.available_membership_rate_plans" :key="option.id" :value="option.id">{{ option.name }}</option>
-                     </select>
-                     <div class="invalid-feedback" v-if="membershipFormErrors.rate_plan_id">{{ membershipFormErrors.rate_plan_id }}</div>
+                  <div class="mb-3">
+                     <label class="form-label form-label-sm">Plan name <span class="text-danger">*</span></label>
+                     <input type="text" class="form-control" v-model="membershipForm.name" :class="{ 'is-invalid': membershipFormErrors.name }" placeholder="e.g. Monthly" />
+                     <div class="invalid-feedback" v-if="membershipFormErrors.name">{{ membershipFormErrors.name }}</div>
                   </div>
-                  <div class="mb-3" v-else>
-                     <label class="form-label form-label-sm">Plan</label>
-                     <input type="text" class="form-control" :value="membershipForm.name" disabled />
+                  <div class="mb-3" v-if="membershipModalMode === 'create'">
+                     <label class="form-label form-label-sm">Duration (days) <span class="text-danger">*</span></label>
+                     <input type="number" min="1" step="1" class="form-control" v-model="membershipForm.duration_days" :class="{ 'is-invalid': membershipFormErrors.duration_days }" placeholder="e.g. 30" />
+                     <div class="invalid-feedback" v-if="membershipFormErrors.duration_days">{{ membershipFormErrors.duration_days }}</div>
                   </div>
                   <div class="row g-3">
                      <div class="col-md-12">
@@ -257,6 +255,10 @@
                   <div class="form-check form-switch mt-3">
                      <input class="form-check-input" type="checkbox" id="membershipRateActive" v-model="membershipForm.is_active" />
                      <label class="form-check-label" for="membershipRateActive">Active</label>
+                  </div>
+                  <div class="form-check form-switch mt-2">
+                     <input class="form-check-input" type="checkbox" id="membershipRateWalkInOnly" v-model="membershipForm.is_walk_in_only" />
+                     <label class="form-check-label" for="membershipRateWalkInOnly">For Walk In</label>
                   </div>
                </div>
                <div class="modal-footer">
@@ -280,12 +282,14 @@
                <div class="modal-body">
                   <div v-if="ptFormError" class="alert alert-danger py-2 small mb-3">{{ ptFormError }}</div>
                   <div class="mb-3" v-if="ptModalMode === 'create'">
-                     <label class="form-label form-label-sm">Package <span class="text-danger">*</span></label>
-                     <select class="form-select" v-model="ptForm.id" :class="{ 'is-invalid': ptFormErrors.pt_product_id }">
-                        <option value="" disabled>Select PT package</option>
-                        <option v-for="option in pricing.available_pt_products" :key="option.id" :value="option.id">{{ option.name }}</option>
-                     </select>
-                     <div class="invalid-feedback" v-if="ptFormErrors.pt_product_id">{{ ptFormErrors.pt_product_id }}</div>
+                     <label class="form-label form-label-sm">Package name <span class="text-danger">*</span></label>
+                     <input type="text" class="form-control" v-model="ptForm.name" :class="{ 'is-invalid': ptFormErrors.name }" placeholder="e.g. 10-Session Package" />
+                     <div class="invalid-feedback" v-if="ptFormErrors.name">{{ ptFormErrors.name }}</div>
+                  </div>
+                  <div class="mb-3" v-if="ptModalMode === 'create'">
+                     <label class="form-label form-label-sm">Session count <span class="text-danger">*</span></label>
+                     <input type="number" min="1" step="1" class="form-control" v-model="ptForm.session_count" :class="{ 'is-invalid': ptFormErrors.session_count }" placeholder="e.g. 10" />
+                     <div class="invalid-feedback" v-if="ptFormErrors.session_count">{{ ptFormErrors.session_count }}</div>
                   </div>
                   <div class="mb-3" v-else>
                      <label class="form-label form-label-sm">Package</label>
@@ -332,7 +336,7 @@
                   <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                </div>
                <div class="modal-body" v-if="deleteTarget">
-                  <p class="mb-1">Are you sure you want to clear this pricing entry?</p>
+                  <p class="mb-1">Are you sure you want to delete this pricing entry?</p>
                   <p class="fw-semibold mb-0">{{ deleteTarget.name }}</p>
                   <p class="text-muted small mb-0">{{ deleteTarget.type === "membership" ? "Membership rate" : "PT rate" }}</p>
                </div>
@@ -340,7 +344,7 @@
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                   <button type="button" class="btn btn-danger px-4" @click="deletePricing" :disabled="deleting">
                      <span v-if="deleting" class="spinner-border spinner-border-sm me-1 spinner-sm-fixed"></span>
-                     Clear
+                     Delete
                   </button>
                </div>
             </div>
@@ -365,9 +369,7 @@ export default {
          loading: true,
          pricing: {
             membership_rates: [],
-            available_membership_rate_plans: [],
             pt_rates: [],
-            available_pt_products: [],
             stats: {
                membership_configured: 0,
                membership_active: 0,
@@ -411,14 +413,19 @@ export default {
       this.pricingDeleteModal = new Modal(this.$refs.pricingDeleteModal);
       this.fetchPricing();
    },
+   beforeUnmount: function () {
+      [this.membershipRateModal, this.ptRateModal, this.pricingDeleteModal].forEach((m) => m?.dispose());
+   },
    methods: {
       formatDate,
       emptyMembershipForm: function () {
          return {
             id: "",
             name: "",
+            duration_days: "",
             price: "",
             is_active: true,
+            is_walk_in_only: false,
             effective_from: "",
             effective_until: "",
          };
@@ -427,6 +434,7 @@ export default {
          return {
             id: "",
             name: "",
+            session_count: "",
             price: "",
             is_active: true,
             effective_from: "",
@@ -472,8 +480,10 @@ export default {
          this.membershipForm = {
             id: rate.id,
             name: rate.name,
+            duration_days: rate.duration_days,
             price: rate.price,
             is_active: !!rate.is_active,
+            is_walk_in_only: !!rate.is_walk_in_only,
             effective_from: rate.effective_from || "",
             effective_until: rate.effective_until || "",
          };
@@ -501,24 +511,26 @@ export default {
          this.ptRateModal.show();
       },
       submitMembershipRate: function () {
-         if (this.membershipModalMode === "create" && !this.membershipForm.id) {
-            this.membershipFormErrors = { rate_plan_id: "Please select a rate plan." };
-            return;
-         }
-
          this.submittingMembership = true;
          this.membershipFormError = "";
          this.membershipFormErrors = {};
 
+         const isCreate = this.membershipModalMode === "create";
          const payload = {
+            name: this.membershipForm.name,
             price: this.membershipForm.price,
             is_active: this.membershipForm.is_active,
+            is_walk_in_only: this.membershipForm.is_walk_in_only,
             effective_from: this.membershipForm.effective_from || null,
             effective_until: this.membershipForm.effective_until || null,
          };
 
-         const request = this.membershipModalMode === "create"
-            ? axios.post(`/panel/pricing/rate-plans/${this.membershipForm.id}`, payload)
+         if (isCreate) {
+            payload.duration_days = this.membershipForm.duration_days;
+         }
+
+         const request = isCreate
+            ? axios.post(`/panel/pricing/rate-plans`, payload)
             : axios.put(`/panel/pricing/rate-plans/${this.membershipForm.id}`, payload);
 
          request
@@ -539,24 +551,29 @@ export default {
             });
       },
       submitPtRate: function () {
-         if (this.ptModalMode === "create" && !this.ptForm.id) {
-            this.ptFormErrors = { pt_product_id: "Please select a PT package." };
-            return;
-         }
-
          this.submittingPt = true;
          this.ptFormError = "";
          this.ptFormErrors = {};
 
-         const payload = {
-            price: this.ptForm.price,
-            is_active: this.ptForm.is_active,
-            effective_from: this.ptForm.effective_from || null,
-            effective_until: this.ptForm.effective_until || null,
-         };
+         const isCreate = this.ptModalMode === "create";
+         const payload = isCreate
+            ? {
+                 name: this.ptForm.name,
+                 session_count: this.ptForm.session_count,
+                 price: this.ptForm.price,
+                 is_active: this.ptForm.is_active,
+                 effective_from: this.ptForm.effective_from || null,
+                 effective_until: this.ptForm.effective_until || null,
+              }
+            : {
+                 price: this.ptForm.price,
+                 is_active: this.ptForm.is_active,
+                 effective_from: this.ptForm.effective_from || null,
+                 effective_until: this.ptForm.effective_until || null,
+              };
 
-         const request = this.ptModalMode === "create"
-            ? axios.post(`/panel/pricing/pt-products/${this.ptForm.id}`, payload)
+         const request = isCreate
+            ? axios.post(`/panel/pricing/pt-products`, payload)
             : axios.put(`/panel/pricing/pt-products/${this.ptForm.id}`, payload);
 
          request

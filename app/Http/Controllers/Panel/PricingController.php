@@ -42,7 +42,6 @@ class PricingController extends Controller
     public function show(): JsonResponse
     {
         $membershipRates = RatePlan::query()
-            ->where('is_active', true)
             ->whereNotNull('price')
             ->orderBy('duration_days')
             ->orderBy('name')
@@ -50,23 +49,7 @@ class PricingController extends Controller
             ->map(fn (RatePlan $ratePlan) => $this->transformRatePlan($ratePlan))
             ->values();
 
-        $availableMembershipRatePlans = RatePlan::query()
-            ->where('is_active', true)
-            ->whereNull('price')
-            ->orderBy('duration_days')
-            ->orderBy('name')
-            ->get()
-            ->map(fn (RatePlan $ratePlan) => [
-                'id' => $ratePlan->id,
-                'name' => $ratePlan->name,
-                'duration_days' => $ratePlan->duration_days,
-                'description' => $ratePlan->description,
-                'is_active' => (bool) $ratePlan->is_active,
-            ])
-            ->values();
-
         $ptRates = PTProduct::query()
-            ->where('is_active', true)
             ->whereNotNull('price')
             ->orderBy('session_count')
             ->orderBy('name')
@@ -74,27 +57,9 @@ class PricingController extends Controller
             ->map(fn (PTProduct $ptProduct) => $this->transformPtProduct($ptProduct))
             ->values();
 
-        $availablePtProducts = PTProduct::query()
-            ->where('is_active', true)
-            ->whereNull('price')
-            ->orderBy('session_count')
-            ->orderBy('name')
-            ->get()
-            ->map(fn (PTProduct $ptProduct) => [
-                'id' => $ptProduct->id,
-                'name' => $ptProduct->name,
-                'session_count' => $ptProduct->session_count,
-                'category' => $ptProduct->category,
-                'description' => $ptProduct->description,
-                'is_active' => (bool) $ptProduct->is_active,
-            ])
-            ->values();
-
         return response()->json([
             'membership_rates' => $membershipRates,
-            'available_membership_rate_plans' => $availableMembershipRatePlans,
             'pt_rates' => $ptRates,
-            'available_pt_products' => $availablePtProducts,
             'stats' => [
                 'membership_configured' => $membershipRates->count(),
                 'membership_active' => $membershipRates->where('is_active', true)->count(),
@@ -102,6 +67,90 @@ class PricingController extends Controller
                 'pt_active' => $ptRates->where('is_active', true)->count(),
             ],
         ]);
+    }
+
+    /**
+     * Create a new membership rate plan from scratch.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function createRatePlan(Request $request): JsonResponse
+    {
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
+
+        $data = $request->validate([
+            'name'           => ['required', 'string', 'max:120'],
+            'duration_days'  => ['required', 'integer', 'min:1'],
+            'price'          => ['required', 'numeric', 'min:0'],
+            'is_active'      => ['required', 'boolean'],
+            'is_walk_in_only' => ['nullable', 'boolean'],
+            'effective_from' => ['nullable', 'date'],
+            'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
+        ]);
+
+        $ratePlan = RatePlan::create([
+            'name'           => $data['name'],
+            'duration_days'  => (int) $data['duration_days'],
+            'price'          => round((float) $data['price'], 2),
+            'is_active'      => (bool) $data['is_active'],
+            'is_walk_in_only' => (bool) ($data['is_walk_in_only'] ?? false),
+            'effective_from' => $data['effective_from'] ?? null,
+            'effective_until' => $data['effective_until'] ?? null,
+        ]);
+
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_RATE_PLAN,
+            $ratePlan->id,
+            'configured',
+            $this->ratePlanSystemActivitySnapshot($ratePlan),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
+        return response()->json(['message' => 'Rate plan created successfully.', 'id' => $ratePlan->id], 201);
+    }
+
+    /**
+     * Create a new PT product from scratch.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function createPtProduct(Request $request): JsonResponse
+    {
+        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
+
+        $data = $request->validate([
+            'name'           => ['required', 'string', 'max:120'],
+            'session_count'  => ['required', 'integer', 'min:1'],
+            'price'          => ['required', 'numeric', 'min:0'],
+            'is_active'      => ['required', 'boolean'],
+            'effective_from' => ['nullable', 'date'],
+            'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
+        ]);
+
+        $ptProduct = PTProduct::create([
+            'name'           => $data['name'],
+            'session_count'  => (int) $data['session_count'],
+            'price'          => round((float) $data['price'], 2),
+            'is_active'      => (bool) $data['is_active'],
+            'effective_from' => $data['effective_from'] ?? null,
+            'effective_until' => $data['effective_until'] ?? null,
+        ]);
+
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_PT_PRODUCT,
+            $ptProduct->id,
+            'configured',
+            $this->ptProductSystemActivitySnapshot($ptProduct),
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
+        return response()->json(['message' => 'PT rate created successfully.', 'id' => $ptProduct->id], 201);
     }
 
     /**
@@ -274,18 +323,27 @@ class PricingController extends Controller
     private function validatedRatePlanPayload(Request $request): array
     {
         $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:120'],
             'price' => ['required', 'numeric', 'min:0'],
             'is_active' => ['required', 'boolean'],
+            'is_walk_in_only' => ['nullable', 'boolean'],
             'effective_from' => ['nullable', 'date'],
             'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
         ]);
 
-        return [
+        $payload = [
             'price' => round((float) $data['price'], 2),
             'is_active' => (bool) $data['is_active'],
+            'is_walk_in_only' => (bool) ($data['is_walk_in_only'] ?? false),
             'effective_from' => $data['effective_from'] ?? null,
             'effective_until' => $data['effective_until'] ?? null,
         ];
+
+        if (array_key_exists('name', $data)) {
+            $payload['name'] = $data['name'];
+        }
+
+        return $payload;
     }
 
     /**
@@ -319,6 +377,7 @@ class PricingController extends Controller
             'duration_days' => $ratePlan->duration_days,
             'description' => $ratePlan->description,
             'is_active' => (bool) $ratePlan->is_active,
+            'is_walk_in_only' => (bool) $ratePlan->is_walk_in_only,
             'price' => round((float) $ratePlan->price, 2),
             'effective_from' => $ratePlan->effective_from,
             'effective_until' => $ratePlan->effective_until,

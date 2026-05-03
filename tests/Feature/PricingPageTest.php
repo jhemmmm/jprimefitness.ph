@@ -51,7 +51,7 @@ class PricingPageTest extends TestCase
         $this->assertStringContainsString('dropdown-menu dropdown-menu-end', $contents);
     }
 
-    public function test_pricing_data_returns_global_configured_and_available_options(): void
+    public function test_pricing_data_returns_configured_rates_and_stats(): void
     {
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
         $configuredRatePlan = $this->createRatePlan('Monthly', 30, [
@@ -59,13 +59,13 @@ class PricingPageTest extends TestCase
             'effective_from' => '2026-04-01',
             'effective_until' => '2026-04-30',
         ]);
-        $availableRatePlan = $this->createRatePlan('3 Months', 90);
+        $this->createRatePlan('3 Months', 90); // no price — should not appear
         $configuredPtProduct = $this->createPtProduct('12 Sessions', 12, [
             'price' => 3600,
             'effective_from' => '2026-04-01',
             'effective_until' => '2026-04-30',
         ]);
-        $availablePtProduct = $this->createPtProduct('24 Sessions', 24);
+        $this->createPtProduct('24 Sessions', 24); // no price — should not appear
         $configuredRatePlan = $configuredRatePlan->fresh();
         $configuredPtProduct = $configuredPtProduct->fresh();
 
@@ -73,57 +73,40 @@ class PricingPageTest extends TestCase
             ->getJson('/panel/pricing/data')
             ->assertOk()
             ->assertJsonCount(1, 'membership_rates')
-            ->assertJsonCount(1, 'available_membership_rate_plans')
             ->assertJsonCount(1, 'pt_rates')
-            ->assertJsonCount(1, 'available_pt_products')
             ->assertJsonPath('membership_rates.0.id', $configuredRatePlan->id)
             ->assertJsonPath('membership_rates.0.price', 1499)
             ->assertJsonPath('membership_rates.0.effective_from', $configuredRatePlan->effective_from?->toJSON())
             ->assertJsonPath('membership_rates.0.effective_until', $configuredRatePlan->effective_until?->toJSON())
-            ->assertJsonPath('available_membership_rate_plans.0.id', $availableRatePlan->id)
             ->assertJsonPath('pt_rates.0.id', $configuredPtProduct->id)
             ->assertJsonPath('pt_rates.0.price', 3600)
             ->assertJsonPath('pt_rates.0.effective_from', $configuredPtProduct->effective_from?->toJSON())
             ->assertJsonPath('pt_rates.0.effective_until', $configuredPtProduct->effective_until?->toJSON())
-            ->assertJsonPath('available_pt_products.0.id', $availablePtProduct->id)
             ->assertJsonPath('stats.membership_configured', 1)
             ->assertJsonPath('stats.pt_configured', 1);
     }
 
-    public function test_inactive_master_pricing_options_are_not_returned_or_attachable(): void
+    public function test_unpriced_plans_do_not_appear_in_pricing_data(): void
     {
         $admin = $this->createUserWithRole('admin', 'Admin Mia');
-        $inactiveRatePlan = $this->createRatePlan('Legacy Plan', 45, ['is_active' => false]);
-        $inactivePtProduct = $this->createPtProduct('Legacy PT', 18, ['is_active' => false]);
+        $this->createRatePlan('Legacy Plan', 45, ['is_active' => false]);
+        $this->createPtProduct('Legacy PT', 18, ['is_active' => false]);
 
         $this->actingAs($admin)
             ->getJson('/panel/pricing/data')
             ->assertOk()
-            ->assertJsonCount(0, 'available_membership_rate_plans')
-            ->assertJsonCount(0, 'available_pt_products');
-
-        $this->actingAs($admin)
-            ->postJson('/panel/pricing/rate-plans/'.$inactiveRatePlan->id, [
-                'price' => 1999,
-                'is_active' => true,
-            ])
-            ->assertNotFound();
-
-        $this->actingAs($admin)
-            ->postJson('/panel/pricing/pt-products/'.$inactivePtProduct->id, [
-                'price' => 3999,
-                'is_active' => true,
-            ])
-            ->assertNotFound();
+            ->assertJsonCount(0, 'membership_rates')
+            ->assertJsonCount(0, 'pt_rates');
     }
 
     public function test_admin_can_create_update_and_delete_rate_plan_pricing(): void
     {
         $admin = $this->createUserWithRole('admin', 'Admin Mia');
-        $ratePlan = $this->createRatePlan('6 Months', 180);
 
-        $this->actingAs($admin)
-            ->postJson('/panel/pricing/rate-plans/'.$ratePlan->id, [
+        $createResponse = $this->actingAs($admin)
+            ->postJson('/panel/pricing/rate-plans', [
+                'name' => '6 Months',
+                'duration_days' => 180,
                 'price' => 4999.50,
                 'is_active' => true,
                 'effective_from' => '2026-04-01',
@@ -131,8 +114,11 @@ class PricingPageTest extends TestCase
             ])
             ->assertCreated();
 
+        $ratePlanId = $createResponse->json('id');
+        $this->assertNotNull($ratePlanId);
+
         $this->actingAs($admin)
-            ->putJson('/panel/pricing/rate-plans/'.$ratePlan->id, [
+            ->putJson('/panel/pricing/rate-plans/'.$ratePlanId, [
                 'price' => 5499.50,
                 'is_active' => false,
                 'effective_from' => '2026-04-01',
@@ -141,7 +127,7 @@ class PricingPageTest extends TestCase
             ->assertOk();
 
         $this->assertDatabaseHas('rate_plans', [
-            'id' => $ratePlan->id,
+            'id' => $ratePlanId,
             'price' => 5499.50,
             'is_active' => false,
             'effective_from' => '2026-04-01 00:00:00',
@@ -149,11 +135,11 @@ class PricingPageTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->deleteJson('/panel/pricing/rate-plans/'.$ratePlan->id)
+            ->deleteJson('/panel/pricing/rate-plans/'.$ratePlanId)
             ->assertNoContent();
 
         $this->assertDatabaseHas('rate_plans', [
-            'id' => $ratePlan->id,
+            'id' => $ratePlanId,
             'price' => null,
             'effective_from' => null,
             'effective_until' => null,
@@ -163,10 +149,11 @@ class PricingPageTest extends TestCase
     public function test_admin_can_create_update_and_delete_pt_product_pricing(): void
     {
         $admin = $this->createUserWithRole('admin', 'Admin Zoe');
-        $ptProduct = $this->createPtProduct('24 Sessions', 24);
 
-        $this->actingAs($admin)
-            ->postJson('/panel/pricing/pt-products/'.$ptProduct->id, [
+        $createResponse = $this->actingAs($admin)
+            ->postJson('/panel/pricing/pt-products', [
+                'name' => '24 Sessions',
+                'session_count' => 24,
                 'price' => 6800,
                 'is_active' => true,
                 'effective_from' => '2026-04-01',
@@ -174,8 +161,11 @@ class PricingPageTest extends TestCase
             ])
             ->assertCreated();
 
+        $ptProductId = $createResponse->json('id');
+        $this->assertNotNull($ptProductId);
+
         $this->actingAs($admin)
-            ->putJson('/panel/pricing/pt-products/'.$ptProduct->id, [
+            ->putJson('/panel/pricing/pt-products/'.$ptProductId, [
                 'price' => 7200,
                 'is_active' => false,
                 'effective_from' => '2026-04-01',
@@ -184,7 +174,7 @@ class PricingPageTest extends TestCase
             ->assertOk();
 
         $this->assertDatabaseHas('pt_products', [
-            'id' => $ptProduct->id,
+            'id' => $ptProductId,
             'price' => 7200.00,
             'is_active' => false,
             'effective_from' => '2026-04-01 00:00:00',
@@ -192,11 +182,11 @@ class PricingPageTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->deleteJson('/panel/pricing/pt-products/'.$ptProduct->id)
+            ->deleteJson('/panel/pricing/pt-products/'.$ptProductId)
             ->assertNoContent();
 
         $this->assertDatabaseHas('pt_products', [
-            'id' => $ptProduct->id,
+            'id' => $ptProductId,
             'price' => null,
             'effective_from' => null,
             'effective_until' => null,
@@ -217,7 +207,9 @@ class PricingPageTest extends TestCase
             ->assertForbidden();
 
         $this->actingAs($manager)
-            ->postJson('/panel/pricing/rate-plans/'.$ratePlan->id, [
+            ->postJson('/panel/pricing/rate-plans', [
+                'name' => 'Annual',
+                'duration_days' => 365,
                 'price' => 10999,
                 'is_active' => true,
             ])
@@ -231,7 +223,9 @@ class PricingPageTest extends TestCase
             ->assertForbidden();
 
         $this->actingAs($manager)
-            ->postJson('/panel/pricing/pt-products/'.$ptProduct->id, [
+            ->postJson('/panel/pricing/pt-products', [
+                'name' => '32 Sessions',
+                'session_count' => 32,
                 'price' => 9200,
                 'is_active' => true,
             ])

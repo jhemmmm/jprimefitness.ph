@@ -50,4 +50,18 @@ return [
         'fingerprint_id' => (int) env('BIOMETRIC_FINGERPRINT_ID', 1),
     ],
 
+    'paymongo' => [
+        'public_key' => env('PAYMONGO_PUBLIC_KEY'),
+        'secret' => env('PAYMONGO_SECRET_KEY'),
+        'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET'),
+        'success_url' => env('PAYMONGO_SUCCESS_URL', '/register/success'),
+        'cancel_url' => env('PAYMONGO_CANCEL_URL', '/register/cancelled'),
+    ],
+
+    'recaptcha' => [
+        'site_key' => env('RECAPTCHA_SITE_KEY'),
+        'secret' => env('RECAPTCHA_SECRET_KEY'),
+        'min_score' => (float) env('RECAPTCHA_MIN_SCORE', 0.5),
+    ],
+
 ];

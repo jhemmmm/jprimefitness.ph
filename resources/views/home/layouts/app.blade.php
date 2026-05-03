@@ -18,7 +18,12 @@
     <script>
         window.JPrime = window.JPrime || {};
         window.JPrime.timezone = @js(config('app.timezone'));
+        window.JPrime.recaptchaSiteKey = @js(config('services.recaptcha.site_key'));
     </script>
+
+    @if (config('services.recaptcha.site_key'))
+        <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}" defer></script>
+    @endif
 
     <!-- App Styles & Scripts (Vite) -->
     @vite(['resources/sass/app.scss', 'resources/js/app.js'])
@@ -67,7 +72,7 @@
                     </li>
                 </ul>
                 <div class="mt-3 mt-lg-0">
-                    <a href="#contact" class="btn btn-danger rounded-1 px-4 fw-semibold">Join Now</a>
+                    <a href="#register" class="btn btn-danger rounded-1 px-4 fw-semibold">Join Now</a>
                 </div>
             </div>
 
@@ -116,6 +121,7 @@
                         <li><a href="#services">Programs</a></li>
                         <li><a href="#features">Member Experience</a></li>
                         <li><a href="#membership">Membership</a></li>
+                        <li><a href="/terms">Terms &amp; Conditions</a></li>
                     </ul>
                 </div>
 

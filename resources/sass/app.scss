@@ -522,6 +522,35 @@ body {
     color: #333;
 }
 
+// ----- Registration payment radio cards -----
+.payment-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    width: 100%;
+    border: 1px solid #e2e2e2;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    cursor: pointer;
+    transition:
+        border-color 0.18s ease,
+        background 0.18s ease;
+
+    input[type="radio"] {
+        margin-top: 4px;
+        accent-color: #c8102e;
+    }
+
+    &:hover {
+        border-color: #c8102e;
+    }
+
+    &.is-active {
+        border-color: #c8102e;
+        background: #fff5f5;
+    }
+}
+
 // ----- Footer -----
 .jprime-footer {
     border-top: 1px solid rgba(255, 255, 255, 0.08);

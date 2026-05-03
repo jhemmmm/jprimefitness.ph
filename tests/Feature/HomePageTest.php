@@ -37,11 +37,11 @@ class HomePageTest extends TestCase
 
         $this->get('/')
             ->assertOk()
-            ->assertSee('JPrime Fitness Naga')
-            ->assertSee('Memberships and PT packages')
-            ->assertSee('Monthly')
-            ->assertSee('12 Sessions')
-            ->assertSee('All current prices are managed centrally for this gym.')
+            ->assertSee('home-component', false)
+            ->assertSee('JPrime Fitness Naga', false)
+            ->assertSee('Naga City', false)
+            ->assertSee('Monthly', false)
+            ->assertSee('12 Sessions', false)
             ->assertSee('window.JPrime.timezone =', false);
     }
 }

@@ -77,7 +77,7 @@
                         </div>
 
                         <div class="d-grid gap-2 mt-3">
-                           <a href="#membership" class="btn btn-danger rounded-1 fw-semibold">Become a Member</a>
+                           <a href="#register" class="btn btn-danger rounded-1 fw-semibold">Become a Member</a>
                            <a :href="directionsUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-danger rounded-1 fw-semibold">Get Directions</a>
                         </div>
 
@@ -236,7 +236,7 @@
 
                   <div class="plan-row-price">
                      <div class="plan-price-amount">&#8369;{{ formatMoney(plan.price) }}</div>
-                     <a href="#contact" class="btn btn-danger rounded-1 fw-semibold btn-sm py-2 px-3 mt-2">Become a member</a>
+                     <a :href="`#register?plan=${plan.id}`" class="btn btn-danger rounded-1 fw-semibold btn-sm py-2 px-3 mt-2" @click.prevent="selectPlanForRegister(plan.id)">Become a member</a>
                   </div>
                </div>
             </div>
@@ -414,22 +414,22 @@
                   <div class="step-item">
                      <div class="step-number flex-shrink-0">1</div>
                      <div>
-                        <h6 class="fw-bold mb-1">Drop by</h6>
-                        <p class="text-muted small mb-0">Visit the gym or message us with any questions.</p>
+                        <h6 class="fw-bold mb-1">Register online</h6>
+                        <p class="text-muted small mb-0">Fill in the form below, choose your plan, and pick how you'd like to pay.</p>
                      </div>
                   </div>
                   <div class="step-item">
                      <div class="step-number flex-shrink-0">2</div>
                      <div>
-                        <h6 class="fw-bold mb-1">Choose your plan</h6>
-                        <p class="text-muted small mb-0">Walk-in, monthly, or bundled session packs.</p>
+                        <h6 class="fw-bold mb-1">Pay online or at the gym</h6>
+                        <p class="text-muted small mb-0">GCash, Maya, or card via PayMongo - or settle on-site when you arrive.</p>
                      </div>
                   </div>
                   <div class="step-item">
                      <div class="step-number flex-shrink-0">3</div>
                      <div>
-                        <h6 class="fw-bold mb-1">Get enrolled</h6>
-                        <p class="text-muted small mb-0">We register you on the spot - your QR membership card is ready immediately.</p>
+                        <h6 class="fw-bold mb-1">Get your QR card</h6>
+                        <p class="text-muted small mb-0">Once payment is confirmed, your QR membership card is emailed to you.</p>
                      </div>
                   </div>
                   <div class="step-item">
@@ -489,6 +489,183 @@
                            </div>
                         </div>
                         <div class="tip-box"><strong>Tip:</strong> Try a walk-in pass first to see if {{ business.name }} is the right fit before committing to a monthly plan.</div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </section>
+
+      <!-- Register Section -->
+      <section class="py-5 bg-light" id="register">
+         <div class="container">
+            <div class="section-eyebrow mb-2">Sign Up</div>
+            <h2 class="fw-bold mb-1">Create your membership</h2>
+            <p class="text-muted mb-5">Fill in your details, pick a plan, and choose how you'd like to pay. We'll see you at {{ business.name }}.</p>
+
+            <div class="row g-4">
+               <!-- Form -->
+               <div class="col-lg-7">
+                  <div class="card border-0 shadow-sm">
+                     <div class="card-body p-4">
+                        <form method="POST" action="/register" @submit.prevent="submitRegistration" novalidate>
+                           <div v-if="register.bannerError" class="alert alert-danger small">{{ register.bannerError }}</div>
+
+                           <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.72rem; letter-spacing: 1.2px">Personal info</h6>
+                           <div class="row g-3 mb-3">
+                              <div class="col-md-6">
+                                 <label class="form-label small fw-semibold">Full name <span class="text-danger">*</span></label>
+                                 <input v-model="register.form.name" type="text" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.name }" placeholder="Juan Dela Cruz" />
+                                 <div class="invalid-feedback" v-if="registerErrors.name">{{ registerErrors.name[0] }}</div>
+                              </div>
+                              <div class="col-md-6">
+                                 <label class="form-label small fw-semibold">Email <span class="text-danger">*</span></label>
+                                 <input v-model="register.form.email" type="email" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.email }" placeholder="you@example.com" />
+                                 <div class="invalid-feedback" v-if="registerErrors.email">{{ registerErrors.email[0] }}</div>
+                              </div>
+                              <div class="col-md-6">
+                                 <label class="form-label small fw-semibold">Phone <span class="text-danger">*</span></label>
+                                 <input v-model="register.form.phone" type="tel" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.phone }" placeholder="0917..." />
+                                 <div class="invalid-feedback" v-if="registerErrors.phone">{{ registerErrors.phone[0] }}</div>
+                              </div>
+                              <div class="col-md-6">
+                                 <label class="form-label small fw-semibold">Date of birth</label>
+                                 <input v-model="register.form.date_of_birth" type="date" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.date_of_birth }" />
+                                 <div class="invalid-feedback" v-if="registerErrors.date_of_birth">{{ registerErrors.date_of_birth[0] }}</div>
+                              </div>
+                              <div class="col-md-6">
+                                 <label class="form-label small fw-semibold">Gender</label>
+                                 <select v-model="register.form.gender" class="form-select rounded-1" :class="{ 'is-invalid': registerErrors.gender }">
+                                    <option value="">Prefer not to say</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                 </select>
+                                 <div class="invalid-feedback" v-if="registerErrors.gender">{{ registerErrors.gender[0] }}</div>
+                              </div>
+                           </div>
+
+                           <h6 class="text-uppercase text-muted fw-bold mt-4 mb-3" style="font-size: 0.72rem; letter-spacing: 1.2px">Emergency contact</h6>
+                           <div class="row g-3 mb-3">
+                              <div class="col-md-6">
+                                 <label class="form-label small fw-semibold">Contact name</label>
+                                 <input v-model="register.form.emergency_contact_name" type="text" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.emergency_contact_name }" />
+                                 <div class="invalid-feedback" v-if="registerErrors.emergency_contact_name">{{ registerErrors.emergency_contact_name[0] }}</div>
+                              </div>
+                              <div class="col-md-6">
+                                 <label class="form-label small fw-semibold">Contact phone</label>
+                                 <input v-model="register.form.emergency_contact_phone" type="tel" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.emergency_contact_phone }" />
+                                 <div class="invalid-feedback" v-if="registerErrors.emergency_contact_phone">{{ registerErrors.emergency_contact_phone[0] }}</div>
+                              </div>
+                           </div>
+
+                           <h6 class="text-uppercase text-muted fw-bold mt-4 mb-3" style="font-size: 0.72rem; letter-spacing: 1.2px">Membership</h6>
+                           <div class="row g-3 mb-3">
+                              <div class="col-md-7">
+                                 <label class="form-label small fw-semibold">Plan <span class="text-danger">*</span></label>
+                                 <select v-model="register.form.rate_plan_id" class="form-select rounded-1" :class="{ 'is-invalid': registerErrors.rate_plan_id }">
+                                    <option value="">Choose a plan</option>
+                                    <option v-for="plan in membershipPlans" :key="'reg-rp-' + plan.id" :value="plan.id">
+                                       {{ plan.name }} — &#8369;{{ formatMoney(plan.price) }} / {{ plan.duration_days }}d
+                                    </option>
+                                 </select>
+                                 <div class="invalid-feedback" v-if="registerErrors.rate_plan_id">{{ registerErrors.rate_plan_id[0] }}</div>
+                              </div>
+                              <div class="col-md-5">
+                                 <label class="form-label small fw-semibold">Preferred start date</label>
+                                 <input v-model="register.form.preferred_start_date" type="date" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.preferred_start_date }" />
+                                 <div class="invalid-feedback" v-if="registerErrors.preferred_start_date">{{ registerErrors.preferred_start_date[0] }}</div>
+                              </div>
+                              <div class="col-12">
+                                 <label class="form-label small fw-semibold">Notes (optional)</label>
+                                 <textarea v-model="register.form.notes" rows="3" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.notes }" placeholder="Anything we should know? (injuries, training goals, etc.)"></textarea>
+                                 <div class="invalid-feedback" v-if="registerErrors.notes">{{ registerErrors.notes[0] }}</div>
+                              </div>
+                           </div>
+
+                           <h6 class="text-uppercase text-muted fw-bold mt-4 mb-3" style="font-size: 0.72rem; letter-spacing: 1.2px">Payment</h6>
+                           <div class="row g-3 mb-3">
+                              <div class="col-md-6">
+                                 <label class="payment-option" :class="{ 'is-active': register.form.payment_method === 'online' }">
+                                    <input type="radio" v-model="register.form.payment_method" value="online" />
+                                    <div>
+                                       <div class="fw-semibold"><i class="bi bi-credit-card-2-front me-1"></i>Pay online now</div>
+                                       <div class="text-muted small">GCash, Maya, card via PayMongo</div>
+                                    </div>
+                                 </label>
+                              </div>
+                              <div class="col-md-6">
+                                 <label class="payment-option" :class="{ 'is-active': register.form.payment_method === 'on_site' }">
+                                    <input type="radio" v-model="register.form.payment_method" value="on_site" />
+                                    <div>
+                                       <div class="fw-semibold"><i class="bi bi-shop me-1"></i>Pay at the gym</div>
+                                       <div class="text-muted small">Activate when you arrive</div>
+                                    </div>
+                                 </label>
+                              </div>
+                              <div class="col-12 invalid-feedback d-block" v-if="registerErrors.payment_method">{{ registerErrors.payment_method[0] }}</div>
+                           </div>
+
+                           <div class="form-check mt-3 mb-3">
+                              <input v-model="register.form.terms_accepted" class="form-check-input" :class="{ 'is-invalid': registerErrors.terms_accepted }" type="checkbox" id="terms_accepted" />
+                              <label class="form-check-label small" for="terms_accepted">
+                                 I agree to the <a href="/terms" target="_blank" class="text-danger">Terms and Conditions</a>
+                                 and confirm my membership activates only after payment is confirmed.
+                              </label>
+                              <div class="invalid-feedback d-block" v-if="registerErrors.terms_accepted">{{ registerErrors.terms_accepted[0] }}</div>
+                           </div>
+
+                           <div class="invalid-feedback d-block" v-if="registerErrors.recaptcha">{{ registerErrors.recaptcha[0] }}</div>
+
+                           <div class="d-grid mt-4">
+                              <button type="submit" class="btn btn-danger fw-semibold rounded-1 py-2" :disabled="register.submitting">
+                                 <span v-if="register.submitting"><i class="bi bi-hourglass-split me-1"></i>Submitting…</span>
+                                 <span v-else><i class="bi bi-person-plus-fill me-1"></i>Submit Registration</span>
+                              </button>
+                           </div>
+                        </form>
+                     </div>
+                  </div>
+               </div>
+
+               <!-- Helper cards -->
+               <div class="col-lg-5">
+                  <div class="card mb-3">
+                     <div class="card-body p-4">
+                        <h5 class="fw-bold mb-3">What happens next</h5>
+                        <div class="step-item">
+                           <div class="step-number flex-shrink-0">1</div>
+                           <div>
+                              <h6 class="fw-bold mb-1">Submit</h6>
+                              <p class="text-muted small mb-0">Your registration is recorded immediately.</p>
+                           </div>
+                        </div>
+                        <div class="step-item">
+                           <div class="step-number flex-shrink-0">2</div>
+                           <div>
+                              <h6 class="fw-bold mb-1">Pay</h6>
+                              <p class="text-muted small mb-0">Online via PayMongo, or on-site when you arrive.</p>
+                           </div>
+                        </div>
+                        <div class="step-item">
+                           <div class="step-number flex-shrink-0">3</div>
+                           <div>
+                              <h6 class="fw-bold mb-1">Activated</h6>
+                              <p class="text-muted small mb-0">Once payment is confirmed, your QR card is emailed.</p>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+
+                  <div class="card">
+                     <div class="card-body p-4">
+                        <h5 class="fw-bold mb-3">What to bring on first visit</h5>
+                        <ul class="list-unstyled mb-0">
+                           <li class="mb-2"><i class="bi bi-check-circle-fill text-danger me-2"></i>Valid ID for membership records</li>
+                           <li class="mb-2"><i class="bi bi-check-circle-fill text-danger me-2"></i>Payment for your chosen plan (if not paying online)</li>
+                           <li class="mb-2"><i class="bi bi-check-circle-fill text-danger me-2"></i>Comfortable training clothes &amp; clean shoes</li>
+                           <li class="mb-0"><i class="bi bi-check-circle-fill text-danger me-2"></i>Water bottle &amp; small towel</li>
+                        </ul>
                      </div>
                   </div>
                </div>
@@ -575,10 +752,34 @@
             </div>
          </div>
       </section>
+
+      <!-- Registration Success Modal -->
+      <div class="modal fade" id="registerSuccessModal" tabindex="-1" ref="registerSuccessModal" aria-hidden="true">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header border-0 pb-0">
+                  <h5 class="modal-title fw-bold">Registration received</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @click="resetRegister"></button>
+               </div>
+               <div class="modal-body text-center py-4">
+                  <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem"></i>
+                  <p class="text-muted mt-3 mb-3">{{ register.success }}</p>
+                  <p class="text-muted small mb-0" v-if="addressLine">
+                     <i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ addressLine }}
+                  </p>
+               </div>
+               <div class="modal-footer border-0">
+                  <button type="button" class="btn btn-outline-secondary rounded-1 fw-semibold" data-bs-dismiss="modal" @click="resetRegister">Submit another</button>
+               </div>
+            </div>
+         </div>
+      </div>
    </div>
 </template>
 
 <script>
+import { Modal } from "bootstrap";
+
 export default {
    props: {
       business: { type: Object, default: () => ({}) },
@@ -588,6 +789,27 @@ export default {
    data() {
       return {
          form: { name: "", contact: "", topic: "Membership", message: "" },
+         register: {
+            form: {
+               name: "",
+               email: "",
+               phone: "",
+               date_of_birth: "",
+               gender: "",
+               emergency_contact_name: "",
+               emergency_contact_phone: "",
+               rate_plan_id: "",
+               preferred_start_date: "",
+               notes: "",
+               payment_method: "online",
+               terms_accepted: false,
+            },
+            submitting: false,
+            success: null,
+            bannerError: null,
+         },
+         registerErrors: {},
+         registerSuccessModal: null,
          // Swap these for /images/home/*.jpg once local photos are added.
          images: {
             about: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=1200&q=80",
@@ -643,6 +865,15 @@ export default {
       indexedRatePlans() {
          return this.ratePlans.map((p, idx) => ({ ...p, _idx: idx }));
       },
+      membershipPlans() {
+         return this.ratePlans.filter(p => !p.is_walk_in_only);
+      },
+   },
+   mounted() {
+      this.registerSuccessModal = new Modal(this.$refs.registerSuccessModal);
+   },
+   beforeUnmount() {
+      this.registerSuccessModal?.dispose();
    },
    methods: {
       formatMoney(value) {
@@ -683,6 +914,108 @@ export default {
       },
       onSubmit() {
          alert("Thanks! We'll get back to you shortly.");
+      },
+      selectPlanForRegister(planId) {
+         this.register.form.rate_plan_id = planId;
+         this.register.success = null;
+         const target = document.getElementById("register");
+         if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+      },
+      resetRegister() {
+         this.register.form = {
+            name: "",
+            email: "",
+            phone: "",
+            date_of_birth: "",
+            gender: "",
+            emergency_contact_name: "",
+            emergency_contact_phone: "",
+            rate_plan_id: "",
+            preferred_start_date: "",
+            notes: "",
+            payment_method: "online",
+            terms_accepted: false,
+         };
+         this.register.success = null;
+         this.register.bannerError = null;
+         this.registerErrors = {};
+         if (this.registerSuccessModal) {
+            this.registerSuccessModal.hide();
+         }
+      },
+      async getRecaptchaToken() {
+         const siteKey = window.JPrime && window.JPrime.recaptchaSiteKey;
+         if (!siteKey || !window.grecaptcha) return "";
+         return new Promise((resolve) => {
+            window.grecaptcha.ready(async () => {
+               try {
+                  const token = await window.grecaptcha.execute(siteKey, { action: "register" });
+                  resolve(token || "");
+               } catch (e) {
+                  resolve("");
+               }
+            });
+         });
+      },
+      async submitRegistration() {
+         this.register.submitting = true;
+         this.register.bannerError = null;
+         this.registerErrors = {};
+
+         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+         const recaptchaToken = await this.getRecaptchaToken();
+
+         const payload = {
+            ...this.register.form,
+            // Send empty optionals as null so Laravel's nullable rules pass cleanly.
+            date_of_birth: this.register.form.date_of_birth || null,
+            gender: this.register.form.gender || null,
+            emergency_contact_name: this.register.form.emergency_contact_name || null,
+            emergency_contact_phone: this.register.form.emergency_contact_phone || null,
+            preferred_start_date: this.register.form.preferred_start_date || null,
+            notes: this.register.form.notes || null,
+            recaptcha_token: recaptchaToken,
+         };
+
+         try {
+            const res = await fetch("/register", {
+               method: "POST",
+               headers: {
+                  "Content-Type": "application/json",
+                  Accept: "application/json",
+                  "X-CSRF-TOKEN": csrf,
+                  "X-Requested-With": "XMLHttpRequest",
+               },
+               body: JSON.stringify(payload),
+            });
+
+            const body = await res.json().catch(() => ({}));
+
+            if (res.status === 422) {
+               this.registerErrors = body.errors || {};
+               this.register.bannerError = body.message || "Please correct the highlighted fields.";
+               return;
+            }
+
+            if (!res.ok) {
+               this.register.bannerError = body.message || "Something went wrong. Please try again.";
+               return;
+            }
+
+            if (body.payment && body.payment.checkout_url) {
+               window.location.assign(body.payment.checkout_url);
+               return;
+            }
+
+            this.register.success = body.message || "We received your registration.";
+            if (this.registerSuccessModal) {
+               this.registerSuccessModal.show();
+            }
+         } catch (e) {
+            this.register.bannerError = "Network error — please check your connection and try again.";
+         } finally {
+            this.register.submitting = false;
+         }
       },
    },
 };

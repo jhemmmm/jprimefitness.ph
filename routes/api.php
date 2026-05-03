@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\KioskAttendanceController;
 use App\Http\Controllers\Api\KioskDiscoveryController;
 use App\Http\Controllers\Api\KioskPaymentController;
 use App\Http\Controllers\Api\HikvisionCallbackController;
+use App\Http\Controllers\Api\PaymongoWebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('kiosk/discover', [KioskDiscoveryController::class, 'show']);
@@ -23,3 +24,5 @@ Route::prefix('biometric')
         Route::post('hikvision/callback', [HikvisionCallbackController::class, 'store'])
             ->name('biometric.hikvision.callback');
     });
+
+Route::post('paymongo/webhook', [PaymongoWebhookController::class, 'handle'])->name('paymongo.webhook');

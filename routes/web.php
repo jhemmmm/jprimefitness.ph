@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Home\HomeController;
+use App\Http\Controllers\Home\RegistrationController;
 use App\Http\Controllers\Panel\AttendanceController;
 use App\Http\Controllers\Panel\AttendanceReportsController;
 use App\Http\Controllers\Panel\SystemActivityController;
@@ -20,6 +21,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [HomeController::class, 'index'])->name('home');
+Route::get('/terms', [HomeController::class, 'terms'])->name('terms');
+
+Route::post('/register', [RegistrationController::class, 'store'])->name('register');
+Route::get('/register/success', [RegistrationController::class, 'success'])->name('register.success');
+Route::get('/register/cancelled', [RegistrationController::class, 'cancelled'])->name('register.cancelled');
 
 Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -63,10 +69,10 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     // Pricing
     Route::get('/pricing', [PricingController::class, 'index'])->name('pricing.index');
     Route::get('/pricing/data', [PricingController::class, 'show'])->name('pricing.show');
-    Route::post('/pricing/rate-plans/{ratePlan}', [PricingController::class, 'storeRatePlan'])->name('pricing.rate-plans.store')->whereNumber('ratePlan');
+    Route::post('/pricing/rate-plans', [PricingController::class, 'createRatePlan'])->name('pricing.rate-plans.create');
     Route::put('/pricing/rate-plans/{ratePlan}', [PricingController::class, 'updateRatePlan'])->name('pricing.rate-plans.update')->whereNumber('ratePlan');
     Route::delete('/pricing/rate-plans/{ratePlan}', [PricingController::class, 'destroyRatePlan'])->name('pricing.rate-plans.destroy')->whereNumber('ratePlan');
-    Route::post('/pricing/pt-products/{ptProduct}', [PricingController::class, 'storePtProduct'])->name('pricing.pt-products.store')->whereNumber('ptProduct');
+    Route::post('/pricing/pt-products', [PricingController::class, 'createPtProduct'])->name('pricing.pt-products.create');
     Route::put('/pricing/pt-products/{ptProduct}', [PricingController::class, 'updatePtProduct'])->name('pricing.pt-products.update')->whereNumber('ptProduct');
     Route::delete('/pricing/pt-products/{ptProduct}', [PricingController::class, 'destroyPtProduct'])->name('pricing.pt-products.destroy')->whereNumber('ptProduct');
 

@@ -12,6 +12,7 @@ class RatePlan extends Model
         'duration_days',
         'price',
         'is_active',
+        'is_walk_in_only',
         'description',
         'effective_from',
         'effective_until',
@@ -19,6 +20,7 @@ class RatePlan extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_walk_in_only' => 'boolean',
         'price' => 'decimal:2',
         'effective_from' => 'date',
         'effective_until' => 'date',
