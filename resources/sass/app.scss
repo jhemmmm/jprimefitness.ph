@@ -236,7 +236,292 @@ body {
     }
 }
 
+// ----- Membership plan row (horizontal pricing card) -----
+.plan-row {
+    display: flex;
+    align-items: stretch;
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 12px;
+    overflow: hidden;
+    transition:
+        box-shadow 0.2s ease,
+        transform 0.2s ease,
+        border-color 0.2s ease;
+
+    &:hover {
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+    }
+
+    &.plan-row-featured {
+        border-color: #c8102e;
+        box-shadow: 0 4px 18px rgba(200, 16, 46, 0.12);
+
+        .plan-row-accent {
+            background:
+                radial-gradient(160px 100px at 50% 30%, rgba(255, 255, 255, 0.18), transparent 70%),
+                linear-gradient(135deg, #c8102e 0%, #7f1d1d 100%);
+        }
+    }
+}
+
+.plan-row-accent {
+    flex: 0 0 90px;
+    background:
+        radial-gradient(160px 100px at 50% 30%, rgba(255, 255, 255, 0.08), transparent 70%),
+        linear-gradient(135deg, #1a1f2b 0%, #2a1a1f 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.plan-row-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+}
+
+.plan-row-head {
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.plan-row-meta {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    padding: 1.1rem 1.25rem;
+    border-left: 1px dashed #eee;
+    border-right: 1px dashed #eee;
+}
+
+.plan-meta-item {
+    text-align: center;
+    min-width: 70px;
+}
+
+.plan-meta-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #888;
+    font-weight: 600;
+}
+
+.plan-meta-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #111;
+}
+
+.plan-row-price {
+    flex: 0 0 auto;
+    padding: 1.1rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    text-align: right;
+    min-width: 180px;
+}
+
+.plan-price-amount {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #c8102e;
+    line-height: 1;
+}
+
+@media (max-width: 767.98px) {
+    .plan-row {
+        flex-direction: column;
+    }
+    .plan-row-accent {
+        flex: 0 0 70px;
+        height: 70px;
+    }
+    .plan-row-meta {
+        justify-content: space-around;
+        border-left: 0;
+        border-right: 0;
+        border-top: 1px dashed #eee;
+        border-bottom: 1px dashed #eee;
+    }
+    .plan-row-price {
+        align-items: stretch;
+        text-align: center;
+        min-width: 0;
+        .btn {
+            width: 100%;
+        }
+    }
+}
+
+// ----- Plan card placeholder -----
+.plan-card {
+    transition:
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
+    &:hover {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+        transform: translateY(-2px);
+    }
+}
+
+.branch-img-placeholder {
+    height: 120px;
+    background:
+        radial-gradient(380px 200px at 30% 20%, rgba(225, 29, 46, 0.25), transparent 65%),
+        linear-gradient(135deg, #1a1f2b 0%, #2a1a1f 100%);
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-start;
+    padding: 0.75rem;
+    overflow: hidden;
+    &::before {
+        content: "\f465"; // bi-bar-chart-line (decorative)
+        font-family: "bootstrap-icons";
+        position: absolute;
+        right: -10px;
+        bottom: -18px;
+        font-size: 6rem;
+        color: rgba(255, 255, 255, 0.06);
+        line-height: 1;
+    }
+}
+
+.branch-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 50px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.92);
+    color: #111;
+}
+.branch-status-open {
+    background: #198754;
+    color: #fff;
+}
+.branch-status-soon {
+    background: #ffc107;
+    color: #111;
+}
+
+// ----- Amenity pill -----
+.amenity-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.85rem;
+    border: 1px solid #e8e8e8;
+    border-radius: 50px;
+    background: #fff;
+    font-size: 0.8rem;
+    color: #333;
+}
+
 // ----- Footer -----
 .jprime-footer {
     border-top: 1px solid rgba(255, 255, 255, 0.08);
+
+    .footer-heading {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        color: #fff;
+        font-weight: 700;
+        margin-bottom: 1rem;
+    }
+
+    .footer-links {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        a {
+            color: rgba(255, 255, 255, 0.65);
+            text-decoration: none;
+            font-size: 0.88rem;
+            transition: color 0.18s ease;
+
+            &:hover {
+                color: #fff;
+            }
+        }
+    }
+
+    .footer-info {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        li {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            margin-bottom: 0.7rem;
+            color: rgba(255, 255, 255, 0.75);
+            font-size: 0.85rem;
+
+            i {
+                margin-top: 3px;
+                flex-shrink: 0;
+            }
+
+            a {
+                color: rgba(255, 255, 255, 0.75);
+                text-decoration: none;
+
+                &:hover {
+                    color: #fff;
+                }
+            }
+        }
+    }
+
+    .footer-social {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        font-size: 1rem;
+        transition:
+            background 0.18s ease,
+            transform 0.18s ease;
+
+        &:hover {
+            background: #c8102e;
+            transform: translateY(-2px);
+        }
+    }
+
+    .footer-bottom {
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
 }

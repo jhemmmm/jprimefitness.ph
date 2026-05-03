@@ -59,6 +59,9 @@ app.component("employee-detail-page", EmployeeDetailPage);
 import NotificationsPage from "./components/panel/NotificationsPage.vue";
 app.component("notifications-page", NotificationsPage);
 
+import HomeComponent from "./components/home/HomeComponent.vue";
+app.component("home-component", HomeComponent);
+
 const normalizeKey = (value) =>
    String(value ?? "")
       .trim()
@@ -150,6 +153,7 @@ app.mount("#app");
    const main = document.getElementById("panelMain");
    const toggle = document.getElementById("sidebarToggle");
    const overlay = document.getElementById("sidebarOverlay");
+   if (!sidebar || !main || !toggle || !overlay) return;
    const isMobile = () => window.innerWidth < 992;
 
    if (!isMobile() && localStorage.getItem("sidebarCollapsed") === "1") {
