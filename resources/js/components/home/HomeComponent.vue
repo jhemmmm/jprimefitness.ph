@@ -130,6 +130,12 @@
 
                <!-- Right: Pillars  -->
                <div class="col-lg-6">
+                  <div class="about-photo mb-3" :style="{ backgroundImage: `url(${images.about})` }">
+                     <div class="about-photo-caption">
+                        <i class="bi bi-quote text-danger"></i>
+                        <span>Where the community trains.</span>
+                     </div>
+                  </div>
                   <div class="row g-3">
                      <div class="col-sm-6">
                         <div class="card h-100">
@@ -243,9 +249,9 @@
             <!-- PT Packages -->
             <h5 class="fw-bold mb-3"><i class="bi bi-person-badge text-danger me-2"></i>Personal Training Packages</h5>
             <div class="row g-4" v-if="ptProducts.length">
-               <div class="col-sm-6 col-lg-4 col-xl-3" v-for="pt in ptProducts" :key="'pt-' + pt.id">
+               <div class="col-sm-6 col-lg-4 col-xl-3" v-for="(pt, idx) in ptProducts" :key="'pt-' + pt.id">
                   <div class="card h-100 overflow-hidden plan-card">
-                     <div class="branch-img-placeholder">
+                     <div class="branch-img-placeholder has-image" :style="{ backgroundImage: `url(${ptImage(idx)})` }">
                         <span class="branch-status-badge branch-status-soon">{{ pt.session_count > 1 ? 'Package' : '1-on-1' }}</span>
                      </div>
                      <div class="card-body pb-2">
@@ -299,7 +305,8 @@
             </div>
             <div class="row g-4">
                <div class="col-md-4">
-                  <div class="card h-100">
+                  <div class="card h-100 overflow-hidden program-card">
+                     <div class="program-img" :style="{ backgroundImage: `url(${images.programs.strength})` }"></div>
                      <div class="card-body">
                         <div class="program-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
                         <h5 class="fw-bold mb-2">Strength Training</h5>
@@ -308,7 +315,8 @@
                   </div>
                </div>
                <div class="col-md-4">
-                  <div class="card h-100">
+                  <div class="card h-100 overflow-hidden program-card">
+                     <div class="program-img" :style="{ backgroundImage: `url(${images.programs.conditioning})` }"></div>
                      <div class="card-body">
                         <div class="program-icon"><i class="bi bi-fire"></i></div>
                         <h5 class="fw-bold mb-2">Fat Loss &amp; Conditioning</h5>
@@ -317,7 +325,8 @@
                   </div>
                </div>
                <div class="col-md-4">
-                  <div class="card h-100">
+                  <div class="card h-100 overflow-hidden program-card">
+                     <div class="program-img" :style="{ backgroundImage: `url(${images.programs.functional})` }"></div>
                      <div class="card-body">
                         <div class="program-icon"><i class="bi bi-lightning-charge-fill"></i></div>
                         <h5 class="fw-bold mb-2">Functional &amp; Performance</h5>
@@ -579,6 +588,21 @@ export default {
    data() {
       return {
          form: { name: "", contact: "", topic: "Membership", message: "" },
+         // Swap these for /images/home/*.jpg once local photos are added.
+         images: {
+            about: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=1200&q=80",
+            programs: {
+               strength: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=80",
+               conditioning: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=900&q=80",
+               functional: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80",
+            },
+            pt: [
+               "https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=900&q=80",
+               "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=900&q=80",
+               "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=900&q=80",
+               "https://images.unsplash.com/photo-1549060284-1e2e8d0db59a?auto=format&fit=crop&w=900&q=80",
+            ],
+         },
       };
    },
    computed: {
@@ -652,6 +676,10 @@ export default {
          const [h, m] = String(value).split(":").map((x) => parseInt(x, 10));
          if (isNaN(h)) return null;
          return h * 60 + (isNaN(m) ? 0 : m);
+      },
+      ptImage(idx) {
+         const list = this.images.pt;
+         return list[idx % list.length];
       },
       onSubmit() {
          alert("Thanks! We'll get back to you shortly.");
