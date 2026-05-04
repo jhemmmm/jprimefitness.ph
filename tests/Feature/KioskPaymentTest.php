@@ -126,5 +126,55 @@ class KioskPaymentTest extends TestCase
 
         $this->getJson('/api/kiosk/payments/anything')
             ->assertUnauthorized();
+
+        $this->postJson('/api/kiosk/payments/anything/confirm')
+            ->assertUnauthorized();
+    }
+
+    public function test_confirm_flips_pending_payment_to_paid(): void
+    {
+        $payment = KioskPayment::create([
+            'reference' => 'kio_test_confirm',
+            'name' => 'A',
+            'phone' => '09170000001',
+            'amount_centavos' => 15000,
+            'status' => KioskPayment::STATUS_PENDING,
+            'qr_data' => 'gcash://demo',
+            'expires_at' => Carbon::now()->addMinute(),
+        ]);
+
+        $this->postJson('/api/kiosk/payments/'.$payment->reference.'/confirm', [], [
+            'X-Kiosk-Token' => 'test-kiosk-token',
+        ])->assertOk()->assertExactJson(['status' => 'paid']);
+
+        $payment->refresh();
+        $this->assertSame(KioskPayment::STATUS_PAID, $payment->status);
+        $this->assertNotNull($payment->paid_at);
+    }
+
+    public function test_confirm_rejects_expired_payment(): void
+    {
+        $payment = KioskPayment::create([
+            'reference' => 'kio_test_confirm_expired',
+            'name' => 'A',
+            'phone' => '09170000001',
+            'amount_centavos' => 15000,
+            'status' => KioskPayment::STATUS_PENDING,
+            'qr_data' => 'gcash://demo',
+            'expires_at' => Carbon::now()->subSecond(),
+        ]);
+
+        $this->postJson('/api/kiosk/payments/'.$payment->reference.'/confirm', [], [
+            'X-Kiosk-Token' => 'test-kiosk-token',
+        ])->assertStatus(409)->assertExactJson(['status' => 'expired']);
+
+        $this->assertSame(KioskPayment::STATUS_EXPIRED, $payment->fresh()->status);
+    }
+
+    public function test_confirm_unknown_reference_returns_404(): void
+    {
+        $this->postJson('/api/kiosk/payments/kio_does_not_exist/confirm', [], [
+            'X-Kiosk-Token' => 'test-kiosk-token',
+        ])->assertNotFound();
     }
 }

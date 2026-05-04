@@ -54,6 +54,7 @@ return [
         'public_key' => env('PAYMONGO_PUBLIC_KEY'),
         'secret' => env('PAYMONGO_SECRET_KEY'),
         'webhook_secret' => env('PAYMONGO_WEBHOOK_SECRET'),
+        'webhook_tolerance_seconds' => (int) env('PAYMONGO_WEBHOOK_TOLERANCE_SECONDS', 300),
         'success_url' => env('PAYMONGO_SUCCESS_URL', '/register/success'),
         'cancel_url' => env('PAYMONGO_CANCEL_URL', '/register/cancelled'),
     ],

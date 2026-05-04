@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\KioskPayment;
 use App\Models\MemberSubscription;
 use App\Models\RatePlan;
+use App\Models\SaleTransaction;
 use App\Models\SystemActivity;
 use App\Models\User;
 use App\Services\MembershipQrService;
@@ -59,16 +60,17 @@ class KioskAttendanceTest extends TestCase
         $this->assertSame('pending', $notes['payment_status']);
     }
 
-    public function test_online_walk_in_success_marks_referenced_payment_paid(): void
+    public function test_online_walk_in_consumes_already_paid_payment_and_records_sale(): void
     {
         $payment = KioskPayment::create([
             'reference' => 'kio_test_paid_by_attendance',
             'name' => 'Juan Dela Cruz',
             'phone' => '+639171234567',
             'amount_centavos' => 17500,
-            'status' => KioskPayment::STATUS_PENDING,
+            'status' => KioskPayment::STATUS_PAID,
             'qr_data' => 'gcash://demo',
             'expires_at' => now()->addMinute(),
+            'paid_at' => now(),
         ]);
 
         $response = $this->postJson('/api/kiosk/attendance', [
@@ -90,14 +92,74 @@ class KioskAttendanceTest extends TestCase
         $payment->refresh();
         $this->assertSame(KioskPayment::STATUS_PAID, $payment->status);
         $this->assertNotNull($payment->paid_at);
+        $this->assertNotNull($payment->consumed_at);
 
         $row = Attendance::where('name', 'Juan Dela Cruz')->firstOrFail();
         $notes = json_decode((string) $row->notes, true);
         $this->assertEquals(175.0, $notes['amount']);
 
-        $this->getJson('/api/kiosk/payments/'.$payment->reference, [
-            'X-Kiosk-Token' => 'test-kiosk-token',
-        ])->assertOk()->assertExactJson(['status' => 'paid']);
+        $sale = SaleTransaction::where('type', SaleTransaction::TYPE_WALK_IN)->firstOrFail();
+        $this->assertEquals(175.0, (float) $sale->total);
+        $this->assertSame(SaleTransaction::PAYMENT_METHOD_ONLINE_PAYMENT, $sale->payment_method);
+        $this->assertSame($payment->reference, data_get($sale->details, 'kiosk_payment_reference'));
+    }
+
+    public function test_online_walk_in_rejects_unpaid_kiosk_payment(): void
+    {
+        $payment = KioskPayment::create([
+            'reference' => 'kio_test_unpaid',
+            'name' => 'Juan Dela Cruz',
+            'phone' => '+639171234567',
+            'amount_centavos' => 17500,
+            'status' => KioskPayment::STATUS_PENDING,
+            'qr_data' => 'gcash://demo',
+            'expires_at' => now()->addMinute(),
+        ]);
+
+        $this->postJson('/api/kiosk/attendance', [
+            'type' => 'walk_in',
+            'status' => 'success',
+            'name' => 'Juan Dela Cruz',
+            'phone' => '+639171234567',
+            'payment_method' => 'online',
+            'payment_status' => 'paid',
+            'payment_reference' => $payment->reference,
+        ], ['X-Kiosk-Token' => 'test-kiosk-token'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['payment_reference']);
+
+        $this->assertDatabaseCount('attendances', 0);
+        $this->assertDatabaseCount('sale_transactions', 0);
+        $this->assertNull($payment->fresh()->consumed_at);
+    }
+
+    public function test_online_walk_in_rejects_already_consumed_payment(): void
+    {
+        $payment = KioskPayment::create([
+            'reference' => 'kio_test_already_used',
+            'name' => 'Juan Dela Cruz',
+            'phone' => '+639171234567',
+            'amount_centavos' => 17500,
+            'status' => KioskPayment::STATUS_PAID,
+            'qr_data' => 'gcash://demo',
+            'expires_at' => now()->addMinute(),
+            'paid_at' => now(),
+            'consumed_at' => now(),
+        ]);
+
+        $this->postJson('/api/kiosk/attendance', [
+            'type' => 'walk_in',
+            'status' => 'success',
+            'name' => 'Juan Dela Cruz',
+            'phone' => '+639171234567',
+            'payment_method' => 'online',
+            'payment_status' => 'paid',
+            'payment_reference' => $payment->reference,
+        ], ['X-Kiosk-Token' => 'test-kiosk-token'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['payment_reference']);
+
+        $this->assertDatabaseCount('attendances', 0);
     }
 
     public function test_kiosk_attendance_activity_uses_device_actor_name(): void

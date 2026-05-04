@@ -16,7 +16,7 @@
     </p>
 
     <p>
-        <img src="{{ $qrDataUri }}" alt="Membership QR Code" style="width: 240px; height: 240px;">
+        <img src="{{ $message->embedData($qrPng, 'membership-qr.png', 'image/png') }}" alt="Membership QR Code" style="width: 240px; height: 240px;">
     </p>
 
     <p>Do not share this QR code. It is tied to your membership record.</p>

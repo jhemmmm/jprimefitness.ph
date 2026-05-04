@@ -66,7 +66,9 @@ class RegistrationController extends Controller
 
         $plan = RatePlan::findOrFail((int) $data['rate_plan_id']);
         $startDate = $data['preferred_start_date'] ?? now()->toDateString();
-        $endDate = Carbon::parse($startDate)->addDays((int) $plan->duration_days)->toDateString();
+        $endDate = $plan->duration_days <= 1
+            ? null
+            : Carbon::parse($startDate)->addDays((int) $plan->duration_days - 1)->toDateString();
 
         [$user, $subscription] = DB::transaction(function () use ($data, $plan, $startDate, $endDate) {
             $user = User::create([
@@ -151,8 +153,16 @@ class RegistrationController extends Controller
                 $payload['payment'] = $checkout;
             } catch (Throwable $e) {
                 report($e);
-                $payload['message'] = 'Registered, but online payment is temporarily unavailable. Please drop by the gym to complete payment.';
-                $payload['payment_error'] = 'Online payment is temporarily unavailable.';
+
+                // Roll back the orphan registration so the user can retry cleanly.
+                // FK cascades (member_profiles, member_subscriptions) clean up children.
+                $user->forceDelete();
+
+                return response()->json([
+                    'ok' => false,
+                    'message' => 'Online payment is temporarily unavailable. Please try again or pay on-site at the gym.',
+                    'payment_error' => 'Online payment is temporarily unavailable.',
+                ], 503);
             }
         }
 

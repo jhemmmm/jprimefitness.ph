@@ -28,6 +28,7 @@ class PosSaleService
      * @return array{
      *     inventory_items: array<int, array<string, mixed>>,
      *     membership_rates: array<int, array<string, mixed>>,
+     *     walk_in_rates: array<int, array<string, mixed>>,
      *     pt_rates: array<int, array<string, mixed>>
      * }
      */
@@ -51,19 +52,30 @@ class PosSaleService
             ->values()
             ->all();
 
-        $membershipRates = RatePlan::query()
+        $ratePlanRows = RatePlan::query()
             ->where('is_active', true)
             ->whereNotNull('price')
             ->orderBy('duration_days')
             ->orderBy('name')
-            ->get()
-            ->map(fn (RatePlan $ratePlan) => [
-                'id' => $ratePlan->id,
-                'name' => $ratePlan->name,
-                'duration_days' => $ratePlan->duration_days,
-                'description' => $ratePlan->description,
-                'price' => round((float) $ratePlan->price, 2),
-            ])
+            ->get();
+
+        $mapRatePlan = fn (RatePlan $ratePlan) => [
+            'id' => $ratePlan->id,
+            'name' => $ratePlan->name,
+            'duration_days' => $ratePlan->duration_days,
+            'description' => $ratePlan->description,
+            'price' => round((float) $ratePlan->price, 2),
+        ];
+
+        $membershipRates = $ratePlanRows
+            ->where('is_walk_in_only', false)
+            ->map($mapRatePlan)
+            ->values()
+            ->all();
+
+        $walkInRates = $ratePlanRows
+            ->where('is_walk_in_only', true)
+            ->map($mapRatePlan)
             ->values()
             ->all();
 
@@ -86,6 +98,7 @@ class PosSaleService
         return [
             'inventory_items' => $inventoryItems,
             'membership_rates' => $membershipRates,
+            'walk_in_rates' => $walkInRates,
             'pt_rates' => $ptRates,
         ];
     }
@@ -221,6 +234,7 @@ class PosSaleService
             $ratePlan = RatePlan::query()
                 ->whereKey((int) $data['rate_plan_id'])
                 ->where('is_active', true)
+                ->where('is_walk_in_only', false)
                 ->whereNotNull('price')
                 ->first();
 
@@ -369,6 +383,7 @@ class PosSaleService
                 $ratePlan = RatePlan::query()
                     ->whereKey((int) $data['rate_plan_id'])
                     ->where('is_active', true)
+                    ->where('is_walk_in_only', true)
                     ->first();
 
                 if (! $ratePlan) {

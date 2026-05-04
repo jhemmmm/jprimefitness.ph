@@ -67,9 +67,8 @@ class MembershipQrCodeTest extends TestCase
         $this->assertStringStartsWith(MembershipQrService::PAYLOAD_PREFIX, $subscription->qr_payload);
         $this->assertNotEmpty($response->json('membership_qr_url'));
 
-        Mail::assertSent(MembershipQrCodeMail::class, function (MembershipQrCodeMail $mail) use ($member) {
-            return (int) $mail->subscription->user_id === (int) $member->id
-                && str_starts_with($mail->qrDataUri, 'data:image/svg+xml;base64,');
+        Mail::assertQueued(MembershipQrCodeMail::class, function (MembershipQrCodeMail $mail) use ($member) {
+            return (int) $mail->subscription->user_id === (int) $member->id;
         });
     }
 
@@ -128,7 +127,7 @@ class MembershipQrCodeTest extends TestCase
         $this->assertNotEmpty($subscription->qr_payload);
         $this->assertNotEmpty($response->json('member_subscriptions.0.qr_url'));
 
-        Mail::assertSent(MembershipQrCodeMail::class, 1);
+        Mail::assertQueued(MembershipQrCodeMail::class, 1);
     }
 
     public function test_member_detail_membership_assignment_generates_qr_and_sends_email(): void
@@ -153,7 +152,7 @@ class MembershipQrCodeTest extends TestCase
         $this->assertNotEmpty($subscription->qr_payload);
         $this->assertNotEmpty($response->json('member_subscriptions.0.qr_url'));
 
-        Mail::assertSent(MembershipQrCodeMail::class, 1);
+        Mail::assertQueued(MembershipQrCodeMail::class, 1);
     }
 
     public function test_panel_qr_endpoints_return_svg_data_uri(): void

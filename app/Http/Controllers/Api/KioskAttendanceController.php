@@ -5,28 +5,22 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\KioskPayment;
+use App\Models\SaleTransaction;
+use App\Models\User;
 use App\Services\MembershipQrAntiFraudService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class KioskAttendanceController extends Controller
 {
-    /**
-     * Create a new kiosk attendance controller instance.
-     *
-     * @return void
-     */
     public function __construct(
         private MembershipQrAntiFraudService $membershipQrAntiFraudService,
     ) {}
 
-    /**
-     * Store a kiosk attendance entry.
-     *
-     * @return JsonResponse
-     */
     public function store(Request $request): JsonResponse
     {
         $type = $request->input('type');
@@ -45,11 +39,6 @@ class KioskAttendanceController extends Controller
         ], 422);
     }
 
-    /**
-     * Store a kiosk walk-in attendance entry.
-     *
-     * @return JsonResponse
-     */
     private function storeWalkIn(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -73,19 +62,27 @@ class KioskAttendanceController extends Controller
             ]);
         }
 
-        $kioskPayment = $this->markSuccessfulOnlinePayment($data, $occurredAt);
+        $attendance = DB::transaction(function () use ($data, $occurredAt, $request) {
+            $payment = $this->consumeOnlinePayment($data);
 
-        $attendance = Attendance::create([
-            'attendee_type' => Attendance::TYPE_WALK_IN,
-            'user_id' => null,
-            'name' => $data['name'],
-            'checked_in_at' => $occurredAt,
-            'checked_out_at' => null,
-            'notes' => $this->encodeWalkInNotes($data, $kioskPayment),
-            'recorded_by' => null,
-            'source' => Attendance::SOURCE_KIOSK,
-            'source_device_serial' => $request->header('X-Kiosk-Device'),
-        ]);
+            $attendance = Attendance::create([
+                'attendee_type' => Attendance::TYPE_WALK_IN,
+                'user_id' => null,
+                'name' => $data['name'],
+                'checked_in_at' => $occurredAt,
+                'checked_out_at' => null,
+                'notes' => $this->encodeWalkInNotes($data, $payment),
+                'recorded_by' => null,
+                'source' => Attendance::SOURCE_KIOSK,
+                'source_device_serial' => $request->header('X-Kiosk-Device'),
+            ]);
+
+            if ($payment) {
+                $this->recordKioskWalkInSale($payment, $data, $occurredAt);
+            }
+
+            return $attendance;
+        });
 
         return response()->json([
             'ok' => true,
@@ -95,18 +92,12 @@ class KioskAttendanceController extends Controller
         ], 201);
     }
 
-    /**
-     * Store a kiosk member attendance entry from an encrypted membership QR.
-     *
-     * @return JsonResponse
-     */
     private function storeMember(Request $request): JsonResponse
     {
         $data = $request->validate([
             'type' => ['required', Rule::in(['member'])],
             'action' => ['required', Rule::in(['time_in', 'time_out'])],
             'qr_payload' => ['required', 'string', 'max:2000'],
-            'reason' => ['nullable', Rule::in(['unknown_qr', 'expired'])],
         ]);
 
         $occurredAt = Carbon::now();
@@ -130,17 +121,16 @@ class KioskAttendanceController extends Controller
         $user = $decision['member'];
 
         if ($data['action'] === 'time_in') {
-            $attendance = Attendance::create([
-                'attendee_type' => Attendance::TYPE_MEMBER,
-                'user_id' => $user->id,
-                'name' => $user->name,
-                'checked_in_at' => $occurredAt,
-                'checked_out_at' => null,
-                'notes' => null,
-                'recorded_by' => null,
-                'source' => Attendance::SOURCE_KIOSK,
-                'source_device_serial' => $request->header('X-Kiosk-Device'),
-            ]);
+            $attendance = $this->createMemberTimeIn($user, $occurredAt, $request);
+
+            if ($attendance === null) {
+                return response()->json([
+                    'ok' => false,
+                    'member_name' => $user->name,
+                    'reason' => 'duplicate_time_in',
+                    'message' => 'This member is already checked in.',
+                ]);
+            }
 
             return response()->json([
                 'ok' => true,
@@ -162,38 +152,131 @@ class KioskAttendanceController extends Controller
     }
 
     /**
-     * Mark a referenced successful online kiosk payment as paid.
+     * Atomically create a member time-in row, guarding against two concurrent
+     * scans both passing the anti-fraud "no open attendance" check and inserting.
+     * Returns null when an open attendance already exists (lost the race).
+     */
+    private function createMemberTimeIn(User $user, Carbon $occurredAt, Request $request): ?Attendance
+    {
+        return DB::transaction(function () use ($user, $occurredAt, $request) {
+            // Lock the user row for the duration of the transaction so concurrent
+            // time_in calls for the same member serialize.
+            User::query()->whereKey($user->id)->lockForUpdate()->first();
+
+            $alreadyOpen = Attendance::query()
+                ->where('user_id', $user->id)
+                ->where('attendee_type', Attendance::TYPE_MEMBER)
+                ->whereNull('checked_out_at')
+                ->exists();
+
+            if ($alreadyOpen) {
+                return null;
+            }
+
+            return Attendance::create([
+                'attendee_type' => Attendance::TYPE_MEMBER,
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'checked_in_at' => $occurredAt,
+                'checked_out_at' => null,
+                'notes' => null,
+                'recorded_by' => null,
+                'source' => Attendance::SOURCE_KIOSK,
+                'source_device_serial' => $request->header('X-Kiosk-Device'),
+            ]);
+        });
+    }
+
+    /**
+     * Resolve and consume the referenced online kiosk payment (if any).
+     *
+     * Will only consume payments that have already been verified as PAID via
+     * KioskPaymentController::confirm (placeholder for a real GCash/PayMongo
+     * webhook). Throws ValidationException if the reference is unknown,
+     * unpaid, expired, or already consumed.
      *
      * @param  array<string, mixed>  $data
-     * @return KioskPayment|null
      */
-    private function markSuccessfulOnlinePayment(array $data, Carbon $paidAt): ?KioskPayment
+    private function consumeOnlinePayment(array $data): ?KioskPayment
     {
         if (($data['payment_method'] ?? null) !== 'online' || empty($data['payment_reference'])) {
             return null;
         }
 
-        $payment = KioskPayment::where('reference', $data['payment_reference'])->first();
+        $payment = KioskPayment::query()
+            ->where('reference', $data['payment_reference'])
+            ->lockForUpdate()
+            ->first();
 
         if (! $payment) {
-            return null;
+            throw ValidationException::withMessages([
+                'payment_reference' => ['Unknown payment reference.'],
+            ]);
+        }
+
+        if ($payment->consumed_at !== null) {
+            throw ValidationException::withMessages([
+                'payment_reference' => ['Payment reference has already been used.'],
+            ]);
         }
 
         if ($payment->status !== KioskPayment::STATUS_PAID || $payment->paid_at === null) {
-            $payment->update([
-                'status' => KioskPayment::STATUS_PAID,
-                'paid_at' => $paidAt,
+            throw ValidationException::withMessages([
+                'payment_reference' => ['Payment has not been verified as paid.'],
             ]);
         }
+
+        $payment->update(['consumed_at' => Carbon::now()]);
 
         return $payment->fresh();
     }
 
     /**
-     * Encode kiosk walk-in metadata into attendance notes.
+     * Record a SaleTransaction for a paid online walk-in so finance reports see
+     * kiosk-collected revenue. Counter-paid walk-ins are recorded by panel POS
+     * when staff rings them up, so we do not double-count them here.
      *
      * @param  array<string, mixed>  $data
-     * @return string
+     */
+    private function recordKioskWalkInSale(KioskPayment $payment, array $data, Carbon $occurredAt): void
+    {
+        $amount = round($payment->getAmountPesos(), 2);
+
+        SaleTransaction::create([
+            'member_id' => null,
+            'type' => SaleTransaction::TYPE_WALK_IN,
+            'total' => $amount,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_ONLINE_PAYMENT,
+            'processed_by' => null,
+            'sold_at' => $occurredAt,
+            'customer_name' => $data['name'],
+            'item_name' => 'Walk-in (kiosk)',
+            'details' => [
+                'source' => 'kiosk',
+                'phone' => $data['phone'],
+                'kiosk_payment_reference' => $payment->reference,
+                'line_items' => [[
+                    'name' => 'Walk-in (kiosk)',
+                    'description' => $data['phone'],
+                    'quantity' => 1,
+                    'unit' => 'entry',
+                    'unit_price' => $amount,
+                    'line_total' => $amount,
+                ]],
+                'subtotal' => $amount,
+                'payment' => [
+                    'payment_method' => SaleTransaction::PAYMENT_METHOD_ONLINE_PAYMENT,
+                    'amount_received' => $amount,
+                    'change_amount' => 0.0,
+                    'reference' => $payment->reference,
+                ],
+                'notes' => null,
+            ],
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
      */
     private function encodeWalkInNotes(array $data, ?KioskPayment $kioskPayment = null): string
     {
@@ -214,10 +297,7 @@ class KioskAttendanceController extends Controller
     }
 
     /**
-     * Return the kiosk walk-in success message.
-     *
      * @param  array<string, mixed>  $data
-     * @return string
      */
     private function walkInSuccessMessage(array $data): string
     {
@@ -227,10 +307,7 @@ class KioskAttendanceController extends Controller
     }
 
     /**
-     * Return the kiosk walk-in failure message.
-     *
      * @param  array<string, mixed>  $data
-     * @return string
      */
     private function walkInFailureMessage(array $data): string
     {

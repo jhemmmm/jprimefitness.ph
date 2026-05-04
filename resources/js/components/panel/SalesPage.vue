@@ -202,7 +202,7 @@
                               <label class="form-label">Walk-in Plan</label>
                               <select class="form-select" v-model="form.walk_in_rate_plan_id" @change="syncWalkInAmount">
                                  <option value="">Custom walk-in payment</option>
-                                 <option v-for="plan in context.membership_rates" :key="'walkin-' + plan.id" :value="plan.id">{{ plan.name }} · ₱{{ $filters.formatMoney(plan.price) }}</option>
+                                 <option v-for="plan in context.walk_in_rates" :key="'walkin-' + plan.id" :value="plan.id">{{ plan.name }} · ₱{{ $filters.formatMoney(plan.price) }}</option>
                               </select>
                            </div>
                            <div class="col-12 col-md-6">
@@ -596,6 +596,7 @@ export default {
          context: {
             inventory_items: [],
             membership_rates: [],
+            walk_in_rates: [],
             pt_rates: [],
          },
          history: [],
@@ -714,7 +715,7 @@ export default {
          return this.context.pt_rates.find((ptRate) => Number(ptRate.id) === Number(this.form.pt_product_id)) || null;
       },
       selectedWalkInPlan: function () {
-         return this.context.membership_rates.find((plan) => Number(plan.id) === Number(this.form.walk_in_rate_plan_id)) || null;
+         return this.context.walk_in_rates.find((plan) => Number(plan.id) === Number(this.form.walk_in_rate_plan_id)) || null;
       },
       normalizedInventoryLines: function () {
          return this.form.inventory_lines

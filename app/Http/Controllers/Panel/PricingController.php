@@ -154,33 +154,6 @@ class PricingController extends Controller
     }
 
     /**
-     * Create a membership rate plan.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function storeRatePlan(Request $request, RatePlan $ratePlan): JsonResponse
-    {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
-        abort_unless($ratePlan->is_active, 404);
-
-        $ratePlan->update($this->validatedRatePlanPayload($request));
-        $ratePlan = $ratePlan->fresh();
-
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_RATE_PLAN,
-            $ratePlan->id,
-            'configured',
-            $this->ratePlanSystemActivitySnapshot($ratePlan),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            now(),
-        );
-
-        return response()->json(['message' => 'Rate plan pricing created successfully.'], 201);
-    }
-
-    /**
      * Update a membership rate plan.
      *
      * @return \Illuminate\Http\JsonResponse
@@ -233,33 +206,6 @@ class PricingController extends Controller
         );
 
         return response()->json(null, 204);
-    }
-
-    /**
-     * Create a PT product.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function storePtProduct(Request $request, PTProduct $ptProduct): JsonResponse
-    {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
-        abort_unless($ptProduct->is_active, 404);
-
-        $ptProduct->update($this->validatedPtProductPayload($request));
-        $ptProduct = $ptProduct->fresh();
-
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_PT_PRODUCT,
-            $ptProduct->id,
-            'configured',
-            $this->ptProductSystemActivitySnapshot($ptProduct),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            now(),
-        );
-
-        return response()->json(['message' => 'PT rate created successfully.'], 201);
     }
 
     /**

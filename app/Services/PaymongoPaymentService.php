@@ -118,6 +118,13 @@ class PaymongoPaymentService
             return false;
         }
 
+        // Reject stale signatures so a captured payload cannot be replayed.
+        $tolerance = (int) config('services.paymongo.webhook_tolerance_seconds', 300);
+        $delta = abs(time() - (int) $timestamp);
+        if ($tolerance > 0 && $delta > $tolerance) {
+            return false;
+        }
+
         $expected = hash_hmac('sha256', $timestamp.'.'.$payload, $secret);
 
         foreach ($candidates as $candidate) {

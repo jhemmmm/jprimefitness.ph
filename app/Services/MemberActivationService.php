@@ -7,6 +7,7 @@ use App\Models\MemberSubscription;
 use App\Models\SystemActivity;
 use App\Models\User;
 use App\Notifications\MemberActivatedNotification;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 
@@ -37,12 +38,26 @@ class MemberActivationService
         }
 
         DB::transaction(function () use ($member, $subscription) {
-            if ($subscription->start_date && $subscription->start_date->isFuture() === false) {
-                $subscription->start_date = $subscription->start_date ?? now()->toDateString();
+            $today = Carbon::today();
+            $plan = $subscription->ratePlan;
+
+            // If the originally preferred start_date has already passed by activation
+            // time (e.g. customer paid days after registering), restart the window
+            // from today so the member gets the full duration they paid for.
+            if (! $subscription->start_date || $subscription->start_date->lte($today)) {
+                $durationDays = (int) ($plan?->duration_days ?? 0);
+                $subscription->start_date = $today->toDateString();
+                $subscription->end_date = $durationDays <= 1
+                    ? null
+                    : $today->copy()->addDays($durationDays - 1)->toDateString();
             }
 
             $member->forceFill(['status' => User::STATUS_ACTIVE])->save();
-            $subscription->forceFill(['status' => MemberSubscription::STATUS_ACTIVE])->save();
+            $subscription->forceFill([
+                'status' => MemberSubscription::STATUS_ACTIVE,
+                'start_date' => $subscription->start_date,
+                'end_date' => $subscription->end_date,
+            ])->save();
         });
 
         $this->membershipQrService->sendEmail($subscription);

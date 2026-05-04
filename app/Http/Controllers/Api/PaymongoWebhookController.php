@@ -23,7 +23,13 @@ class PaymongoWebhookController extends Controller
         $signature = $request->header('Paymongo-Signature');
 
         if (! $this->paymongoPaymentService->verifyWebhookSignature($payload, $signature)) {
-            return response()->json(['ok' => false, 'reason' => 'invalid_signature'], 400);
+            Log::warning('PayMongo webhook signature rejected', [
+                'ip' => $request->ip(),
+                'has_signature' => $signature !== null,
+            ]);
+
+            // Return 200 so PayMongo (and stray internet traffic) does not retry.
+            return response()->json(['ok' => false, 'reason' => 'invalid_signature']);
         }
 
         $body = json_decode($payload, true);

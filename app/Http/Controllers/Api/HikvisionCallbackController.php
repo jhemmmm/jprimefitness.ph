@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Services\Hikvision\HikvisionAttendanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class HikvisionCallbackController extends Controller
@@ -36,58 +35,6 @@ class HikvisionCallbackController extends Controller
                 $result['occurred_at']
             ),
         ], $statusCode);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function requestLogContext(Request $request): array
-    {
-        return [
-            'source_ip' => $request->ip(),
-            'query_params' => $this->sanitizeLogContext($request->query()),
-            'headers' => $this->sanitizeLogContext($request->headers->all()),
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $context
-     * @return array<string, mixed>
-     */
-    private function sanitizeLogContext(array $context): array
-    {
-        foreach ($context as $key => $value) {
-            if ($this->shouldRedactKey((string) $key)) {
-                $context[$key] = is_array($value)
-                    ? array_fill(0, count($value), '[redacted]')
-                    : '[redacted]';
-
-                continue;
-            }
-
-            if (is_array($value)) {
-                $context[$key] = $this->sanitizeLogContext($value);
-            }
-        }
-
-        return $context;
-    }
-
-    /**
-     * Determine whether a log context key should be redacted.
-     *
-     * @return bool
-     */
-    private function shouldRedactKey(string $key): bool
-    {
-        return in_array(Str::lower($key), [
-            'token',
-            'x-biometric-token',
-            'x-hikvision-token',
-            'authorization',
-            'cookie',
-            'set-cookie',
-        ], true);
     }
 
     /**

@@ -16,6 +16,7 @@ Route::prefix('kiosk')
 
         Route::post('payments', [KioskPaymentController::class, 'store']);
         Route::get('payments/{reference}', [KioskPaymentController::class, 'show']);
+        Route::post('payments/{reference}/confirm', [KioskPaymentController::class, 'confirm']);
     });
 
 Route::prefix('biometric')

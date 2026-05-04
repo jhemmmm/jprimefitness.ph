@@ -23,12 +23,14 @@ class KioskPayment extends Model
         'qr_data',
         'expires_at',
         'paid_at',
+        'consumed_at',
     ];
 
     protected $casts = [
         'amount_centavos' => 'integer',
         'expires_at' => 'datetime',
         'paid_at' => 'datetime',
+        'consumed_at' => 'datetime',
     ];
 
     public function isExpired(): bool

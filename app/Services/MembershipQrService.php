@@ -8,6 +8,7 @@ use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
 use Endroid\QrCode\QrCode;
 use Endroid\QrCode\RoundBlockSizeMode;
+use Endroid\QrCode\Writer\PngWriter;
 use Endroid\QrCode\Writer\SvgWriter;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
@@ -48,8 +49,10 @@ class MembershipQrService
             return;
         }
 
+        // Mailable implements ShouldQueueAfterCommit — sent after the surrounding
+        // DB transaction commits, so POS/webhook flows aren't blocked on SMTP.
         Mail::to($subscription->member->email)
-            ->send(new MembershipQrCodeMail($subscription, $this->dataUri($subscription)));
+            ->send(new MembershipQrCodeMail($subscription));
 
         $subscription->forceFill([
             'qr_emailed_at' => now(),
@@ -81,7 +84,7 @@ class MembershipQrService
     }
 
     /**
-     * Render the QR code as an SVG data URI.
+     * Render the QR code as an SVG data URI (used by the in-browser panel modal).
      *
      * @return string
      */
@@ -89,16 +92,31 @@ class MembershipQrService
     {
         $subscription = $this->ensurePayload($subscription);
 
-        $writer = new SvgWriter;
-        $qrCode = new QrCode(
-            data: (string) $subscription->qr_payload,
+        return (new SvgWriter)->write($this->qrCode((string) $subscription->qr_payload))->getDataUri();
+    }
+
+    /**
+     * Render the QR code as raw PNG bytes (used for CID-embedded email images,
+     * since most email clients block SVG and inline data: URIs).
+     *
+     * @return string
+     */
+    public function pngBytes(MemberSubscription $subscription): string
+    {
+        $subscription = $this->ensurePayload($subscription);
+
+        return (new PngWriter)->write($this->qrCode((string) $subscription->qr_payload))->getString();
+    }
+
+    private function qrCode(string $payload): QrCode
+    {
+        return new QrCode(
+            data: $payload,
             encoding: new Encoding('UTF-8'),
             errorCorrectionLevel: ErrorCorrectionLevel::High,
             size: 320,
             margin: 16,
             roundBlockSizeMode: RoundBlockSizeMode::Margin,
         );
-
-        return $writer->write($qrCode)->getDataUri();
     }
 }
