@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -192,8 +193,11 @@ class KioskAttendanceController extends Controller
      *
      * Will only consume payments that have already been verified as PAID via
      * KioskPaymentController::confirm (placeholder for a real GCash/PayMongo
-     * webhook). Throws ValidationException if the reference is unknown,
-     * unpaid, expired, or already consumed.
+     * webhook). Returns null when the row isn't on this node — by design the
+     * online-payment row lives on the production backend (the only host
+     * PayMongo's webhook can reach), while attendance is always recorded
+     * locally. Throws ValidationException only when the row IS local but is
+     * unpaid or already consumed.
      *
      * @param  array<string, mixed>  $data
      */
@@ -209,9 +213,11 @@ class KioskAttendanceController extends Controller
             ->first();
 
         if (! $payment) {
-            throw ValidationException::withMessages([
-                'payment_reference' => ['Unknown payment reference.'],
+            Log::info('Online walk-in payment row not on local node; recording attendance only', [
+                'payment_reference' => $data['payment_reference'],
             ]);
+
+            return null;
         }
 
         if ($payment->consumed_at !== null) {
@@ -240,7 +246,7 @@ class KioskAttendanceController extends Controller
      */
     private function recordKioskWalkInSale(KioskPayment $payment, array $data, Carbon $occurredAt): void
     {
-        $amount = round($payment->getAmountPesos(), 2);
+        $amount = round((float) $payment->amount, 2);
 
         SaleTransaction::create([
             'member_id' => null,
@@ -289,7 +295,7 @@ class KioskAttendanceController extends Controller
         if (! empty($data['payment_reference'])) {
             $payload['payment_reference'] = $data['payment_reference'];
             if ($kioskPayment) {
-                $payload['amount'] = $kioskPayment->getAmountPesos();
+                $payload['amount'] = (float) $kioskPayment->amount;
             }
         }
 

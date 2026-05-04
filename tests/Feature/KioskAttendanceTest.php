@@ -66,7 +66,7 @@ class KioskAttendanceTest extends TestCase
             'reference' => 'kio_test_paid_by_attendance',
             'name' => 'Juan Dela Cruz',
             'phone' => '+639171234567',
-            'amount_centavos' => 17500,
+            'amount' => 175,
             'status' => KioskPayment::STATUS_PAID,
             'qr_data' => 'gcash://demo',
             'expires_at' => now()->addMinute(),
@@ -110,7 +110,7 @@ class KioskAttendanceTest extends TestCase
             'reference' => 'kio_test_unpaid',
             'name' => 'Juan Dela Cruz',
             'phone' => '+639171234567',
-            'amount_centavos' => 17500,
+            'amount' => 175,
             'status' => KioskPayment::STATUS_PENDING,
             'qr_data' => 'gcash://demo',
             'expires_at' => now()->addMinute(),
@@ -139,7 +139,7 @@ class KioskAttendanceTest extends TestCase
             'reference' => 'kio_test_already_used',
             'name' => 'Juan Dela Cruz',
             'phone' => '+639171234567',
-            'amount_centavos' => 17500,
+            'amount' => 175,
             'status' => KioskPayment::STATUS_PAID,
             'qr_data' => 'gcash://demo',
             'expires_at' => now()->addMinute(),
@@ -160,6 +160,26 @@ class KioskAttendanceTest extends TestCase
             ->assertJsonValidationErrors(['payment_reference']);
 
         $this->assertDatabaseCount('attendances', 0);
+    }
+
+    public function test_online_walk_in_records_attendance_without_local_payment_row(): void
+    {
+        // Online payments live on the production backend; local has no matching
+        // kiosk_payments row. Attendance must still record, with no sale ledger.
+        $this->postJson('/api/kiosk/attendance', [
+            'type' => 'walk_in',
+            'status' => 'success',
+            'name' => 'Juan Dela Cruz',
+            'phone' => '+639171234567',
+            'payment_method' => 'online',
+            'payment_status' => 'paid',
+            'payment_reference' => 'kio_lives_on_remote_node',
+        ], ['X-Kiosk-Token' => 'test-kiosk-token'])
+            ->assertCreated()
+            ->assertJsonPath('ok', true);
+
+        $this->assertDatabaseCount('attendances', 1);
+        $this->assertDatabaseCount('sale_transactions', 0);
     }
 
     public function test_kiosk_attendance_activity_uses_device_actor_name(): void

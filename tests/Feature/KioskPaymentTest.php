@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\KioskPayment;
+use App\Models\RatePlan;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -17,8 +18,15 @@ class KioskPaymentTest extends TestCase
 
         config([
             'services.kiosk.token' => 'test-kiosk-token',
-            'services.kiosk.walk_in_amount' => 150,
-            'services.kiosk.payment_timeout_seconds' => 60,
+            'services.kiosk.payment_timeout_seconds' => 120,
+        ]);
+
+        RatePlan::create([
+            'name' => 'Daily Pass',
+            'duration_days' => 1,
+            'price' => 150,
+            'is_active' => true,
+            'is_walk_in_only' => true,
         ]);
     }
 
@@ -42,7 +50,7 @@ class KioskPaymentTest extends TestCase
             'name' => 'Juan Dela Cruz',
             'phone' => '+639171234567',
             'status' => KioskPayment::STATUS_PENDING,
-            'amount_centavos' => 15000,
+            'amount' => 150,
         ]);
 
         Carbon::setTestNow();
@@ -54,7 +62,7 @@ class KioskPaymentTest extends TestCase
             'reference' => 'kio_test_pending',
             'name' => 'A',
             'phone' => '09170000001',
-            'amount_centavos' => 15000,
+            'amount' => 150,
             'status' => KioskPayment::STATUS_PENDING,
             'qr_data' => 'gcash://demo',
             'expires_at' => Carbon::now()->addMinute(),
@@ -73,7 +81,7 @@ class KioskPaymentTest extends TestCase
             'reference' => 'kio_test_paid',
             'name' => 'A',
             'phone' => '09170000001',
-            'amount_centavos' => 15000,
+            'amount' => 150,
             'status' => KioskPayment::STATUS_PAID,
             'qr_data' => 'gcash://demo',
             'expires_at' => Carbon::now()->addMinute(),
@@ -93,7 +101,7 @@ class KioskPaymentTest extends TestCase
             'reference' => 'kio_test_expire',
             'name' => 'A',
             'phone' => '09170000001',
-            'amount_centavos' => 15000,
+            'amount' => 150,
             'status' => KioskPayment::STATUS_PENDING,
             'qr_data' => 'gcash://demo',
             'expires_at' => Carbon::now()->subSecond(),
@@ -131,15 +139,15 @@ class KioskPaymentTest extends TestCase
             ->assertUnauthorized();
     }
 
-    public function test_confirm_flips_pending_payment_to_paid(): void
+    public function test_confirm_flips_pending_cash_payment_to_paid(): void
     {
         $payment = KioskPayment::create([
             'reference' => 'kio_test_confirm',
             'name' => 'A',
             'phone' => '09170000001',
-            'amount_centavos' => 15000,
+            'amount' => 150,
             'status' => KioskPayment::STATUS_PENDING,
-            'qr_data' => 'gcash://demo',
+            'qr_data' => null,
             'expires_at' => Carbon::now()->addMinute(),
         ]);
 
@@ -152,13 +160,33 @@ class KioskPaymentTest extends TestCase
         $this->assertNotNull($payment->paid_at);
     }
 
+    public function test_confirm_refuses_to_settle_an_online_payment(): void
+    {
+        $payment = KioskPayment::create([
+            'reference' => 'kio_test_online',
+            'name' => 'B',
+            'phone' => '09170000002',
+            'amount' => 150,
+            'status' => KioskPayment::STATUS_PENDING,
+            'qr_data' => null,
+            'paymongo_payment_intent_id' => 'pi_test_online_x',
+            'expires_at' => Carbon::now()->addMinute(),
+        ]);
+
+        $this->postJson('/api/kiosk/payments/'.$payment->reference.'/confirm', [], [
+            'X-Kiosk-Token' => 'test-kiosk-token',
+        ])->assertStatus(409);
+
+        $this->assertSame(KioskPayment::STATUS_PENDING, $payment->fresh()->status);
+    }
+
     public function test_confirm_rejects_expired_payment(): void
     {
         $payment = KioskPayment::create([
             'reference' => 'kio_test_confirm_expired',
             'name' => 'A',
             'phone' => '09170000001',
-            'amount_centavos' => 15000,
+            'amount' => 150,
             'status' => KioskPayment::STATUS_PENDING,
             'qr_data' => 'gcash://demo',
             'expires_at' => Carbon::now()->subSecond(),

@@ -9,6 +9,8 @@ use App\Services\Sync\SyncReceiverRegistry;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 /**
  * Bootstrap endpoint. Returns raw rows for one entity_type, paginated by
@@ -33,7 +35,11 @@ class SnapshotController extends Controller
         $afterId = (int) ($data['after_id'] ?? 0);
         $limit = (int) ($data['limit'] ?? 500);
 
-        $modelClass = $this->registry->modelFor($entityType);
+        try {
+            $modelClass = $this->registry->modelFor($entityType);
+        } catch (InvalidArgumentException $e) {
+            throw new NotFoundHttpException($e->getMessage(), $e);
+        }
         $model = new $modelClass;
         $keyName = $model->getKeyName();
         $table = $model->getTable();

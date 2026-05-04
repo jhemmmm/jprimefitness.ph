@@ -136,7 +136,7 @@ class ReceiverConflictTest extends TestCase
             'reference' => $reference,
             'name' => 'Walter',
             'phone' => '09171234567',
-            'amount_centavos' => 15000,
+            'amount' => 150,
             'status' => KioskPayment::STATUS_PENDING,
             'expires_at' => now()->addMinutes(10)->toIso8601String(),
             'created_at' => now()->toIso8601String(),

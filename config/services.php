@@ -37,8 +37,7 @@ return [
 
     'kiosk' => [
         'token' => env('KIOSK_TOKEN'),
-        'walk_in_amount' => env('KIOSK_WALK_IN_AMOUNT', 150),
-        'payment_timeout_seconds' => env('KIOSK_PAYMENT_TIMEOUT_SECONDS', 60),
+        'payment_timeout_seconds' => env('KIOSK_PAYMENT_TIMEOUT_SECONDS', 120),
     ],
 
     'biometric' => [
@@ -57,6 +56,10 @@ return [
         'webhook_tolerance_seconds' => (int) env('PAYMONGO_WEBHOOK_TOLERANCE_SECONDS', 300),
         'success_url' => env('PAYMONGO_SUCCESS_URL', '/register/success'),
         'cancel_url' => env('PAYMONGO_CANCEL_URL', '/register/cancelled'),
+        'payment_methods' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('PAYMONGO_PAYMENT_METHODS', 'qrph,gcash,paymaya,card,grab_pay'))
+        ))),
     ],
 
     'recaptcha' => [

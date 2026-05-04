@@ -74,6 +74,6 @@ class SnapshotControllerTest extends TestCase
     {
         $this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
             ->getJson('/api/sync/snapshot/notathing?after_id=0')
-            ->assertStatus(500);
+            ->assertNotFound();
     }
 }

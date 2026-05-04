@@ -13,10 +13,10 @@ return new class extends Migration
             $table->string('reference', 64)->unique();
             $table->string('name');
             $table->string('phone', 32);
-            $table->unsignedInteger('amount_centavos');
+            $table->decimal('amount', 10, 2);
             $table->string('status', 16)->default('pending');
             $table->string('qr_data', 500)->nullable();
-            $table->timestamp('expires_at');
+            $table->dateTime('expires_at');
             $table->timestamp('paid_at')->nullable();
             $table->timestamps();
 

@@ -31,16 +31,17 @@ class KioskPayment extends Model
         'reference',
         'name',
         'phone',
-        'amount_centavos',
+        'amount',
         'status',
         'qr_data',
+        'paymongo_payment_intent_id',
         'expires_at',
         'paid_at',
         'consumed_at',
     ];
 
     protected $casts = [
-        'amount_centavos' => 'integer',
+        'amount' => 'float',
         'expires_at' => 'datetime',
         'paid_at' => 'datetime',
         'consumed_at' => 'datetime',
@@ -53,8 +54,26 @@ class KioskPayment extends Model
             && $this->expires_at->isPast();
     }
 
-    public function getAmountPesos(): float
+    public function isOnline(): bool
     {
-        return $this->amount_centavos / 100;
+        return $this->paymongo_payment_intent_id !== null;
     }
+
+    public static function findForCli(?string $reference, bool $requirePaymongoIntent = false): ?self
+    {
+        if ($reference !== null) {
+            return self::query()->where('reference', $reference)->first();
+        }
+
+        $query = self::query()
+            ->where('status', self::STATUS_PENDING)
+            ->latest('id');
+
+        if ($requirePaymongoIntent) {
+            $query->whereNotNull('paymongo_payment_intent_id');
+        }
+
+        return $query->first();
+    }
+
 }
