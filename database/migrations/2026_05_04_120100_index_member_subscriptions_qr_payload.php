@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('member_subscriptions', function (Blueprint $table) {
             // Random 40-char payload + 'JPRIME:' prefix = 47 chars; 64 leaves headroom.
-            $table->string('qr_payload', 64)->nullable()->change();
+            $table->string('qr_payload', 255)->nullable()->change();
             $table->unique('qr_payload');
         });
     }
