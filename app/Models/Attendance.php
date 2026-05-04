@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Attendance extends Model
 {
-    use SoftDeletes;
+    use SoftDeletes, SyncsToOutbox;
 
     public const TYPE_MEMBER = 'member';
 

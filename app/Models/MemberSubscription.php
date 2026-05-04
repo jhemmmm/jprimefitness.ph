@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MemberSubscription extends Model
 {
+    use SyncsToOutbox;
+
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_EXPIRED = 'expired';

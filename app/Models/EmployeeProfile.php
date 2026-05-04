@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Database\Factories\EmployeeProfileFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class EmployeeProfile extends Model
 {
     /** @use HasFactory<EmployeeProfileFactory> */
-    use HasFactory;
+    use HasFactory, SyncsToOutbox;
 
     public const STATUS_NOT_ENROLLED = 'not_enrolled';
 

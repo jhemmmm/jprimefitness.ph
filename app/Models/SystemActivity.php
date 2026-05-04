@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
 class SystemActivity extends Model
 {
-    use HasFactory;
+    use HasFactory, SyncsToOutbox;
 
     public const SUBJECT_BUSINESS_PROFILE = 'business_profile';
 
@@ -36,6 +37,10 @@ class SystemActivity extends Model
 
     public const SUBJECT_PT_PRODUCT = 'pt_product';
 
+    public const SUBJECT_SYNC = 'sync';
+
+    public const EVENT_SYNC_CONFLICT_DROPPED = 'sync.conflict_dropped';
+
     protected $fillable = [
         'subject_type',
         'subject_id',
@@ -53,6 +58,26 @@ class SystemActivity extends Model
         'metadata' => 'array',
         'occurred_at' => 'datetime',
     ];
+
+    public function syncableAttributes(): array
+    {
+        $attributes = $this->getAttributes();
+
+        // Sync conflict rows embed the rejected payload in metadata. That
+        // payload already lives in the originating outbox event, so we'd
+        // be syncing it twice (and the embedding would be re-embedded
+        // ad infinitum on subsequent re-conflicts).
+        if (isset($attributes['metadata']) && is_string($attributes['metadata'])) {
+            $decoded = json_decode($attributes['metadata'], true);
+
+            if (is_array($decoded) && isset($decoded['incoming_payload'])) {
+                unset($decoded['incoming_payload']);
+                $attributes['metadata'] = json_encode($decoded);
+            }
+        }
+
+        return $attributes;
+    }
 
     public function eventLabel(): string
     {

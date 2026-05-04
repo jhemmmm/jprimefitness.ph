@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MemberPtSessionUsage extends Model
 {
+    use SyncsToOutbox;
+
     protected $fillable = [
         'member_pt_package_id',
         'recorded_by',

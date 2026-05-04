@@ -2,10 +2,23 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Illuminate\Database\Eloquent\Model;
 
 class KioskPayment extends Model
 {
+    use SyncsToOutbox;
+
+    public function syncsUuid(): bool
+    {
+        return false;
+    }
+
+    public function syncEntityKey(): string
+    {
+        return (string) $this->getAttribute('reference');
+    }
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_PAID = 'paid';

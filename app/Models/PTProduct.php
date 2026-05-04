@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PTProduct extends Model
 {
+    use SyncsToOutbox;
+
     public const CATEGORY_SINGLE = 'single';
 
     public const CATEGORY_PACKAGE = 'package';

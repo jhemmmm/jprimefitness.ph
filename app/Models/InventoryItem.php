@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Database\Factories\InventoryItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class InventoryItem extends Model
 {
     /** @use HasFactory<InventoryItemFactory> */
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, SyncsToOutbox;
 
     public const STATUS_ACTIVE = 'active';
 

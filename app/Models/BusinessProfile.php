@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Database\Factories\BusinessProfileFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 class BusinessProfile extends Model
 {
     /** @use HasFactory<BusinessProfileFactory> */
-    use HasFactory;
+    use HasFactory, SyncsToOutbox;
 
     public const COUNTRY_PHILIPPINES = 'PH';
 

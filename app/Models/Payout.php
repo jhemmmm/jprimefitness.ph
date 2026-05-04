@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Payout extends Model
 {
+    use SyncsToOutbox;
+
     public const METHOD_CASH = 'cash';
 
     public const METHOD_BANK_TRANSFER = 'bank_transfer';

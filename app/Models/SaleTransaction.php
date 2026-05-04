@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Database\Factories\SaleTransactionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class SaleTransaction extends Model
 {
     /** @use HasFactory<SaleTransactionFactory> */
-    use HasFactory;
+    use HasFactory, SyncsToOutbox;
 
     public const TYPE_INVENTORY = 'inventory';
 

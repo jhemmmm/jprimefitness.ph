@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Payroll extends Model
 {
+    use SyncsToOutbox;
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_APPROVED = 'approved';

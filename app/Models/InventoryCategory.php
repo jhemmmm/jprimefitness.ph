@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\SyncsToOutbox;
 use Database\Factories\InventoryCategoryFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,7 @@ use Illuminate\Support\Str;
 class InventoryCategory extends Model
 {
     /** @use HasFactory<InventoryCategoryFactory> */
-    use HasFactory;
+    use HasFactory, SyncsToOutbox;
 
     protected $fillable = [
         'name',
