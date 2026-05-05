@@ -49,6 +49,7 @@
 import EmployeeAttendancePage from "./vendor/EmployeeAttendancePage.vue";
 import EmployeePayrollPage from "./vendor/EmployeePayrollPage.vue";
 import EmployeePayoutPage from "./vendor/EmployeePayoutPage.vue";
+import EmployeeSchedulePage from "./vendor/EmployeeSchedulePage.vue";
 import EmployeeSettingsPage from "./vendor/EmployeeSettingsPage.vue";
 
 export default {
@@ -56,6 +57,7 @@ export default {
       EmployeeAttendancePage,
       EmployeePayrollPage,
       EmployeePayoutPage,
+      EmployeeSchedulePage,
       EmployeeSettingsPage,
    },
 
@@ -70,6 +72,7 @@ export default {
          activeTab: "attendance",
          tabs: [
             { key: "attendance", label: "Attendance", icon: "bi-calendar-check" },
+            { key: "schedule", label: "Schedule", icon: "bi-calendar-week" },
             { key: "payroll", label: "Payrolls", icon: "bi-receipt" },
             { key: "payout", label: "Payouts", icon: "bi-cash-stack" },
             { key: "settings", label: "Settings", icon: "bi-gear" },
@@ -81,6 +84,7 @@ export default {
       activeComponent: function () {
          return {
             attendance: "EmployeeAttendancePage",
+            schedule: "EmployeeSchedulePage",
             payroll: "EmployeePayrollPage",
             payout: "EmployeePayoutPage",
             settings: "EmployeeSettingsPage",

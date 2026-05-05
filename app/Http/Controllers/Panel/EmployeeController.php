@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\SystemActivity;
 use App\Models\BusinessProfile;
 use App\Models\EmployeeProfile;
+use App\Models\EmployeeScheduleShift;
 use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\User;
@@ -18,6 +19,7 @@ use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -235,6 +237,68 @@ class EmployeeController extends Controller
         );
 
         return response()->json(['message' => 'Employee deleted.']);
+    }
+
+    /**
+     * Return the weekly schedule for an employee.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function schedule(User $employee): JsonResponse
+    {
+        $profile = $this->ensureEmployeeProfile($employee);
+        $profile->load('scheduleShifts');
+
+        return response()->json([
+            'shifts' => $this->serializeScheduleShifts($profile),
+        ]);
+    }
+
+    /**
+     * Replace the weekly schedule for an employee.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateSchedule(Request $request, User $employee): JsonResponse
+    {
+        $data = $request->validate([
+            'shifts' => ['present', 'array'],
+            'shifts.*.day_of_week' => ['required', 'integer', 'between:0,6'],
+            'shifts.*.start_time' => ['required', 'date_format:H:i'],
+            'shifts.*.end_time' => ['required', 'date_format:H:i', 'after:shifts.*.start_time'],
+        ]);
+
+        $this->assertNoOverlap($data['shifts'] ?? []);
+
+        $profile = $this->ensureEmployeeProfile($employee);
+
+        DB::transaction(function () use ($profile, $data) {
+            $profile->scheduleShifts()->delete();
+
+            foreach ($data['shifts'] ?? [] as $shift) {
+                $profile->scheduleShifts()->create([
+                    'day_of_week' => (int) $shift['day_of_week'],
+                    'start_time' => $shift['start_time'].':00',
+                    'end_time' => $shift['end_time'].':00',
+                ]);
+            }
+        });
+
+        $profile->load('scheduleShifts');
+        $shifts = $this->serializeScheduleShifts($profile);
+
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_EMPLOYEE,
+            $employee->id,
+            'schedule_updated',
+            ['shifts' => $shifts],
+            [],
+            auth()->id(),
+            auth()->user()?->name,
+            now(),
+        );
+
+        return response()->json(['shifts' => $shifts]);
     }
 
     /**
@@ -840,6 +904,50 @@ class EmployeeController extends Controller
             'biometric_enrolled_at' => $employeeProfile->biometric_enrolled_at?->toISOString(),
             'biometric_last_error' => $employeeProfile->biometric_last_error,
         ];
+    }
+
+    /**
+     * @return list<array{id: int, day_of_week: int, start_time: string, end_time: string}>
+     */
+    private function serializeScheduleShifts(EmployeeProfile $profile): array
+    {
+        return $profile->scheduleShifts
+            ->map(fn (EmployeeScheduleShift $shift) => [
+                'id' => $shift->id,
+                'day_of_week' => (int) $shift->day_of_week,
+                'start_time' => substr((string) $shift->start_time, 0, 5),
+                'end_time' => substr((string) $shift->end_time, 0, 5),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array{day_of_week: int|string, start_time: string, end_time: string}>  $shifts
+     */
+    private function assertNoOverlap(array $shifts): void
+    {
+        $byDay = [];
+        foreach ($shifts as $index => $shift) {
+            $byDay[(int) $shift['day_of_week']][] = ['index' => $index, 'shift' => $shift];
+        }
+
+        $errors = [];
+        foreach ($byDay as $dayShifts) {
+            usort($dayShifts, fn ($a, $b) => strcmp($a['shift']['start_time'], $b['shift']['start_time']));
+
+            for ($i = 1; $i < count($dayShifts); $i++) {
+                $prev = $dayShifts[$i - 1]['shift'];
+                $curr = $dayShifts[$i];
+                if ($curr['shift']['start_time'] < $prev['end_time']) {
+                    $errors["shifts.{$curr['index']}.start_time"] = ['Shift overlaps another shift on the same day.'];
+                }
+            }
+        }
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
     }
 
     /**

@@ -63,4 +63,11 @@ class EmployeeProfile extends Model
     {
         return $this->hasMany(EmployeeBiometricSession::class);
     }
+
+    public function scheduleShifts(): HasMany
+    {
+        return $this->hasMany(EmployeeScheduleShift::class)
+            ->orderBy('day_of_week')
+            ->orderBy('start_time');
+    }
 }

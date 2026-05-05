@@ -128,6 +128,8 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::post('/employees/{employee}/biometric/enroll', [EmployeeBiometricController::class, 'store'])->name('employees.biometric.store')->whereNumber('employee');
     Route::get('/employees/{employee}/biometric/sessions/{session}', [EmployeeBiometricController::class, 'show'])->name('employees.biometric.show')->whereNumber('employee')->whereNumber('session');
     Route::delete('/employees/{employee}/biometric/fingerprint', [EmployeeBiometricController::class, 'destroy'])->name('employees.biometric.destroy')->whereNumber('employee');
+    Route::get('/employees/{employee}/schedule', [EmployeeController::class, 'schedule'])->name('employees.schedule.show')->whereNumber('employee')->withTrashed();
+    Route::put('/employees/{employee}/schedule', [EmployeeController::class, 'updateSchedule'])->name('employees.schedule.update')->whereNumber('employee');
     Route::post('/employees/{employee}/attendance', [EmployeeController::class, 'attendance'])->name('employees.attendance')->whereNumber('employee')->withTrashed();
     Route::get('/employees/{employee}/payrolls', [EmployeeController::class, 'payrolls'])->name('employees.payrolls.list')->whereNumber('employee')->withTrashed();
     Route::post('/employees/{employee}/payrolls', [EmployeeController::class, 'storePayroll'])->name('employees.payrolls.store')->whereNumber('employee');
