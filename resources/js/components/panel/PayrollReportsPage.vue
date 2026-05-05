@@ -7,50 +7,83 @@
          </div>
       </div>
       <div class="panel-card mb-4">
-            <div class="panel-card-header">
-               <div>
-                  <div class="panel-card-title">Filters</div>
-                  <div class="panel-card-sub">Use the payroll period end date range, payroll status, and pay frequency to review this report.</div>
-               </div>
+         <div class="panel-card-header">
+            <div>
+               <div class="panel-card-title">Filters</div>
+               <div class="panel-card-sub">Use the payroll period end date range, payroll status, and pay frequency to review this report.</div>
             </div>
-            <div class="p-3 p-md-4">
-               <div class="row g-3 align-items-end">
-                  <div class="col-12 col-md-6 col-xl-3">
-                     <label class="form-label">Date From</label>
-                     <input type="date" class="form-control" v-model="filters.date_from" />
-                  </div>
-                  <div class="col-12 col-md-6 col-xl-3">
-                     <label class="form-label">Date To</label>
-                     <input type="date" class="form-control" v-model="filters.date_to" />
-                  </div>
-                  <div class="col-12 col-md-6 col-xl-3">
-                     <label class="form-label">Status</label>
-                     <select class="form-select" v-model="filters.status">
-                        <option value="">All Active Statuses</option>
-                        <option v-for="status in payrollStatuses" :key="status.value" :value="status.value">{{ status.label }}</option>
-                     </select>
-                  </div>
-                  <div class="col-12 col-md-6 col-xl-3">
-                     <label class="form-label">Pay Frequency</label>
-                     <select class="form-select" v-model="filters.pay_frequency">
-                        <option value="">All Frequencies</option>
-                        <option v-for="frequency in payFrequencies" :key="frequency.value" :value="frequency.value">{{ frequency.label }}</option>
-                     </select>
-                  </div>
-               </div>
-
-               <div class="d-flex gap-2 mt-3">
-                  <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport" :disabled="loading">
-                     <i class="bi bi-arrow-repeat me-1"></i>
-                     Refresh
-                  </button>
-                  <a class="btn btn-outline-dark btn-sm px-3" :href="exportUrl">
-                     <i class="bi bi-download me-1"></i>
-                     Export CSV
-                  </a>
-               </div>
+            <div class="d-none d-md-flex align-items-center gap-2">
+               <span class="text-muted small">{{ activeRangeLabel }}</span>
             </div>
          </div>
+         <div class="p-3 p-md-4">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+               <button
+                  v-for="preset in rangePresets"
+                  :key="preset.key"
+                  type="button"
+                  class="btn btn-sm"
+                  :class="activeRangeKey === preset.key ? 'btn-danger' : 'btn-outline-secondary'"
+                  @click="applyRangePreset(preset.key)"
+               >
+                  {{ preset.label }}
+               </button>
+            </div>
+
+            <div class="row g-3 align-items-end">
+               <div class="col-12 col-md-6 col-xl-3">
+                  <label class="form-label">Date From</label>
+                  <input type="date" class="form-control" v-model="filters.date_from" />
+               </div>
+               <div class="col-12 col-md-6 col-xl-3">
+                  <label class="form-label">Date To</label>
+                  <input type="date" class="form-control" v-model="filters.date_to" />
+               </div>
+               <div class="col-12 col-md-6 col-xl-3">
+                  <label class="form-label">Status</label>
+                  <select class="form-select" v-model="filters.status">
+                     <option value="">All Active Statuses</option>
+                     <option v-for="status in payrollStatuses" :key="status.value" :value="status.value">{{ status.label }}</option>
+                  </select>
+               </div>
+               <div class="col-12 col-md-6 col-xl-3">
+                  <label class="form-label">Pay Frequency</label>
+                  <select class="form-select" v-model="filters.pay_frequency">
+                     <option value="">All Frequencies</option>
+                     <option v-for="frequency in payFrequencies" :key="frequency.value" :value="frequency.value">{{ frequency.label }}</option>
+                  </select>
+               </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+               <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport" :disabled="loading">
+                  <i class="bi bi-arrow-repeat me-1"></i>
+                  Refresh
+               </button>
+               <a class="btn btn-outline-dark btn-sm px-3" :href="exportUrl">
+                  <i class="bi bi-download me-1"></i>
+                  Export CSV
+               </a>
+               <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm px-3 ms-auto"
+                  @click="resetFilters"
+                  :disabled="!hasNonDefaultFilters"
+               >
+                  <i class="bi bi-x-circle me-1"></i>
+                  Reset
+               </button>
+            </div>
+
+            <div v-if="activeFilterChips.length > 0" class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+               <span class="text-muted small align-self-center">Active filters:</span>
+               <span v-for="chip in activeFilterChips" :key="chip.key" class="m-badge m-badge--plan d-inline-flex align-items-center gap-1">
+                  {{ chip.label }}
+                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip.key)"></button>
+               </span>
+            </div>
+         </div>
+      </div>
 
          <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
 
@@ -145,12 +178,20 @@
                         <div>No payroll records for this filter.</div>
                      </div>
                      <div v-else>
-                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom" v-for="row in report.status_breakdown" :key="row.status">
-                           <div>
-                              <span :class="['m-badge', $filters.statusBadge(row.status)]">{{ row.label }}</span>
-                              <div class="text-muted small mt-1">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
+                        <div class="share-row share-row--block" v-for="row in statusBreakdownWithShare" :key="row.status">
+                           <div class="d-flex justify-content-between align-items-center gap-2">
+                              <div>
+                                 <span :class="['m-badge', $filters.statusBadge(row.status)]">{{ row.label }}</span>
+                                 <div class="text-muted small mt-1">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
+                              </div>
+                              <div class="text-end">
+                                 <div class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</div>
+                                 <div class="text-muted small">{{ row.share }}%</div>
+                              </div>
                            </div>
-                           <div class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</div>
+                           <div class="share-bar mt-2">
+                              <div class="share-bar-fill" :style="{ width: row.share + '%' }"></div>
+                           </div>
                         </div>
                      </div>
                   </div>
@@ -171,12 +212,20 @@
                         <div>No pay frequency activity for this filter.</div>
                      </div>
                      <div v-else>
-                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom" v-for="row in report.pay_frequency_breakdown" :key="row.pay_frequency">
-                           <div>
-                              <div class="fw-semibold">{{ row.label }}</div>
-                              <div class="text-muted small">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
+                        <div class="share-row share-row--block" v-for="row in payFrequencyBreakdownWithShare" :key="row.pay_frequency">
+                           <div class="d-flex justify-content-between align-items-center gap-2">
+                              <div>
+                                 <div class="fw-semibold">{{ row.label }}</div>
+                                 <div class="text-muted small">{{ row.payroll_count }} payroll run{{ row.payroll_count !== 1 ? "s" : "" }}</div>
+                              </div>
+                              <div class="text-end">
+                                 <div class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</div>
+                                 <div class="text-muted small">{{ row.share }}%</div>
+                              </div>
                            </div>
-                           <div class="fw-semibold">₱{{ $filters.formatMoney(row.net_payroll) }}</div>
+                           <div class="share-bar mt-2">
+                              <div class="share-bar-fill" :style="{ width: row.share + '%' }"></div>
+                           </div>
                         </div>
                      </div>
                   </div>
@@ -202,12 +251,20 @@
                         <div>No payouts recorded for this filter.</div>
                      </div>
                      <div v-else>
-                        <div class="d-flex justify-content-between align-items-center py-2 border-bottom" v-for="row in report.payout_method_breakdown" :key="row.method">
-                           <div>
-                              <div class="fw-semibold">{{ row.label }}</div>
-                              <div class="text-muted small">{{ row.payout_count }} payout{{ row.payout_count !== 1 ? "s" : "" }}</div>
+                        <div class="share-row share-row--block" v-for="row in payoutMethodBreakdownWithShare" :key="row.method">
+                           <div class="d-flex justify-content-between align-items-center gap-2">
+                              <div>
+                                 <div class="fw-semibold">{{ row.label }}</div>
+                                 <div class="text-muted small">{{ row.payout_count }} payout{{ row.payout_count !== 1 ? "s" : "" }}</div>
+                              </div>
+                              <div class="text-end">
+                                 <div class="fw-semibold">₱{{ $filters.formatMoney(row.total_paid) }}</div>
+                                 <div class="text-muted small">{{ row.share }}%</div>
+                              </div>
                            </div>
-                           <div class="fw-semibold">₱{{ $filters.formatMoney(row.total_paid) }}</div>
+                           <div class="share-bar mt-2">
+                              <div class="share-bar-fill" :style="{ width: row.share + '%' }"></div>
+                           </div>
                         </div>
                      </div>
                   </div>
@@ -362,6 +419,7 @@
 <script>
 import PayrollStatusBreakdownChart from "./charts/PayrollStatusBreakdownChart.vue";
 import PayrollTrendChart from "./charts/PayrollTrendChart.vue";
+import dateRangePresets from "../../mixins/dateRangePresets";
 import { formatDate, startOfCurrentMonthDate, todayDate } from "../../dates";
 
 export default {
@@ -369,6 +427,7 @@ export default {
       PayrollStatusBreakdownChart,
       PayrollTrendChart,
    },
+   mixins: [dateRangePresets],
    props: {
       businessProfile: {
          type: Object,
@@ -405,6 +464,64 @@ export default {
             { value: "semi_monthly", label: "Semi Monthly" },
             { value: "monthly", label: "Monthly" },
          ];
+      },
+      statusLabel: function () {
+         const match = this.payrollStatuses.find((option) => option.value === this.filters.status);
+
+         return match ? match.label : "";
+      },
+      payFrequencyLabel: function () {
+         const match = this.payFrequencies.find((option) => option.value === this.filters.pay_frequency);
+
+         return match ? match.label : "";
+      },
+      activeFilterChips: function () {
+         const chips = [];
+
+         if (this.filters.status) {
+            chips.push({ key: "status", label: `Status: ${this.statusLabel}` });
+         }
+
+         if (this.filters.pay_frequency) {
+            chips.push({ key: "pay_frequency", label: `Frequency: ${this.payFrequencyLabel}` });
+         }
+
+         return chips;
+      },
+      hasNonDefaultFilters: function () {
+         return (
+            this.filters.status !== "" ||
+            this.filters.pay_frequency !== "" ||
+            this.filters.date_from !== this.defaultDateFrom() ||
+            this.filters.date_to !== this.defaultDateTo()
+         );
+      },
+      statusBreakdownWithShare: function () {
+         const total = Number(this.report.summary.net_payroll || 0);
+
+         return this.report.status_breakdown.map((row) => {
+            const share = total > 0 ? Math.round((Number(row.net_payroll || 0) / total) * 100) : 0;
+
+            return { ...row, share };
+         });
+      },
+      payFrequencyBreakdownWithShare: function () {
+         const total = Number(this.report.summary.net_payroll || 0);
+
+         return this.report.pay_frequency_breakdown.map((row) => {
+            const share = total > 0 ? Math.round((Number(row.net_payroll || 0) / total) * 100) : 0;
+
+            return { ...row, share };
+         });
+      },
+      payoutMethodBreakdownWithShare: function () {
+         const total = Number(this.report.summary.total_paid || 0);
+
+         return this.report.payout_method_breakdown.map((row) => {
+            const share = total > 0 ? Math.round((Number(row.total_paid || 0) / total) * 100) : 0;
+
+            return { ...row, share };
+         });
       },
       exportUrl: function () {
          const params = new URLSearchParams();
@@ -542,6 +659,37 @@ export default {
       },
       defaultDateTo: function () {
          return todayDate();
+      },
+      applyRangePreset: function (key) {
+         if (this.activeRangeKey === key) {
+            return;
+         }
+
+         const bounds = this.rangeBoundsByKey[key];
+
+         if (!bounds) {
+            return;
+         }
+
+         this.filters.date_from = bounds.from;
+         this.filters.date_to = bounds.to;
+         this.fetchReport();
+      },
+      resetFilters: function () {
+         this.filters.date_from = this.defaultDateFrom();
+         this.filters.date_to = this.defaultDateTo();
+         this.filters.status = "";
+         this.filters.pay_frequency = "";
+         this.fetchReport();
+      },
+      clearChip: function (key) {
+         if (key === "status") {
+            this.filters.status = "";
+         } else if (key === "pay_frequency") {
+            this.filters.pay_frequency = "";
+         }
+
+         this.fetchReport();
       },
       formatCurrencyLabel: function (amount) {
          return `₱${this.$filters.formatMoney(amount || 0)}`;

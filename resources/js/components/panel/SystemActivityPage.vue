@@ -14,36 +14,80 @@
          </button>
       </div>
 
-      <div class="panel-card mb-4 p-3">
-         <div class="row g-2 align-items-center">
-            <div class="col-12 col-lg-4">
-               <div class="input-group">
-                  <span class="input-group-text bg-transparent border-end-0">
-                     <i class="bi bi-search text-muted search-icon"></i>
-                  </span>
-                  <input type="text" class="form-control border-start-0" placeholder="Search event, subject, or actor..." v-model="filters.search" @input="onSearchInput" />
+      <div class="panel-card mb-4">
+         <div class="panel-card-header">
+            <div>
+               <div class="panel-card-title">Filters</div>
+               <div class="panel-card-sub">Search, narrow by subject or event, and pick a date range.</div>
+            </div>
+            <div class="d-none d-md-flex align-items-center gap-2">
+               <span class="text-muted small">{{ activeRangeLabel }}</span>
+            </div>
+         </div>
+         <div class="p-3 p-md-4">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+               <button
+                  v-for="preset in rangePresets"
+                  :key="preset.key"
+                  type="button"
+                  class="btn btn-sm"
+                  :class="activeRangeKey === preset.key ? 'btn-danger' : 'btn-outline-secondary'"
+                  @click="applyRangePreset(preset.key)"
+               >
+                  {{ preset.label }}
+               </button>
+            </div>
+
+            <div class="row g-2 align-items-center">
+               <div class="col-12 col-lg-4">
+                  <div class="input-group">
+                     <span class="input-group-text bg-transparent border-end-0">
+                        <i class="bi bi-search text-muted search-icon"></i>
+                     </span>
+                     <input type="text" class="form-control border-start-0" placeholder="Search event, subject, or actor..." v-model="filters.search" @input="onSearchInput" />
+                  </div>
+               </div>
+               <div class="col-6 col-md-3 col-lg-2">
+                  <select class="form-select" v-model="filters.subject_type" @change="fetchSystemActivity(1)">
+                     <option value="">All Subjects</option>
+                     <option v-for="option in subjectOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                  </select>
+               </div>
+               <div class="col-6 col-md-3 col-lg-2">
+                  <input type="number" min="1" class="form-control" placeholder="Subject ID" v-model="filters.subject_id" @change="fetchSystemActivity(1)" />
+               </div>
+               <div class="col-6 col-md-3 col-lg-2">
+                  <select class="form-select" v-model="filters.event" @change="fetchSystemActivity(1)">
+                     <option value="">All Events</option>
+                     <option v-for="option in eventOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                  </select>
+               </div>
+               <div class="col-6 col-md-3 col-lg-1">
+                  <input type="date" class="form-control" v-model="filters.date_from" @change="fetchSystemActivity(1)" />
+               </div>
+               <div class="col-6 col-md-3 col-lg-1">
+                  <input type="date" class="form-control" v-model="filters.date_to" @change="fetchSystemActivity(1)" />
                </div>
             </div>
-            <div class="col-6 col-md-3 col-lg-2">
-               <select class="form-select" v-model="filters.subject_type" @change="fetchSystemActivity(1)">
-                  <option value="">All Subjects</option>
-                  <option v-for="option in subjectOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-               </select>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+               <button
+                  type="button"
+                  class="btn btn-outline-secondary btn-sm px-3 ms-auto"
+                  @click="resetFilters"
+                  :disabled="!hasActiveFilters"
+               >
+                  <i class="bi bi-x-circle me-1"></i>
+                  Reset
+               </button>
             </div>
-            <div class="col-6 col-md-3 col-lg-2">
-               <input type="number" min="1" class="form-control" placeholder="Subject ID" v-model="filters.subject_id" @change="fetchSystemActivity(1)" />
-            </div>
-            <div class="col-6 col-md-3 col-lg-2">
-               <select class="form-select" v-model="filters.event" @change="fetchSystemActivity(1)">
-                  <option value="">All Events</option>
-                  <option v-for="option in eventOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-               </select>
-            </div>
-            <div class="col-6 col-md-3 col-lg-1">
-               <input type="date" class="form-control" v-model="filters.date_from" @change="fetchSystemActivity(1)" />
-            </div>
-            <div class="col-6 col-md-3 col-lg-1">
-               <input type="date" class="form-control" v-model="filters.date_to" @change="fetchSystemActivity(1)" />
+
+            <div v-if="activeFilterChips.length > 0" class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
+               <span class="text-muted small align-self-center">Active filters:</span>
+               <span v-for="chip in activeFilterChips" :key="chip.key" class="m-badge m-badge--plan d-inline-flex align-items-center gap-1">
+                  {{ chip.label }}
+                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip.key)"></button>
+               </span>
             </div>
          </div>
       </div>
@@ -302,9 +346,11 @@
 
 <script>
 import { Modal } from "bootstrap";
+import dateRangePresets from "../../mixins/dateRangePresets";
 import { formatDateTime } from "../../dates";
 
 export default {
+   mixins: [dateRangePresets],
    data: function () {
       return {
          loading: false,
@@ -341,6 +387,50 @@ export default {
       };
    },
 
+   computed: {
+      subjectTypeLabel: function () {
+         const match = this.subjectOptions.find((option) => option.value === this.filters.subject_type);
+
+         return match ? match.label : this.filters.subject_type;
+      },
+      eventLabel: function () {
+         const match = this.eventOptions.find((option) => option.value === this.filters.event);
+
+         return match ? match.label : this.filters.event;
+      },
+      activeFilterChips: function () {
+         const chips = [];
+
+         if (this.filters.search) {
+            chips.push({ key: "search", label: `Search: "${this.filters.search}"` });
+         }
+
+         if (this.filters.subject_type) {
+            chips.push({ key: "subject_type", label: `Subject: ${this.subjectTypeLabel}` });
+         }
+
+         if (String(this.filters.subject_id).trim() !== "") {
+            chips.push({ key: "subject_id", label: `Subject ID: #${this.filters.subject_id}` });
+         }
+
+         if (this.filters.event) {
+            chips.push({ key: "event", label: `Event: ${this.eventLabel}` });
+         }
+
+         return chips;
+      },
+      hasActiveFilters: function () {
+         return (
+            Boolean(this.filters.search) ||
+            Boolean(this.filters.subject_type) ||
+            String(this.filters.subject_id).trim() !== "" ||
+            Boolean(this.filters.event) ||
+            Boolean(this.filters.date_from) ||
+            Boolean(this.filters.date_to)
+         );
+      },
+   },
+
    mounted: function () {
       this.hydrateFiltersFromUrl();
       this.restoreModal = new Modal(this.$refs.restoreModal);
@@ -353,6 +443,43 @@ export default {
 
    methods: {
       formatDateTime,
+      applyRangePreset: function (key) {
+         if (this.activeRangeKey === key) {
+            return;
+         }
+
+         const bounds = this.rangeBoundsByKey[key];
+
+         if (!bounds) {
+            return;
+         }
+
+         this.filters.date_from = bounds.from;
+         this.filters.date_to = bounds.to;
+         this.fetchSystemActivity(1);
+      },
+      resetFilters: function () {
+         this.filters.subject_type = "";
+         this.filters.subject_id = "";
+         this.filters.event = "";
+         this.filters.date_from = "";
+         this.filters.date_to = "";
+         this.filters.search = "";
+         this.fetchSystemActivity(1);
+      },
+      clearChip: function (key) {
+         if (key === "search") {
+            this.filters.search = "";
+         } else if (key === "subject_type") {
+            this.filters.subject_type = "";
+         } else if (key === "subject_id") {
+            this.filters.subject_id = "";
+         } else if (key === "event") {
+            this.filters.event = "";
+         }
+
+         this.fetchSystemActivity(1);
+      },
       hydrateFiltersFromUrl: function () {
          const params = new URLSearchParams(window.location.search);
          const allowedSortColumns = ["occurred_at", "event", "subject_label", "title", "actor_name"];

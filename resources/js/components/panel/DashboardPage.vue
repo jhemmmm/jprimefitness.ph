@@ -1,37 +1,22 @@
 <template>
    <div class="dashboard-page">
-      <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
          <div>
             <h4 class="panel-page-title mb-0">Dashboard</h4>
             <p class="text-muted small mb-0">Live operations, occupancy, and recent activity for your business</p>
+         </div>
+         <div class="d-flex align-items-center gap-2">
+            <span v-if="lastUpdatedLabel" class="text-muted small d-none d-md-inline">Updated {{ lastUpdatedLabel }}</span>
+            <button type="button" class="btn btn-outline-secondary btn-sm" :disabled="loading" @click="fetchDashboard">
+               <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+            </button>
          </div>
       </div>
 
       <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
 
       <div class="row g-3 mb-4">
-         <div class="col-6 col-xl-3" v-for="stat in visibleStatsRow1" :key="stat.key">
-            <div class="stat-card h-100">
-               <div class="stat-card-icon" :class="stat.iconBg">
-                  <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
-               </div>
-               <div class="stat-card-body">
-                  <div class="stat-card-label">{{ stat.label }}</div>
-                  <div class="stat-card-value" v-if="loading">
-                     <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 5px"></div>
-                  </div>
-                  <div class="stat-card-value" v-else>{{ stat.value }}</div>
-                  <div class="stat-card-sub" v-if="loading">
-                     <div class="skeleton-box" style="width: 120px; height: 11px; border-radius: 4px"></div>
-                  </div>
-                  <div class="stat-card-sub" v-else>{{ stat.sub }}</div>
-               </div>
-            </div>
-         </div>
-      </div>
-
-      <div class="row g-3 mb-4">
-         <div class="col-6 col-xl-3" v-for="stat in visibleStatsRow2" :key="stat.key">
+         <div class="col-6 col-xl-3" v-for="stat in visibleStats" :key="stat.key">
             <div class="stat-card h-100">
                <div class="stat-card-icon" :class="stat.iconBg">
                   <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
@@ -110,35 +95,80 @@
                      <a href="/panel/attendance" class="panel-card-action">View all <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
                   <div class="panel-card-body p-0">
-                     <div v-if="loading" class="p-3">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'check-ins-sk-' + index"></div>
+                     <div v-if="loading">
+                        <div class="d-none d-md-block p-3">
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'check-ins-sk-' + index"></div>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div class="member-card" v-for="index in 4" :key="'check-ins-mobile-sk-' + index">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar"></div>
+                                    <div>
+                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
+                                       <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    </div>
+                                 </div>
+                                 <div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div>
+                              </div>
+                              <div class="member-card-footer">
+                                 <div class="skeleton-box" style="width: 72px; height: 12px; border-radius: 4px"></div>
+                              </div>
+                           </div>
+                        </div>
                      </div>
-                     <table v-else class="panel-table">
-                        <thead>
-                           <tr>
-                              <th>Name</th>
-                              <th>Type</th>
-                              <th>Plan / Rate</th>
-                              <th>Time In</th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                           <tr v-if="dashboard.check_ins_today.length === 0" class="empty-row">
-                              <td colspan="4">
-                                 <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
-                                 <div class="mt-1 text-muted small">No check-ins recorded today.</div>
-                              </td>
-                           </tr>
-                           <tr v-for="row in dashboard.check_ins_today" :key="row.id" v-else>
-                              <td>{{ row.name }}</td>
-                              <td>
+                     <div v-else>
+                        <div class="table-responsive d-none d-md-block">
+                           <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
+                              <thead>
+                                 <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Plan / Rate</th>
+                                    <th>Time In</th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 <tr v-if="dashboard.check_ins_today.length === 0" class="empty-row">
+                                    <td colspan="4">
+                                       <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
+                                       <div class="mt-1 text-muted small">No check-ins recorded today.</div>
+                                    </td>
+                                 </tr>
+                                 <tr v-for="row in dashboard.check_ins_today" :key="row.id" v-else>
+                                    <td>{{ row.name }}</td>
+                                    <td>
+                                       <span :class="['m-badge', $filters.roleBadge(row.attendee_type)]">{{ row.attendee_type_label }}</span>
+                                    </td>
+                                    <td>{{ row.plan_or_rate }}</td>
+                                    <td>{{ formatTime(row.checked_in_at) }}</td>
+                                 </tr>
+                              </tbody>
+                           </table>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div v-if="dashboard.check_ins_today.length === 0" class="text-center py-4 text-muted small">
+                              <i class="bi bi-inbox empty-icon d-block mb-1"></i>
+                              No check-ins recorded today.
+                           </div>
+                           <div v-else class="member-card" v-for="row in dashboard.check_ins_today" :key="'check-ins-mobile-' + row.id">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar">{{ $filters.getNameInitials(row.name) }}</div>
+                                    <div>
+                                       <div class="member-card-name">{{ row.name }}</div>
+                                       <div class="member-card-sub">{{ row.plan_or_rate }}</div>
+                                    </div>
+                                 </div>
                                  <span :class="['m-badge', $filters.roleBadge(row.attendee_type)]">{{ row.attendee_type_label }}</span>
-                              </td>
-                              <td>{{ row.plan_or_rate }}</td>
-                              <td>{{ formatTime(row.checked_in_at) }}</td>
-                           </tr>
-                        </tbody>
-                     </table>
+                              </div>
+                              <div class="member-card-footer">
+                                 <span>Time In</span>
+                                 <span class="fw-semibold">{{ formatTime(row.checked_in_at) }}</span>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
                   </div>
                </div>
          </div>
@@ -204,33 +234,71 @@
                      <a href="/panel/members" class="panel-card-action">View all <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
                   <div class="panel-card-body p-0">
-                     <div v-if="loading" class="p-3">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'recent-members-sk-' + index"></div>
+                     <div v-if="loading">
+                        <div class="d-none d-md-block p-3">
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'recent-members-sk-' + index"></div>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div class="member-card" v-for="index in 4" :key="'recent-members-mobile-sk-' + index">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar"></div>
+                                    <div>
+                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
+                                       <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    </div>
+                                 </div>
+                                 <div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div>
+                              </div>
+                           </div>
+                        </div>
                      </div>
-                     <table v-else class="panel-table">
-                        <thead>
-                           <tr>
-                              <th>Name</th>
-                              <th>Plan</th>
-                              <th>Status</th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                           <tr v-if="dashboard.recent_members.length === 0" class="empty-row">
-                              <td colspan="3">
-                                 <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
-                                 <div class="mt-1 text-muted small">No members yet.</div>
-                              </td>
-                           </tr>
-                           <tr v-for="member in dashboard.recent_members" :key="member.id" v-else>
-                              <td>{{ member.name }}</td>
-                              <td>{{ member.plan_name }}</td>
-                              <td>
+                     <div v-else>
+                        <div class="table-responsive d-none d-md-block">
+                           <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
+                              <thead>
+                                 <tr>
+                                    <th>Name</th>
+                                    <th>Plan</th>
+                                    <th>Status</th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 <tr v-if="dashboard.recent_members.length === 0" class="empty-row">
+                                    <td colspan="3">
+                                       <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
+                                       <div class="mt-1 text-muted small">No members yet.</div>
+                                    </td>
+                                 </tr>
+                                 <tr v-for="member in dashboard.recent_members" :key="member.id" v-else>
+                                    <td>{{ member.name }}</td>
+                                    <td>{{ member.plan_name }}</td>
+                                    <td>
+                                       <span :class="['m-badge', $filters.statusBadge(member.status)]">{{ $filters.capitalize(member.status) }}</span>
+                                    </td>
+                                 </tr>
+                              </tbody>
+                           </table>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div v-if="dashboard.recent_members.length === 0" class="text-center py-4 text-muted small">
+                              <i class="bi bi-inbox empty-icon d-block mb-1"></i>
+                              No members yet.
+                           </div>
+                           <div v-else class="member-card" v-for="member in dashboard.recent_members" :key="'recent-members-mobile-' + member.id">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar">{{ $filters.getNameInitials(member.name) }}</div>
+                                    <div>
+                                       <div class="member-card-name">{{ member.name }}</div>
+                                       <div class="member-card-sub">{{ member.plan_name }}</div>
+                                    </div>
+                                 </div>
                                  <span :class="['m-badge', $filters.statusBadge(member.status)]">{{ $filters.capitalize(member.status) }}</span>
-                              </td>
-                           </tr>
-                        </tbody>
-                     </table>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
                   </div>
                </div>
          </div>
@@ -245,33 +313,77 @@
                      <a href="/panel/sales" class="panel-card-action">View all <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
                   <div class="panel-card-body p-0">
-                     <div v-if="loading" class="p-3">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'recent-sales-sk-' + index"></div>
+                     <div v-if="loading">
+                        <div class="d-none d-md-block p-3">
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'recent-sales-sk-' + index"></div>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div class="member-card" v-for="index in 4" :key="'recent-sales-mobile-sk-' + index">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar"></div>
+                                    <div>
+                                       <div class="skeleton-box mb-1" style="width: 130px; height: 14px; border-radius: 4px"></div>
+                                       <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="member-card-footer">
+                                 <div class="skeleton-box" style="width: 80px; height: 12px; border-radius: 4px"></div>
+                                 <div class="skeleton-box" style="width: 64px; height: 12px; border-radius: 4px"></div>
+                              </div>
+                           </div>
+                        </div>
                      </div>
-                     <table v-else class="panel-table">
-                        <thead>
-                           <tr>
-                              <th>Name</th>
-                              <th>Item</th>
-                              <th>Amount</th>
-                              <th>Date</th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                           <tr v-if="dashboard.recent_sales.length === 0" class="empty-row">
-                              <td colspan="4">
-                                 <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
-                                 <div class="mt-1 text-muted small">No sales recorded yet.</div>
-                              </td>
-                           </tr>
-                           <tr v-for="sale in dashboard.recent_sales" :key="sale.id" v-else>
-                              <td>{{ sale.customer_name }}</td>
-                              <td>{{ sale.item_name }}</td>
-                              <td>{{ formatCurrency(sale.total) }}</td>
-                              <td>{{ formatDateTime(sale.sold_at) }}</td>
-                           </tr>
-                        </tbody>
-                     </table>
+                     <div v-else>
+                        <div class="table-responsive d-none d-md-block">
+                           <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
+                              <thead>
+                                 <tr>
+                                    <th>Name</th>
+                                    <th>Item</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 <tr v-if="dashboard.recent_sales.length === 0" class="empty-row">
+                                    <td colspan="4">
+                                       <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
+                                       <div class="mt-1 text-muted small">No sales recorded yet.</div>
+                                    </td>
+                                 </tr>
+                                 <tr v-for="sale in dashboard.recent_sales" :key="sale.id" v-else>
+                                    <td>{{ sale.customer_name }}</td>
+                                    <td>{{ sale.item_name }}</td>
+                                    <td>{{ formatCurrency(sale.total) }}</td>
+                                    <td>{{ formatDateTime(sale.sold_at) }}</td>
+                                 </tr>
+                              </tbody>
+                           </table>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div v-if="dashboard.recent_sales.length === 0" class="text-center py-4 text-muted small">
+                              <i class="bi bi-inbox empty-icon d-block mb-1"></i>
+                              No sales recorded yet.
+                           </div>
+                           <div v-else class="member-card" v-for="sale in dashboard.recent_sales" :key="'recent-sales-mobile-' + sale.id">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar"><i class="bi bi-receipt-cutoff"></i></div>
+                                    <div>
+                                       <div class="member-card-name">{{ sale.customer_name }}</div>
+                                       <div class="member-card-sub">{{ sale.item_name }}</div>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="member-card-footer">
+                                 <span>{{ formatDateTime(sale.sold_at) }}</span>
+                                 <span class="fw-semibold">{{ formatCurrency(sale.total) }}</span>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
                   </div>
                </div>
          </div>
@@ -288,31 +400,81 @@
                      <a href="/panel/members" class="panel-card-action">View all <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
                   <div class="panel-card-body p-0">
-                     <div v-if="loading" class="p-3">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'expiring-sk-' + index"></div>
+                     <div v-if="loading">
+                        <div class="d-none d-md-block p-3">
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'expiring-sk-' + index"></div>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div class="member-card" v-for="index in 4" :key="'expiring-mobile-sk-' + index">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar"></div>
+                                    <div>
+                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
+                                       <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    </div>
+                                 </div>
+                                 <div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div>
+                              </div>
+                              <div class="member-card-footer">
+                                 <div class="skeleton-box" style="width: 60px; height: 12px; border-radius: 4px"></div>
+                                 <div class="skeleton-box" style="width: 80px; height: 12px; border-radius: 4px"></div>
+                              </div>
+                           </div>
+                        </div>
                      </div>
-                     <table v-else class="panel-table">
-                        <thead>
-                           <tr>
-                              <th>Member</th>
-                              <th>Plan</th>
-                              <th>Expires</th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                           <tr v-if="dashboard.expiring_memberships.length === 0" class="empty-row">
-                              <td colspan="3">
-                                 <i class="bi bi-check-circle text-muted" style="font-size: 1.5rem"></i>
-                                 <div class="mt-1 text-muted small">No memberships expiring soon.</div>
-                              </td>
-                           </tr>
-                           <tr v-for="membership in dashboard.expiring_memberships" :key="membership.id" v-else>
-                              <td>{{ membership.member_name }}</td>
-                              <td>{{ membership.plan_name }}</td>
-                              <td>{{ formatDate(membership.end_date) }}</td>
-                           </tr>
-                        </tbody>
-                     </table>
+                     <div v-else>
+                        <div class="table-responsive d-none d-md-block">
+                           <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
+                              <thead>
+                                 <tr>
+                                    <th>Member</th>
+                                    <th>Plan</th>
+                                    <th>Expires</th>
+                                    <th>Urgency</th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 <tr v-if="expiringMembershipsWithUrgency.length === 0" class="empty-row">
+                                    <td colspan="4">
+                                       <i class="bi bi-check-circle text-muted" style="font-size: 1.5rem"></i>
+                                       <div class="mt-1 text-muted small">No memberships expiring soon.</div>
+                                    </td>
+                                 </tr>
+                                 <tr v-for="membership in expiringMembershipsWithUrgency" :key="membership.id" v-else>
+                                    <td>{{ membership.member_name }}</td>
+                                    <td>{{ membership.plan_name }}</td>
+                                    <td>{{ formatDate(membership.end_date) }}</td>
+                                    <td>
+                                       <span :class="['m-badge', membership.urgencyClass]">{{ membership.urgencyLabel }}</span>
+                                    </td>
+                                 </tr>
+                              </tbody>
+                           </table>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div v-if="expiringMembershipsWithUrgency.length === 0" class="text-center py-4 text-muted small">
+                              <i class="bi bi-check-circle empty-icon d-block mb-1"></i>
+                              No memberships expiring soon.
+                           </div>
+                           <div v-else class="member-card" v-for="membership in expiringMembershipsWithUrgency" :key="'expiring-mobile-' + membership.id">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar">{{ $filters.getNameInitials(membership.member_name) }}</div>
+                                    <div>
+                                       <div class="member-card-name">{{ membership.member_name }}</div>
+                                       <div class="member-card-sub">{{ membership.plan_name }}</div>
+                                    </div>
+                                 </div>
+                                 <span :class="['m-badge', membership.urgencyClass]">{{ membership.urgencyLabel }}</span>
+                              </div>
+                              <div class="member-card-footer">
+                                 <span>Expires</span>
+                                 <span class="fw-semibold">{{ formatDate(membership.end_date) }}</span>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
                   </div>
                </div>
          </div>
@@ -327,35 +489,81 @@
                      <a href="/panel/reports/payroll" class="panel-card-action">Manage <i class="bi bi-arrow-right ms-1"></i></a>
                   </div>
                   <div class="panel-card-body p-0">
-                     <div v-if="loading" class="p-3">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'payroll-sk-' + index"></div>
+                     <div v-if="loading">
+                        <div class="d-none d-md-block p-3">
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'payroll-sk-' + index"></div>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div class="member-card" v-for="index in 4" :key="'payroll-mobile-sk-' + index">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar"></div>
+                                    <div>
+                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
+                                       <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    </div>
+                                 </div>
+                                 <div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div>
+                              </div>
+                              <div class="member-card-footer">
+                                 <div class="skeleton-box" style="width: 80px; height: 12px; border-radius: 4px"></div>
+                                 <div class="skeleton-box" style="width: 64px; height: 12px; border-radius: 4px"></div>
+                              </div>
+                           </div>
+                        </div>
                      </div>
-                     <table v-else class="panel-table">
-                        <thead>
-                           <tr>
-                              <th>Employee</th>
-                              <th>Role</th>
-                              <th>Amount</th>
-                              <th>Status</th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                           <tr v-if="dashboard.pending_payrolls.length === 0" class="empty-row">
-                              <td colspan="4">
-                                 <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
-                                 <div class="mt-1 text-muted small">No pending payouts.</div>
-                              </td>
-                           </tr>
-                           <tr v-for="payroll in dashboard.pending_payrolls" :key="payroll.id" v-else>
-                              <td>{{ payroll.employee_name }}</td>
-                              <td>{{ $filters.capitalize(payroll.employee_role) }}</td>
-                              <td>{{ formatCurrency(payroll.outstanding_balance) }}</td>
-                              <td>
+                     <div v-else>
+                        <div class="table-responsive d-none d-md-block">
+                           <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
+                              <thead>
+                                 <tr>
+                                    <th>Employee</th>
+                                    <th>Role</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 <tr v-if="dashboard.pending_payrolls.length === 0" class="empty-row">
+                                    <td colspan="4">
+                                       <i class="bi bi-inbox text-muted" style="font-size: 1.5rem"></i>
+                                       <div class="mt-1 text-muted small">No pending payouts.</div>
+                                    </td>
+                                 </tr>
+                                 <tr v-for="payroll in dashboard.pending_payrolls" :key="payroll.id" v-else>
+                                    <td>{{ payroll.employee_name }}</td>
+                                    <td>{{ $filters.capitalize(payroll.employee_role) }}</td>
+                                    <td>{{ formatCurrency(payroll.outstanding_balance) }}</td>
+                                    <td>
+                                       <span :class="['m-badge', $filters.statusBadge(payroll.status)]">{{ $filters.capitalize(payroll.status) }}</span>
+                                    </td>
+                                 </tr>
+                              </tbody>
+                           </table>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div v-if="dashboard.pending_payrolls.length === 0" class="text-center py-4 text-muted small">
+                              <i class="bi bi-inbox empty-icon d-block mb-1"></i>
+                              No pending payouts.
+                           </div>
+                           <div v-else class="member-card" v-for="payroll in dashboard.pending_payrolls" :key="'payroll-mobile-' + payroll.id">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar">{{ $filters.getNameInitials(payroll.employee_name) }}</div>
+                                    <div>
+                                       <div class="member-card-name">{{ payroll.employee_name }}</div>
+                                       <div class="member-card-sub">{{ $filters.capitalize(payroll.employee_role) }}</div>
+                                    </div>
+                                 </div>
                                  <span :class="['m-badge', $filters.statusBadge(payroll.status)]">{{ $filters.capitalize(payroll.status) }}</span>
-                              </td>
-                           </tr>
-                        </tbody>
-                     </table>
+                              </div>
+                              <div class="member-card-footer">
+                                 <span>Outstanding</span>
+                                 <span class="fw-semibold">{{ formatCurrency(payroll.outstanding_balance) }}</span>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
                   </div>
                </div>
          </div>
@@ -365,7 +573,7 @@
 
 <script>
 import PeakHoursChart from "./charts/PeakHoursChart.vue";
-import { formatDate, formatDateTime, formatTime as formatClockTime } from "../../dates";
+import { daysBetween, formatDate, formatDateTime, formatTime, todayDate } from "../../dates";
 
 export default {
    components: {
@@ -384,12 +592,16 @@ export default {
          loading: false,
          pageError: "",
          financialAccessState: null,
+         lastUpdatedAt: null,
          dashboard: this.emptyDashboard(),
       };
    },
    computed: {
       canViewFinancialData: function () {
          return this.financialAccessState === true;
+      },
+      lastUpdatedLabel: function () {
+         return this.lastUpdatedAt ? formatTime(this.lastUpdatedAt) : "";
       },
       showFinancialStats: function () {
          return this.financialAccessState === null ? true : this.canViewFinancialData;
@@ -431,6 +643,36 @@ export default {
             },
          ];
       },
+      expiringMembershipsWithUrgency: function () {
+         const today = todayDate();
+
+         return this.dashboard.expiring_memberships.map((membership) => {
+            const daysLeft = membership.end_date ? daysBetween(today, membership.end_date) : null;
+            let urgencyClass = "m-badge--draft";
+            let urgencyLabel = "—";
+
+            if (daysLeft !== null) {
+               if (daysLeft < 0) {
+                  urgencyClass = "m-badge--suspended";
+                  urgencyLabel = "Expired";
+               } else if (daysLeft === 0) {
+                  urgencyClass = "m-badge--suspended";
+                  urgencyLabel = "Today";
+               } else if (daysLeft <= 2) {
+                  urgencyClass = "m-badge--suspended";
+                  urgencyLabel = `In ${daysLeft} day${daysLeft === 1 ? "" : "s"}`;
+               } else if (daysLeft <= 5) {
+                  urgencyClass = "m-badge--pending";
+                  urgencyLabel = `In ${daysLeft} days`;
+               } else {
+                  urgencyClass = "m-badge--draft";
+                  urgencyLabel = `In ${daysLeft} days`;
+               }
+            }
+
+            return { ...membership, daysLeft, urgencyClass, urgencyLabel };
+         });
+      },
       businessSnapshotItems: function () {
          return [
             {
@@ -452,12 +694,14 @@ export default {
             },
          ];
       },
-      visibleStatsRow1: function () {
+      visibleStats: function () {
+         const row1 = this.dashboard.stats_row_1;
+         const row2 = this.dashboard.stats_row_2;
          const stats = [
             {
                key: "total_members",
                label: "Total Members",
-               value: this.formatCount(this.dashboard.stats_row_1.total_members),
+               value: this.formatCount(row1.total_members),
                sub: "registered in your business",
                icon: "bi-people-fill",
                iconBg: "bg-primary-soft",
@@ -466,7 +710,7 @@ export default {
             {
                key: "check_ins_today",
                label: "Check-ins Today",
-               value: this.formatCount(this.dashboard.stats_row_1.check_ins_today),
+               value: this.formatCount(row1.check_ins_today),
                sub: "attendance activity today",
                icon: "bi-person-check-fill",
                iconBg: "bg-success-soft",
@@ -479,7 +723,7 @@ export default {
                {
                   key: "revenue_today",
                   label: "Revenue Today",
-                  value: this.formatCurrency(this.dashboard.stats_row_1.revenue_today),
+                  value: this.formatCurrency(row1.revenue_today),
                   sub: "recorded sales today",
                   icon: "bi-receipt",
                   iconBg: "bg-warning-soft",
@@ -488,7 +732,7 @@ export default {
                {
                   key: "revenue_this_month",
                   label: "Revenue This Month",
-                  value: this.formatCurrency(this.dashboard.stats_row_1.revenue_this_month),
+                  value: this.formatCurrency(row1.revenue_this_month),
                   sub: "month-to-date gross revenue",
                   icon: "bi-cash-stack",
                   iconBg: "bg-danger-soft",
@@ -497,14 +741,11 @@ export default {
             );
          }
 
-         return stats;
-      },
-      visibleStatsRow2: function () {
-         const stats = [
+         stats.push(
             {
                key: "active_trainers",
                label: "Active Trainers",
-               value: this.formatCount(this.dashboard.stats_row_2.active_trainers),
+               value: this.formatCount(row2.active_trainers),
                sub: "coaches assigned in scope",
                icon: "bi-person-badge-fill",
                iconBg: "bg-primary-soft",
@@ -513,7 +754,7 @@ export default {
             {
                key: "active_employees",
                label: "Employees",
-               value: this.formatCount(this.dashboard.stats_row_2.active_employees),
+               value: this.formatCount(row2.active_employees),
                sub: "active non-coach staff",
                icon: "bi-person-workspace",
                iconBg: "bg-success-soft",
@@ -522,19 +763,19 @@ export default {
             {
                key: "guest_check_ins_today",
                label: "Guest Check-ins Today",
-               value: this.formatCount(this.dashboard.stats_row_2.guest_check_ins_today),
+               value: this.formatCount(row2.guest_check_ins_today),
                sub: "attendance guest activity",
                icon: "bi-person-fill-exclamation",
                iconBg: "bg-warning-soft",
                iconColor: "text-warning",
             },
-         ];
+         );
 
          if (this.showFinancialStats) {
             stats.push({
                key: "pending_payroll_balance",
                label: "Pending Payroll",
-               value: this.formatCurrency(this.dashboard.stats_row_2.pending_payroll_balance),
+               value: this.formatCurrency(row2.pending_payroll_balance),
                sub: "outstanding approved payroll balance",
                icon: "bi-wallet2",
                iconBg: "bg-danger-soft",
@@ -551,6 +792,7 @@ export default {
    methods: {
       formatDate,
       formatDateTime,
+      formatTime,
       emptyDashboard: function () {
          return {
             permissions: {
@@ -626,6 +868,7 @@ export default {
             .then((response) => {
                this.dashboard = this.normalizeDashboard(response.data || {});
                this.financialAccessState = Boolean(this.dashboard.permissions.can_view_financial_data);
+               this.lastUpdatedAt = new Date().toISOString();
             })
             .catch((error) => {
                this.pageError = error.response?.data?.message || "Unable to load the dashboard right now.";
@@ -640,9 +883,6 @@ export default {
       },
       formatCurrency: function (value) {
          return `₱${this.$filters.formatMoney(value || 0)}`;
-      },
-      formatTime: function (value) {
-         return formatClockTime(value);
       },
       formatBusinessTime: function (value) {
          if (!value) {

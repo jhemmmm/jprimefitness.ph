@@ -130,6 +130,29 @@ export function startOfCurrentMonthDate() {
    return nowInAppTimezone().startOf("month").format(DATE_FORMAT);
 }
 
+export function startOfPreviousMonthDate() {
+   return nowInAppTimezone().subtract(1, "month").startOf("month").format(DATE_FORMAT);
+}
+
+export function endOfPreviousMonthDate() {
+   return nowInAppTimezone().subtract(1, "month").endOf("month").format(DATE_FORMAT);
+}
+
+export function daysAgoDate(days) {
+   return nowInAppTimezone().subtract(days, "day").format(DATE_FORMAT);
+}
+
+export function daysBetween(fromValue, toValue) {
+   const from = appDayjs(fromValue);
+   const to = appDayjs(toValue);
+
+   if (!from.isValid() || !to.isValid()) {
+      return null;
+   }
+
+   return to.startOf("day").diff(from.startOf("day"), "day");
+}
+
 export function todayDate() {
    return nowInAppTimezone().format(DATE_FORMAT);
 }
