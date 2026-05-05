@@ -694,6 +694,13 @@
                      <div class="small text-muted mt-1">Valid {{ formatDate(selectedQr.start_date) }} - {{ selectedQr.end_date ? formatDate(selectedQr.end_date) : "Open-ended" }}</div>
                   </div>
                </div>
+               <div class="modal-footer" v-if="selectedQr">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                  <button type="button" class="btn btn-primary" @click="printMembershipCardAction">
+                     <i class="bi bi-printer me-1"></i>
+                     Print
+                  </button>
+               </div>
             </div>
          </div>
       </div>
@@ -703,6 +710,7 @@
 <script>
 import { Modal } from "bootstrap";
 import { formatDate, formatDateTime, nowTimestamp, todayDate, toDateTimeInputValue } from "../../dates";
+import { printMembershipCard } from "../../print-membership-card";
 
 export default {
    props: {
@@ -1272,6 +1280,16 @@ export default {
             .finally(() => {
                this.loadingQr = false;
             });
+      },
+      printMembershipCardAction: function () {
+         if (!this.selectedQr) {
+            return;
+         }
+
+         var opened = printMembershipCard(this.selectedQr);
+         if (!opened) {
+            this.qrError = "Unable to open the print window. Please allow pop-ups for this site.";
+         }
       },
       fetchPendingPayments: function () {
          this.loadingPendingPayments = true;
