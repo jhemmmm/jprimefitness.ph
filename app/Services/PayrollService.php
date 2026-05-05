@@ -14,8 +14,6 @@ use Illuminate\Support\Collection;
 
 class PayrollService
 {
-    private const PH_NON_TAXABLE_BONUS_CAP = 90000.0;
-
     private const STANDARD_WORKDAY_HOURS = 8.0;
 
     private const STANDARD_WORKDAY_MINUTES = 480;
@@ -25,7 +23,6 @@ class PayrollService
      */
     public function computeNet(
         float $gross,
-        float $bonus,
         float $manualDed,
         float $withholdingTax = 0,
         float $employeeContributionTotal = 0
@@ -33,10 +30,7 @@ class PayrollService
         return round(
             max(
                 0,
-                $this->totalEarnings(
-                    $gross,
-                    $bonus
-                )
+                $this->totalEarnings($gross)
                 - $this->totalEmployeeDeductions(
                     $withholdingTax,
                     $manualDed,
@@ -61,40 +55,22 @@ class PayrollService
     }
 
     public function totalEarnings(
-        float $gross,
-        float $bonus
+        float $gross
     ): float {
-        return round(
-            max(
-                0,
-                $gross
-                + $bonus
-            ),
-            2
-        );
+        return round(max(0, $gross), 2);
     }
 
     public function taxableEarnings(
-        float $gross,
-        float $taxableBonus
+        float $gross
     ): float {
-        return round(
-            max(
-                0,
-                $gross
-                + $taxableBonus
-            ),
-            2
-        );
+        return round(max(0, $gross), 2);
     }
 
     /**
      * Calculate the final payroll figures after applying the country tax profile.
      *
-     * @param  array<string, mixed>  $contextOverrides
+     * @param  array<string, mixed>  $context
      * @return array{
-     *     bonus_non_taxable_amount: float,
-     *     bonus_taxable_amount: float,
      *     employee_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
      *     employee_contributions_total: float,
      *     employee_deductions_total: float,
@@ -102,7 +78,6 @@ class PayrollService
      *     employer_contributions_total: float,
      *     withholding_tax: float,
      *     net_amount: float,
-     *     remaining_bonus_exemption: float,
      *     taxable_earnings: float
      * }
      */
@@ -110,17 +85,12 @@ class PayrollService
         ?string $countryCode,
         ?string $payFrequency,
         float $gross,
-        float $bonus,
         float $manualDed,
         array $context = []
     ): array {
-        $bonusBreakdown = $this->bonusTaxBreakdown($countryCode, $bonus, $context);
         $taxProfile = $this->resolveTaxProfile($countryCode);
         $payrollCalculationSettings = $this->payrollCalculationSettings($context);
-        $taxableEarnings = $this->taxableEarnings(
-            $gross,
-            $bonusBreakdown['bonus_taxable_amount']
-        );
+        $taxableEarnings = $this->taxableEarnings($gross);
         $governmentContributions = $payrollCalculationSettings['payroll_government_contributions_enabled']
             ? $taxProfile->calculateGovernmentContributions(
                 $payFrequency,
@@ -141,8 +111,6 @@ class PayrollService
         );
 
         return [
-            'bonus_non_taxable_amount' => $bonusBreakdown['bonus_non_taxable_amount'],
-            'bonus_taxable_amount' => $bonusBreakdown['bonus_taxable_amount'],
             'employee_contributions' => $governmentContributions['employee_contributions'],
             'employee_contributions_total' => $governmentContributions['employee_contributions_total'],
             'employer_contributions' => $governmentContributions['employer_contributions'],
@@ -150,10 +118,8 @@ class PayrollService
             'taxable_earnings' => $taxableEarnings,
             'withholding_tax' => $withholdingTax,
             'employee_deductions_total' => $employeeDeductionsTotal,
-            'remaining_bonus_exemption' => $bonusBreakdown['remaining_bonus_exemption'],
             'net_amount' => $this->computeNet(
                 $gross,
-                $bonus,
                 $manualDed,
                 $withholdingTax,
                 $governmentContributions['employee_contributions_total']
@@ -165,8 +131,6 @@ class PayrollService
      * Refresh a payroll's stored tax and net amount from its current inputs.
      *
      * @return array{
-     *     bonus_non_taxable_amount: float,
-     *     bonus_taxable_amount: float,
      *     employee_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
      *     employee_contributions_total: float,
      *     employee_deductions_total: float,
@@ -174,7 +138,6 @@ class PayrollService
      *     employer_contributions_total: float,
      *     withholding_tax: float,
      *     net_amount: float,
-     *     remaining_bonus_exemption: float,
      *     taxable_earnings: float
      * }
      */
@@ -196,7 +159,6 @@ class PayrollService
             BusinessProfile::current()->country_code,
             $payroll->pay_frequency,
             (float) $payroll->gross_amount,
-            (float) $payroll->bonus,
             (float) $payroll->manual_deductions,
             $context
         );
@@ -728,65 +690,6 @@ class PayrollService
             'pagibig_covered' => (bool) $employeeProfile->pagibig_covered,
             'pagibig_monthly_compensation' => round((float) ($employeeProfile->pagibig_monthly_compensation ?? 0), 2),
         ];
-    }
-
-    /**
-     * Apply the Philippine 13th month and other benefits exemption cap to payroll bonuses.
-     *
-     * @param  array{employee_id?: int, exclude_payroll_id?: int, period_end?: string|null}  $context
-     * @return array{bonus_non_taxable_amount: float, bonus_taxable_amount: float, remaining_bonus_exemption: float}
-     */
-    private function bonusTaxBreakdown(?string $countryCode, float $bonus, array $context = []): array
-    {
-        $normalizedBonus = round(max(0, $bonus), 2);
-        $isPhilippines = strtoupper((string) $countryCode) === BusinessProfile::COUNTRY_PHILIPPINES;
-
-        if (! $isPhilippines) {
-            return [
-                'bonus_non_taxable_amount' => 0.0,
-                'bonus_taxable_amount' => $normalizedBonus,
-                'remaining_bonus_exemption' => 0.0,
-            ];
-        }
-
-        $priorBonusUsage = $this->philippinesBonusUsageForYear(
-            $context['employee_id'] ?? null,
-            $context['period_end'] ?? null,
-            $context['exclude_payroll_id'] ?? null
-        );
-        $remainingBonusExemption = round(max(0, self::PH_NON_TAXABLE_BONUS_CAP - $priorBonusUsage), 2);
-
-        if ($normalizedBonus <= 0) {
-            return [
-                'bonus_non_taxable_amount' => 0.0,
-                'bonus_taxable_amount' => 0.0,
-                'remaining_bonus_exemption' => $remainingBonusExemption,
-            ];
-        }
-        $nonTaxableBonus = round(min($normalizedBonus, $remainingBonusExemption), 2);
-
-        return [
-            'bonus_non_taxable_amount' => $nonTaxableBonus,
-            'bonus_taxable_amount' => round($normalizedBonus - $nonTaxableBonus, 2),
-            'remaining_bonus_exemption' => $remainingBonusExemption,
-        ];
-    }
-
-    private function philippinesBonusUsageForYear(?int $employeeId, ?string $periodEnd, ?int $excludePayrollId = null): float
-    {
-        if (! $employeeId || ! $periodEnd) {
-            return 0.0;
-        }
-
-        $periodEndDate = Carbon::parse($periodEnd)->endOfDay();
-
-        return round((float) Payroll::query()
-            ->where('employee_id', $employeeId)
-            ->where('status', '!=', Payroll::STATUS_CANCELED)
-            ->when($excludePayrollId, fn ($query) => $query->whereKeyNot($excludePayrollId))
-            ->whereDate('period_end', '>=', $periodEndDate->copy()->startOfYear()->toDateString())
-            ->whereDate('period_end', '<=', $periodEndDate->toDateString())
-            ->sum('bonus'), 2);
     }
 
     /**

@@ -235,7 +235,6 @@ class SystemActivityExpansionTest extends TestCase
                 'period_start' => '2026-04-01',
                 'period_end' => '2026-04-15',
                 'gross_amount' => 4000,
-                'bonus' => 200,
                 'manual_deductions' => 100,
                 'notes' => 'First half payroll',
             ])
@@ -247,7 +246,6 @@ class SystemActivityExpansionTest extends TestCase
                 'period_start' => '2026-04-01',
                 'period_end' => '2026-04-15',
                 'gross_amount' => 4200,
-                'bonus' => 250,
                 'manual_deductions' => 100,
                 'notes' => 'Adjusted first half payroll',
             ])
@@ -262,7 +260,6 @@ class SystemActivityExpansionTest extends TestCase
                 'period_start' => '2026-04-16',
                 'period_end' => '2026-04-30',
                 'gross_amount' => 3800,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -829,7 +826,6 @@ class SystemActivityExpansionTest extends TestCase
             'period_start' => '2026-04-01',
             'period_end' => '2026-04-15',
             'gross_amount' => 1000,
-            'bonus' => 0,
             'withholding_tax' => 0,
             'manual_deductions' => 0,
             'net_amount' => 1000,

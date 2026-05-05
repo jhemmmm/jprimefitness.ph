@@ -47,10 +47,9 @@ class PayrollReportsPageTest extends TestCase
 
         $statCards = $matches[1];
 
-        $this->assertSame(8, preg_match_all('/label: "/', $statCards));
+        $this->assertSame(7, preg_match_all('/label: "/', $statCards));
         $this->assertStringContainsString('Payroll Runs', $statCards);
         $this->assertStringContainsString('Gross Payroll', $statCards);
-        $this->assertStringContainsString('Bonuses', $statCards);
         $this->assertStringContainsString('Withholding Tax', $statCards);
         $this->assertStringContainsString("Employee Gov't Contributions", $statCards);
         $this->assertStringContainsString('Net Payroll', $statCards);
@@ -72,7 +71,6 @@ class PayrollReportsPageTest extends TestCase
             'period_start' => '2026-03-01',
             'period_end' => '2026-03-15',
             'gross_amount' => 1000,
-            'bonus' => 100,
             'withholding_tax' => 100,
             'employee_contributions' => [
                 'sss' => [
@@ -136,7 +134,6 @@ class PayrollReportsPageTest extends TestCase
             'period_start' => '2026-03-01',
             'period_end' => '2026-03-31',
             'gross_amount' => 2000,
-            'bonus' => 0,
             'withholding_tax' => 0,
             'employee_contributions' => [
                 'pagibig' => [
@@ -196,7 +193,6 @@ class PayrollReportsPageTest extends TestCase
             'period_start' => '2026-02-01',
             'period_end' => '2026-02-28',
             'gross_amount' => 999,
-            'bonus' => 0,
             'withholding_tax' => 0,
             'manual_deductions' => 0,
             'net_amount' => 999,
@@ -234,7 +230,6 @@ class PayrollReportsPageTest extends TestCase
         $response->assertJsonPath('filters.date_to', '2026-03-31');
         $response->assertJsonPath('summary.payroll_count', 2);
         $response->assertJsonPath('summary.gross_payroll', 3000);
-        $response->assertJsonPath('summary.total_bonus', 100);
         $response->assertJsonPath('summary.withholding_tax', 100);
         $response->assertJsonPath('summary.employee_government_contributions', 900);
         $response->assertJsonPath('summary.employer_government_contributions', 1400);
@@ -267,7 +262,6 @@ class PayrollReportsPageTest extends TestCase
             'period_start' => '2026-03-01',
             'period_end' => '2026-03-15',
             'gross_amount' => 1400,
-            'bonus' => 100,
             'withholding_tax' => 75,
             'employee_contributions' => [
                 'sss' => [

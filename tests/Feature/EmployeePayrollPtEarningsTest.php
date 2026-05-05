@@ -26,7 +26,7 @@ class EmployeePayrollPtEarningsTest extends TestCase
         $managerRole->givePermissionTo(Permission::findOrCreate('manage employees'));
     }
 
-    public function test_payroll_uses_gross_and_bonus_without_pt_session_earnings(): void
+    public function test_payroll_uses_gross_without_pt_session_earnings(): void
     {
         BusinessProfile::query()->updateOrCreate(
             ['id' => 1],
@@ -51,7 +51,6 @@ class EmployeePayrollPtEarningsTest extends TestCase
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-15',
                 'gross_amount' => 4500,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()

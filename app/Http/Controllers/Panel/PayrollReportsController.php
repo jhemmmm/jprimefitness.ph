@@ -70,7 +70,6 @@ class PayrollReportsController extends Controller
             fputcsv($handle, ['Metric', 'Value']);
             fputcsv($handle, ['Payroll Runs', $report['summary']['payroll_count']]);
             fputcsv($handle, ['Gross Payroll', $report['summary']['gross_payroll']]);
-            fputcsv($handle, ['Bonuses', $report['summary']['total_bonus']]);
             fputcsv($handle, ['Withholding Tax', $report['summary']['withholding_tax']]);
             fputcsv($handle, ['Employee Government Contributions', $report['summary']['employee_government_contributions']]);
             fputcsv($handle, ['Employer Government Contributions', $report['summary']['employer_government_contributions']]);
@@ -161,7 +160,6 @@ class PayrollReportsController extends Controller
         $payoutQuery = $this->payoutQuery($data);
 
         $grossPayroll = round((float) (clone $payrollQuery)->sum('gross_amount'), 2);
-        $totalBonus = round((float) (clone $payrollQuery)->sum('bonus'), 2);
         $withholdingTax = round((float) (clone $payrollQuery)->sum('withholding_tax'), 2);
         $manualDeductions = round((float) (clone $payrollQuery)->sum('manual_deductions'), 2);
         $payrollContributionSnapshots = (clone $payrollQuery)
@@ -200,7 +198,6 @@ class PayrollReportsController extends Controller
             'summary' => [
                 'payroll_count' => $payrollCount,
                 'gross_payroll' => $grossPayroll,
-                'total_bonus' => $totalBonus,
                 'withholding_tax' => $withholdingTax,
                 'employee_government_contributions' => $employeeGovernmentContributions,
                 'employer_government_contributions' => $employerGovernmentContributions,
@@ -392,7 +389,6 @@ class PayrollReportsController extends Controller
                     'status' => $payroll->status,
                     'status_label' => $this->statusLabel($payroll->status),
                     'gross_amount' => round((float) $payroll->gross_amount, 2),
-                    'bonus' => round((float) $payroll->bonus, 2),
                     'total_deductions' => $payroll->employeeDeductionsTotal(),
                     'net_amount' => round((float) $payroll->net_amount, 2),
                     'total_paid' => $totalPaid,

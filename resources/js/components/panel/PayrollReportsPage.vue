@@ -553,15 +553,6 @@ export default {
                valueClass: "",
             },
             {
-               label: "Bonuses",
-               value: this.formatCurrencyLabel(this.report.summary.total_bonus),
-               sub: "Approved bonuses added",
-               icon: "bi-gift",
-               iconBg: "bg-success-soft",
-               iconColor: "text-success",
-               valueClass: "text-success",
-            },
-            {
                label: "Withholding Tax",
                value: this.formatCurrencyLabel(this.report.summary.withholding_tax),
                sub: "Payroll withholding",
@@ -630,7 +621,6 @@ export default {
             summary: {
                payroll_count: 0,
                gross_payroll: 0,
-               total_bonus: 0,
                withholding_tax: 0,
                employee_government_contributions: 0,
                employer_government_contributions: 0,

@@ -31,7 +31,6 @@ class Payroll extends Model
         'overwork_hours',
         'overwork_pay_amount',
         'gross_amount',
-        'bonus',
         'withholding_tax',
         'employee_contributions',
         'employer_contributions',
@@ -54,7 +53,6 @@ class Payroll extends Model
         'overwork_hours' => 'decimal:2',
         'overwork_pay_amount' => 'decimal:2',
         'gross_amount' => 'decimal:2',
-        'bonus' => 'decimal:2',
         'withholding_tax' => 'decimal:2',
         'manual_deductions' => 'decimal:2',
         'employee_contributions' => 'array',
@@ -144,11 +142,7 @@ class Payroll extends Model
 
     public function totalEarnings(): float
     {
-        return round(
-            (float) $this->gross_amount
-            + (float) $this->bonus,
-            2
-        );
+        return round((float) $this->gross_amount, 2);
     }
 
     public function taxableEarnings(): float

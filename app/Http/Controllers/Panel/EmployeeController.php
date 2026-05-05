@@ -398,7 +398,6 @@ class EmployeeController extends Controller
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
             'gross_amount' => ['required', 'numeric', 'min:0'],
-            'bonus' => ['nullable', 'numeric', 'min:0'],
             'manual_deductions' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -412,7 +411,6 @@ class EmployeeController extends Controller
             (bool) $businessProfile->pay_overwork_hours,
         );
         $gross = (float) $data['gross_amount'];
-        $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $payFrequency = $this->employeePayFrequency($employee);
         $payrollTaxContext = [
@@ -427,7 +425,6 @@ class EmployeeController extends Controller
             $countryCode,
             $payFrequency,
             $gross,
-            $bonus,
             $manualDeductions,
             $payrollTaxContext
         );
@@ -442,7 +439,6 @@ class EmployeeController extends Controller
             'overwork_hours' => $attendanceSuggestion['overwork_hours'],
             'overwork_pay_amount' => $attendanceSuggestion['overwork_pay_amount'],
             'gross_amount' => $gross,
-            'bonus' => $bonus,
             'withholding_tax' => $payrollTotals['withholding_tax'],
             'employee_contributions' => $payrollTotals['employee_contributions'],
             'employer_contributions' => $payrollTotals['employer_contributions'],
@@ -477,7 +473,6 @@ class EmployeeController extends Controller
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
             'gross_amount' => ['required', 'numeric', 'min:0'],
-            'bonus' => ['nullable', 'numeric', 'min:0'],
             'manual_deductions' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -491,7 +486,6 @@ class EmployeeController extends Controller
             (bool) $businessProfile->pay_overwork_hours,
         );
         $gross = (float) $data['gross_amount'];
-        $bonus = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $payFrequency = $this->employeePayFrequency($employee);
         $payrollTaxContext = [
@@ -508,7 +502,6 @@ class EmployeeController extends Controller
             $countryCode,
             $payFrequency,
             $gross,
-            $bonus,
             $manualDeductions,
             $payrollTaxContext
         );
@@ -522,7 +515,6 @@ class EmployeeController extends Controller
             'overwork_hours' => $attendanceSuggestion['overwork_hours'],
             'overwork_pay_amount' => $attendanceSuggestion['overwork_pay_amount'],
             'gross_amount' => $gross,
-            'bonus' => $bonus,
             'withholding_tax' => $payrollTotals['withholding_tax'],
             'employee_contributions' => $payrollTotals['employee_contributions'],
             'employer_contributions' => $payrollTotals['employer_contributions'],
@@ -633,7 +625,6 @@ class EmployeeController extends Controller
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
             'payroll_id' => ['nullable', 'integer', 'exists:payrolls,id'],
             'gross_amount' => ['nullable', 'numeric', 'min:0'],
-            'bonus' => ['nullable', 'numeric', 'min:0'],
             'manual_deductions' => ['nullable', 'numeric', 'min:0'],
         ]);
 
@@ -657,7 +648,6 @@ class EmployeeController extends Controller
         );
         $payFrequency = $payroll?->pay_frequency ?? $this->employeePayFrequency($employee);
         $grossAmount = (float) ($data['gross_amount'] ?? $attendanceSuggestion['gross_amount']);
-        $bonusAmount = (float) ($data['bonus'] ?? 0);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
@@ -676,7 +666,6 @@ class EmployeeController extends Controller
             $countryCode,
             $payFrequency,
             $grossAmount,
-            $bonusAmount,
             $manualDeductions,
             $payrollTaxContext
         );
@@ -684,8 +673,6 @@ class EmployeeController extends Controller
         return response()->json(array_merge(
             $attendanceSuggestion,
             [
-                'bonus_non_taxable_amount' => $payrollTotals['bonus_non_taxable_amount'],
-                'bonus_taxable_amount' => $payrollTotals['bonus_taxable_amount'],
                 'employee_contributions' => $payrollTotals['employee_contributions'],
                 'employee_contributions_total' => $payrollTotals['employee_contributions_total'],
                 'employer_contributions' => $payrollTotals['employer_contributions'],
@@ -694,7 +681,6 @@ class EmployeeController extends Controller
                 'taxable_earnings' => $payrollTotals['taxable_earnings'],
                 'employee_deductions_total' => $payrollTotals['employee_deductions_total'],
                 'net_amount_preview' => $payrollTotals['net_amount'],
-                'remaining_bonus_exemption' => $payrollTotals['remaining_bonus_exemption'],
                 'manual_gross_adjustment_amount' => $this->payrollService->manualGrossAdjustmentAmount(
                     $grossAmount,
                     $attendanceSuggestion['regular_pay_amount'],
@@ -1098,7 +1084,6 @@ class EmployeeController extends Controller
             'overwork_pay_amount' => $payroll->overwork_pay_amount !== null ? (float) $payroll->overwork_pay_amount : null,
             'manual_gross_adjustment_amount' => $manualGrossAdjustmentAmount,
             'gross_amount' => (float) $payroll->gross_amount,
-            'bonus' => (float) $payroll->bonus,
             'pay_frequency' => $payroll->pay_frequency,
             'employee_contributions' => $payroll->employee_contributions ?? [],
             'employee_contributions_total' => $payroll->employeeContributionsTotal(),

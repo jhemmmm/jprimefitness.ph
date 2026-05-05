@@ -466,13 +466,6 @@
                                         {{ number_format((float) $payroll->gross_amount, 2) }}</td>
                                 </tr>
                                 <tr>
-                                    <td class="breakdown-label">Bonus</td>
-                                    <td
-                                        class="breakdown-amount {{ (float) $payroll->bonus > 0 ? 'amount-positive' : '' }}">
-                                        {{ (float) $payroll->bonus > 0 ? '+ PHP ' . number_format((float) $payroll->bonus, 2) : '-' }}
-                                    </td>
-                                </tr>
-                                <tr>
                                     <td class="breakdown-label">Withholding tax</td>
                                     <td
                                         class="breakdown-amount {{ (float) $payroll->withholding_tax > 0 ? 'amount-negative' : '' }}">

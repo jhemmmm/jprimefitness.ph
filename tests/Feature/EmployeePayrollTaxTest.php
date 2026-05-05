@@ -41,23 +41,22 @@ class EmployeePayrollTaxTest extends TestCase
         );
 
         $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-01&period_end=2026-03-15&gross_amount=20000&bonus=500&manual_deductions=200")
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-01&period_end=2026-03-15&gross_amount=20000&manual_deductions=200")
             ->assertOk()
-            ->assertJsonPath('bonus_non_taxable_amount', 500)
-            ->assertJsonPath('bonus_taxable_amount', 0)
+            ->assertJsonMissingPath('bonus_non_taxable_amount')
+            ->assertJsonMissingPath('bonus_taxable_amount')
             ->assertJsonPath('withholding_tax', 1604.1)
             ->assertJsonPath('taxable_earnings', 20000)
             ->assertJsonPath('employee_contributions_total', 0)
             ->assertJsonPath('employer_contributions_total', 0)
             ->assertJsonPath('employee_deductions_total', 1804.1)
-            ->assertJsonPath('net_amount_preview', 18695.9);
+            ->assertJsonPath('net_amount_preview', 18195.9);
 
         $response = $this->actingAs($manager)
             ->postJson("/panel/employees/{$employee->id}/payrolls", [
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-15',
                 'gross_amount' => 20000,
-                'bonus' => 500,
                 'manual_deductions' => 200,
                 'notes' => 'Semi-monthly Philippines payroll.',
             ])
@@ -66,15 +65,15 @@ class EmployeePayrollTaxTest extends TestCase
             ->assertJsonPath('employee_contributions_total', 0)
             ->assertJsonPath('employer_contributions_total', 0)
             ->assertJsonPath('employee_deductions_total', 1804.1)
-            ->assertJsonPath('total_earnings', 20500)
-            ->assertJsonPath('net_amount', 18695.9);
+            ->assertJsonPath('total_earnings', 20000)
+            ->assertJsonPath('net_amount', 18195.9);
 
         $this->assertDatabaseHas('payrolls', [
             'id' => $response->json('id'),
             'employee_id' => $employee->id,
             'withholding_tax' => '1604.10',
             'manual_deductions' => '200.00',
-            'net_amount' => '18695.90',
+            'net_amount' => '18195.90',
         ]);
     }
 
@@ -90,7 +89,7 @@ class EmployeePayrollTaxTest extends TestCase
         );
 
         $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&bonus=500&manual_deductions=200")
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&manual_deductions=200")
             ->assertOk()
             ->assertJsonPath('employee_contributions.sss.total', 1025)
             ->assertJsonPath('employee_contributions.philhealth.total', 500)
@@ -103,14 +102,13 @@ class EmployeePayrollTaxTest extends TestCase
             ->assertJsonPath('taxable_earnings', 18275)
             ->assertJsonPath('withholding_tax', 1259.1)
             ->assertJsonPath('employee_deductions_total', 3184.1)
-            ->assertJsonPath('net_amount_preview', 17315.9);
+            ->assertJsonPath('net_amount_preview', 16815.9);
 
         $response = $this->actingAs($manager)
             ->postJson("/panel/employees/{$employee->id}/payrolls", [
                 'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
-                'bonus' => 500,
                 'manual_deductions' => 200,
                 'notes' => 'Second half with statutory deductions.',
             ])
@@ -119,7 +117,7 @@ class EmployeePayrollTaxTest extends TestCase
             ->assertJsonPath('employee_contributions_total', 1725)
             ->assertJsonPath('employer_contributions_total', 2780)
             ->assertJsonPath('employee_deductions_total', 3184.1)
-            ->assertJsonPath('net_amount', 17315.9);
+            ->assertJsonPath('net_amount', 16815.9);
 
         $payroll = Payroll::findOrFail($response->json('id'));
 
@@ -146,7 +144,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-15',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -158,7 +155,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -190,7 +186,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-15',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -202,7 +197,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -244,7 +238,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-15',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -256,7 +249,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -277,7 +269,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -311,7 +302,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -337,7 +327,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -367,7 +356,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -375,7 +363,7 @@ class EmployeePayrollTaxTest extends TestCase
             ->json('id');
 
         $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&bonus=0&manual_deductions=0")
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&manual_deductions=0")
             ->assertOk()
             ->assertJsonPath('employee_contributions_total', 1725)
             ->assertJsonPath('employer_contributions_total', 2780);
@@ -385,7 +373,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -401,39 +388,6 @@ class EmployeePayrollTaxTest extends TestCase
         $this->assertSame(2780.0, $secondPayroll->employerContributionsTotal());
     }
 
-    public function test_philippines_bonus_only_taxes_the_amount_above_the_annual_exemption_cap(): void
-    {
-        $this->setBusinessProfile('Daet', BusinessProfile::COUNTRY_PHILIPPINES);
-        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole('staff', 'Paula Reyes');
-
-        Payroll::create([
-            'employee_id' => $employee->id,
-            'pay_frequency' => 'semi_monthly',
-            'period_start' => '2026-02-01',
-            'period_end' => '2026-02-15',
-                'gross_amount' => 0,
-                'bonus' => 89500,
-                'withholding_tax' => 0,
-                'manual_deductions' => 0,
-            'net_amount' => 89500,
-            'status' => Payroll::STATUS_APPROVED,
-            'generated_by' => $manager->id,
-            'approved_by' => $manager->id,
-            'approved_at' => now(),
-        ]);
-
-        $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-01&period_end=2026-03-15&gross_amount=20000&bonus=1500&manual_deductions=0")
-            ->assertOk()
-            ->assertJsonPath('remaining_bonus_exemption', 500)
-            ->assertJsonPath('bonus_non_taxable_amount', 500)
-            ->assertJsonPath('bonus_taxable_amount', 1000)
-            ->assertJsonPath('taxable_earnings', 21000)
-            ->assertJsonPath('withholding_tax', 1804.1)
-            ->assertJsonPath('net_amount_preview', 19695.9);
-    }
-
     public function test_philippines_monthly_payroll_uses_monthly_withholding_tax_table(): void
     {
         $this->setBusinessProfile('Legazpi', BusinessProfile::COUNTRY_PHILIPPINES);
@@ -445,7 +399,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 50000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -476,12 +429,12 @@ class EmployeePayrollTaxTest extends TestCase
         );
 
         $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&bonus=500&manual_deductions=200")
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&manual_deductions=200")
             ->assertOk()
             ->assertJsonPath('withholding_tax', 0)
             ->assertJsonPath('employee_contributions_total', 1725)
             ->assertJsonPath('employee_deductions_total', 1925)
-            ->assertJsonPath('net_amount_preview', 18575);
+            ->assertJsonPath('net_amount_preview', 18075);
     }
 
     public function test_business_toggle_can_disable_government_contributions(): void
@@ -498,7 +451,7 @@ class EmployeePayrollTaxTest extends TestCase
         );
 
         $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&bonus=500&manual_deductions=200")
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&manual_deductions=200")
             ->assertOk()
             ->assertJsonPath('withholding_tax', 1604.1)
             ->assertJsonPath('employee_contributions', [])
@@ -506,7 +459,7 @@ class EmployeePayrollTaxTest extends TestCase
             ->assertJsonPath('employer_contributions', [])
             ->assertJsonPath('employer_contributions_total', 0)
             ->assertJsonPath('employee_deductions_total', 1804.1)
-            ->assertJsonPath('net_amount_preview', 18695.9);
+            ->assertJsonPath('net_amount_preview', 18195.9);
     }
 
     public function test_business_toggles_can_disable_wage_tax_and_government_contributions_together(): void
@@ -524,13 +477,13 @@ class EmployeePayrollTaxTest extends TestCase
         );
 
         $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&bonus=500&manual_deductions=200")
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&manual_deductions=200")
             ->assertOk()
             ->assertJsonPath('withholding_tax', 0)
             ->assertJsonPath('employee_contributions_total', 0)
             ->assertJsonPath('employer_contributions_total', 0)
             ->assertJsonPath('employee_deductions_total', 200)
-            ->assertJsonPath('net_amount_preview', 20300);
+            ->assertJsonPath('net_amount_preview', 19800);
     }
 
     public function test_non_ph_business_profiles_default_to_zero_withholding_tax(): void
@@ -549,7 +502,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-15',
                 'gross_amount' => 50000,
-                'bonus' => 0,
                 'manual_deductions' => 200,
             ])
             ->assertCreated()
@@ -576,7 +528,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
-                'bonus' => 500,
                 'manual_deductions' => 200,
             ])
             ->assertCreated()
@@ -617,7 +568,7 @@ class EmployeePayrollTaxTest extends TestCase
         $this->assertSame(1259.1, (float) $payroll->withholding_tax);
         $this->assertSame(1725.0, $payroll->employeeContributionsTotal());
         $this->assertSame(2780.0, $payroll->employerContributionsTotal());
-        $this->assertSame(17315.9, (float) $payroll->net_amount);
+        $this->assertSame(16815.9, (float) $payroll->net_amount);
     }
 
     public function test_payroll_snapshots_the_employee_pay_frequency(): void
@@ -631,7 +582,6 @@ class EmployeePayrollTaxTest extends TestCase
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 10000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()

@@ -24,7 +24,7 @@ class EmployeePayrollMembershipEarningsTest extends TestCase
         $managerRole->givePermissionTo(Permission::findOrCreate('manage employees'));
     }
 
-    public function test_payroll_uses_gross_and_bonus_without_membership_sales_earnings(): void
+    public function test_payroll_uses_gross_without_membership_sales_earnings(): void
     {
         BusinessProfile::query()->updateOrCreate(
             ['id' => 1],
@@ -46,7 +46,6 @@ class EmployeePayrollMembershipEarningsTest extends TestCase
                 'period_start' => '2026-04-01',
                 'period_end' => '2026-04-15',
                 'gross_amount' => 4000,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()

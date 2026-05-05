@@ -67,7 +67,6 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-15',
                 'gross_amount' => 800,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -202,7 +201,6 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-15',
                 'gross_amount' => 1100,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
@@ -227,7 +225,6 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
                 'period_start' => '2026-03-01',
                 'period_end' => '2026-03-15',
                 'gross_amount' => 1200,
-                'bonus' => 0,
                 'manual_deductions' => 0,
             ])
             ->assertOk()
@@ -259,7 +256,6 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
             'period_start' => '2026-03-01',
             'period_end' => '2026-03-15',
             'gross_amount' => 500,
-            'bonus' => 0,
             'withholding_tax' => 0,
             'manual_deductions' => 0,
             'net_amount' => 500,

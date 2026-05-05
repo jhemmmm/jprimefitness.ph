@@ -16,7 +16,6 @@ return new class extends Migration
             $table->date('period_start');
             $table->date('period_end');
             $table->decimal('gross_amount', 10, 2)->default(0);
-            $table->decimal('bonus', 10, 2)->default(0);
             $table->decimal('withholding_tax', 10, 2)->default(0);
             $table->json('employee_contributions')->nullable();
             $table->json('employer_contributions')->nullable();

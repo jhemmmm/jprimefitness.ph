@@ -126,7 +126,6 @@ class NotificationsCenterTest extends TestCase
             'period_start' => '2026-04-01',
             'period_end' => '2026-04-15',
             'gross_amount' => 10000,
-            'bonus' => 0,
             'withholding_tax' => 0,
             'manual_deductions' => 0,
             'net_amount' => 10000,
