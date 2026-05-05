@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     @php
         $panelBusinessProfile = $businessProfile->panelShellPayload();
+        $panelUser = auth()->user();
     @endphp
     <script>
         window.JPrime = window.JPrime || {};
@@ -210,8 +211,10 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0"
                             style="min-width: 180px; font-size: 0.85rem;">
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-person me-2"></i>Profile</a>
-                            </li>
+                            @unless ($panelUser->hasRole('super admin'))
+                                <li><a class="dropdown-item" href="{{ route('panel.employees.show', $panelUser) }}"><i class="bi bi-person me-2"></i>Profile</a>
+                                </li>
+                            @endunless
                             <li><a class="dropdown-item" href="{{ route('panel.settings') }}"><i class="bi bi-gear me-2"></i>Settings</a>
                             </li>
                             <li>

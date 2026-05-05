@@ -37,7 +37,7 @@ class EmployeeController extends Controller
         private NotificationRecipientResolver $notificationRecipientResolver,
         private SystemActivityService $systemActivityService,
     ) {
-        $this->middleware('can:manage employees');
+        $this->middleware('can:manage employees')->except('show');
     }
 
     /**
@@ -57,6 +57,11 @@ class EmployeeController extends Controller
      */
     public function show(User $employee): View
     {
+        abort_unless(
+            (int) $employee->id === (int) auth()->id() || auth()->user()->can('manage employees'),
+            403
+        );
+
         return view('panel.employees.show', [
             'employee' => $this->serializeEmployee($employee->load('roles')),
             'employeeName' => $employee->name,

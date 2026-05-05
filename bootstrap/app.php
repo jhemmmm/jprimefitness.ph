@@ -20,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->redirectUsersTo('/panel/dashboard');
+
         $middleware->alias([
             'biometric' => VerifyBiometricToken::class,
             'panel' => EnsurePanelAccess::class,
