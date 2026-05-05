@@ -132,9 +132,9 @@ class HikvisionAttendanceService
         $eventType = (string) ($payload['event_type'] ?? Arr::get($raw, 'eventType') ?? 'AccessControllerEvent');
         $occurredAt = (string) ($payload['occurred_at'] ?? Arr::get($raw, 'dateTime') ?? now()->toISOString());
         $deviceSerial = trim((string) (
-            Arr::get($payload, 'device_serial')
+            Arr::get($payload, 'deviceSerial')
             ?? Arr::get($raw, 'deviceSerialNo')
-            ?? Arr::get($payload, 'device_name')
+            ?? Arr::get($payload, 'deviceSerialNo')
             ?? Arr::get($payload, 'device_ip')
             ?? 'windows-helper'
         ));
