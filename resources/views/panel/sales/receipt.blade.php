@@ -232,7 +232,7 @@
                 <tr>
                     <td>
                         @if ($logoData)
-                            <img src="{{ $logoData }}" alt="JPRIME FITNESS Logo"
+                            <img src="{{ $logoData }}" alt="JPrime Fitness Logo"
                                 style="width: 28px; height: 28px; display: block; margin-bottom: 6px;">
                         @endif
                         <h1 class="document-title">Sales Receipt</h1>

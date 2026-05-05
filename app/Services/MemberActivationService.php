@@ -57,6 +57,7 @@ class MemberActivationService
                 'status' => MemberSubscription::STATUS_ACTIVE,
                 'start_date' => $subscription->start_date,
                 'end_date' => $subscription->end_date,
+                'pending_payment_method' => null,
             ])->save();
         });
 

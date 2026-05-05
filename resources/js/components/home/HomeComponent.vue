@@ -904,7 +904,7 @@ export default {
          return loc ? `Your neighborhood gym in ${loc}` : "Your neighborhood gym";
       },
       directionsUrl: function () {
-         const q = this.addressLine || this.business.name || "JPRIME Fitness";
+         const q = this.addressLine || this.business.name || "JPrime Fitness";
          return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
       },
       indexedRatePlans: function () {

@@ -248,50 +248,23 @@ class PosSaleService
             }
 
             $member = $this->resolveMember($data);
-            $hasDiscount = $member->profile?->hasDiscount() ?? false;
-            $discountType = $hasDiscount ? $member->profile->discount_type : null;
-            $originalPrice = round((float) $ratePlan->price, 2);
-            $saleTotal = $this->applyMemberDiscount($originalPrice, $discountType);
-            $discountAmount = round($originalPrice - $saleTotal, 2);
+            $discountType = $member->profile?->hasDiscount() ? $member->profile->discount_type : null;
+            $saleTotal = $this->applyMemberDiscount(round((float) $ratePlan->price, 2), $discountType);
 
             $subscription = $member->sellMembershipPlan($ratePlan->id, $data['start_date'], [
                 'sold_price' => $saleTotal,
             ]);
 
-            $payment = $this->resolvePayment($saleTotal, $data);
-
-            $saleTransaction = SaleTransaction::create([
-                'member_id' => $member->id,
-                'type' => SaleTransaction::TYPE_MEMBERSHIP,
-                'total' => $saleTotal,
-                'payment_method' => $payment['payment_method'],
-                'processed_by' => $processedBy->id,
-                'sold_at' => $data['sold_at'],
-                'customer_name' => $member->name,
-                'item_name' => $ratePlan->name,
-                'details' => [
-                    'rate_plan_id' => $ratePlan->id,
-                    'subscription_id' => $subscription->id,
-                    'duration_days' => $ratePlan->duration_days,
-                    'start_date' => $data['start_date'],
-                    'line_items' => [[
-                        'name' => $ratePlan->name,
-                        'description' => $ratePlan->description,
-                        'quantity' => 1,
-                        'unit' => 'plan',
-                        'unit_price' => $originalPrice,
-                        'line_total' => $originalPrice,
-                    ]],
-                    'subtotal' => $originalPrice,
-                    'discount' => $hasDiscount ? [
-                        'type' => $discountType,
-                        'percent' => MemberProfile::DISCOUNT_PERCENT,
-                        'amount' => $discountAmount,
-                    ] : null,
-                    'payment' => $payment,
-                    'notes' => $data['notes'] ?? null,
-                ],
-            ]);
+            $saleTransaction = $this->createMembershipSaleTransaction(
+                $member,
+                $ratePlan,
+                $subscription,
+                $processedBy,
+                $saleTotal,
+                $this->resolvePayment($saleTotal, $data),
+                $data['sold_at'],
+                $data['notes'] ?? null,
+            );
 
             $saleCause = $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
 
@@ -689,6 +662,108 @@ class PosSaleService
             'change_amount' => $changeAmount,
             'reference' => $reference !== '' ? $reference : null,
         ];
+    }
+
+    public function recordOnSiteMembershipSale(
+        MemberSubscription $subscription,
+        User $processedBy,
+        string $paymentMethod,
+        ?string $paymentReference = null,
+    ): SaleTransaction {
+        return DB::transaction(function () use ($subscription, $processedBy, $paymentMethod, $paymentReference) {
+            $subscription->loadMissing(['member.profile', 'ratePlan']);
+
+            $member = $subscription->member;
+            $ratePlan = $subscription->ratePlan;
+
+            if (! $member || ! $ratePlan) {
+                throw ValidationException::withMessages([
+                    'subscription' => ['The pending registration is no longer valid.'],
+                ]);
+            }
+
+            $saleTotal = round((float) $subscription->sold_price, 2);
+
+            $saleTransaction = $this->createMembershipSaleTransaction(
+                $member,
+                $ratePlan,
+                $subscription,
+                $processedBy,
+                $saleTotal,
+                [
+                    'payment_method' => $paymentMethod,
+                    'amount_received' => $saleTotal,
+                    'change_amount' => 0.0,
+                    'reference' => $paymentReference,
+                ],
+                Carbon::now(),
+                null,
+                'public_registration',
+            );
+
+            $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
+
+            return $saleTransaction;
+        });
+    }
+
+    /**
+     * @param  array{payment_method:string, amount_received:float, change_amount:float, reference:?string}  $payment
+     */
+    private function createMembershipSaleTransaction(
+        User $member,
+        RatePlan $ratePlan,
+        MemberSubscription $subscription,
+        User $processedBy,
+        float $saleTotal,
+        array $payment,
+        DateTimeInterface|string $soldAt,
+        ?string $notes = null,
+        ?string $source = null,
+    ): SaleTransaction {
+        $discountType = $member->profile?->hasDiscount() ? $member->profile->discount_type : null;
+        $originalPrice = round((float) $ratePlan->price, 2);
+        $saleTotal = round($saleTotal, 2);
+        $discountAmount = round($originalPrice - $saleTotal, 2);
+
+        $details = [
+            'rate_plan_id' => $ratePlan->id,
+            'subscription_id' => $subscription->id,
+            'duration_days' => $ratePlan->duration_days,
+            'start_date' => $subscription->start_date?->toDateString(),
+            'line_items' => [[
+                'name' => $ratePlan->name,
+                'description' => $ratePlan->description,
+                'quantity' => 1,
+                'unit' => 'plan',
+                'unit_price' => $originalPrice,
+                'line_total' => $originalPrice,
+            ]],
+            'subtotal' => $originalPrice,
+            'discount' => $discountType !== null ? [
+                'type' => $discountType,
+                'percent' => MemberProfile::DISCOUNT_PERCENT,
+                'amount' => $discountAmount,
+            ] : null,
+            'payment' => $payment,
+            'notes' => $notes,
+        ];
+
+        if ($source !== null) {
+            $details = ['source' => $source] + $details;
+        }
+
+        return SaleTransaction::create([
+            'member_id' => $member->id,
+            'type' => SaleTransaction::TYPE_MEMBERSHIP,
+            'total' => $saleTotal,
+            'payment_method' => $payment['payment_method'],
+            'processed_by' => $processedBy->id,
+            'sold_at' => $soldAt,
+            'customer_name' => $member->name,
+            'item_name' => $ratePlan->name,
+            'details' => $details,
+        ]);
     }
 
     public function recordKioskWalkInSale(KioskPayment $payment, ?User $processedBy = null): SaleTransaction

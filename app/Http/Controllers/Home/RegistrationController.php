@@ -55,7 +55,7 @@ class RegistrationController extends Controller
             'preferred_start_date' => ['nullable', 'date', 'after_or_equal:today'],
             'notes' => ['nullable', 'string', 'max:500'],
             'terms_accepted' => ['accepted'],
-            'payment_method' => ['required', Rule::in(['online', 'on_site'])],
+            'payment_method' => ['required', Rule::in([MemberSubscription::PENDING_PAYMENT_ON_SITE, MemberSubscription::PENDING_PAYMENT_ONLINE])],
             'discount_type' => ['nullable', Rule::in([MemberProfile::DISCOUNT_STUDENT, MemberProfile::DISCOUNT_SENIOR])],
             'recaptcha_token' => [$captchaConfigured ? 'required' : 'nullable', 'string'],
         ]);
@@ -68,7 +68,7 @@ class RegistrationController extends Controller
 
         $discountType = $data['discount_type'] ?? null;
 
-        if ($discountType !== null && $data['payment_method'] !== 'on_site') {
+        if ($discountType !== null && $data['payment_method'] !== MemberSubscription::PENDING_PAYMENT_ON_SITE) {
             throw ValidationException::withMessages([
                 'payment_method' => ['Student and senior discounts must be paid on-site so staff can verify your ID.'],
             ]);
@@ -109,6 +109,7 @@ class RegistrationController extends Controller
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'status' => MemberSubscription::STATUS_PAUSED,
+                'pending_payment_method' => $data['payment_method'],
             ]);
 
             return [$user, $subscription];
@@ -156,12 +157,12 @@ class RegistrationController extends Controller
 
         $payload = [
             'ok' => true,
-            'message' => $data['payment_method'] === 'online'
+            'message' => $data['payment_method'] === MemberSubscription::PENDING_PAYMENT_ONLINE
                 ? 'Redirecting to secure payment…'
                 : "Thanks! We'll see you at the gym to complete payment and activate your access.",
         ];
 
-        if ($data['payment_method'] === 'online') {
+        if ($data['payment_method'] === MemberSubscription::PENDING_PAYMENT_ONLINE) {
             try {
                 $checkout = $this->paymongoPaymentService->createCheckoutSession($subscription->fresh(['ratePlan']), $user);
                 $payload['payment'] = $checkout;

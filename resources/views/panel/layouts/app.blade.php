@@ -5,7 +5,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
-    <title>@yield('title', 'Panel') - JPRIME Fitness Panel</title>
+    <title>@yield('title', 'Panel') - JPrime Fitness Panel</title>
     <link rel="preconnect" href="https://fonts.bunny.net" />
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800,900|nunito:400,600,700|oswald:400,700"
         rel="stylesheet" />
@@ -37,10 +37,10 @@
             <div class="sidebar-logo">
                 <a href="{{ route('panel.dashboard') }}" class="sidebar-logo-inner">
                     <div class="sidebar-logo-icon">
-                        <img src="{{ asset('logo.png') }}" alt="JPRIME FITNESS Logo" />
+                        <img src="{{ asset('logo.png') }}" alt="JPrime Fitness Logo" />
                     </div>
                     <div>
-                        <div class="sidebar-logo-text jprime-logo">JPRIME <span class="text-danger">FITNESS</span></div>
+                        <div class="sidebar-logo-text jprime-logo">JPrime <span class="text-danger">Fitness</span></div>
                         <div class="sidebar-logo-sub">Panel Platform</div>
                     </div>
                 </a>

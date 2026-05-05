@@ -28,7 +28,7 @@ class MemberRegistrationReceivedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'We received your JPRIME Fitness registration',
+            subject: 'We received your JPrime Fitness registration',
         );
     }
 

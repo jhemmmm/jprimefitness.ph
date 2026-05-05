@@ -326,7 +326,7 @@
                             <tr>
                                 <td style="width: 36px;">
                                     @if ($logoData)
-                                        <img src="{{ $logoData }}" alt="JPRIME FITNESS Logo" class="brand-mark">
+                                        <img src="{{ $logoData }}" alt="JPrime Fitness Logo" class="brand-mark">
                                     @endif
                                 </td>
                                 <td>
@@ -643,7 +643,7 @@
             </table>
 
             <div class="footer-note">
-                This payslip is generated from the JPRIME FITNESS panel and is intended for payroll documentation and
+                This payslip is generated from the JPrime Fitness panel and is intended for payroll documentation and
                 employee payout reference.
             </div>
         </div>

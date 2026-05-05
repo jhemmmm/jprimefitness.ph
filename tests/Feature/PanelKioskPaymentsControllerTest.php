@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\BusinessProfile;
 use App\Models\KioskPayment;
+use App\Models\MemberSubscription;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\User;
@@ -61,12 +62,42 @@ class PanelKioskPaymentsControllerTest extends TestCase
             'expires_at' => Carbon::now()->subSecond(),
         ]);
 
+        $plan = RatePlan::create([
+            'name' => 'Monthly',
+            'duration_days' => 30,
+            'price' => 1500,
+            'is_active' => true,
+            'is_walk_in_only' => false,
+        ]);
+        $member = User::create([
+            'name' => 'Pending Patty',
+            'email' => 'pending.patty@example.com',
+            'phone' => '09170001111',
+            'password' => bcrypt('secret'),
+            'status' => User::STATUS_INACTIVE,
+        ]);
+        $member->assignRole('member');
+        $pendingMembership = $member->memberSubscriptions()->create([
+            'rate_plan_id' => $plan->id,
+            'sold_price' => 1500,
+            'start_date' => Carbon::now()->toDateString(),
+            'end_date' => Carbon::now()->addDays(29)->toDateString(),
+            'status' => MemberSubscription::STATUS_PAUSED,
+            'pending_payment_method' => MemberSubscription::PENDING_PAYMENT_ON_SITE,
+        ]);
+
         $response = $this->actingAs($this->staff())
-            ->getJson('/panel/kiosk-payments/pending')
+            ->getJson('/panel/sales/pending-payments')
             ->assertOk();
 
-        $references = collect($response->json('payments'))->pluck('reference')->all();
-        $this->assertSame([$pendingCash->reference], $references);
+        $payments = collect($response->json('payments'));
+        $walkIns = $payments->where('kind', 'walk_in')->values()->all();
+        $memberships = $payments->where('kind', 'membership')->values()->all();
+
+        $this->assertCount(1, $walkIns);
+        $this->assertSame('walk-in:'.$pendingCash->reference, $walkIns[0]['key']);
+        $this->assertCount(1, $memberships);
+        $this->assertSame('membership:'.$pendingMembership->id, $memberships[0]['key']);
     }
 
     public function test_confirm_creates_walk_in_sale_with_discount_block(): void

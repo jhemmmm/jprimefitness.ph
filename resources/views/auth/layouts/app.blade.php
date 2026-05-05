@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content="{{ csrf_token() }}" />
 
-    <title>@yield('title', 'Sign In') - JPRIME Fitness Admin</title>
+    <title>@yield('title', 'Sign In') - JPrime Fitness Admin</title>
 
     <link rel="preconnect" href="https://fonts.bunny.net" />
     <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800,900|oswald:400,500,600,700"
@@ -26,8 +26,8 @@
                 <div class="auth-brand-logo">
                     <a href="/" class="text-white text-decoration-none">
                         <div class="jprime-logo fw-bold fs-3 text-white">
-                            <img src="{{ asset('logo.png') }}" alt="JPRIME FITNESS Logo" />JPRIME <span
-                                class="text-danger">FITNESS</span>
+                            <img src="{{ asset('logo.png') }}" alt="JPrime Fitness Logo" />JPrime <span
+                                class="text-danger">Fitness</span>
                         </div>
                         <div class="auth-brand-sub mt-1">Admin Platform</div>
                     </a>
@@ -57,8 +57,8 @@
                 <div class="d-lg-none mb-4">
                     <a href="/" class="text-decoration-none">
                         <div class="jprime-logo auth-logo-card fw-bold fs-5" style="color:#111;"><img
-                                src="{{ asset('logo.png') }}" alt="JPRIME FITNESS Logo" />JPRIME <span
-                                class="text-danger">FITNESS</span></div>
+                                src="{{ asset('logo.png') }}" alt="JPrime Fitness Logo" />JPrime <span
+                                class="text-danger">Fitness</span></div>
                         <div class="auth-logo-card-sub ">
                             Admin Platform</div>
                     </a>

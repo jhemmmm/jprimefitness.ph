@@ -27,7 +27,7 @@ class MemberActivatedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your JPRIME Fitness membership is active',
+            subject: 'Your JPrime Fitness membership is active',
         );
     }
 

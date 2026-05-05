@@ -84,12 +84,14 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/sales', [SalesController::class, 'index'])->name('sales.index');
     Route::get('/sales/context', [SalesController::class, 'context'])->name('sales.context');
     Route::get('/sales/history', [SalesController::class, 'history'])->name('sales.history');
+    Route::get('/sales/pending-payments', [SalesController::class, 'pendingPayments'])->name('sales.pending-payments.list');
     Route::post('/sales', [SalesController::class, 'store'])->name('sales.store');
+    Route::post('/sales/pending-memberships/{subscription}/confirm', [SalesController::class, 'confirmPendingMembership'])->name('sales.pending-memberships.confirm')->whereNumber('subscription');
+    Route::post('/sales/pending-memberships/{subscription}/cancel', [SalesController::class, 'cancelPendingMembership'])->name('sales.pending-memberships.cancel')->whereNumber('subscription');
     Route::get('/sales/{saleTransaction}/membership-qr', [SalesController::class, 'membershipQr'])->name('sales.membership-qr')->whereNumber('saleTransaction');
     Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
 
-    // Kiosk pending counter walk-ins
-    Route::get('/kiosk-payments/pending', [KioskPaymentsController::class, 'pending'])->name('kiosk-payments.pending');
+    // Kiosk counter walk-in actions (listing is folded into sales.pending-payments)
     Route::post('/kiosk-payments/{reference}/confirm', [KioskPaymentsController::class, 'confirm'])->name('kiosk-payments.confirm');
     Route::post('/kiosk-payments/{reference}/cancel', [KioskPaymentsController::class, 'cancel'])->name('kiosk-payments.cancel');
 

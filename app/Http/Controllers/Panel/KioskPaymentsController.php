@@ -17,25 +17,6 @@ class KioskPaymentsController extends Controller
         private PosSaleService $posSaleService,
     ) {}
 
-    public function pending(): JsonResponse
-    {
-        $now = Carbon::now();
-
-        $payments = KioskPayment::query()
-            ->select(['id', 'reference', 'name', 'phone', 'amount', 'base_amount', 'discount_type', 'created_at', 'expires_at'])
-            ->whereNull('paymongo_payment_intent_id')
-            ->where('status', KioskPayment::STATUS_PENDING)
-            ->where(function ($query) use ($now) {
-                $query->whereNull('expires_at')->orWhere('expires_at', '>', $now);
-            })
-            ->orderBy('created_at')
-            ->get()
-            ->map(fn (KioskPayment $payment) => $this->serialize($payment))
-            ->all();
-
-        return response()->json(['payments' => $payments]);
-    }
-
     public function confirm(string $reference): JsonResponse
     {
         $transaction = DB::transaction(function () use ($reference) {
@@ -118,25 +99,5 @@ class KioskPaymentsController extends Controller
         $payment->update(['status' => KioskPayment::STATUS_CANCELLED]);
 
         return response()->json(['ok' => true]);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function serialize(KioskPayment $payment): array
-    {
-        return [
-            'reference' => $payment->reference,
-            'name' => $payment->name,
-            'phone' => $payment->phone,
-            'base_amount' => $payment->base_amount !== null
-                ? round((float) $payment->base_amount, 2)
-                : round((float) $payment->amount, 2),
-            'amount' => round((float) $payment->amount, 2),
-            'discount_type' => $payment->discount_type,
-            'discount_percent' => $payment->discount_type !== null ? KioskPayment::DISCOUNT_PERCENT : 0,
-            'created_at' => $payment->created_at?->toISOString(),
-            'expires_at' => $payment->expires_at?->toISOString(),
-        ];
     }
 }

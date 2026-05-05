@@ -375,45 +375,59 @@
          <div class="panel-card mt-4">
             <div class="panel-card-header d-flex justify-content-between align-items-center">
                <span class="panel-card-title">
-                  Pending Counter Walk-ins
-                  <span class="badge-count ms-1">{{ pendingKioskPayments.length }}</span>
+                  Pending Payments
+                  <span class="badge-count ms-1">{{ pendingPayments.length }}</span>
                </span>
-               <button type="button" class="btn btn-sm btn-outline-secondary" @click="fetchPendingKioskPayments" :disabled="loadingPendingKiosk">
-                  <i class="bi bi-arrow-clockwise" :class="{ 'spinner-border spinner-border-sm': loadingPendingKiosk }"></i>
+               <button type="button" class="btn btn-sm btn-outline-secondary" @click="fetchPendingPayments" :disabled="loadingPendingPayments">
+                  <i class="bi bi-arrow-clockwise" :class="{ 'spinner-border spinner-border-sm': loadingPendingPayments }"></i>
                   Refresh
                </button>
             </div>
             <div class="p-3">
-               <div v-if="!pendingKioskPayments.length" class="text-muted small text-center py-3">No pending counter walk-ins.</div>
+               <div v-if="!pendingPayments.length" class="text-muted small text-center py-3">No pending payments awaiting confirmation.</div>
                <div v-else class="table-responsive">
                   <table class="table table-sm align-middle mb-0">
                      <thead>
                         <tr class="text-muted small">
                            <th>Customer</th>
+                           <th>Type</th>
+                           <th>Item</th>
                            <th>Amount</th>
                            <th>Created</th>
                            <th class="text-end">Actions</th>
                         </tr>
                      </thead>
                      <tbody>
-                        <tr v-for="payment in pendingKioskPayments" :key="payment.reference">
+                        <tr v-for="row in pendingPayments" :key="row.key">
                            <td>
-                              <div class="fw-semibold small">{{ payment.name }}</div>
-                              <div class="text-muted small">{{ payment.phone }} · {{ payment.reference }}</div>
+                              <div class="fw-semibold small">
+                                 <a v-if="row.subject_url" :href="row.subject_url" class="text-decoration-none">{{ row.name }}</a>
+                                 <span v-else>{{ row.name }}</span>
+                              </div>
+                              <div class="text-muted small">{{ row.contact || "—" }}</div>
                            </td>
                            <td class="small">
-                              <div class="fw-semibold">₱{{ $filters.formatMoney(payment.amount) }}</div>
-                              <div v-if="payment.discount_type" class="small text-danger">
-                                 <s class="text-muted me-1">₱{{ $filters.formatMoney(payment.base_amount) }}</s>
-                                 {{ $filters.capitalize(payment.discount_type) }} −{{ payment.discount_percent }}%
+                              <span :class="['m-badge', row.kind === 'membership' ? 'm-badge--active' : 'm-badge--open']">
+                                 {{ row.kind === "membership" ? "Membership" : "Walk-in" }}
+                              </span>
+                           </td>
+                           <td class="small">
+                              <div>{{ row.item_label }}</div>
+                              <div class="text-muted" v-if="row.detail">{{ row.detail }}</div>
+                           </td>
+                           <td class="small">
+                              <div class="fw-semibold">₱{{ $filters.formatMoney(row.amount) }}</div>
+                              <div v-if="row.discount_type" class="small text-danger">
+                                 <s class="text-muted me-1">₱{{ $filters.formatMoney(row.base_amount) }}</s>
+                                 {{ $filters.capitalize(row.discount_type) }} −{{ row.discount_percent }}%
                               </div>
                            </td>
-                           <td class="small text-muted">{{ formatDateTime(payment.created_at) }}</td>
+                           <td class="small text-muted">{{ formatDateTime(row.created_at) }}</td>
                            <td class="text-end">
-                              <button type="button" class="btn btn-sm btn-danger me-1" @click="openKioskAction(payment, 'confirm')" :disabled="busyKioskRef === payment.reference">
-                                 Confirm Cash
+                              <button type="button" class="btn btn-sm btn-danger me-1" @click="openPendingAction(row, 'confirm')" :disabled="busyPendingKey === row.key">
+                                 {{ row.requires_payment_method ? "Confirm Payment" : "Confirm Cash" }}
                               </button>
-                              <button type="button" class="btn btn-sm btn-outline-secondary" @click="openKioskAction(payment, 'cancel')" :disabled="busyKioskRef === payment.reference">
+                              <button type="button" class="btn btn-sm btn-outline-secondary" @click="openPendingAction(row, 'cancel')" :disabled="busyPendingKey === row.key">
                                  Cancel
                               </button>
                            </td>
@@ -610,29 +624,50 @@
          </div>
       </template>
 
-      <div class="modal fade" tabindex="-1" ref="kioskConfirmModal">
+      <div class="modal fade" tabindex="-1" ref="pendingPaymentModal">
          <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                <div class="modal-header">
-                  <h5 class="modal-title fw-bold">{{ kioskAction === "cancel" ? "Cancel walk-in" : "Confirm cash payment" }}</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" :disabled="busyKioskRef === kioskActionPayment?.reference"></button>
+                  <h5 class="modal-title fw-bold">{{ pendingLabels.title }}</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" :disabled="busyPendingKey === pendingTarget?.key"></button>
                </div>
-               <div class="modal-body" v-if="kioskActionPayment">
-                  <p class="mb-2">
-                     <span v-if="kioskAction === 'cancel'">Cancel the pending walk-in for <strong>{{ kioskActionPayment.name }}</strong>? No sale will be recorded.</span>
-                     <span v-else>Confirm cash payment of <strong>₱{{ $filters.formatMoney(kioskActionPayment.amount) }}</strong> from <strong>{{ kioskActionPayment.name }}</strong>?</span>
+               <div class="modal-body" v-if="pendingTarget">
+                  <p class="mb-2" v-if="pendingAction === 'cancel'">
+                     <span v-if="pendingTarget.kind === 'membership'">
+                        Cancel the pending registration for <strong>{{ pendingTarget.name }}</strong>?
+                        You can re-register them later if they return.
+                     </span>
+                     <span v-else>Cancel the pending walk-in for <strong>{{ pendingTarget.name }}</strong>? No sale will be recorded.</span>
                   </p>
-                  <div v-if="kioskAction !== 'cancel' && kioskActionPayment.discount_type" class="small text-danger">
-                     <s class="text-muted me-1">₱{{ $filters.formatMoney(kioskActionPayment.base_amount) }}</s>
-                     {{ $filters.capitalize(kioskActionPayment.discount_type) }} −{{ kioskActionPayment.discount_percent }}% applied
-                  </div>
-                  <div class="small text-muted mt-2">Ref: {{ kioskActionPayment.reference }}</div>
+                  <template v-else>
+                     <p class="mb-2">
+                        Confirm payment of <strong>₱{{ $filters.formatMoney(pendingTarget.amount) }}</strong> from <strong>{{ pendingTarget.name }}</strong>
+                        <span v-if="pendingTarget.kind === 'membership'">for <strong>{{ pendingTarget.item_label }}</strong></span>?
+                     </p>
+                     <div v-if="pendingTarget.discount_type" class="small text-danger mb-2">
+                        <s class="text-muted me-1">₱{{ $filters.formatMoney(pendingTarget.base_amount) }}</s>
+                        {{ $filters.capitalize(pendingTarget.discount_type) }} −{{ pendingTarget.discount_percent }}% applied
+                     </div>
+                     <template v-if="pendingTarget.requires_payment_method">
+                        <div class="mb-2">
+                           <label class="form-label small">Payment Method</label>
+                           <select class="form-select form-select-sm" v-model="pendingForm.payment_method">
+                              <option v-for="method in paymentMethods" :key="method.value" :value="method.value">{{ method.label }}</option>
+                           </select>
+                        </div>
+                        <div v-if="pendingForm.payment_method !== 'cash'">
+                           <label class="form-label small">Reference</label>
+                           <input type="text" class="form-control form-control-sm" v-model="pendingForm.payment_reference" placeholder="Enter the payment reference" />
+                        </div>
+                     </template>
+                  </template>
+                  <div class="small text-muted mt-2" v-if="pendingTarget.detail">{{ pendingTarget.detail }}</div>
                </div>
                <div class="modal-footer">
-                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" :disabled="busyKioskRef === kioskActionPayment?.reference">Back</button>
-                  <button type="button" :class="['btn px-4', kioskAction === 'cancel' ? 'btn-outline-danger' : 'btn-danger']" @click="executeKioskAction" :disabled="busyKioskRef === kioskActionPayment?.reference">
-                     <span v-if="busyKioskRef === kioskActionPayment?.reference" class="spinner-border spinner-border-sm me-1"></span>
-                     {{ kioskAction === "cancel" ? "Cancel walk-in" : "Confirm cash" }}
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" :disabled="busyPendingKey === pendingTarget?.key">Back</button>
+                  <button type="button" :class="['btn px-4', pendingAction === 'cancel' ? 'btn-outline-danger' : 'btn-danger']" @click="executePendingAction" :disabled="busyPendingKey === pendingTarget?.key">
+                     <span v-if="busyPendingKey === pendingTarget?.key" class="spinner-border spinner-border-sm me-1"></span>
+                     {{ pendingLabels.button }}
                   </button>
                </div>
             </div>
@@ -740,23 +775,27 @@ export default {
             { value: "card", label: "Card" },
             { value: "bank_transfer", label: "Bank Transfer" },
          ],
-         pendingKioskPayments: [],
-         loadingPendingKiosk: false,
-         busyKioskRef: null,
-         pendingKioskTimer: null,
-         kioskConfirmModal: null,
-         kioskActionPayment: null,
-         kioskAction: null,
+         pendingPayments: [],
+         loadingPendingPayments: false,
+         busyPendingKey: null,
+         pendingPaymentsTimer: null,
+         pendingPaymentModal: null,
+         pendingTarget: null,
+         pendingAction: null,
+         pendingForm: {
+            payment_method: "cash",
+            payment_reference: "",
+         },
       };
    },
    mounted: function () {
       this.membershipQrModal = new Modal(this.$refs.membershipQrModal);
-      this.kioskConfirmModal = new Modal(this.$refs.kioskConfirmModal);
+      this.pendingPaymentModal = new Modal(this.$refs.pendingPaymentModal);
       this.form = this.defaultForm();
       this.fetchContext();
       this.fetchHistory();
-      this.fetchPendingKioskPayments();
-      this.pendingKioskTimer = setInterval(() => this.fetchPendingKioskPayments(), 15000);
+      this.fetchPendingPayments();
+      this.pendingPaymentsTimer = setInterval(() => this.fetchPendingPayments(), 15000);
    },
    watch: {
       summaryTotal: function (value, oldValue) {
@@ -790,6 +829,18 @@ export default {
    computed: {
       hasProfile: function () {
          return Boolean(this.profile?.id || window.JPrime?.profile?.id);
+      },
+      pendingLabels: function () {
+         if (!this.pendingTarget) return { title: "", button: "" };
+         var isMembership = this.pendingTarget.kind === "membership";
+         if (this.pendingAction === "cancel") {
+            var cancelLabel = isMembership ? "Cancel registration" : "Cancel walk-in";
+            return { title: cancelLabel, button: cancelLabel };
+         }
+         return {
+            title: isMembership ? "Confirm membership payment" : "Confirm cash payment",
+            button: this.pendingTarget.requires_payment_method ? "Confirm payment" : "Confirm cash",
+         };
       },
       currentBusinessName: function () {
          return this.profile?.name || window.JPrime?.profile?.name || "this business";
@@ -1222,64 +1273,74 @@ export default {
                this.loadingQr = false;
             });
       },
-      fetchPendingKioskPayments: function () {
-         this.loadingPendingKiosk = true;
+      fetchPendingPayments: function () {
+         this.loadingPendingPayments = true;
          axios
-            .get("/panel/kiosk-payments/pending")
+            .get("/panel/sales/pending-payments")
             .then((response) => {
                var next = response.data.payments || [];
-               var current = this.pendingKioskPayments;
+               var current = this.pendingPayments;
                var unchanged =
                   next.length === current.length &&
-                  next.every(function (p, i) {
-                     return p.reference === current[i].reference && p.amount === current[i].amount && p.discount_type === current[i].discount_type;
+                  next.every(function (row, i) {
+                     return row.key === current[i].key && row.amount === current[i].amount && row.discount_type === current[i].discount_type;
                   });
                if (!unchanged) {
-                  this.pendingKioskPayments = next;
+                  this.pendingPayments = next;
                }
             })
             .catch(() => {})
             .finally(() => {
-               this.loadingPendingKiosk = false;
+               this.loadingPendingPayments = false;
             });
       },
-      openKioskAction: function (payment, action) {
-         this.kioskAction = action;
-         this.kioskActionPayment = payment;
-         this.kioskConfirmModal?.show();
+      openPendingAction: function (row, action) {
+         this.pendingAction = action;
+         this.pendingTarget = row;
+         if (action === "confirm" && row.requires_payment_method) {
+            this.pendingForm.payment_method = "cash";
+            this.pendingForm.payment_reference = "";
+         }
+         this.pendingPaymentModal?.show();
       },
-      executeKioskAction: function () {
-         var payment = this.kioskActionPayment;
-         var action = this.kioskAction;
-         if (!payment || !action) return;
+      executePendingAction: function () {
+         var row = this.pendingTarget;
+         var action = this.pendingAction;
+         if (!row || !action) return;
 
-         this.busyKioskRef = payment.reference;
-         var url = `/panel/kiosk-payments/${encodeURIComponent(payment.reference)}/${action}`;
+         this.busyPendingKey = row.key;
+         var url = action === "confirm" ? row.confirm_url : row.cancel_url;
+         var payload = action === "confirm" && row.requires_payment_method
+            ? {
+                 payment_method: this.pendingForm.payment_method,
+                 payment_reference: this.pendingForm.payment_reference || null,
+              }
+            : {};
 
          axios
-            .post(url)
+            .post(url, payload)
             .then(() => {
-               this.kioskConfirmModal?.hide();
-               this.kioskActionPayment = null;
-               this.kioskAction = null;
-               this.fetchPendingKioskPayments();
+               this.pendingPaymentModal?.hide();
+               this.pendingTarget = null;
+               this.pendingAction = null;
+               this.fetchPendingPayments();
                if (action === "confirm") {
                   this.fetchHistory(1);
                }
             })
             .catch((error) => {
                this.pageError = error.response?.data?.message || (action === "confirm" ? "Failed to confirm payment." : "Failed to cancel payment.");
-               this.kioskConfirmModal?.hide();
+               this.pendingPaymentModal?.hide();
             })
             .finally(() => {
-               this.busyKioskRef = null;
+               this.busyPendingKey = null;
             });
       },
    },
    beforeUnmount: function () {
       clearTimeout(this.historySearchTimer);
-      clearInterval(this.pendingKioskTimer);
-      this.kioskConfirmModal?.dispose();
+      clearInterval(this.pendingPaymentsTimer);
+      this.pendingPaymentModal?.dispose();
       this.membershipQrModal?.dispose();
    },
 };

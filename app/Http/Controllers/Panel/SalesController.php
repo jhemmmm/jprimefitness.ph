@@ -4,16 +4,23 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\BusinessProfile;
+use App\Models\KioskPayment;
+use App\Models\MemberProfile;
 use App\Models\MemberSubscription;
 use App\Models\SaleTransaction;
+use App\Models\SystemActivity;
+use App\Services\MemberActivationService;
 use App\Services\MembershipQrService;
 use App\Services\PosSaleService;
+use App\Services\SystemActivityService;
 use App\Support\SaleTransactionPresenter;
+use Carbon\Carbon;
 use Illuminate\Contracts\Support\Responsable;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Spatie\LaravelPdf\Facades\Pdf;
@@ -26,8 +33,10 @@ class SalesController extends Controller
      * @return void
      */
     public function __construct(
+        private MemberActivationService $memberActivationService,
         private MembershipQrService $membershipQrService,
         private PosSaleService $posSaleService,
+        private SystemActivityService $systemActivityService,
     ) {}
 
     /**
@@ -125,6 +134,115 @@ class SalesController extends Controller
             ->format('a4')
             ->margins(8, 8, 8, 8)
             ->download($fileName);
+    }
+
+    /**
+     * Return the merged feed of pending counter payments (kiosk walk-ins
+     * and on-site member registrations).
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function pendingPayments(): JsonResponse
+    {
+        $now = Carbon::now();
+
+        $walkIns = KioskPayment::query()
+            ->whereNull('paymongo_payment_intent_id')
+            ->where('status', KioskPayment::STATUS_PENDING)
+            ->where(function ($query) use ($now) {
+                $query->whereNull('expires_at')->orWhere('expires_at', '>', $now);
+            })
+            ->orderBy('created_at')
+            ->limit(100)
+            ->get()
+            ->map(fn (KioskPayment $payment) => $this->serializePendingWalkIn($payment))
+            ->all();
+
+        $memberships = MemberSubscription::query()
+            ->with(['member.profile', 'ratePlan'])
+            ->where('status', MemberSubscription::STATUS_PAUSED)
+            ->where('pending_payment_method', MemberSubscription::PENDING_PAYMENT_ON_SITE)
+            ->orderBy('created_at')
+            ->limit(100)
+            ->get()
+            ->map(fn (MemberSubscription $subscription) => $this->serializePendingMembership($subscription))
+            ->all();
+
+        $payments = collect(array_merge($walkIns, $memberships))
+            ->sortBy('created_at')
+            ->values()
+            ->all();
+
+        return response()->json(['payments' => $payments]);
+    }
+
+    /**
+     * Confirm an on-site membership registration payment.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function confirmPendingMembership(Request $request, MemberSubscription $subscription): JsonResponse
+    {
+        $data = $request->validate([
+            'payment_method' => ['required', Rule::in(SaleTransaction::supportedPaymentMethods())],
+            'payment_reference' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $this->ensureMembershipPendingOnSite($subscription);
+
+        $actor = auth()->user();
+
+        $transaction = DB::transaction(function () use ($subscription, $data, $actor) {
+            $activated = $this->memberActivationService->activate($subscription, [
+                'source' => 'panel_pending_payment_confirmation',
+                'payment_method' => $data['payment_method'],
+            ]);
+
+            return $this->posSaleService->recordOnSiteMembershipSale(
+                $activated,
+                $actor,
+                $data['payment_method'],
+                $data['payment_reference'] ?? null,
+            );
+        });
+
+        $transaction->load(['member:id,name', 'processedBy:id,name']);
+
+        return response()->json(SaleTransactionPresenter::panelArray($transaction), 201);
+    }
+
+    /**
+     * Cancel an on-site membership registration awaiting payment.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cancelPendingMembership(MemberSubscription $subscription): JsonResponse
+    {
+        $this->ensureMembershipPendingOnSite($subscription);
+
+        $subscription->update([
+            'status' => MemberSubscription::STATUS_CANCELLED,
+            'pending_payment_method' => null,
+        ]);
+
+        $actor = auth()->user();
+
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
+            $subscription->id,
+            'cancelled',
+            [
+                'subscription_id' => $subscription->id,
+                'user_id' => $subscription->user_id,
+                'plan_name' => $subscription->ratePlan?->name,
+            ],
+            ['source' => 'panel_pending_payment_cancellation'],
+            $actor?->id,
+            $actor?->name,
+            now(),
+        );
+
+        return response()->json(['ok' => true]);
     }
 
     /**
@@ -323,6 +441,73 @@ class SalesController extends Controller
                 'change_amount' => $saleTransaction->changeAmount(),
                 'reference' => $saleTransaction->paymentReference(),
             ],
+        ];
+    }
+
+    private function ensureMembershipPendingOnSite(MemberSubscription $subscription): void
+    {
+        if ($subscription->status !== MemberSubscription::STATUS_PAUSED
+            || $subscription->pending_payment_method !== MemberSubscription::PENDING_PAYMENT_ON_SITE) {
+            abort(409, 'This registration is no longer pending on-site payment.');
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializePendingWalkIn(KioskPayment $payment): array
+    {
+        $base = $payment->base_amount !== null
+            ? round((float) $payment->base_amount, 2)
+            : round((float) $payment->amount, 2);
+
+        return [
+            'kind' => 'walk_in',
+            'key' => 'walk-in:'.$payment->reference,
+            'name' => $payment->name,
+            'contact' => $payment->phone,
+            'item_label' => 'Walk-in',
+            'detail' => $payment->reference,
+            'base_amount' => $base,
+            'amount' => round((float) $payment->amount, 2),
+            'discount_type' => $payment->discount_type,
+            'discount_percent' => $payment->discount_type !== null ? KioskPayment::DISCOUNT_PERCENT : 0,
+            'created_at' => $payment->created_at?->toISOString(),
+            'confirm_url' => route('panel.kiosk-payments.confirm', $payment->reference),
+            'cancel_url' => route('panel.kiosk-payments.cancel', $payment->reference),
+            'requires_payment_method' => false,
+            'subject_url' => null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializePendingMembership(MemberSubscription $subscription): array
+    {
+        $member = $subscription->member;
+        $ratePlan = $subscription->ratePlan;
+        $hasDiscount = $member?->profile?->hasDiscount() ?? false;
+        $originalPrice = round((float) ($ratePlan?->price ?? 0), 2);
+        $soldPrice = round((float) $subscription->sold_price, 2);
+        $startDate = $subscription->start_date?->toDateString();
+
+        return [
+            'kind' => 'membership',
+            'key' => 'membership:'.$subscription->id,
+            'name' => $member?->name,
+            'contact' => $member?->phone ?: $member?->email,
+            'item_label' => $ratePlan?->name ?: 'Membership',
+            'detail' => $startDate ? 'Starts '.$startDate : null,
+            'base_amount' => $originalPrice,
+            'amount' => $soldPrice,
+            'discount_type' => $hasDiscount ? $member->profile->discount_type : null,
+            'discount_percent' => $hasDiscount ? MemberProfile::DISCOUNT_PERCENT : 0,
+            'created_at' => $subscription->created_at?->toISOString(),
+            'confirm_url' => route('panel.sales.pending-memberships.confirm', $subscription->id),
+            'cancel_url' => route('panel.sales.pending-memberships.cancel', $subscription->id),
+            'requires_payment_method' => true,
+            'subject_url' => $member ? route('panel.members.show', $member->id) : null,
         ];
     }
 }

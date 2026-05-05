@@ -10,7 +10,7 @@ class BusinessProfileSeeder extends Seeder
     public function run(): void
     {
         $attributes = array_merge(BusinessProfile::defaultAttributes(), [
-            'name' => 'JPRIME Fitness',
+            'name' => 'JPrime Fitness',
             'city' => 'Naga City',
             'province' => 'Camarines Sur',
             'address' => 'Magarao Highway, Naga City, Camarines Sur',

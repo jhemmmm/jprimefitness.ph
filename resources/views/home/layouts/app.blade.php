@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    <title>@yield('title', 'JPRIME FITNESS')</title>
+    <title>@yield('title', 'JPrime Fitness')</title>
 
     <!-- Fonts -->
     <link rel="dns-prefetch" href="//fonts.bunny.net">
@@ -38,8 +38,8 @@
 
             {{-- Logo --}}
             <a class="navbar-brand jprime-logo fw-bold fs-5 text-white text-decoration-none" href="/">
-                <img src="{{ asset('logo.png') }}" alt="JPRIME FITNESS Logo" />JPRIME <span
-                    class="text-danger">FITNESS</span>
+                <img src="{{ asset('logo.png') }}" alt="JPrime Fitness Logo" />JPrime <span
+                    class="text-danger">Fitness</span>
             </a>
 
             {{-- Mobile Toggle --}}
@@ -98,7 +98,7 @@
                 {{-- Brand --}}
                 <div class="col-lg-4 col-md-6">
                     <span class="jprime-logo fw-bold text-white fs-5">
-                        <img src="{{ asset('logo.png') }}" alt="JPRIME FITNESS Logo" />JPRIME <span class="text-danger">FITNESS</span>
+                        <img src="{{ asset('logo.png') }}" alt="JPrime Fitness Logo" />JPrime <span class="text-danger">Fitness</span>
                     </span>
                     <p class="text-white-50 small mt-3 mb-3" style="max-width: 320px;">
                         {{ $bp->name }} is a community-driven gym committed to clean facilities, honest pricing, and real, measurable progress.

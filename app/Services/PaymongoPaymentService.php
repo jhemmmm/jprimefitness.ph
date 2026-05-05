@@ -53,7 +53,7 @@ class PaymongoPaymentService
         }
 
         return $this->postCheckoutSession([
-            'description' => sprintf('JPRIME Fitness — %s membership', $plan->name),
+            'description' => sprintf('JPrime Fitness — %s membership', $plan->name),
             'reference_number' => 'sub_'.$subscription->id,
             'customer_email' => $user->email,
             'billing' => [
@@ -112,8 +112,8 @@ class PaymongoPaymentService
                     'currency' => 'PHP',
                     'capture_type' => 'automatic',
                     'payment_method_allowed' => [self::METHOD_QRPH],
-                    'description' => 'JPRIME Fitness — Walk-in entry',
-                    'statement_descriptor' => 'JPRIME FITNESS',
+                    'description' => 'JPrime Fitness — Walk-in entry',
+                    'statement_descriptor' => 'JPrime Fitness',
                     'metadata' => [
                         'kiosk_payment_reference' => $kioskReference,
                     ],

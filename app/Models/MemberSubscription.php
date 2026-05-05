@@ -18,6 +18,10 @@ class MemberSubscription extends Model
 
     public const STATUS_PAUSED = 'paused';
 
+    public const PENDING_PAYMENT_ON_SITE = 'on_site';
+
+    public const PENDING_PAYMENT_ONLINE = 'online';
+
     protected $fillable = [
         'user_id',
         'rate_plan_id',
@@ -25,6 +29,7 @@ class MemberSubscription extends Model
         'start_date',
         'end_date',
         'status',
+        'pending_payment_method',
         'qr_payload',
         'qr_generated_at',
         'qr_emailed_at',
