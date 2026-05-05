@@ -642,7 +642,7 @@
                   <template v-else>
                      <p class="mb-2">
                         Confirm payment of <strong>₱{{ $filters.formatMoney(pendingTarget.amount) }}</strong> from <strong>{{ pendingTarget.name }}</strong>
-                        <span v-if="pendingTarget.kind === 'membership'">for <strong>{{ pendingTarget.item_label }}</strong></span>?
+                        <span v-if="pendingTarget.kind === 'membership'"> for <strong>{{ pendingTarget.item_label }}</strong></span>?
                      </p>
                      <div v-if="pendingTarget.discount_type" class="small text-danger mb-2">
                         <s class="text-muted me-1">₱{{ $filters.formatMoney(pendingTarget.base_amount) }}</s>

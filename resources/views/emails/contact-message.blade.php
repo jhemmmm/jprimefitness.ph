@@ -1,24 +1,43 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <title>New contact message</title>
-</head>
-<body style="font-family: Arial, sans-serif; color: #111827; line-height: 1.5;">
-    <p>A new message was submitted through the <strong>{{ $business->name }}</strong> contact form.</p>
+@extends('emails.layouts.branded')
 
-    <p>
-        <strong>Name:</strong> {{ $payload['name'] }}<br>
-        <strong>Email:</strong> <a href="mailto:{{ $payload['email'] }}">{{ $payload['email'] }}</a><br>
-        @if (!empty($payload['contact']))
-            <strong>Phone / Messenger:</strong> {{ $payload['contact'] }}<br>
-        @endif
-        <strong>Inquiry:</strong> {{ $payload['topic'] }}
+@section('title', 'New contact message')
+@section('preheader', 'A new message was submitted through the contact form.')
+@section('eyebrow', 'New Inquiry')
+@section('heading', 'New contact form message')
+
+@section('content')
+    <p style="margin:0 0 16px 0;">
+        A new message was submitted through the <strong>{{ $business->name }}</strong> contact form.
     </p>
 
-    <p><strong>Message:</strong></p>
-    <pre style="white-space: pre-wrap; font-family: inherit; font-size: 14px; background: #f9fafb; padding: 12px; border-left: 3px solid #dc2626; margin: 0;">{{ $payload['message'] }}</pre>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;margin:16px 0;">
+        <tr>
+            <td style="padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+                <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:2px;">From</div>
+                <div style="font-size:14px;color:#0f172a;font-weight:600;">{{ $payload['name'] }}</div>
+                <div style="font-size:13px;margin-top:2px;">
+                    <a href="mailto:{{ $payload['email'] }}" style="color:#c8102e;text-decoration:none;">{{ $payload['email'] }}</a>
+                </div>
+                @if (!empty($payload['contact']))
+                    <div style="font-size:13px;color:#475569;margin-top:2px;">{{ $payload['contact'] }}</div>
+                @endif
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:16px 20px;border-bottom:1px solid #e2e8f0;">
+                <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:2px;">Inquiry</div>
+                <div style="font-size:14px;color:#0f172a;font-weight:600;">{{ $payload['topic'] }}</div>
+            </td>
+        </tr>
+        <tr>
+            <td style="padding:16px 20px;">
+                <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;margin-bottom:6px;">Message</div>
+                <div style="font-size:14px;color:#0f172a;white-space:pre-wrap;border-left:3px solid #c8102e;padding:8px 12px;background:#ffffff;border-radius:4px;">{{ $payload['message'] }}</div>
+            </td>
+        </tr>
+    </table>
 
-    <p style="margin-top: 24px;">Reply directly to this email to respond to {{ $payload['name'] }}.</p>
-</body>
-</html>
+    <p style="margin:24px 0 0 0;color:#475569;font-size:14px;">
+        Reply directly to this email to respond to {{ $payload['name'] }}.
+    </p>
+@endsection
