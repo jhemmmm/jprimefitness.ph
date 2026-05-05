@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\SystemActivity;
+use App\Models\MemberProfile;
 use App\Models\MemberPtPackage;
 use App\Models\MemberPtSessionUsage;
 use App\Models\MemberSubscription;
@@ -121,6 +122,7 @@ class MembersController extends Controller
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string'],
+            'discount_type' => ['nullable', Rule::in([MemberProfile::DISCOUNT_STUDENT, MemberProfile::DISCOUNT_SENIOR])],
             'rate_plan_id' => ['required', 'exists:rate_plans,id'],
             'start_date' => ['nullable', 'date'],
         ]);
@@ -141,6 +143,7 @@ class MembersController extends Controller
             'emergency_contact_name' => $data['emergency_contact_name'] ?? null,
             'emergency_contact_phone' => $data['emergency_contact_phone'] ?? null,
             'notes' => $data['notes'] ?? null,
+            'discount_type' => $data['discount_type'] ?? null,
         ]);
 
         $subscription = $member->attachPlan(
@@ -478,6 +481,7 @@ class MembersController extends Controller
             'emergency_contact_name' => ['nullable', 'string', 'max:255'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string'],
+            'discount_type' => ['nullable', Rule::in([MemberProfile::DISCOUNT_STUDENT, MemberProfile::DISCOUNT_SENIOR])],
             'rate_plan_id' => ['nullable', 'exists:rate_plans,id'],
             'start_date' => ['nullable', 'date'],
         ]);
@@ -499,6 +503,7 @@ class MembersController extends Controller
                 'emergency_contact_name' => $data['emergency_contact_name'] ?? null,
                 'emergency_contact_phone' => $data['emergency_contact_phone'] ?? null,
                 'notes' => $data['notes'] ?? null,
+                'discount_type' => $data['discount_type'] ?? null,
             ]
         );
 
@@ -576,6 +581,7 @@ class MembersController extends Controller
                 'emergency_contact_name' => $member->profile->emergency_contact_name,
                 'emergency_contact_phone' => $member->profile->emergency_contact_phone,
                 'notes' => $member->profile->notes,
+                'discount_type' => $member->profile->discount_type,
             ] : null,
             'pt_products' => $detailed ? $this->availablePtProducts() : [],
             'member_subscriptions' => $member->memberSubscriptions

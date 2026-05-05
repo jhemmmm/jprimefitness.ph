@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Home;
 
 use App\Http\Controllers\Controller;
 use App\Mail\MemberRegistrationReceivedMail;
+use App\Models\MemberProfile;
 use App\Models\MemberSubscription;
 use App\Models\RatePlan;
 use App\Models\SystemActivity;
@@ -55,6 +56,7 @@ class RegistrationController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
             'terms_accepted' => ['accepted'],
             'payment_method' => ['required', Rule::in(['online', 'on_site'])],
+            'discount_type' => ['nullable', Rule::in([MemberProfile::DISCOUNT_STUDENT, MemberProfile::DISCOUNT_SENIOR])],
             'recaptcha_token' => [$captchaConfigured ? 'required' : 'nullable', 'string'],
         ]);
 
@@ -64,13 +66,24 @@ class RegistrationController extends Controller
             ]);
         }
 
+        $discountType = $data['discount_type'] ?? null;
+
+        if ($discountType !== null && $data['payment_method'] !== 'on_site') {
+            throw ValidationException::withMessages([
+                'payment_method' => ['Student and senior discounts must be paid on-site so staff can verify your ID.'],
+            ]);
+        }
+
         $plan = RatePlan::findOrFail((int) $data['rate_plan_id']);
+        $soldPrice = $discountType !== null
+            ? round(((float) $plan->price) * (100 - MemberProfile::DISCOUNT_PERCENT) / 100, 2)
+            : (float) $plan->price;
         $startDate = $data['preferred_start_date'] ?? now()->toDateString();
         $endDate = $plan->duration_days <= 1
             ? null
             : Carbon::parse($startDate)->addDays((int) $plan->duration_days - 1)->toDateString();
 
-        [$user, $subscription] = DB::transaction(function () use ($data, $plan, $startDate, $endDate) {
+        [$user, $subscription] = DB::transaction(function () use ($data, $plan, $soldPrice, $startDate, $endDate) {
             $user = User::create([
                 'name' => $data['name'],
                 'email' => $data['email'],
@@ -87,11 +100,12 @@ class RegistrationController extends Controller
                 'emergency_contact_name' => $data['emergency_contact_name'] ?? null,
                 'emergency_contact_phone' => $data['emergency_contact_phone'] ?? null,
                 'notes' => $data['notes'] ?? null,
+                'discount_type' => $data['discount_type'] ?? null,
             ]);
 
             $subscription = $user->memberSubscriptions()->create([
                 'rate_plan_id' => $plan->id,
-                'sold_price' => $plan->price,
+                'sold_price' => $soldPrice,
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'status' => MemberSubscription::STATUS_PAUSED,
@@ -110,7 +124,7 @@ class RegistrationController extends Controller
                 'email' => $user->email,
                 'status' => $user->status,
             ],
-            ['source' => 'public_registration', 'payment_method' => $data['payment_method']],
+            ['source' => 'public_registration', 'payment_method' => $data['payment_method'], 'discount_type' => $discountType],
         );
 
         $this->systemActivityService->recordSubjectEvent(
@@ -125,7 +139,7 @@ class RegistrationController extends Controller
                 'end_date' => $subscription->end_date?->toDateString(),
                 'status' => $subscription->status,
             ],
-            ['source' => 'public_registration', 'payment_method' => $data['payment_method']],
+            ['source' => 'public_registration', 'payment_method' => $data['payment_method'], 'discount_type' => $discountType],
         );
 
         Mail::to($user->email)->queue(new MemberRegistrationReceivedMail(

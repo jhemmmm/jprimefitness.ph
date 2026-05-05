@@ -344,8 +344,14 @@
                 <table class="summary-table">
                     <tr>
                         <td class="summary-label">Subtotal</td>
-                        <td class="summary-value">₱{{ number_format((float) $saleTransaction->total, 2) }}</td>
+                        <td class="summary-value">₱{{ number_format((float) ($subtotal ?? $saleTransaction->total), 2) }}</td>
                     </tr>
+                    @if (! empty($discount))
+                        <tr>
+                            <td class="summary-label">{{ ucfirst($discount['type']) }} discount ({{ $discount['percent'] }}%)</td>
+                            <td class="summary-value" style="color: #d72638;">−₱{{ number_format((float) $discount['amount'], 2) }}</td>
+                        </tr>
+                    @endif
                     <tr>
                         <td class="summary-label">Amount Received</td>
                         <td class="summary-value">₱{{ number_format((float) $payment['amount_received'], 2) }}</td>

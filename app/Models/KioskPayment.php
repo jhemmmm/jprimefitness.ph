@@ -27,11 +27,19 @@ class KioskPayment extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
+    public const DISCOUNT_STUDENT = 'student';
+
+    public const DISCOUNT_SENIOR = 'senior';
+
+    public const DISCOUNT_PERCENT = 20;
+
     protected $fillable = [
         'reference',
         'name',
         'phone',
         'amount',
+        'base_amount',
+        'discount_type',
         'status',
         'qr_data',
         'paymongo_payment_intent_id',
@@ -42,6 +50,7 @@ class KioskPayment extends Model
 
     protected $casts = [
         'amount' => 'float',
+        'base_amount' => 'float',
         'expires_at' => 'datetime',
         'paid_at' => 'datetime',
         'consumed_at' => 'datetime',

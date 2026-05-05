@@ -67,8 +67,10 @@ class KioskAttendanceTest extends TestCase
             'name' => 'Juan Dela Cruz',
             'phone' => '+639171234567',
             'amount' => 175,
+            'base_amount' => 175,
             'status' => KioskPayment::STATUS_PAID,
             'qr_data' => 'gcash://demo',
+            'paymongo_payment_intent_id' => 'pi_test_attendance',
             'expires_at' => now()->addMinute(),
             'paid_at' => now(),
         ]);

@@ -33,6 +33,10 @@
                      <div class="small text-muted">Emergency Phone</div>
                      <div class="fw-semibold small">{{ member.profile?.emergency_contact_phone || "-" }}</div>
                   </div>
+                  <div class="col-md-6">
+                     <div class="small text-muted">ID Discount</div>
+                     <div class="fw-semibold small">{{ discountLabel }}</div>
+                  </div>
                   <div class="col-12">
                      <div class="small text-muted">Notes</div>
                      <div class="fw-semibold small">{{ member.profile?.notes || "-" }}</div>
@@ -78,6 +82,12 @@ export default {
    },
 
    computed: {
+      discountLabel: function () {
+         var t = this.member.profile?.discount_type;
+         if (t === "student") return "Student — 20% off";
+         if (t === "senior") return "Senior — 20% off";
+         return "None";
+      },
       activeMembership: function () {
          if (!this.member.member_subscriptions || !this.member.member_subscriptions.length) {
             return null;

@@ -309,7 +309,12 @@
                      <div v-else-if="saleType === 'membership' && selectedMembershipPlan" class="rounded-3 bg-light p-3 mb-3">
                         <div class="fw-semibold">{{ selectedMembershipPlan.name }}</div>
                         <div class="small text-muted">{{ selectedMembershipPlan.duration_days }} day membership</div>
-                        <div class="small mt-2">
+                        <div class="small mt-2" v-if="memberDiscountActive">
+                           Price preview: <s class="text-muted">₱{{ $filters.formatMoney(selectedMembershipPlan.price) }}</s>
+                           <strong class="ms-1">₱{{ $filters.formatMoney(summaryTotal) }}</strong>
+                           <span class="badge text-bg-danger ms-2">{{ memberDiscountLabel }} 20% off</span>
+                        </div>
+                        <div class="small mt-2" v-else>
                            Price preview: <strong>₱{{ $filters.formatMoney(selectedMembershipPlan.price) }}</strong>
                         </div>
                      </div>
@@ -333,7 +338,11 @@
                      <div class="rounded-3 bg-light p-3 mb-3">
                         <div class="d-flex justify-content-between align-items-center small text-muted mb-1">
                            <span>Subtotal</span>
-                           <span>₱{{ $filters.formatMoney(summaryTotal) }}</span>
+                           <span>₱{{ $filters.formatMoney(summarySubtotal) }}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center small text-danger mb-1" v-if="memberDiscountActive">
+                           <span>{{ memberDiscountLabel }} discount (20%)</span>
+                           <span>−₱{{ $filters.formatMoney(memberDiscountAmount) }}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center small text-muted mb-1">
                            <span>Amount Received</span>
@@ -359,6 +368,58 @@
                         Confirm Sale
                      </button>
                   </div>
+               </div>
+            </div>
+         </div>
+
+         <div class="panel-card mt-4">
+            <div class="panel-card-header d-flex justify-content-between align-items-center">
+               <span class="panel-card-title">
+                  Pending Counter Walk-ins
+                  <span class="badge-count ms-1">{{ pendingKioskPayments.length }}</span>
+               </span>
+               <button type="button" class="btn btn-sm btn-outline-secondary" @click="fetchPendingKioskPayments" :disabled="loadingPendingKiosk">
+                  <i class="bi bi-arrow-clockwise" :class="{ 'spinner-border spinner-border-sm': loadingPendingKiosk }"></i>
+                  Refresh
+               </button>
+            </div>
+            <div class="p-3">
+               <div v-if="!pendingKioskPayments.length" class="text-muted small text-center py-3">No pending counter walk-ins.</div>
+               <div v-else class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                     <thead>
+                        <tr class="text-muted small">
+                           <th>Customer</th>
+                           <th>Amount</th>
+                           <th>Created</th>
+                           <th class="text-end">Actions</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        <tr v-for="payment in pendingKioskPayments" :key="payment.reference">
+                           <td>
+                              <div class="fw-semibold small">{{ payment.name }}</div>
+                              <div class="text-muted small">{{ payment.phone }} · {{ payment.reference }}</div>
+                           </td>
+                           <td class="small">
+                              <div class="fw-semibold">₱{{ $filters.formatMoney(payment.amount) }}</div>
+                              <div v-if="payment.discount_type" class="small text-danger">
+                                 <s class="text-muted me-1">₱{{ $filters.formatMoney(payment.base_amount) }}</s>
+                                 {{ $filters.capitalize(payment.discount_type) }} −{{ payment.discount_percent }}%
+                              </div>
+                           </td>
+                           <td class="small text-muted">{{ formatDateTime(payment.created_at) }}</td>
+                           <td class="text-end">
+                              <button type="button" class="btn btn-sm btn-danger me-1" @click="openKioskAction(payment, 'confirm')" :disabled="busyKioskRef === payment.reference">
+                                 Confirm Cash
+                              </button>
+                              <button type="button" class="btn btn-sm btn-outline-secondary" @click="openKioskAction(payment, 'cancel')" :disabled="busyKioskRef === payment.reference">
+                                 Cancel
+                              </button>
+                           </td>
+                        </tr>
+                     </tbody>
+                  </table>
                </div>
             </div>
          </div>
@@ -479,7 +540,13 @@
                               <div>{{ transaction.payment_method_label || $filters.capitalize(transaction.payment_method) }}</div>
                               <div class="text-muted" v-if="transaction.payment_reference">{{ transaction.payment_reference }}</div>
                            </td>
-                           <td class="fw-semibold small">₱{{ $filters.formatMoney(transaction.total) }}</td>
+                           <td class="fw-semibold small">
+                              ₱{{ $filters.formatMoney(transaction.total) }}
+                              <div v-if="transaction.discount" class="small text-danger fw-normal">
+                                 <s class="text-muted me-1">₱{{ $filters.formatMoney(transaction.subtotal) }}</s>
+                                 {{ $filters.capitalize(transaction.discount.type) }} −{{ transaction.discount.percent }}%
+                              </div>
+                           </td>
                            <td class="small text-muted">{{ formatDateTime(transaction.sold_at) }}</td>
                            <td>
                               <div class="d-flex gap-1">
@@ -513,6 +580,9 @@
                      <div class="member-card-tags">
                         <span class="m-badge m-badge--open">{{ $filters.capitalize(transaction.type) }}</span>
                         <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(transaction.total) }}</span>
+                        <span v-if="transaction.discount" class="m-badge m-badge--cancelled">
+                           {{ $filters.capitalize(transaction.discount.type) }} −{{ transaction.discount.percent }}%
+                        </span>
                      </div>
                      <div class="small text-muted mt-2">
                         <div>{{ transaction.item_name || "-" }}</div>
@@ -539,6 +609,35 @@
             </div>
          </div>
       </template>
+
+      <div class="modal fade" tabindex="-1" ref="kioskConfirmModal">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">{{ kioskAction === "cancel" ? "Cancel walk-in" : "Confirm cash payment" }}</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" :disabled="busyKioskRef === kioskActionPayment?.reference"></button>
+               </div>
+               <div class="modal-body" v-if="kioskActionPayment">
+                  <p class="mb-2">
+                     <span v-if="kioskAction === 'cancel'">Cancel the pending walk-in for <strong>{{ kioskActionPayment.name }}</strong>? No sale will be recorded.</span>
+                     <span v-else>Confirm cash payment of <strong>₱{{ $filters.formatMoney(kioskActionPayment.amount) }}</strong> from <strong>{{ kioskActionPayment.name }}</strong>?</span>
+                  </p>
+                  <div v-if="kioskAction !== 'cancel' && kioskActionPayment.discount_type" class="small text-danger">
+                     <s class="text-muted me-1">₱{{ $filters.formatMoney(kioskActionPayment.base_amount) }}</s>
+                     {{ $filters.capitalize(kioskActionPayment.discount_type) }} −{{ kioskActionPayment.discount_percent }}% applied
+                  </div>
+                  <div class="small text-muted mt-2">Ref: {{ kioskActionPayment.reference }}</div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" :disabled="busyKioskRef === kioskActionPayment?.reference">Back</button>
+                  <button type="button" :class="['btn px-4', kioskAction === 'cancel' ? 'btn-outline-danger' : 'btn-danger']" @click="executeKioskAction" :disabled="busyKioskRef === kioskActionPayment?.reference">
+                     <span v-if="busyKioskRef === kioskActionPayment?.reference" class="spinner-border spinner-border-sm me-1"></span>
+                     {{ kioskAction === "cancel" ? "Cancel walk-in" : "Confirm cash" }}
+                  </button>
+               </div>
+            </div>
+         </div>
+      </div>
 
       <div class="modal fade" tabindex="-1" ref="membershipQrModal">
          <div class="modal-dialog modal-dialog-centered">
@@ -619,6 +718,7 @@ export default {
             ],
             member_id: null,
             member_label: "",
+            member_discount_type: "",
             customer_name: "",
             customer_phone: "",
             membership_rate_plan_id: "",
@@ -640,13 +740,23 @@ export default {
             { value: "card", label: "Card" },
             { value: "bank_transfer", label: "Bank Transfer" },
          ],
+         pendingKioskPayments: [],
+         loadingPendingKiosk: false,
+         busyKioskRef: null,
+         pendingKioskTimer: null,
+         kioskConfirmModal: null,
+         kioskActionPayment: null,
+         kioskAction: null,
       };
    },
    mounted: function () {
       this.membershipQrModal = new Modal(this.$refs.membershipQrModal);
+      this.kioskConfirmModal = new Modal(this.$refs.kioskConfirmModal);
       this.form = this.defaultForm();
       this.fetchContext();
       this.fetchHistory();
+      this.fetchPendingKioskPayments();
+      this.pendingKioskTimer = setInterval(() => this.fetchPendingKioskPayments(), 15000);
    },
    watch: {
       summaryTotal: function (value, oldValue) {
@@ -770,7 +880,17 @@ export default {
 
          return this.selectedWalkInPlan?.name || "Walk-in";
       },
-      summaryTotal: function () {
+      memberDiscountActive: function () {
+         if (this.saleType !== "membership") return false;
+         var t = this.form.member_discount_type;
+         return t === "student" || t === "senior";
+      },
+      memberDiscountLabel: function () {
+         if (this.form.member_discount_type === "student") return "Student";
+         if (this.form.member_discount_type === "senior") return "Senior";
+         return "";
+      },
+      summarySubtotal: function () {
          if (this.saleType === "inventory") {
             return this.normalizedInventoryLines.reduce(function (total, line) {
                return total + line.line_total;
@@ -786,6 +906,13 @@ export default {
          }
 
          return parseFloat(this.form.amount_paid) || 0;
+      },
+      memberDiscountAmount: function () {
+         if (!this.memberDiscountActive) return 0;
+         return Math.round(this.summarySubtotal * 0.2 * 100) / 100;
+      },
+      summaryTotal: function () {
+         return Math.max(this.summarySubtotal - this.memberDiscountAmount, 0);
       },
       amountReceivedValue: function () {
          return parseFloat(this.form.amount_received) || 0;
@@ -814,6 +941,7 @@ export default {
             inventory_lines: [this.defaultInventoryLine()],
             member_id: null,
             member_label: "",
+            member_discount_type: "",
             customer_name: "",
             customer_phone: "",
             membership_rate_plan_id: "",
@@ -912,6 +1040,7 @@ export default {
                   id: member.id,
                   name: member.name,
                   meta: [member.email, member.phone].filter(Boolean).join(" • "),
+                  discount_type: member.profile?.discount_type || "",
                }));
             })
             .catch(() => []);
@@ -961,6 +1090,7 @@ export default {
       },
       handleMemberSelect: function (member) {
          this.form.member_label = member?.name || "";
+         this.form.member_discount_type = member?.discount_type || "";
       },
       findInventoryItem: function (inventoryItemId) {
          return this.context.inventory_items.find((item) => Number(item.id) === Number(inventoryItemId)) || null;
@@ -1092,9 +1222,65 @@ export default {
                this.loadingQr = false;
             });
       },
+      fetchPendingKioskPayments: function () {
+         this.loadingPendingKiosk = true;
+         axios
+            .get("/panel/kiosk-payments/pending")
+            .then((response) => {
+               var next = response.data.payments || [];
+               var current = this.pendingKioskPayments;
+               var unchanged =
+                  next.length === current.length &&
+                  next.every(function (p, i) {
+                     return p.reference === current[i].reference && p.amount === current[i].amount && p.discount_type === current[i].discount_type;
+                  });
+               if (!unchanged) {
+                  this.pendingKioskPayments = next;
+               }
+            })
+            .catch(() => {})
+            .finally(() => {
+               this.loadingPendingKiosk = false;
+            });
+      },
+      openKioskAction: function (payment, action) {
+         this.kioskAction = action;
+         this.kioskActionPayment = payment;
+         this.kioskConfirmModal?.show();
+      },
+      executeKioskAction: function () {
+         var payment = this.kioskActionPayment;
+         var action = this.kioskAction;
+         if (!payment || !action) return;
+
+         this.busyKioskRef = payment.reference;
+         var url = `/panel/kiosk-payments/${encodeURIComponent(payment.reference)}/${action}`;
+
+         axios
+            .post(url)
+            .then(() => {
+               this.kioskConfirmModal?.hide();
+               this.kioskActionPayment = null;
+               this.kioskAction = null;
+               this.fetchPendingKioskPayments();
+               if (action === "confirm") {
+                  this.fetchHistory(1);
+               }
+            })
+            .catch((error) => {
+               this.pageError = error.response?.data?.message || (action === "confirm" ? "Failed to confirm payment." : "Failed to cancel payment.");
+               this.kioskConfirmModal?.hide();
+            })
+            .finally(() => {
+               this.busyKioskRef = null;
+            });
+      },
    },
    beforeUnmount: function () {
       clearTimeout(this.historySearchTimer);
+      clearInterval(this.pendingKioskTimer);
+      this.kioskConfirmModal?.dispose();
+      this.membershipQrModal?.dispose();
    },
 };
 </script>

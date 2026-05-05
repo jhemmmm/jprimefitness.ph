@@ -9,6 +9,7 @@ use App\Http\Controllers\Panel\DashboardController;
 use App\Http\Controllers\Panel\EmployeeBiometricController;
 use App\Http\Controllers\Panel\EmployeeController;
 use App\Http\Controllers\Panel\InventoryController;
+use App\Http\Controllers\Panel\KioskPaymentsController;
 use App\Http\Controllers\Panel\MembersController;
 use App\Http\Controllers\Panel\NotificationsController;
 use App\Http\Controllers\Panel\PayrollReportsController;
@@ -83,6 +84,11 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::post('/sales', [SalesController::class, 'store'])->name('sales.store');
     Route::get('/sales/{saleTransaction}/membership-qr', [SalesController::class, 'membershipQr'])->name('sales.membership-qr')->whereNumber('saleTransaction');
     Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
+
+    // Kiosk pending counter walk-ins
+    Route::get('/kiosk-payments/pending', [KioskPaymentsController::class, 'pending'])->name('kiosk-payments.pending');
+    Route::post('/kiosk-payments/{reference}/confirm', [KioskPaymentsController::class, 'confirm'])->name('kiosk-payments.confirm');
+    Route::post('/kiosk-payments/{reference}/cancel', [KioskPaymentsController::class, 'cancel'])->name('kiosk-payments.cancel');
 
     // Reports
     Route::group(['prefix' => 'reports', 'as' => 'reports.'], function () {

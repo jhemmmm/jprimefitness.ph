@@ -4,12 +4,15 @@ namespace App\Services;
 
 use App\Models\SystemActivity;
 use App\Models\InventoryItem;
+use App\Models\KioskPayment;
+use App\Models\MemberProfile;
 use App\Models\MemberPtPackage;
 use App\Models\MemberSubscription;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\User;
+use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -245,7 +248,11 @@ class PosSaleService
             }
 
             $member = $this->resolveMember($data);
-            $saleTotal = round((float) $ratePlan->price, 2);
+            $hasDiscount = $member->profile?->hasDiscount() ?? false;
+            $discountType = $hasDiscount ? $member->profile->discount_type : null;
+            $originalPrice = round((float) $ratePlan->price, 2);
+            $saleTotal = $this->applyMemberDiscount($originalPrice, $discountType);
+            $discountAmount = round($originalPrice - $saleTotal, 2);
 
             $subscription = $member->sellMembershipPlan($ratePlan->id, $data['start_date'], [
                 'sold_price' => $saleTotal,
@@ -272,10 +279,15 @@ class PosSaleService
                         'description' => $ratePlan->description,
                         'quantity' => 1,
                         'unit' => 'plan',
-                        'unit_price' => $saleTotal,
-                        'line_total' => $saleTotal,
+                        'unit_price' => $originalPrice,
+                        'line_total' => $originalPrice,
                     ]],
-                    'subtotal' => $saleTotal,
+                    'subtotal' => $originalPrice,
+                    'discount' => $hasDiscount ? [
+                        'type' => $discountType,
+                        'percent' => MemberProfile::DISCOUNT_PERCENT,
+                        'amount' => $discountAmount,
+                    ] : null,
                     'payment' => $payment,
                     'notes' => $data['notes'] ?? null,
                 ],
@@ -434,6 +446,7 @@ class PosSaleService
     private function resolveMember(array $data): User
     {
         $member = User::role('member')
+            ->with('profile')
             ->whereKey((int) ($data['member_id'] ?? 0))
             ->first();
 
@@ -444,6 +457,15 @@ class PosSaleService
         }
 
         return $member;
+    }
+
+    private function applyMemberDiscount(float $price, ?string $discountType): float
+    {
+        if (! in_array($discountType, [MemberProfile::DISCOUNT_STUDENT, MemberProfile::DISCOUNT_SENIOR], true)) {
+            return round($price, 2);
+        }
+
+        return round($price * (100 - MemberProfile::DISCOUNT_PERCENT) / 100, 2);
     }
 
     /**
@@ -667,5 +689,63 @@ class PosSaleService
             'change_amount' => $changeAmount,
             'reference' => $reference !== '' ? $reference : null,
         ];
+    }
+
+    public function recordKioskWalkInSale(KioskPayment $payment, ?User $processedBy = null): SaleTransaction
+    {
+        $occurredAt = $payment->paid_at ?? Carbon::now();
+        $amount = round((float) $payment->amount, 2);
+        $baseAmount = $payment->base_amount !== null
+            ? round((float) $payment->base_amount, 2)
+            : $amount;
+        $hasDiscount = $payment->discount_type !== null && $baseAmount > $amount;
+        $discountAmount = $hasDiscount ? round($baseAmount - $amount, 2) : 0.0;
+
+        $paymentMethod = $payment->isOnline()
+            ? SaleTransaction::PAYMENT_METHOD_ONLINE_PAYMENT
+            : SaleTransaction::PAYMENT_METHOD_CASH;
+
+        $saleTransaction = SaleTransaction::create([
+            'member_id' => null,
+            'type' => SaleTransaction::TYPE_WALK_IN,
+            'total' => $amount,
+            'payment_method' => $paymentMethod,
+            'processed_by' => $processedBy?->id,
+            'sold_at' => $occurredAt,
+            'customer_name' => $payment->name,
+            'item_name' => 'Walk-in (kiosk)',
+            'details' => [
+                'source' => 'kiosk',
+                'phone' => $payment->phone,
+                'kiosk_payment_reference' => $payment->reference,
+                'line_items' => [[
+                    'name' => 'Walk-in (kiosk)',
+                    'description' => $payment->phone,
+                    'quantity' => 1,
+                    'unit' => 'entry',
+                    'unit_price' => $baseAmount,
+                    'line_total' => $baseAmount,
+                ]],
+                'subtotal' => $baseAmount,
+                'discount' => $hasDiscount ? [
+                    'type' => $payment->discount_type,
+                    'percent' => KioskPayment::DISCOUNT_PERCENT,
+                    'amount' => $discountAmount,
+                ] : null,
+                'payment' => [
+                    'payment_method' => $paymentMethod,
+                    'amount_received' => $amount,
+                    'change_amount' => 0.0,
+                    'reference' => $payment->reference,
+                ],
+                'notes' => null,
+            ],
+        ]);
+
+        if ($processedBy !== null) {
+            $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
+        }
+
+        return $saleTransaction;
     }
 }

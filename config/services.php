@@ -38,6 +38,7 @@ return [
     'kiosk' => [
         'token' => env('KIOSK_TOKEN'),
         'payment_timeout_seconds' => env('KIOSK_PAYMENT_TIMEOUT_SECONDS', 120),
+        'cash_payment_timeout_seconds' => env('KIOSK_CASH_PAYMENT_TIMEOUT_SECONDS', 1800),
     ],
 
     'biometric' => [

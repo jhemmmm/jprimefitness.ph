@@ -11,6 +11,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class KioskPaymentController extends Controller
@@ -23,24 +25,47 @@ class KioskPaymentController extends Controller
             'name' => ['required', 'string', 'max:150'],
             'phone' => ['required', 'string', 'max:32'],
             'method' => ['nullable', 'string', 'in:online,cash'],
+            'discount_type' => [
+                'nullable',
+                Rule::in([KioskPayment::DISCOUNT_STUDENT, KioskPayment::DISCOUNT_SENIOR]),
+            ],
         ]);
 
-        $amount = $this->resolveWalkInAmount();
-        $timeoutSec = (int) config('services.kiosk.payment_timeout_seconds', 120);
         $method = $data['method'] ?? 'online';
+        $discountType = $data['discount_type'] ?? null;
+
+        if ($discountType !== null && $method === 'online') {
+            throw ValidationException::withMessages([
+                'method' => ['Student and senior discounts must be paid in cash so staff can verify the ID.'],
+            ]);
+        }
+
+        $baseAmount = $this->resolveWalkInAmount();
+        $amount = $discountType !== null
+            ? round($baseAmount * (100 - KioskPayment::DISCOUNT_PERCENT) / 100, 2)
+            : $baseAmount;
+        $timeoutSec = $method === 'cash'
+            ? (int) config('services.kiosk.cash_payment_timeout_seconds', 1800)
+            : (int) config('services.kiosk.payment_timeout_seconds', 120);
 
         $payment = KioskPayment::create([
             'reference' => 'kio_'.now()->format('Ymd').'_'.Str::lower(Str::random(10)),
             'name' => $data['name'],
             'phone' => $data['phone'],
             'amount' => $amount,
+            'base_amount' => $baseAmount,
+            'discount_type' => $discountType,
             'status' => KioskPayment::STATUS_PENDING,
             'qr_data' => null,
             'expires_at' => Carbon::now()->addSeconds($timeoutSec),
             'paid_at' => null,
         ]);
 
-        Log::info('Created kiosk payment', ['reference' => $payment->reference, 'method' => $method]);
+        Log::info('Created kiosk payment', [
+            'reference' => $payment->reference,
+            'method' => $method,
+            'discount_type' => $discountType,
+        ]);
 
         $qrImageUrl = $this->maybeAttachQrph($payment, $method);
 
@@ -50,6 +75,9 @@ class KioskPaymentController extends Controller
             'qr_data_url' => $payment->qr_data,
             'qr_image_url' => $qrImageUrl,
             'amount' => $payment->amount,
+            'base_amount' => $baseAmount,
+            'discount_type' => $payment->discount_type,
+            'discount_percent' => $discountType !== null ? KioskPayment::DISCOUNT_PERCENT : 0,
             'expires_at' => $payment->expires_at?->toIso8601String(),
         ], 201);
     }

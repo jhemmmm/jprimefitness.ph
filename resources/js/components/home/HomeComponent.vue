@@ -515,7 +515,7 @@
                            <div class="row g-3 mb-3">
                               <div class="col-md-6">
                                  <label class="form-label small fw-semibold">Full name <span class="text-danger">*</span></label>
-                                 <input v-model="register.form.name" type="text" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.name }" placeholder="Juan Dela Cruz" />
+                                 <input v-model="register.form.name" type="text" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.name }" placeholder="Your full name" />
                                  <div class="invalid-feedback" v-if="registerErrors.name">{{ registerErrors.name[0] }}</div>
                               </div>
                               <div class="col-md-6">
@@ -583,14 +583,53 @@
                               </div>
                            </div>
 
+                           <h6 class="text-uppercase text-muted fw-bold mt-4 mb-1" style="font-size: 0.72rem; letter-spacing: 1.2px">Discount</h6>
+                           <p class="text-muted small mb-3">Saved to your profile and applied to renewals automatically.</p>
+                           <div class="row g-3 mb-3">
+                              <div class="col-md-4">
+                                 <label class="payment-option h-100" :class="{ 'is-active': register.form.discount_type === '' }">
+                                    <input type="radio" v-model="register.form.discount_type" value="" @change="onDiscountChange" />
+                                    <div>
+                                       <div class="fw-semibold"><i class="bi bi-x-circle me-1"></i>None</div>
+                                       <div class="text-muted small">Regular rate</div>
+                                    </div>
+                                 </label>
+                              </div>
+                              <div class="col-md-4">
+                                 <label class="payment-option h-100" :class="{ 'is-active': register.form.discount_type === 'student' }">
+                                    <input type="radio" v-model="register.form.discount_type" value="student" @change="onDiscountChange" />
+                                    <div>
+                                       <div class="fw-semibold"><i class="bi bi-mortarboard me-1"></i>Student</div>
+                                       <div class="text-muted small">20% off — bring valid school ID</div>
+                                    </div>
+                                 </label>
+                              </div>
+                              <div class="col-md-4">
+                                 <label class="payment-option h-100" :class="{ 'is-active': register.form.discount_type === 'senior' }">
+                                    <input type="radio" v-model="register.form.discount_type" value="senior" @change="onDiscountChange" />
+                                    <div>
+                                       <div class="fw-semibold"><i class="bi bi-person-badge me-1"></i>Senior</div>
+                                       <div class="text-muted small">20% off — bring senior citizen ID</div>
+                                    </div>
+                                 </label>
+                              </div>
+                              <div class="col-12 invalid-feedback d-block" v-if="registerErrors.discount_type">{{ registerErrors.discount_type[0] }}</div>
+                           </div>
+
+                           <div v-if="hasDiscount && discountSummary" class="alert alert-info small mb-3 py-2">
+                              <i class="bi bi-info-circle me-1"></i>
+                              {{ discountSummary }}
+                           </div>
+
                            <h6 class="text-uppercase text-muted fw-bold mt-4 mb-3" style="font-size: 0.72rem; letter-spacing: 1.2px">Payment</h6>
                            <div class="row g-3 mb-3">
                               <div class="col-md-6">
-                                 <label class="payment-option" :class="{ 'is-active': register.form.payment_method === 'online' }">
-                                    <input type="radio" v-model="register.form.payment_method" value="online" />
+                                 <label class="payment-option" :class="{ 'is-active': register.form.payment_method === 'online', 'opacity-50': hasDiscount }" :style="hasDiscount ? 'cursor: not-allowed;' : ''">
+                                    <input type="radio" v-model="register.form.payment_method" value="online" :disabled="hasDiscount" />
                                     <div>
                                        <div class="fw-semibold"><i class="bi bi-credit-card-2-front me-1"></i>Pay online now</div>
-                                       <div class="text-muted small">GCash, Maya, card via PayMongo</div>
+                                       <div class="text-muted small" v-if="hasDiscount">Unavailable — staff must verify your ID on-site</div>
+                                       <div class="text-muted small" v-else>GCash, Maya, card via PayMongo</div>
                                     </div>
                                  </label>
                               </div>
@@ -854,6 +893,26 @@ export default {
       membershipPlans: function () {
          return this.ratePlans.filter((p) => !p.is_walk_in_only);
       },
+      hasDiscount: function () {
+         const t = this.register.form.discount_type;
+         return t === "student" || t === "senior";
+      },
+      selectedRegisterPlan: function () {
+         const id = this.register.form.rate_plan_id;
+         if (!id) return null;
+         return this.membershipPlans.find((p) => String(p.id) === String(id)) || null;
+      },
+      discountSummary: function () {
+         if (!this.hasDiscount) return "";
+         const label = this.register.form.discount_type === "student" ? "Student" : "Senior citizen";
+         const plan = this.selectedRegisterPlan;
+         if (!plan) {
+            return `${label} discount: 20% off. Payment must be on-site so staff can verify your ID.`;
+         }
+         const base = parseFloat(plan.price || 0);
+         const discounted = Math.round(base * 80) / 100;
+         return `${label} discount: ₱${this.$filters.formatMoney(base)} → ₱${this.$filters.formatMoney(discounted)} (20% off). Payment must be on-site so staff can verify your ID.`;
+      },
    },
    mounted: function () {
       this.registerSuccessModal = new Modal(this.$refs.registerSuccessModal);
@@ -875,8 +934,14 @@ export default {
             preferred_start_date: "",
             notes: "",
             payment_method: "online",
+            discount_type: "",
             terms_accepted: false,
          };
+      },
+      onDiscountChange: function () {
+         if (this.hasDiscount) {
+            this.register.form.payment_method = "on_site";
+         }
       },
       perDay: function (plan) {
          const price = parseFloat(plan.price || 0);
@@ -942,6 +1007,7 @@ export default {
                   emergency_contact_phone: this.register.form.emergency_contact_phone || null,
                   preferred_start_date: this.register.form.preferred_start_date || null,
                   notes: this.register.form.notes || null,
+                  discount_type: this.register.form.discount_type || null,
                   recaptcha_token: recaptchaToken,
                };
 

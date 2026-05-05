@@ -55,6 +55,16 @@
                   <input type="text" class="form-control" :class="{ 'is-invalid': errors.emergency_contact_phone }" v-model="form.emergency_contact_phone" />
                   <div class="invalid-feedback" v-if="errors.emergency_contact_phone">{{ errors.emergency_contact_phone[0] }}</div>
                </div>
+               <div class="col-md-6">
+                  <label class="form-label form-label-sm fw-semibold">ID Discount</label>
+                  <select class="form-select" :class="{ 'is-invalid': errors.discount_type }" v-model="form.discount_type">
+                     <option :value="''">None — regular rate</option>
+                     <option value="student">Student — 20% off</option>
+                     <option value="senior">Senior — 20% off</option>
+                  </select>
+                  <div class="form-text">Verify a valid student / senior ID before saving.</div>
+                  <div class="invalid-feedback" v-if="errors.discount_type">{{ errors.discount_type[0] }}</div>
+               </div>
                <div class="col-12">
                   <label class="form-label form-label-sm fw-semibold">Notes</label>
                   <textarea class="form-control" rows="3" :class="{ 'is-invalid': errors.notes }" v-model="form.notes"></textarea>
@@ -115,6 +125,7 @@ export default {
             emergency_contact_name: member.profile?.emergency_contact_name || "",
             emergency_contact_phone: member.profile?.emergency_contact_phone || "",
             notes: member.profile?.notes || "",
+            discount_type: member.profile?.discount_type || "",
          };
       },
 

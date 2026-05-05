@@ -283,7 +283,7 @@
                   <div class="row g-3 mb-4">
                      <div class="col-md-12">
                         <label class="form-label form-label-sm">Full Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" v-model="form.name" :class="{ 'is-invalid': formErrors.name }" placeholder="e.g. Juan dela Cruz" />
+                        <input type="text" class="form-control" v-model="form.name" :class="{ 'is-invalid': formErrors.name }" placeholder="Full name" />
                         <div class="invalid-feedback" v-if="formErrors.name">{{ formErrors.name }}</div>
                      </div>
                      <div class="col-md-6">
@@ -335,6 +335,15 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Emergency Contact Phone</label>
                         <input type="text" class="form-control" v-model="form.emergency_contact_phone" placeholder="Phone number" />
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm">ID Discount</label>
+                        <select class="form-select" v-model="form.discount_type">
+                           <option :value="''">None — regular rate</option>
+                           <option value="student">Student — 20% off</option>
+                           <option value="senior">Senior — 20% off</option>
+                        </select>
+                        <div class="form-text">Verify a valid student / senior ID before saving.</div>
                      </div>
                      <div class="col-12">
                         <label class="form-label form-label-sm">Notes</label>
@@ -430,6 +439,7 @@ export default {
             emergency_contact_name: "",
             emergency_contact_phone: "",
             notes: "",
+            discount_type: "",
             rate_plan_id: "",
             start_date: toDateInputValue(),
          };
@@ -502,6 +512,7 @@ export default {
             emergency_contact_name: (member.profile && member.profile.emergency_contact_name) || "",
             emergency_contact_phone: (member.profile && member.profile.emergency_contact_phone) || "",
             notes: (member.profile && member.profile.notes) || "",
+            discount_type: (member.profile && member.profile.discount_type) || "",
             rate_plan_id: plan ? plan.rate_plan_id : "",
             start_date: plan ? toDateInputValue(plan.start_date) : toDateInputValue(),
          };
