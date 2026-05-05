@@ -42,7 +42,7 @@
                     <tr>
                         <td style="padding-bottom:8px;">
                             <span style="font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;">Valid From:</span>
-                            <span style="font-size:14px;color:#0f172a;font-weight:600;margin-left:6px;">{{ $subscription->start_date?->format('M j, Y') ?? '—' }}</span>
+                            <span style="font-size:14px;color:#0f172a;font-weight:600;margin-left:6px;">{{ $subscription->start_date?->format('M j, Y') ?? '-' }}</span>
                         </td>
                     </tr>
                     <tr>
@@ -59,7 +59,7 @@
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#fef2f2;border-radius:8px;border-left:4px solid #c8102e;margin:16px 0;">
         <tr>
             <td style="padding:14px 18px;font-size:13px;color:#7f1d1d;">
-                <strong>Keep this private.</strong> Do not share this QR code — it's tied to your membership record.
+                <strong>Keep this private.</strong> Do not share this QR code - it's tied to your membership record.
             </td>
         </tr>
     </table>

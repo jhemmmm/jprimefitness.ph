@@ -143,7 +143,7 @@ class KioskPaymentController extends Controller
     }
 
     /**
-     * Manually mark a kiosk payment as paid. Only valid for the cash flow —
+     * Manually mark a kiosk payment as paid. Only valid for the cash flow -
      * online sessions (those with a paymongo_payment_intent_id) are confirmed
      * by the PayMongo webhook, never by this endpoint.
      */

@@ -72,7 +72,7 @@ return [
     |
     */
     'entities' => [
-        // Master data — no foreign-key dependencies.
+        // Master data - no foreign-key dependencies.
         'rate_plan' => ['model' => \App\Models\RatePlan::class],
         'pt_product' => ['model' => \App\Models\PTProduct::class],
         'inventory_category' => ['model' => \App\Models\InventoryCategory::class],

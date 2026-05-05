@@ -56,7 +56,7 @@ class KioskAttendanceController extends Controller
 
         $occurredAt = Carbon::now();
 
-        // Failed walk-ins are not recorded as attendance — they're audited via logs
+        // Failed walk-ins are not recorded as attendance - they're audited via logs
         // and (for online) the kiosk_payments row itself. We acknowledge the call.
         if ($data['status'] !== 'success') {
             return response()->json([
@@ -195,7 +195,7 @@ class KioskAttendanceController extends Controller
      *
      * Will only consume payments that have already been verified as PAID via
      * KioskPaymentController::confirm (placeholder for a real GCash/PayMongo
-     * webhook). Returns null when the row isn't on this node — by design the
+     * webhook). Returns null when the row isn't on this node - by design the
      * online-payment row lives on the production backend (the only host
      * PayMongo's webhook can reach), while attendance is always recorded
      * locally. Throws ValidationException only when the row IS local but is
@@ -271,8 +271,8 @@ class KioskAttendanceController extends Controller
     private function walkInSuccessMessage(array $data): string
     {
         return $data['payment_method'] === 'counter'
-            ? 'Walk-in recorded — please proceed to the counter.'
-            : 'Walk-in recorded — payment received.';
+            ? 'Walk-in recorded - please proceed to the counter.'
+            : 'Walk-in recorded - payment received.';
     }
 
     /**

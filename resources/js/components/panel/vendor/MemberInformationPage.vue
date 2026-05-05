@@ -84,8 +84,8 @@ export default {
    computed: {
       discountLabel: function () {
          var t = this.member.profile?.discount_type;
-         if (t === "student") return "Student — 20% off";
-         if (t === "senior") return "Senior — 20% off";
+         if (t === "student") return "Student - 20% off";
+         if (t === "senior") return "Senior - 20% off";
          return "None";
       },
       activeMembership: function () {

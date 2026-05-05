@@ -1,6 +1,6 @@
 @extends('home.layouts.app')
 
-@section('title', $businessProfile->name . ' — Terms and Conditions')
+@section('title', $businessProfile->name . ' - Terms and Conditions')
 
 @section('content')
 <div style="padding-top: 80px;">

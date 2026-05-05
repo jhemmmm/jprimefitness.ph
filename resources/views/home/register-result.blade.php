@@ -19,7 +19,7 @@
                                 <i class="bi bi-x-circle-fill text-warning" style="font-size: 4rem"></i>
                                 <h2 class="fw-bold mt-3 mb-2">Payment was cancelled</h2>
                                 <p class="text-muted mb-4">
-                                    No worries — your registration is saved. Drop by the gym any time to complete payment, or try again from the home page.
+                                    No worries - your registration is saved. Drop by the gym any time to complete payment, or try again from the home page.
                                 </p>
                             @endif
                             <a href="/" class="btn btn-danger rounded-1 fw-semibold px-4 py-2">

@@ -24,11 +24,11 @@
                         </td>
                         <td width="33%" style="padding:0 8px;vertical-align:top;">
                             <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;">Duration</div>
-                            <div style="font-size:14px;color:#0f172a;font-weight:600;margin-top:2px;">{{ $subscription->ratePlan?->duration_days ?? '—' }} days</div>
+                            <div style="font-size:14px;color:#0f172a;font-weight:600;margin-top:2px;">{{ $subscription->ratePlan?->duration_days ?? '-' }} days</div>
                         </td>
                         <td width="34%" style="padding-left:8px;vertical-align:top;">
                             <div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#64748b;">Preferred Start</div>
-                            <div style="font-size:14px;color:#0f172a;font-weight:600;margin-top:2px;">{{ $subscription->start_date?->format('M j, Y') ?? '—' }}</div>
+                            <div style="font-size:14px;color:#0f172a;font-weight:600;margin-top:2px;">{{ $subscription->start_date?->format('M j, Y') ?? '-' }}</div>
                         </td>
                     </tr>
                 </table>

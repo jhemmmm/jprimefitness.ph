@@ -12,7 +12,7 @@ return new class extends Migration
         // with no default. Under MySQL's default
         // `explicit_defaults_for_timestamp = OFF` server setting, the first
         // such column in a table silently picks up
-        // `DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` — which
+        // `DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP` - which
         // resets `expires_at` to NOW() on every row update. The PayMongo
         // QRPh flow does a follow-up `forceFill+save` to write the QR data
         // a few seconds after row creation, which silently truncated the

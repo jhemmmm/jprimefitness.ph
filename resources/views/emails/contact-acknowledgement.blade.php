@@ -1,7 +1,7 @@
 @extends('emails.layouts.branded')
 
 @section('title', 'We received your message')
-@section('preheader', 'Thanks for reaching out — we got your message.')
+@section('preheader', 'Thanks for reaching out - we got your message.')
 @section('eyebrow', 'Message Received')
 @section('heading', 'Thanks for reaching out, ' . $payload['name'] . '!')
 

@@ -23,7 +23,7 @@ class ContactAcknowledgementMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'We received your message — '.$this->business->name,
+            subject: 'We received your message - '.$this->business->name,
         );
     }
 

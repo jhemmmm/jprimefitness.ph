@@ -8,7 +8,7 @@ use App\Models\BusinessProfile;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Singleton — locate by uuid first; fall back to the single existing
+ * Singleton - locate by uuid first; fall back to the single existing
  * row so we update rather than insert a second.
  */
 class BusinessProfileReceiver extends DefaultReceiver

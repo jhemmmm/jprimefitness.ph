@@ -35,7 +35,7 @@ Route::prefix('biometric')
 
 // PayMongo webhooks land on whichever node is internet-reachable; in
 // the live/local split that's always live, but we don't gate at route
-// level — same rationale as above.
+// level - same rationale as above.
 Route::post('paymongo/webhook', [PaymongoWebhookController::class, 'handle'])->name('paymongo.webhook');
 
 // Sync ingress. The 'sync' middleware enforces APP_NODE_ROLE=live and

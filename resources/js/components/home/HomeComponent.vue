@@ -65,7 +65,7 @@
 
                         <div class="pricing-row">
                            <span class="pricing-label"><i class="bi bi-geo-alt me-1"></i>Address</span>
-                           <span class="pricing-value text-end" style="font-size: 0.85rem">{{ addressLine || 'Address coming soon' }}</span>
+                           <span class="pricing-value text-end" style="font-size: 0.85rem">{{ addressLine || "Address coming soon" }}</span>
                         </div>
                         <div class="pricing-row">
                            <span class="pricing-label"><i class="bi bi-clock me-1"></i>Hours</span>
@@ -103,13 +103,13 @@
                   <div class="row g-3 pt-4" style="border-top: 1px solid #eee">
                      <div class="col-6 col-sm-3">
                         <div class="text-center">
-                           <div class="fw-bold fs-3 text-danger">{{ ratePlans.length || '–' }}</div>
+                           <div class="fw-bold fs-3 text-danger">{{ ratePlans.length || "–" }}</div>
                            <div class="small text-muted">Membership Plans</div>
                         </div>
                      </div>
                      <div class="col-6 col-sm-3">
                         <div class="text-center">
-                           <div class="fw-bold fs-3 text-danger">{{ ptProducts.length || '–' }}</div>
+                           <div class="fw-bold fs-3 text-danger">{{ ptProducts.length || "–" }}</div>
                            <div class="small text-muted">PT Packages</div>
                         </div>
                      </div>
@@ -204,12 +204,7 @@
             <!-- Membership Plans -->
             <h5 class="fw-bold mb-3"><i class="bi bi-card-checklist text-danger me-2"></i>Membership Plans</h5>
             <div class="vstack gap-3 mb-5" v-if="ratePlans.length">
-               <div
-                  v-for="plan in indexedRatePlans"
-                  :key="'rp-' + plan.id"
-                  class="plan-row"
-                  :class="{ 'plan-row-featured': plan._idx === 1 }"
-               >
+               <div v-for="plan in indexedRatePlans" :key="'rp-' + plan.id" class="plan-row" :class="{ 'plan-row-featured': plan._idx === 1 }">
                   <div class="plan-row-accent">
                      <div class="plan-row-icon"><i class="bi bi-card-checklist"></i></div>
                   </div>
@@ -242,7 +237,9 @@
             </div>
             <div class="row g-4 mb-5" v-else>
                <div class="col-12">
-                  <div class="card border-0 bg-white"><div class="card-body p-4 text-center text-muted"><i class="bi bi-hourglass-split fs-4 d-block mb-2 text-danger"></i>Membership plans will be published soon.</div></div>
+                  <div class="card border-0 bg-white">
+                     <div class="card-body p-4 text-center text-muted"><i class="bi bi-hourglass-split fs-4 d-block mb-2 text-danger"></i>Membership plans will be published soon.</div>
+                  </div>
                </div>
             </div>
 
@@ -252,7 +249,7 @@
                <div class="col-sm-6 col-lg-4 col-xl-3" v-for="(pt, idx) in ptProducts" :key="'pt-' + pt.id">
                   <div class="card h-100 overflow-hidden plan-card">
                      <div class="branch-img-placeholder has-image" :style="{ backgroundImage: `url(${ptImage(idx)})` }">
-                        <span class="branch-status-badge branch-status-soon">{{ pt.session_count > 1 ? 'Package' : '1-on-1' }}</span>
+                        <span class="branch-status-badge branch-status-soon">{{ pt.session_count > 1 ? "Package" : "1-on-1" }}</span>
                      </div>
                      <div class="card-body pb-2">
                         <h5 class="fw-bold mb-1">{{ pt.name }}</h5>
@@ -281,7 +278,9 @@
             </div>
             <div class="row g-4" v-else>
                <div class="col-12">
-                  <div class="card border-0 bg-white"><div class="card-body p-4 text-center text-muted"><i class="bi bi-hourglass-split fs-4 d-block mb-2 text-danger"></i>PT packages will be published soon.</div></div>
+                  <div class="card border-0 bg-white">
+                     <div class="card-body p-4 text-center text-muted"><i class="bi bi-hourglass-split fs-4 d-block mb-2 text-danger"></i>PT packages will be published soon.</div>
+                  </div>
                </div>
             </div>
 
@@ -393,9 +392,7 @@
                      <h6 class="fw-bold mb-0">Amenities at the gym</h6>
                   </div>
                   <div class="d-flex flex-wrap gap-2">
-                     <span v-for="a in amenities" :key="a" class="amenity-pill">
-                        <i class="bi bi-check-circle-fill text-success me-1"></i>{{ a }}
-                     </span>
+                     <span v-for="a in amenities" :key="a" class="amenity-pill"> <i class="bi bi-check-circle-fill text-success me-1"></i>{{ a }} </span>
                   </div>
                </div>
             </div>
@@ -565,9 +562,7 @@
                                  <label class="form-label small fw-semibold">Plan <span class="text-danger">*</span></label>
                                  <select v-model="register.form.rate_plan_id" class="form-select rounded-1" :class="{ 'is-invalid': registerErrors.rate_plan_id }">
                                     <option value="">Choose a plan</option>
-                                    <option v-for="plan in membershipPlans" :key="'reg-rp-' + plan.id" :value="plan.id">
-                                       {{ plan.name }} — &#8369;{{ $filters.formatMoney(plan.price) }} / {{ plan.duration_days }}d
-                                    </option>
+                                    <option v-for="plan in membershipPlans" :key="'reg-rp-' + plan.id" :value="plan.id">{{ plan.name }} - &#8369;{{ $filters.formatMoney(plan.price) }} / {{ plan.duration_days }}d</option>
                                  </select>
                                  <div class="invalid-feedback" v-if="registerErrors.rate_plan_id">{{ registerErrors.rate_plan_id[0] }}</div>
                               </div>
@@ -600,7 +595,7 @@
                                     <input type="radio" v-model="register.form.discount_type" value="student" @change="onDiscountChange" />
                                     <div>
                                        <div class="fw-semibold"><i class="bi bi-mortarboard me-1"></i>Student</div>
-                                       <div class="text-muted small">20% off — bring valid school ID</div>
+                                       <div class="text-muted small">20% off - bring valid school ID</div>
                                     </div>
                                  </label>
                               </div>
@@ -609,7 +604,7 @@
                                     <input type="radio" v-model="register.form.discount_type" value="senior" @change="onDiscountChange" />
                                     <div>
                                        <div class="fw-semibold"><i class="bi bi-person-badge me-1"></i>Senior</div>
-                                       <div class="text-muted small">20% off — bring senior citizen ID</div>
+                                       <div class="text-muted small">20% off - bring senior citizen ID</div>
                                     </div>
                                  </label>
                               </div>
@@ -628,7 +623,7 @@
                                     <input type="radio" v-model="register.form.payment_method" value="online" :disabled="hasDiscount" />
                                     <div>
                                        <div class="fw-semibold"><i class="bi bi-credit-card-2-front me-1"></i>Pay online now</div>
-                                       <div class="text-muted small" v-if="hasDiscount">Unavailable — staff must verify your ID on-site</div>
+                                       <div class="text-muted small" v-if="hasDiscount">Unavailable - staff must verify your ID on-site</div>
                                        <div class="text-muted small" v-else>GCash, Maya, card via PayMongo</div>
                                     </div>
                                  </label>
@@ -801,7 +796,7 @@
                         </div>
                         <div class="text-center pt-3 mt-2 text-muted" style="border-top: 1px solid #eee">
                            <i class="bi bi-geo-alt-fill text-danger me-1"></i>
-                           <small>{{ addressLine || 'Address coming soon' }}</small>
+                           <small>{{ addressLine || "Address coming soon" }}</small>
                         </div>
                      </div>
                   </div>
@@ -821,9 +816,7 @@
                <div class="modal-body text-center py-4">
                   <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem"></i>
                   <p class="text-muted mt-3 mb-3">{{ register.success }}</p>
-                  <p class="text-muted small mb-0" v-if="addressLine">
-                     <i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ addressLine }}
-                  </p>
+                  <p class="text-muted small mb-0" v-if="addressLine"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ addressLine }}</p>
                </div>
                <div class="modal-footer border-0">
                   <button type="button" class="btn btn-outline-secondary rounded-1 fw-semibold" data-bs-dismiss="modal" @click="resetRegister">Submit another</button>
@@ -863,12 +856,7 @@ export default {
                conditioning: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=900&q=80",
                functional: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=80",
             },
-            pt: [
-               "https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=900&q=80",
-               "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=900&q=80",
-               "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=900&q=80",
-               "https://images.unsplash.com/photo-1549060284-1e2e8d0db59a?auto=format&fit=crop&w=900&q=80",
-            ],
+            pt: ["https://images.unsplash.com/photo-1574680096145-d05b474e2155?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=900&q=80", "https://images.unsplash.com/photo-1549060284-1e2e8d0db59a?auto=format&fit=crop&w=900&q=80"],
          },
       };
    },
@@ -975,7 +963,9 @@ export default {
       },
       parseClock: function (value) {
          if (!value) return null;
-         const [h, m] = String(value).split(":").map((x) => parseInt(x, 10));
+         const [h, m] = String(value)
+            .split(":")
+            .map((x) => parseInt(x, 10));
          if (isNaN(h)) return null;
          return h * 60 + (isNaN(m) ? 0 : m);
       },
@@ -1013,7 +1003,12 @@ export default {
                   body: JSON.stringify(payload),
                });
             })
-            .then((res) => res.json().catch(() => ({})).then((body) => ({ res, body })))
+            .then((res) =>
+               res
+                  .json()
+                  .catch(() => ({}))
+                  .then((body) => ({ res, body })),
+            )
             .then(({ res, body }) => {
                if (res.status === 422) {
                   this.contactErrors = body.errors || {};
@@ -1095,7 +1090,12 @@ export default {
                   body: JSON.stringify(payload),
                });
             })
-            .then((res) => res.json().catch(() => ({})).then((body) => ({ res, body })))
+            .then((res) =>
+               res
+                  .json()
+                  .catch(() => ({}))
+                  .then((body) => ({ res, body })),
+            )
             .then(({ res, body }) => {
                if (res.status === 422) {
                   this.registerErrors = body.errors || {};
@@ -1117,7 +1117,7 @@ export default {
                this.registerSuccessModal?.show();
             })
             .catch(() => {
-               this.register.bannerError = "Network error — please check your connection and try again.";
+               this.register.bannerError = "Network error - please check your connection and try again.";
             })
             .finally(() => {
                this.register.submitting = false;

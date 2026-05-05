@@ -404,7 +404,7 @@
                                  <a v-if="row.subject_url" :href="row.subject_url" class="text-decoration-none">{{ row.name }}</a>
                                  <span v-else>{{ row.name }}</span>
                               </div>
-                              <div class="text-muted small">{{ row.contact || "—" }}</div>
+                              <div class="text-muted small">{{ row.contact || "-" }}</div>
                            </td>
                            <td class="small">
                               <span :class="['m-badge', row.kind === 'membership' ? 'm-badge--active' : 'm-badge--open']">
@@ -427,9 +427,7 @@
                               <button type="button" class="btn btn-sm btn-danger me-1" @click="openPendingAction(row, 'confirm')" :disabled="busyPendingKey === row.key">
                                  {{ row.requires_payment_method ? "Confirm Payment" : "Confirm Cash" }}
                               </button>
-                              <button type="button" class="btn btn-sm btn-outline-secondary" @click="openPendingAction(row, 'cancel')" :disabled="busyPendingKey === row.key">
-                                 Cancel
-                              </button>
+                              <button type="button" class="btn btn-sm btn-outline-secondary" @click="openPendingAction(row, 'cancel')" :disabled="busyPendingKey === row.key">Cancel</button>
                            </td>
                         </tr>
                      </tbody>
@@ -594,9 +592,7 @@
                      <div class="member-card-tags">
                         <span class="m-badge m-badge--open">{{ $filters.capitalize(transaction.type) }}</span>
                         <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(transaction.total) }}</span>
-                        <span v-if="transaction.discount" class="m-badge m-badge--cancelled">
-                           {{ $filters.capitalize(transaction.discount.type) }} −{{ transaction.discount.percent }}%
-                        </span>
+                        <span v-if="transaction.discount" class="m-badge m-badge--cancelled"> {{ $filters.capitalize(transaction.discount.type) }} −{{ transaction.discount.percent }}% </span>
                      </div>
                      <div class="small text-muted mt-2">
                         <div>{{ transaction.item_name || "-" }}</div>
@@ -634,15 +630,20 @@
                <div class="modal-body" v-if="pendingTarget">
                   <p class="mb-2" v-if="pendingAction === 'cancel'">
                      <span v-if="pendingTarget.kind === 'membership'">
-                        Cancel the pending registration for <strong>{{ pendingTarget.name }}</strong>?
-                        You can re-register them later if they return.
+                        Cancel the pending registration for <strong>{{ pendingTarget.name }}</strong
+                        >? You can re-register them later if they return.
                      </span>
-                     <span v-else>Cancel the pending walk-in for <strong>{{ pendingTarget.name }}</strong>? No sale will be recorded.</span>
+                     <span v-else
+                        >Cancel the pending walk-in for <strong>{{ pendingTarget.name }}</strong
+                        >? No sale will be recorded.</span
+                     >
                   </p>
                   <template v-else>
                      <p class="mb-2">
                         Confirm payment of <strong>₱{{ $filters.formatMoney(pendingTarget.amount) }}</strong> from <strong>{{ pendingTarget.name }}</strong>
-                        <span v-if="pendingTarget.kind === 'membership'"> for <strong>{{ pendingTarget.item_label }}</strong></span>?
+                        <span v-if="pendingTarget.kind === 'membership'">
+                           for <strong>{{ pendingTarget.item_label }}</strong></span
+                        >?
                      </p>
                      <div v-if="pendingTarget.discount_type" class="small text-danger mb-2">
                         <s class="text-muted me-1">₱{{ $filters.formatMoney(pendingTarget.base_amount) }}</s>
@@ -1328,12 +1329,13 @@ export default {
 
          this.busyPendingKey = row.key;
          var url = action === "confirm" ? row.confirm_url : row.cancel_url;
-         var payload = action === "confirm" && row.requires_payment_method
-            ? {
-                 payment_method: this.pendingForm.payment_method,
-                 payment_reference: this.pendingForm.payment_reference || null,
-              }
-            : {};
+         var payload =
+            action === "confirm" && row.requires_payment_method
+               ? {
+                    payment_method: this.pendingForm.payment_method,
+                    payment_reference: this.pendingForm.payment_reference || null,
+                 }
+               : {};
 
          axios
             .post(url, payload)

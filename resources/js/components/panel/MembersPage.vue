@@ -339,9 +339,9 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">ID Discount</label>
                         <select class="form-select" v-model="form.discount_type">
-                           <option :value="''">None — regular rate</option>
-                           <option value="student">Student — 20% off</option>
-                           <option value="senior">Senior — 20% off</option>
+                           <option :value="''">None - regular rate</option>
+                           <option value="student">Student - 20% off</option>
+                           <option value="senior">Senior - 20% off</option>
                         </select>
                         <div class="form-text">Verify a valid student / senior ID before saving.</div>
                      </div>

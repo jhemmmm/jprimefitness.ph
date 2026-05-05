@@ -59,13 +59,13 @@ class PricingPageTest extends TestCase
             'effective_from' => '2026-04-01',
             'effective_until' => '2026-04-30',
         ]);
-        $this->createRatePlan('3 Months', 90); // no price — should not appear
+        $this->createRatePlan('3 Months', 90); // no price - should not appear
         $configuredPtProduct = $this->createPtProduct('12 Sessions', 12, [
             'price' => 3600,
             'effective_from' => '2026-04-01',
             'effective_until' => '2026-04-30',
         ]);
-        $this->createPtProduct('24 Sessions', 24); // no price — should not appear
+        $this->createPtProduct('24 Sessions', 24); // no price - should not appear
         $configuredRatePlan = $configuredRatePlan->fresh();
         $configuredPtProduct = $configuredPtProduct->fresh();
 

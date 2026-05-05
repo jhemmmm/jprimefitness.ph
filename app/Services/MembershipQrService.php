@@ -49,7 +49,7 @@ class MembershipQrService
             return;
         }
 
-        // Mailable implements ShouldQueueAfterCommit — sent after the surrounding
+        // Mailable implements ShouldQueueAfterCommit - sent after the surrounding
         // DB transaction commits, so POS/webhook flows aren't blocked on SMTP.
         Mail::to($subscription->member->email)
             ->send(new MembershipQrCodeMail($subscription));
