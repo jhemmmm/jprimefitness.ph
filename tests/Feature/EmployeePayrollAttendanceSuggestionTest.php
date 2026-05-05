@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Attendance;
 use App\Models\BusinessProfile;
+use App\Models\EmployeeScheduleShift;
 use App\Models\Payroll;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -103,6 +104,87 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
             ->assertJsonPath('overwork_hours', 2)
             ->assertJsonPath('overwork_pay_amount', 200)
             ->assertJsonPath('gross_amount', 1000)
+            ->assertJsonPath('manual_gross_adjustment_amount', 0);
+    }
+
+    public function test_payroll_suggestion_allows_late_time_to_be_made_up_without_overwork_pay(): void
+    {
+        $this->setBusinessProfile(false);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Late Staff');
+
+        EmployeeScheduleShift::factory()->create([
+            'employee_profile_id' => $employee->employeeProfile->id,
+            'day_of_week' => 1,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+        ]);
+
+        $this->createAttendance($employee, '2026-03-02 10:00:00', '2026-03-02 18:00:00');
+
+        $this->actingAs($manager)
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-01&period_end=2026-03-15")
+            ->assertOk()
+            ->assertJsonPath('days_worked', 1)
+            ->assertJsonPath('regular_hours', 8)
+            ->assertJsonPath('regular_pay_amount', 800)
+            ->assertJsonPath('overwork_hours', 0)
+            ->assertJsonPath('overwork_pay_amount', 0)
+            ->assertJsonPath('gross_amount', 800)
+            ->assertJsonPath('manual_gross_adjustment_amount', 0);
+    }
+
+    public function test_payroll_suggestion_caps_regular_scheduled_pay_at_eight_hours_when_overwork_is_disabled(): void
+    {
+        $this->setBusinessProfile(false);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Capped Staff');
+
+        EmployeeScheduleShift::factory()->create([
+            'employee_profile_id' => $employee->employeeProfile->id,
+            'day_of_week' => 1,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+        ]);
+
+        $this->createAttendance($employee, '2026-03-02 10:00:00', '2026-03-02 19:00:00');
+
+        $this->actingAs($manager)
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-01&period_end=2026-03-15")
+            ->assertOk()
+            ->assertJsonPath('days_worked', 1)
+            ->assertJsonPath('regular_hours', 8)
+            ->assertJsonPath('regular_pay_amount', 800)
+            ->assertJsonPath('overwork_hours', 0)
+            ->assertJsonPath('overwork_pay_amount', 0)
+            ->assertJsonPath('gross_amount', 800)
+            ->assertJsonPath('manual_gross_adjustment_amount', 0);
+    }
+
+    public function test_payroll_suggestion_counts_all_overtime_outside_scheduled_shifts(): void
+    {
+        $this->setBusinessProfile(true);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Overtime Staff');
+
+        EmployeeScheduleShift::factory()->create([
+            'employee_profile_id' => $employee->employeeProfile->id,
+            'day_of_week' => 1,
+            'start_time' => '09:00:00',
+            'end_time' => '13:00:00',
+        ]);
+
+        $this->createAttendance($employee, '2026-03-02 09:00:00', '2026-03-02 22:00:00');
+
+        $this->actingAs($manager)
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-01&period_end=2026-03-15")
+            ->assertOk()
+            ->assertJsonPath('days_worked', 1)
+            ->assertJsonPath('regular_hours', 4)
+            ->assertJsonPath('regular_pay_amount', 400)
+            ->assertJsonPath('overwork_hours', 9)
+            ->assertJsonPath('overwork_pay_amount', 900)
+            ->assertJsonPath('gross_amount', 1300)
             ->assertJsonPath('manual_gross_adjustment_amount', 0);
     }
 
