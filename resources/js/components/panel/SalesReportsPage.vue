@@ -67,23 +67,15 @@
                   <i class="bi bi-download me-1"></i>
                   Export CSV
                </a>
-               <button
-                  type="button"
-                  class="btn btn-outline-secondary btn-sm px-3 ms-auto"
-                  @click="resetFilters"
-                  :disabled="!hasNonDefaultFilters"
-               >
-                  <i class="bi bi-x-circle me-1"></i>
-                  Reset
-               </button>
             </div>
 
-            <div v-if="activeFilterChips.length > 0" class="d-flex flex-wrap gap-2 mt-3 pt-3 border-top">
-               <span class="text-muted small align-self-center">Active filters:</span>
+            <div v-if="activeFilterChips.length > 0" class="d-flex flex-wrap gap-2 align-items-center mt-3 pt-3 border-top">
+               <span class="text-muted small">Active filters:</span>
                <span v-for="chip in activeFilterChips" :key="chip.key" class="m-badge m-badge--plan d-inline-flex align-items-center gap-1">
                   {{ chip.label }}
                   <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip.key)"></button>
                </span>
+               <button type="button" class="btn btn-link btn-sm text-danger px-2 py-0 ms-1" @click="resetFilters">Clear all</button>
             </div>
          </div>
       </div>
