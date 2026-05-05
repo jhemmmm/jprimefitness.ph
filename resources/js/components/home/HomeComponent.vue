@@ -723,30 +723,48 @@
                   <div class="card">
                      <div class="card-body p-4">
                         <h5 class="fw-bold mb-4">Send us a message</h5>
-                        <form method="POST" action="#" @submit.prevent="onSubmit">
+                        <div v-if="contact.success" class="alert alert-success rounded-1 py-2" role="alert">
+                           {{ contact.success }}
+                        </div>
+                        <div v-if="contact.bannerError" class="alert alert-danger rounded-1 py-2" role="alert">
+                           {{ contact.bannerError }}
+                        </div>
+                        <form method="POST" action="#" @submit.prevent="onSubmit" novalidate>
                            <div class="mb-3">
                               <label class="form-label small fw-semibold">Full Name</label>
-                              <input v-model="form.name" type="text" class="form-control rounded-1" placeholder="Your name" />
+                              <input v-model="form.name" type="text" class="form-control rounded-1" :class="{ 'is-invalid': contactErrors.name }" placeholder="Your name" />
+                              <div v-if="contactErrors.name" class="invalid-feedback d-block">{{ contactErrors.name[0] }}</div>
                            </div>
                            <div class="mb-3">
-                              <label class="form-label small fw-semibold">Email / Phone / Messenger</label>
-                              <input v-model="form.contact" type="text" class="form-control rounded-1" placeholder="How we can reach you" />
+                              <label class="form-label small fw-semibold">Email</label>
+                              <input v-model="form.email" type="email" class="form-control rounded-1" :class="{ 'is-invalid': contactErrors.email }" placeholder="you@example.com" />
+                              <div v-if="contactErrors.email" class="invalid-feedback d-block">{{ contactErrors.email[0] }}</div>
+                           </div>
+                           <div class="mb-3">
+                              <label class="form-label small fw-semibold">Phone / Messenger <span class="text-muted fw-normal">(optional)</span></label>
+                              <input v-model="form.contact" type="text" class="form-control rounded-1" :class="{ 'is-invalid': contactErrors.contact }" placeholder="Alternate way to reach you" />
+                              <div v-if="contactErrors.contact" class="invalid-feedback d-block">{{ contactErrors.contact[0] }}</div>
                            </div>
                            <div class="mb-3">
                               <label class="form-label small fw-semibold">Inquiry</label>
-                              <select v-model="form.topic" class="form-select rounded-1">
+                              <select v-model="form.topic" class="form-select rounded-1" :class="{ 'is-invalid': contactErrors.topic }">
                                  <option>Membership</option>
                                  <option>Coaching / PT</option>
                                  <option>Walk-in Visit</option>
                                  <option>General Question</option>
                               </select>
+                              <div v-if="contactErrors.topic" class="invalid-feedback d-block">{{ contactErrors.topic[0] }}</div>
                            </div>
                            <div class="mb-3">
                               <label class="form-label small fw-semibold">Message</label>
-                              <textarea v-model="form.message" class="form-control rounded-1" rows="4" placeholder="Type your message..."></textarea>
+                              <textarea v-model="form.message" class="form-control rounded-1" :class="{ 'is-invalid': contactErrors.message }" rows="4" placeholder="Type your message..."></textarea>
+                              <div v-if="contactErrors.message" class="invalid-feedback d-block">{{ contactErrors.message[0] }}</div>
                            </div>
                            <div class="d-grid">
-                              <button type="submit" class="btn btn-danger fw-semibold rounded-1 py-2">Submit</button>
+                              <button type="submit" class="btn btn-danger fw-semibold rounded-1 py-2" :disabled="contact.submitting">
+                                 <span v-if="contact.submitting"><span class="spinner-border spinner-border-sm me-2"></span>Sending…</span>
+                                 <span v-else>Submit</span>
+                              </button>
                            </div>
                         </form>
                      </div>
@@ -827,7 +845,9 @@ export default {
    },
    data: function () {
       return {
-         form: { name: "", contact: "", topic: "Membership", message: "" },
+         form: { name: "", email: "", contact: "", topic: "Membership", message: "" },
+         contact: { submitting: false, success: null, bannerError: null },
+         contactErrors: {},
          register: {
             form: this.emptyRegisterForm(),
             submitting: false,
@@ -963,7 +983,60 @@ export default {
          return this.images.pt[idx % this.images.pt.length];
       },
       onSubmit: function () {
-         alert("Thanks! We'll get back to you shortly.");
+         if (this.contact.submitting) return;
+         this.contact.submitting = true;
+         this.contact.bannerError = null;
+         this.contact.success = null;
+         this.contactErrors = {};
+
+         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+
+         this.getRecaptchaToken()
+            .then((recaptchaToken) => {
+               const payload = {
+                  name: this.form.name,
+                  email: this.form.email,
+                  contact: this.form.contact || null,
+                  topic: this.form.topic,
+                  message: this.form.message,
+                  recaptcha_token: recaptchaToken,
+               };
+
+               return fetch("/contact", {
+                  method: "POST",
+                  headers: {
+                     "Content-Type": "application/json",
+                     Accept: "application/json",
+                     "X-CSRF-TOKEN": csrf,
+                     "X-Requested-With": "XMLHttpRequest",
+                  },
+                  body: JSON.stringify(payload),
+               });
+            })
+            .then((res) => res.json().catch(() => ({})).then((body) => ({ res, body })))
+            .then(({ res, body }) => {
+               if (res.status === 422) {
+                  this.contactErrors = body.errors || {};
+                  this.contact.bannerError = body.message || "Please correct the highlighted fields.";
+                  return;
+               }
+               if (!res.ok) {
+                  this.contact.bannerError = body.message || "Something went wrong. Please try again.";
+                  return;
+               }
+               this.contact.success = body.message || "Thanks! We received your message and will reply as soon as we can.";
+               this.form.name = "";
+               this.form.email = "";
+               this.form.contact = "";
+               this.form.topic = "Membership";
+               this.form.message = "";
+            })
+            .catch(() => {
+               this.contact.bannerError = "Network error. Please check your connection and try again.";
+            })
+            .finally(() => {
+               this.contact.submitting = false;
+            });
       },
       selectPlanForRegister: function (planId) {
          this.register.form.rate_plan_id = planId;

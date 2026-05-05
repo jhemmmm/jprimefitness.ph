@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Home\ContactController;
 use App\Http\Controllers\Home\HomeController;
 use App\Http\Controllers\Home\RegistrationController;
 use App\Http\Controllers\Panel\AttendanceController;
@@ -27,6 +28,8 @@ Route::get('/terms', [HomeController::class, 'terms'])->name('terms');
 Route::post('/register', [RegistrationController::class, 'store'])->name('register');
 Route::get('/register/success', [RegistrationController::class, 'success'])->name('register.success');
 Route::get('/register/cancelled', [RegistrationController::class, 'cancelled'])->name('register.cancelled');
+
+Route::post('/contact', [ContactController::class, 'store'])->name('contact');
 
 Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
