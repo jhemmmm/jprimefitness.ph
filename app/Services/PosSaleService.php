@@ -40,7 +40,10 @@ class PosSaleService
         $inventoryItems = InventoryItem::query()
             ->with('category:id,name')
             ->where('status', InventoryItem::STATUS_ACTIVE)
-            ->where('quantity', '>', 0)
+            ->where(function ($query) {
+                $query->where('quantity', '>', 0)
+                    ->orWhere('tracks_stock', false);
+            })
             ->whereNotNull('selling_price')
             ->orderBy('name')
             ->get()
@@ -49,6 +52,7 @@ class PosSaleService
                 'name' => $item->name,
                 'category_name' => $item->category?->name,
                 'quantity' => (float) $item->quantity,
+                'tracks_stock' => (bool) $item->tracks_stock,
                 'unit' => $item->unit,
                 'selling_price' => round((float) $item->selling_price, 2),
             ])
@@ -160,7 +164,7 @@ class PosSaleService
                 $quantity = (int) $line['quantity'];
                 $availableQuantity = round((float) $item->quantity, 2);
 
-                if ($quantity > $availableQuantity) {
+                if ($item->tracks_stock && $quantity > $availableQuantity) {
                     throw ValidationException::withMessages([
                         "items.{$index}.quantity" => ['The requested quantity exceeds the available stock.'],
                     ]);
@@ -170,14 +174,16 @@ class PosSaleService
                 $lineTotal = round($quantity * $unitPrice, 2);
                 $saleTotal += $lineTotal;
 
-                $item->quantity = round($availableQuantity - $quantity, 2);
-                $item->saveQuietly();
-                $this->inventoryStockAlertService->sync($item);
-                $stockDeductions[] = [
-                    'item' => $item->fresh('category:id,name'),
-                    'deducted_quantity' => $quantity,
-                    'remaining_quantity' => (float) $item->quantity,
-                ];
+                if ($item->tracks_stock) {
+                    $item->quantity = round($availableQuantity - $quantity, 2);
+                    $item->saveQuietly();
+                    $this->inventoryStockAlertService->sync($item);
+                    $stockDeductions[] = [
+                        'item' => $item->fresh('category:id,name'),
+                        'deducted_quantity' => $quantity,
+                        'remaining_quantity' => (float) $item->quantity,
+                    ];
+                }
 
                 $lineItems[] = [
                     'inventory_item_id' => $item->id,

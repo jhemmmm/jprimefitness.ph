@@ -27,6 +27,8 @@ class ProductionSeeder extends Seeder
             BusinessProfileSeeder::class,
             RatePlansSeeder::class,
             PTProductSeeder::class,
+            InventoryCategorySeeder::class,
+            InventoryItemSeeder::class,
         ]);
 
         $this->seedSuperAdmin();

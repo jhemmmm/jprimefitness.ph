@@ -397,6 +397,15 @@ class EmployeeController extends Controller
      */
     public function storePayroll(Request $request, User $employee): JsonResponse
     {
+        $authUser = auth()->user();
+        abort_if(
+            (int) $employee->id === (int) $authUser->id
+                && $authUser->hasRole('manager')
+                && ! $authUser->hasAnyRole(['super admin', 'admin']),
+            403,
+            'Managers cannot generate their own payroll.'
+        );
+
         $employee->loadMissing('employeeProfile');
 
         $data = $request->validate([

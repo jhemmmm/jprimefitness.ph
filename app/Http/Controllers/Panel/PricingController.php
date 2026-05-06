@@ -298,18 +298,25 @@ class PricingController extends Controller
     private function validatedPtProductPayload(Request $request): array
     {
         $data = $request->validate([
+            'name' => ['sometimes', 'required', 'string', 'max:120'],
             'price' => ['required', 'numeric', 'min:0'],
             'is_active' => ['required', 'boolean'],
             'effective_from' => ['nullable', 'date'],
             'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
         ]);
 
-        return [
+        $payload = [
             'price' => round((float) $data['price'], 2),
             'is_active' => (bool) $data['is_active'],
             'effective_from' => $data['effective_from'] ?? null,
             'effective_until' => $data['effective_until'] ?? null,
         ];
+
+        if (array_key_exists('name', $data)) {
+            $payload['name'] = $data['name'];
+        }
+
+        return $payload;
     }
 
     /**

@@ -30,7 +30,7 @@
       <div class="d-flex justify-content-between align-items-center mb-3">
          <div class="text-muted small" v-if="!loading">{{ payrolls.length }} payroll record{{ payrolls.length !== 1 ? "s" : "" }}</div>
          <div class="skeleton-box" v-else style="height: 14px; width: 110px; border-radius: 4px"></div>
-         <button class="btn btn-danger btn-sm" @click="openCreate"><i class="bi bi-plus-lg me-1"></i>Create Payroll</button>
+         <button v-if="canCreatePayroll" class="btn btn-danger btn-sm" @click="openCreate"><i class="bi bi-plus-lg me-1"></i>Create Payroll</button>
       </div>
 
       <!-- Loading -->
@@ -479,6 +479,15 @@ export default {
    computed: {
       payOverworkHours: function () {
          return Boolean(globalThis.JPrime?.profile?.pay_overwork_hours);
+      },
+      canCreatePayroll: function () {
+         const authUser = window.Laravel?.user;
+         if (!authUser) return true;
+         const roles = authUser.roles || [];
+         const isSelf = Number(authUser.id) === Number(this.employee?.id);
+         const isManager = roles.includes("manager");
+         const isAdmin = roles.includes("admin") || roles.includes("super admin");
+         return !(isSelf && isManager && !isAdmin);
       },
       payrollWithholdingTaxEnabled: function () {
          return Boolean(globalThis.JPrime?.profile?.payroll_withholding_tax_enabled);

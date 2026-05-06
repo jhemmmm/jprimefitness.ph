@@ -17,7 +17,7 @@ class InventoryCategorySeeder extends Seeder
             'Merchandise',
             'Supplies',
             'Cleaning Supplies',
-            'Office Supplies',
+            'Services',
         ])->values()->each(function (string $name, int $index): void {
             InventoryCategory::query()->updateOrCreate(
                 ['slug' => Str::slug($name)],

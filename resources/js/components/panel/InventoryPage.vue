@@ -207,7 +207,8 @@
                                  </div>
                                  <div class="mt-1 d-flex gap-1 flex-wrap">
                                     <span :class="['m-badge', stockBadgeClass(item)]">
-                                       <template v-if="item.is_out_of_stock">Out of Stock</template>
+                                       <template v-if="!item.tracks_stock">Service</template>
+                                       <template v-else-if="item.is_out_of_stock">Out of Stock</template>
                                        <template v-else-if="item.is_low_stock">Low Stock</template>
                                        <template v-else>In Stock</template>
                                     </span>
@@ -217,12 +218,18 @@
                            </div>
                         </td>
                         <td>
-                           <div class="fw-semibold mb-1">{{ $filters.formatQuantity(item.quantity) }} <span class="text-muted fw-normal">{{ item.unit }}</span></div>
-                           <div class="stock-bar" :title="stockBarTitle(item)">
-                              <div class="stock-bar-fill" :class="stockBarClass(item)" :style="{ width: stockBarWidth(item) + '%' }"></div>
-                              <div class="stock-bar-marker" v-if="Number(item.low_stock_threshold) > 0" :style="{ left: thresholdMarkerPos(item) + '%' }"></div>
-                           </div>
-                           <div class="text-muted x-small mt-1">Low at {{ $filters.formatQuantity(item.low_stock_threshold) }} {{ item.unit }}</div>
+                           <template v-if="!item.tracks_stock">
+                              <div class="fw-semibold mb-1 text-muted">—</div>
+                              <div class="text-muted x-small">Not tracked</div>
+                           </template>
+                           <template v-else>
+                              <div class="fw-semibold mb-1">{{ $filters.formatQuantity(item.quantity) }} <span class="text-muted fw-normal">{{ item.unit }}</span></div>
+                              <div class="stock-bar" :title="stockBarTitle(item)">
+                                 <div class="stock-bar-fill" :class="stockBarClass(item)" :style="{ width: stockBarWidth(item) + '%' }"></div>
+                                 <div class="stock-bar-marker" v-if="Number(item.low_stock_threshold) > 0" :style="{ left: thresholdMarkerPos(item) + '%' }"></div>
+                              </div>
+                              <div class="text-muted x-small mt-1">Low at {{ $filters.formatQuantity(item.low_stock_threshold) }} {{ item.unit }}</div>
+                           </template>
                         </td>
                         <td class="small">
                            <div>Cost: {{ item.cost_price !== null ? `₱${$filters.formatMoney(item.cost_price)}` : "-" }}</div>
@@ -238,7 +245,7 @@
                         </td>
                         <td>
                            <div class="d-flex gap-1 justify-content-end">
-                              <button class="btn btn-sm btn-outline-success" @click="openRestockModal(item)" title="Restock">
+                              <button v-if="item.tracks_stock" class="btn btn-sm btn-outline-success" @click="openRestockModal(item)" title="Restock">
                                  <i class="bi bi-plus-lg tbl-icon"></i>
                               </button>
                               <button class="btn btn-sm btn-outline-secondary" @click="openEditModal(item)" title="Edit">
@@ -276,7 +283,7 @@
                            <i class="bi bi-three-dots-vertical"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                           <li>
+                           <li v-if="item.tracks_stock">
                               <a class="dropdown-item" href="#" @click.prevent="openRestockModal(item)"><i class="bi bi-plus-lg me-2"></i>Restock</a>
                            </li>
                            <li>
@@ -291,14 +298,15 @@
                   </div>
                   <div class="member-card-tags">
                      <span :class="['m-badge', stockBadgeClass(item)]">
-                        <template v-if="item.is_out_of_stock">Out of Stock</template>
+                        <template v-if="!item.tracks_stock">Service</template>
+                        <template v-else-if="item.is_out_of_stock">Out of Stock</template>
                         <template v-else-if="item.is_low_stock">Low Stock</template>
                         <template v-else>In Stock</template>
                      </span>
                      <span :class="['m-badge', $filters.statusBadge(item.status)]">{{ $filters.capitalize(item.status) }}</span>
                      <span class="m-badge m-badge--plan" v-if="item.category">{{ item.category.name }}</span>
                   </div>
-                  <div class="mb-2">
+                  <div class="mb-2" v-if="item.tracks_stock">
                      <div class="d-flex justify-content-between align-items-baseline mb-1">
                         <div class="fw-semibold small">{{ $filters.formatQuantity(item.quantity) }} <span class="text-muted fw-normal">{{ item.unit }}</span></div>
                         <div class="text-muted x-small">Low at {{ $filters.formatQuantity(item.low_stock_threshold) }}</div>
@@ -369,26 +377,37 @@
 
                   <div class="form-section-title">Stock</div>
                   <div class="row g-3 mb-3">
+                     <div class="col-12">
+                        <div class="form-check form-switch">
+                           <input class="form-check-input" type="checkbox" id="trackStockSwitch" v-model="form.tracks_stock" />
+                           <label class="form-check-label small" for="trackStockSwitch">
+                              Track stock for this item
+                              <span class="text-muted d-block x-small">Turn off for services like shower or water refill where there is no countable stock.</span>
+                           </label>
+                        </div>
+                     </div>
                      <div class="col-md-4">
                         <label class="form-label form-label-sm">Unit <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" v-model="form.unit" :class="{ 'is-invalid': formErrors.unit }" placeholder="pcs, box, bottle" />
+                        <input type="text" class="form-control" v-model="form.unit" :class="{ 'is-invalid': formErrors.unit }" :placeholder="form.tracks_stock ? 'pcs, box, bottle' : 'service'" />
                         <div class="invalid-feedback" v-if="formErrors.unit">{{ formErrors.unit }}</div>
                      </div>
-                     <div class="col-md-4">
-                        <label class="form-label form-label-sm">Quantity <span class="text-danger">*</span></label>
-                        <input type="number" min="0" step="0.01" class="form-control" v-model="form.quantity" :class="{ 'is-invalid': formErrors.quantity }" />
-                        <div class="invalid-feedback" v-if="formErrors.quantity">{{ formErrors.quantity }}</div>
-                     </div>
-                     <div class="col-md-4">
-                        <label class="form-label form-label-sm">Low Stock Threshold <span class="text-danger">*</span></label>
-                        <input type="number" min="0" step="0.01" class="form-control" v-model="form.low_stock_threshold" :class="{ 'is-invalid': formErrors.low_stock_threshold }" />
-                        <div class="invalid-feedback" v-if="formErrors.low_stock_threshold">{{ formErrors.low_stock_threshold }}</div>
-                     </div>
-                     <div class="col-md-6">
-                        <label class="form-label form-label-sm">Last Restocked At</label>
-                        <input type="datetime-local" class="form-control" v-model="form.last_restocked_at" :class="{ 'is-invalid': formErrors.last_restocked_at }" />
-                        <div class="invalid-feedback" v-if="formErrors.last_restocked_at">{{ formErrors.last_restocked_at }}</div>
-                     </div>
+                     <template v-if="form.tracks_stock">
+                        <div class="col-md-4">
+                           <label class="form-label form-label-sm">Quantity <span class="text-danger">*</span></label>
+                           <input type="number" min="0" step="0.01" class="form-control" v-model="form.quantity" :class="{ 'is-invalid': formErrors.quantity }" />
+                           <div class="invalid-feedback" v-if="formErrors.quantity">{{ formErrors.quantity }}</div>
+                        </div>
+                        <div class="col-md-4">
+                           <label class="form-label form-label-sm">Low Stock Threshold <span class="text-danger">*</span></label>
+                           <input type="number" min="0" step="0.01" class="form-control" v-model="form.low_stock_threshold" :class="{ 'is-invalid': formErrors.low_stock_threshold }" />
+                           <div class="invalid-feedback" v-if="formErrors.low_stock_threshold">{{ formErrors.low_stock_threshold }}</div>
+                        </div>
+                        <div class="col-md-6">
+                           <label class="form-label form-label-sm">Last Restocked At</label>
+                           <input type="datetime-local" class="form-control" v-model="form.last_restocked_at" :class="{ 'is-invalid': formErrors.last_restocked_at }" />
+                           <div class="invalid-feedback" v-if="formErrors.last_restocked_at">{{ formErrors.last_restocked_at }}</div>
+                        </div>
+                     </template>
                   </div>
 
                   <div class="form-section-title">Pricing</div>
@@ -580,6 +599,7 @@ export default {
             name: "",
             sku: "",
             unit: "pcs",
+            tracks_stock: true,
             quantity: "0.00",
             low_stock_threshold: "0.00",
             cost_price: "",
@@ -719,6 +739,7 @@ export default {
             name: item.name || "",
             sku: item.sku || "",
             unit: item.unit || "pcs",
+            tracks_stock: item.tracks_stock !== false,
             quantity: item.quantity || "0.00",
             low_stock_threshold: item.low_stock_threshold || "0.00",
             cost_price: item.cost_price ?? "",
@@ -805,18 +826,20 @@ export default {
          this.formError = "";
          this.formErrors = {};
 
+         var tracksStock = this.form.tracks_stock !== false;
          var payload = {
             inventory_category_id: this.form.inventory_category_id,
             name: this.form.name,
             sku: this.form.sku || null,
             unit: this.form.unit,
-            quantity: this.form.quantity === "" ? 0 : this.form.quantity,
-            low_stock_threshold: this.form.low_stock_threshold === "" ? 0 : this.form.low_stock_threshold,
+            tracks_stock: tracksStock,
+            quantity: tracksStock ? (this.form.quantity === "" ? 0 : this.form.quantity) : 0,
+            low_stock_threshold: tracksStock ? (this.form.low_stock_threshold === "" ? 0 : this.form.low_stock_threshold) : 0,
             cost_price: this.form.cost_price === "" ? null : this.form.cost_price,
             selling_price: this.form.selling_price === "" ? null : this.form.selling_price,
             status: this.form.status,
             notes: this.form.notes || null,
-            last_restocked_at: this.form.last_restocked_at || null,
+            last_restocked_at: tracksStock ? this.form.last_restocked_at || null : null,
          };
 
          var request = this.modalMode === "edit" ? axios.put(`/panel/inventory/${this.form.id}`, payload) : axios.post("/panel/inventory", payload);

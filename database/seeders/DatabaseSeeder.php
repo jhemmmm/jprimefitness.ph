@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             RatePlansSeeder::class,
             PTProductSeeder::class,
             InventoryCategorySeeder::class,
+            InventoryItemSeeder::class,
             RoleSeeder::class,
             BusinessProfileSeeder::class,
             UserSeeder::class,

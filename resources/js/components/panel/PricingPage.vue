@@ -281,7 +281,7 @@
                </div>
                <div class="modal-body">
                   <div v-if="ptFormError" class="alert alert-danger py-2 small mb-3">{{ ptFormError }}</div>
-                  <div class="mb-3" v-if="ptModalMode === 'create'">
+                  <div class="mb-3">
                      <label class="form-label form-label-sm">Package name <span class="text-danger">*</span></label>
                      <input type="text" class="form-control" v-model="ptForm.name" :class="{ 'is-invalid': ptFormErrors.name }" placeholder="e.g. 10-Session Package" />
                      <div class="invalid-feedback" v-if="ptFormErrors.name">{{ ptFormErrors.name }}</div>
@@ -290,10 +290,6 @@
                      <label class="form-label form-label-sm">Session count <span class="text-danger">*</span></label>
                      <input type="number" min="1" step="1" class="form-control" v-model="ptForm.session_count" :class="{ 'is-invalid': ptFormErrors.session_count }" placeholder="e.g. 10" />
                      <div class="invalid-feedback" v-if="ptFormErrors.session_count">{{ ptFormErrors.session_count }}</div>
-                  </div>
-                  <div class="mb-3" v-else>
-                     <label class="form-label form-label-sm">Package</label>
-                     <input type="text" class="form-control" :value="ptForm.name" disabled />
                   </div>
                   <div class="row g-3">
                      <div class="col-md-12">
@@ -566,6 +562,7 @@ export default {
                  effective_until: this.ptForm.effective_until || null,
               }
             : {
+                 name: this.ptForm.name,
                  price: this.ptForm.price,
                  is_active: this.ptForm.is_active,
                  effective_from: this.ptForm.effective_from || null,

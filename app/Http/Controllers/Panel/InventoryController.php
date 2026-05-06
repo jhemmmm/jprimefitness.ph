@@ -59,21 +59,28 @@ class InventoryController extends Controller
                 $stockState = $request->stock_state;
 
                 if ($stockState === 'out_of_stock') {
-                    $query->where('quantity', '<=', 0);
+                    $query->where('tracks_stock', true)->where('quantity', '<=', 0);
                 }
 
                 if ($stockState === 'low_stock') {
-                    $query->where('quantity', '>', 0)
+                    $query->where('tracks_stock', true)
+                        ->where('quantity', '>', 0)
                         ->where('low_stock_threshold', '>', 0)
                         ->whereColumn('quantity', '<=', 'low_stock_threshold');
                 }
 
                 if ($stockState === 'in_stock') {
-                    $query->where('quantity', '>', 0)
-                        ->where(function ($inner) {
-                            $inner->where('low_stock_threshold', '<=', 0)
-                                ->orWhereColumn('quantity', '>', 'low_stock_threshold');
-                        });
+                    $query->where(function ($inner) {
+                        $inner->where('tracks_stock', false)
+                            ->orWhere(function ($stocked) {
+                                $stocked->where('tracks_stock', true)
+                                    ->where('quantity', '>', 0)
+                                    ->where(function ($threshold) {
+                                        $threshold->where('low_stock_threshold', '<=', 0)
+                                            ->orWhereColumn('quantity', '>', 'low_stock_threshold');
+                                    });
+                            });
+                    });
                 }
             });
 
@@ -88,6 +95,7 @@ class InventoryController extends Controller
                 'sku' => $item->sku,
                 'unit' => $item->unit,
                 'quantity' => round((float) $item->quantity, 2),
+                'tracks_stock' => (bool) $item->tracks_stock,
                 'low_stock_threshold' => round((float) $item->low_stock_threshold, 2),
                 'cost_price' => $item->cost_price !== null ? round((float) $item->cost_price, 2) : null,
                 'selling_price' => $item->selling_price !== null ? round((float) $item->selling_price, 2) : null,
@@ -102,8 +110,8 @@ class InventoryController extends Controller
         $stats = [
             'total' => (clone $itemsQuery)->count(),
             'active' => (clone $itemsQuery)->where('status', InventoryItem::STATUS_ACTIVE)->count(),
-            'low_stock' => (clone $itemsQuery)->where('quantity', '>', 0)->where('low_stock_threshold', '>', 0)->whereColumn('quantity', '<=', 'low_stock_threshold')->count(),
-            'out_of_stock' => (clone $itemsQuery)->where('quantity', '<=', 0)->count(),
+            'low_stock' => (clone $itemsQuery)->where('tracks_stock', true)->where('quantity', '>', 0)->where('low_stock_threshold', '>', 0)->whereColumn('quantity', '<=', 'low_stock_threshold')->count(),
+            'out_of_stock' => (clone $itemsQuery)->where('tracks_stock', true)->where('quantity', '<=', 0)->count(),
         ];
 
         return response()->json(compact('inventory', 'stats'));
@@ -163,8 +171,9 @@ class InventoryController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'sku' => ['nullable', 'string', 'max:80', Rule::unique('inventory_items', 'sku')->ignore($inventoryItem?->id)->withoutTrashed()],
             'unit' => ['required', 'string', 'max:40'],
-            'quantity' => ['required', 'numeric', 'min:0'],
-            'low_stock_threshold' => ['required', 'numeric', 'min:0'],
+            'tracks_stock' => ['sometimes', 'boolean'],
+            'quantity' => ['nullable', 'numeric', 'min:0'],
+            'low_stock_threshold' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],
             'selling_price' => ['nullable', 'numeric', 'min:0'],
             'status' => ['required', Rule::in([InventoryItem::STATUS_ACTIVE, InventoryItem::STATUS_INACTIVE])],
@@ -172,11 +181,18 @@ class InventoryController extends Controller
             'last_restocked_at' => ['nullable', 'date'],
         ]);
 
+        $tracksStock = array_key_exists('tracks_stock', $validated)
+            ? (bool) $validated['tracks_stock']
+            : ($inventoryItem?->tracks_stock ?? true);
+
+        $validated['tracks_stock'] = $tracksStock;
+        $validated['quantity'] = $tracksStock ? ($validated['quantity'] ?? 0) : 0;
+        $validated['low_stock_threshold'] = $tracksStock ? ($validated['low_stock_threshold'] ?? 0) : 0;
         $validated['sku'] = $validated['sku'] ?? null;
         $validated['cost_price'] = $validated['cost_price'] ?? null;
         $validated['selling_price'] = $validated['selling_price'] ?? null;
         $validated['notes'] = $validated['notes'] ?? null;
-        $validated['last_restocked_at'] = $validated['last_restocked_at'] ?? null;
+        $validated['last_restocked_at'] = $tracksStock ? ($validated['last_restocked_at'] ?? null) : null;
 
         return $validated;
     }

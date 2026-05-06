@@ -24,6 +24,7 @@ class InventoryItem extends Model
         'sku',
         'unit',
         'quantity',
+        'tracks_stock',
         'low_stock_threshold',
         'cost_price',
         'selling_price',
@@ -34,6 +35,7 @@ class InventoryItem extends Model
 
     protected $casts = [
         'quantity' => 'decimal:2',
+        'tracks_stock' => 'boolean',
         'low_stock_threshold' => 'decimal:2',
         'cost_price' => 'decimal:2',
         'selling_price' => 'decimal:2',
@@ -53,6 +55,10 @@ class InventoryItem extends Model
 
     public function getIsLowStockAttribute(): bool
     {
+        if (! $this->tracks_stock) {
+            return false;
+        }
+
         return (float) $this->quantity > 0
             && (float) $this->low_stock_threshold > 0
             && (float) $this->quantity <= (float) $this->low_stock_threshold;
@@ -60,6 +66,10 @@ class InventoryItem extends Model
 
     public function getIsOutOfStockAttribute(): bool
     {
+        if (! $this->tracks_stock) {
+            return false;
+        }
+
         return (float) $this->quantity <= 0;
     }
 }

@@ -24,6 +24,7 @@ class InventoryItemFactory extends Factory
             'sku' => fake()->boolean(70) ? strtoupper(fake()->bothify('INV-###??')) : null,
             'unit' => fake()->randomElement(['pcs', 'box', 'pack', 'bottle']),
             'quantity' => fake()->randomFloat(2, 0, 120),
+            'tracks_stock' => true,
             'low_stock_threshold' => fake()->randomFloat(2, 1, 20),
             'cost_price' => fake()->randomFloat(2, 20, 500),
             'selling_price' => fake()->randomFloat(2, 30, 750),
@@ -31,5 +32,16 @@ class InventoryItemFactory extends Factory
             'notes' => fake()->optional()->sentence(),
             'last_restocked_at' => fake()->optional()->dateTimeBetween('-30 days', 'now'),
         ];
+    }
+
+    public function service(): static
+    {
+        return $this->state(fn () => [
+            'tracks_stock' => false,
+            'quantity' => 0,
+            'low_stock_threshold' => 0,
+            'unit' => 'service',
+            'last_restocked_at' => null,
+        ]);
     }
 }

@@ -94,8 +94,14 @@
                                  </div>
 
                                  <div class="small text-muted mt-2" v-if="findInventoryItem(line.inventory_item_id)">
-                                    Available: {{ $filters.formatQuantity(findInventoryItem(line.inventory_item_id).quantity) }} {{ findInventoryItem(line.inventory_item_id).unit }}
-                                    <span class="ms-2">Remaining after sale: {{ $filters.formatQuantity((parseFloat(findInventoryItem(line.inventory_item_id).quantity) || 0) - (parseFloat(line.quantity) || 0)) }} {{ findInventoryItem(line.inventory_item_id).unit }}</span>
+                                    <template v-if="findInventoryItem(line.inventory_item_id).tracks_stock === false">
+                                       <span class="badge bg-info-subtle text-info-emphasis me-1">Service</span>
+                                       No stock to track.
+                                    </template>
+                                    <template v-else>
+                                       Available: {{ $filters.formatQuantity(findInventoryItem(line.inventory_item_id).quantity) }} {{ findInventoryItem(line.inventory_item_id).unit }}
+                                       <span class="ms-2">Remaining after sale: {{ $filters.formatQuantity((parseFloat(findInventoryItem(line.inventory_item_id).quantity) || 0) - (parseFloat(line.quantity) || 0)) }} {{ findInventoryItem(line.inventory_item_id).unit }}</span>
+                                    </template>
                                  </div>
                               </div>
                            </div>
@@ -1131,11 +1137,14 @@ export default {
                      return String(value).toLowerCase().includes(normalizedSearch);
                   });
                })
-               .map((item) => ({
-                  id: item.id,
-                  name: item.name,
-                  meta: `${item.category_name || "Uncategorized"} • ${this.$filters.formatQuantity(item.quantity)} ${item.unit} left • ₱${this.$filters.formatMoney(item.selling_price)}`,
-               })),
+               .map((item) => {
+                  var stockMeta = item.tracks_stock === false ? "Service" : `${this.$filters.formatQuantity(item.quantity)} ${item.unit} left`;
+                  return {
+                     id: item.id,
+                     name: item.name,
+                     meta: `${item.category_name || "Uncategorized"} • ${stockMeta} • ₱${this.$filters.formatMoney(item.selling_price)}`,
+                  };
+               }),
          );
       },
       inventoryFetchOptions: function (lineKey) {
