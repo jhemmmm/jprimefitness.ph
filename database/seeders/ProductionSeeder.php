@@ -3,16 +3,22 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Spatie\Permission\PermissionRegistrar;
 
+/**
+ * Production-only seeder. Intentionally does NOT use WithoutModelEvents:
+ * the super admin user must go through SyncsToOutbox boot hooks so its
+ * uuid is generated and outbox rows are emitted. Suppressing model
+ * events here causes the sync pipeline to silently drop role
+ * assignments for the super admin (the user has no uuid, so the
+ * role-assignment snapshot can't reference them).
+ */
 class ProductionSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Seed the production defaults.
      *
@@ -63,6 +69,16 @@ class ProductionSeeder extends Seeder
                 'status' => User::STATUS_ACTIVE,
             ],
         );
+
+        // Earlier versions of this seeder ran with WithoutModelEvents,
+        // which suppressed the SyncsToOutbox creating hook and left the
+        // super admin without a uuid. Backfill defensively so existing
+        // production rows converge. forceFill() is required because
+        // `uuid` is not in User's Fillable list; a plain update() would
+        // silently drop the attribute.
+        if (empty($user->uuid)) {
+            $user->forceFill(['uuid' => (string) Str::uuid()])->save();
+        }
 
         $user->syncRoles(['super admin']);
     }

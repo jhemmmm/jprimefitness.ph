@@ -10,6 +10,7 @@ use App\Services\Sync\Receivers\RoleHasPermissionReceiver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Contracts\Permission as PermissionContract;
 use Spatie\Permission\Contracts\Role as RoleContract;
 use Spatie\Permission\Events\PermissionAttachedEvent;
@@ -93,6 +94,12 @@ class SpatiePivotOutboxListener
 
         $modelUuid = $this->modelUuid($model);
         if ($modelUuid === null) {
+            Log::warning('sync.role_event.no_model_uuid', [
+                'model_type' => $model::class,
+                'model_id' => $model->getKey(),
+                'op' => $op,
+            ]);
+
             return;
         }
 
@@ -119,6 +126,12 @@ class SpatiePivotOutboxListener
 
         $modelUuid = $this->modelUuid($model);
         if ($modelUuid === null) {
+            Log::warning('sync.permission_event.no_model_uuid', [
+                'model_type' => $model::class,
+                'model_id' => $model->getKey(),
+                'op' => $op,
+            ]);
+
             return;
         }
 
