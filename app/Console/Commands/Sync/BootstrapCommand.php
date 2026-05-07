@@ -81,7 +81,7 @@ class BootstrapCommand extends Command
                         $receiver->apply([
                             'event_id' => (string) Str::uuid(),
                             'entity_type' => $entityType,
-                            'entity_id' => (string) ($row['uuid'] ?? $row['id'] ?? ''),
+                            'entity_id' => (string) ($row['entity_id'] ?? $row['uuid'] ?? $row['id'] ?? ''),
                             'op' => SyncOp::CREATE,
                             'payload' => $row,
                             'origin_node' => 'bootstrap',

@@ -36,30 +36,19 @@ class SnapshotController extends Controller
         $limit = (int) ($data['limit'] ?? 500);
 
         try {
-            $modelClass = $this->registry->modelFor($entityType);
+            $receiver = $this->registry->receiverFor($entityType);
         } catch (InvalidArgumentException $e) {
             throw new NotFoundHttpException($e->getMessage(), $e);
         }
-        $model = new $modelClass;
-        $keyName = $model->getKeyName();
-        $table = $model->getTable();
 
-        $rows = DB::table($table)
-            ->where($keyName, '>', $afterId)
-            ->orderBy($keyName)
-            ->limit($limit)
-            ->get();
-
-        $payload = $rows->map(fn ($row) => (array) $row)->all();
-
-        $lastId = $rows->isNotEmpty() ? (int) $rows->last()->{$keyName} : $afterId;
+        $page = $receiver->snapshot($entityType, $afterId, $limit);
         $maxOutboxId = (int) (DB::table('sync_outbox')->max('id') ?? 0);
 
         return response()->json([
             'entity_type' => $entityType,
-            'rows' => $payload,
-            'next_after_id' => $lastId,
-            'has_more' => $rows->count() === $limit,
+            'rows' => $page['rows'],
+            'next_after_id' => $page['next_after_id'],
+            'has_more' => $page['has_more'],
             'outbox_max_id' => $maxOutboxId,
         ]);
     }

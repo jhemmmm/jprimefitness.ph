@@ -70,12 +70,39 @@ class OutboxWriter
             return;
         }
 
+        $this->insert($entityType, $model->syncEntityKey(), $op, $this->buildPayload($model));
+    }
+
+    /**
+     * Emit an outbox event for a non-Eloquent source (pivot tables, etc.).
+     * The caller owns the entity_id stable key and the payload shape.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function writeRaw(string $entityType, string $entityId, string $op, array $payload): void
+    {
+        if (self::isMuted()) {
+            return;
+        }
+
+        if (config('sync.role', SyncRole::STANDALONE) === SyncRole::STANDALONE) {
+            return;
+        }
+
+        $this->insert($entityType, $entityId, $op, $payload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function insert(string $entityType, string $entityId, string $op, array $payload): void
+    {
         DB::table('sync_outbox')->insert([
             'event_id' => (string) Str::uuid(),
             'entity_type' => $entityType,
-            'entity_id' => $model->syncEntityKey(),
+            'entity_id' => $entityId,
             'op' => $op,
-            'payload' => json_encode($this->buildPayload($model), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            'payload' => json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             'origin_node' => (string) config('sync.node_id', config('sync.role')),
             'occurred_at' => now(),
             'pushed_at' => null,

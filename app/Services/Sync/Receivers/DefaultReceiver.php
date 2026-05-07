@@ -12,6 +12,7 @@ use App\Services\SystemActivityService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
@@ -238,6 +239,38 @@ class DefaultReceiver
             // Conflict logging must never poison apply().
             report($e);
         }
+    }
+
+    /**
+     * Bootstrap snapshot page for one entity type. Default behavior pages
+     * by primary key over the configured Eloquent model's table and returns
+     * raw arrays (no Eloquent hydration). Receivers backing non-Eloquent
+     * sources (e.g. Spatie pivots) override this entirely.
+     *
+     * @return array{rows: array<int, array<string, mixed>>, next_after_id: int|string, has_more: bool}
+     */
+    public function snapshot(string $entityType, int|string $afterId, int $limit): array
+    {
+        $modelClass = $this->modelClass($entityType);
+        /** @var Model $model */
+        $model = new $modelClass;
+        $keyName = $model->getKeyName();
+        $table = $model->getTable();
+
+        $rows = DB::table($table)
+            ->where($keyName, '>', $afterId)
+            ->orderBy($keyName)
+            ->limit($limit)
+            ->get();
+
+        $payload = $rows->map(fn ($row) => (array) $row)->all();
+        $lastId = $rows->isNotEmpty() ? (int) $rows->last()->{$keyName} : (int) $afterId;
+
+        return [
+            'rows' => $payload,
+            'next_after_id' => $lastId,
+            'has_more' => $rows->count() === $limit,
+        ];
     }
 
     private function newModelFor(string $entityType): Model

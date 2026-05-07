@@ -86,6 +86,17 @@ return [
         'member_profile' => ['model' => \App\Models\MemberProfile::class],
         'employee_profile' => ['model' => \App\Models\EmployeeProfile::class],
 
+        // Spatie role / permission pivots. No Eloquent model — the
+        // receiver owns both apply() and snapshot(), keying by
+        // (model_uuid, model_type, role/permission name, guard) so
+        // local role_id and model_id drift between nodes is irrelevant.
+        'model_has_roles' => [
+            'receiver' => \App\Services\Sync\Receivers\ModelHasRoleReceiver::class,
+        ],
+        'model_has_permissions' => [
+            'receiver' => \App\Services\Sync\Receivers\ModelHasPermissionReceiver::class,
+        ],
+
         // Subscriptions, packages, sessions.
         'member_subscription' => ['model' => \App\Models\MemberSubscription::class],
         'member_pt_package' => ['model' => \App\Models\MemberPtPackage::class],

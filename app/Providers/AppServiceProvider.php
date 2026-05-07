@@ -16,8 +16,14 @@ use App\Observers\InventoryItemObserver;
 use App\Observers\MemberPtSessionUsageObserver;
 use App\Observers\PayoutObserver;
 use App\Observers\PayrollObserver;
+use App\Services\Sync\SpatiePivotOutboxListener;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\Events\PermissionAttachedEvent;
+use Spatie\Permission\Events\PermissionDetachedEvent;
+use Spatie\Permission\Events\RoleAttachedEvent;
+use Spatie\Permission\Events\RoleDetachedEvent;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
@@ -40,6 +46,11 @@ class AppServiceProvider extends ServiceProvider
         MemberPtSessionUsage::observe(MemberPtSessionUsageObserver::class);
         Payout::observe(PayoutObserver::class);
         Payroll::observe(PayrollObserver::class);
+
+        Event::listen(RoleAttachedEvent::class, [SpatiePivotOutboxListener::class, 'handleRoleAttached']);
+        Event::listen(RoleDetachedEvent::class, [SpatiePivotOutboxListener::class, 'handleRoleDetached']);
+        Event::listen(PermissionAttachedEvent::class, [SpatiePivotOutboxListener::class, 'handlePermissionAttached']);
+        Event::listen(PermissionDetachedEvent::class, [SpatiePivotOutboxListener::class, 'handlePermissionDetached']);
 
         View::composer('panel.*', function ($view) {
             $businessProfile = BusinessProfile::current();
