@@ -50,6 +50,9 @@ class MembersController extends Controller
      */
     public function list(Request $request): JsonResponse
     {
+        $statuses = array_values(array_filter((array) $request->input('status', []), fn ($value) => $value !== null && $value !== ''));
+        $plans = array_values(array_filter((array) $request->input('plan', []), fn ($value) => $value !== null && $value !== ''));
+
         $membersQuery = User::role('member')
             ->with([
                 'profile',
@@ -75,8 +78,8 @@ class MembersController extends Controller
                         ->orWhere('phone', 'like', "%{$search}%");
                 });
             })
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
-            ->when($request->filled('plan'), fn ($query) => $query->whereHas('memberSubscriptions', fn ($subscriptionQuery) => $subscriptionQuery->where('rate_plan_id', $request->plan)))
+            ->when(! empty($statuses), fn ($query) => $query->whereIn('status', $statuses))
+            ->when(! empty($plans), fn ($query) => $query->whereHas('memberSubscriptions', fn ($subscriptionQuery) => $subscriptionQuery->whereIn('rate_plan_id', $plans)))
             ->orderByDesc('created_at');
 
         $members = (clone $membersQuery)

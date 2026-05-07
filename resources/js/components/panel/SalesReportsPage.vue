@@ -33,28 +33,29 @@
             <div class="row g-3 align-items-end">
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Date From</label>
-                  <input type="date" class="form-control" v-model="filters.date_from" />
+                  <input type="date" class="form-control" v-model="filters.date_from" @change="fetchReport" />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Date To</label>
-                  <input type="date" class="form-control" v-model="filters.date_to" />
+                  <input type="date" class="form-control" v-model="filters.date_to" @change="fetchReport" />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Sale Type</label>
-                  <select class="form-select" v-model="filters.type">
-                     <option value="">All Types</option>
-                     <option value="inventory">Inventory</option>
-                     <option value="membership">Membership</option>
-                     <option value="pt_package">PT Package</option>
-                     <option value="walk_in">Walk-in</option>
-                  </select>
+                  <MultiSelect
+                     v-model="filters.type"
+                     :options="saleTypes"
+                     placeholder="All Types"
+                     @update:modelValue="fetchReport"
+                  />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Payment Method</label>
-                  <select class="form-select" v-model="filters.payment_method">
-                     <option value="">All Methods</option>
-                     <option v-for="method in paymentMethods" :key="method.value" :value="method.value">{{ method.label }}</option>
-                  </select>
+                  <MultiSelect
+                     v-model="filters.payment_method"
+                     :options="paymentMethods"
+                     placeholder="All Methods"
+                     @update:modelValue="fetchReport"
+                  />
                </div>
             </div>
 
@@ -73,7 +74,7 @@
                <span class="text-muted small">Active filters:</span>
                <span v-for="chip in activeFilterChips" :key="chip.key" class="m-badge m-badge--plan d-inline-flex align-items-center gap-1">
                   {{ chip.label }}
-                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip.key)"></button>
+                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip)"></button>
                </span>
                <button type="button" class="btn btn-link btn-sm text-danger px-2 py-0 ms-1" @click="resetFilters">Clear all</button>
             </div>
@@ -535,6 +536,7 @@
 <script>
 import SalesDailyTrendChart from "./charts/SalesDailyTrendChart.vue";
 import SalesTypeBreakdownChart from "./charts/SalesTypeBreakdownChart.vue";
+import MultiSelect from "./vendor/MultiSelect.vue";
 import dateRangePresets from "../../mixins/dateRangePresets";
 import { formatDate, formatDateTime, startOfCurrentMonthDate, todayDate } from "../../dates";
 
@@ -542,6 +544,7 @@ export default {
    components: {
       SalesDailyTrendChart,
       SalesTypeBreakdownChart,
+      MultiSelect,
    },
    mixins: [dateRangePresets],
    props: {
@@ -559,10 +562,16 @@ export default {
          filters: {
             date_from: this.defaultDateFrom(),
             date_to: this.defaultDateTo(),
-            type: "",
-            payment_method: "",
+            type: [],
+            payment_method: [],
          },
          report: this.emptyReport(),
+         saleTypes: [
+            { value: "inventory", label: "Inventory" },
+            { value: "membership", label: "Membership" },
+            { value: "pt_package", label: "PT Package" },
+            { value: "walk_in", label: "Walk-in" },
+         ],
          paymentMethods: [
             { value: "cash", label: "Cash" },
             { value: "gcash", label: "GCash" },
@@ -573,41 +582,26 @@ export default {
       };
    },
    computed: {
-      paymentMethodLabel: function () {
-         const match = this.paymentMethods.find((option) => option.value === this.filters.payment_method);
-
-         return match ? match.label : "";
-      },
-
-      saleTypeLabel: function () {
-         const map = {
-            inventory: "Inventory",
-            membership: "Membership",
-            pt_package: "PT Package",
-            walk_in: "Walk-in",
-         };
-
-         return map[this.filters.type] || "";
-      },
-
       activeFilterChips: function () {
          const chips = [];
 
-         if (this.filters.type) {
-            chips.push({ key: "type", label: `Type: ${this.saleTypeLabel}` });
-         }
+         this.filters.type.forEach((value) => {
+            const match = this.saleTypes.find((option) => option.value === value);
+            chips.push({ key: `type:${value}`, group: "type", value: value, label: `Type: ${match ? match.label : value}` });
+         });
 
-         if (this.filters.payment_method) {
-            chips.push({ key: "payment_method", label: `Payment: ${this.paymentMethodLabel}` });
-         }
+         this.filters.payment_method.forEach((value) => {
+            const match = this.paymentMethods.find((option) => option.value === value);
+            chips.push({ key: `payment_method:${value}`, group: "payment_method", value: value, label: `Payment: ${match ? match.label : value}` });
+         });
 
          return chips;
       },
 
       hasNonDefaultFilters: function () {
          return (
-            this.filters.type !== "" ||
-            this.filters.payment_method !== "" ||
+            this.filters.type.length > 0 ||
+            this.filters.payment_method.length > 0 ||
             this.filters.date_from !== this.defaultDateFrom() ||
             this.filters.date_to !== this.defaultDateTo()
          );
@@ -678,13 +672,16 @@ export default {
 
       exportUrl: function () {
          const params = new URLSearchParams();
-         const payload = this.buildParams();
 
-         Object.keys(payload).forEach((key) => {
-            if (payload[key] !== undefined && payload[key] !== null && payload[key] !== "") {
-               params.append(key, payload[key]);
-            }
-         });
+         if (this.filters.date_from) {
+            params.append("date_from", this.filters.date_from);
+         }
+         if (this.filters.date_to) {
+            params.append("date_to", this.filters.date_to);
+         }
+
+         this.filters.type.forEach((value) => params.append("type[]", value));
+         this.filters.payment_method.forEach((value) => params.append("payment_method[]", value));
 
          return `/panel/reports/sales/export${params.toString() ? `?${params.toString()}` : ""}`;
       },
@@ -734,15 +731,13 @@ export default {
       resetFilters: function () {
          this.filters.date_from = this.defaultDateFrom();
          this.filters.date_to = this.defaultDateTo();
-         this.filters.type = "";
-         this.filters.payment_method = "";
+         this.filters.type = [];
+         this.filters.payment_method = [];
          this.fetchReport();
       },
-      clearChip: function (key) {
-         if (key === "type") {
-            this.filters.type = "";
-         } else if (key === "payment_method") {
-            this.filters.payment_method = "";
+      clearChip: function (chip) {
+         if (chip && chip.group && Array.isArray(this.filters[chip.group])) {
+            this.filters[chip.group] = this.filters[chip.group].filter((value) => value !== chip.value);
          }
 
          this.fetchReport();
@@ -751,8 +746,8 @@ export default {
          return {
             date_from: this.filters.date_from || undefined,
             date_to: this.filters.date_to || undefined,
-            type: this.filters.type || undefined,
-            payment_method: this.filters.payment_method || undefined,
+            type: this.filters.type.length ? this.filters.type : undefined,
+            payment_method: this.filters.payment_method.length ? this.filters.payment_method : undefined,
          };
       },
       fetchReport: function () {

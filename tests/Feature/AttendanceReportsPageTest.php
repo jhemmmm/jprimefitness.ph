@@ -97,7 +97,7 @@ class AttendanceReportsPageTest extends TestCase
         $response->assertJsonMissingPath('location_breakdown');
         $response->assertJsonPath('filters.date_from', '2026-03-01');
         $response->assertJsonPath('filters.date_to', '2026-03-31');
-        $response->assertJsonPath('filters.type', null);
+        $response->assertJsonPath('filters.type', []);
         $response->assertJsonPath('summary.total_check_ins', 4);
         $response->assertJsonPath('summary.unique_attendees', 4);
         $response->assertJsonPath('summary.checked_out_count', 3);

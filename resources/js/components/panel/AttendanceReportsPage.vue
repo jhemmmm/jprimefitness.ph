@@ -33,18 +33,20 @@
             <div class="row g-3 align-items-end">
                <div class="col-12 col-md-4">
                   <label class="form-label">Date From</label>
-                  <input type="date" class="form-control" v-model="filters.date_from" />
+                  <input type="date" class="form-control" v-model="filters.date_from" @change="fetchReport" />
                </div>
                <div class="col-12 col-md-4">
                   <label class="form-label">Date To</label>
-                  <input type="date" class="form-control" v-model="filters.date_to" />
+                  <input type="date" class="form-control" v-model="filters.date_to" @change="fetchReport" />
                </div>
                <div class="col-12 col-md-4">
                   <label class="form-label">Attendee Type</label>
-                  <select class="form-select" v-model="filters.type">
-                     <option value="">All Types</option>
-                     <option v-for="option in attendeeTypes" :key="option.value" :value="option.value">{{ option.label }}</option>
-                  </select>
+                  <MultiSelect
+                     v-model="filters.type"
+                     :options="attendeeTypes"
+                     placeholder="All Types"
+                     @update:modelValue="fetchReport"
+                  />
                </div>
             </div>
 
@@ -63,7 +65,7 @@
                <span class="text-muted small">Active filters:</span>
                <span v-for="chip in activeFilterChips" :key="chip.key" class="m-badge m-badge--plan d-inline-flex align-items-center gap-1">
                   {{ chip.label }}
-                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip.key)"></button>
+                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip)"></button>
                </span>
                <button type="button" class="btn btn-link btn-sm text-danger px-2 py-0 ms-1" @click="resetFilters">Clear all</button>
             </div>
@@ -394,12 +396,14 @@
 
 <script>
 import AttendanceDailyTrendChart from "./charts/AttendanceDailyTrendChart.vue";
+import MultiSelect from "./vendor/MultiSelect.vue";
 import dateRangePresets from "../../mixins/dateRangePresets";
 import { formatDate, formatDateTime, startOfCurrentMonthDate, todayDate } from "../../dates";
 
 export default {
    components: {
       AttendanceDailyTrendChart,
+      MultiSelect,
    },
    mixins: [dateRangePresets],
    props: {
@@ -417,7 +421,7 @@ export default {
          filters: {
             date_from: this.defaultDateFrom(),
             date_to: this.defaultDateTo(),
-            type: "",
+            type: [],
          },
          report: this.emptyReport(),
       };
@@ -433,23 +437,19 @@ export default {
       averageVisitLabel: function () {
          return this.formatDuration(this.report.summary.average_visit_minutes);
       },
-      attendeeTypeLabel: function () {
-         const match = this.attendeeTypes.find((option) => option.value === this.filters.type);
-
-         return match ? match.label : "";
-      },
       activeFilterChips: function () {
          const chips = [];
 
-         if (this.filters.type) {
-            chips.push({ key: "type", label: `Attendee: ${this.attendeeTypeLabel}` });
-         }
+         this.filters.type.forEach((value) => {
+            const match = this.attendeeTypes.find((option) => option.value === value);
+            chips.push({ key: `type:${value}`, group: "type", value: value, label: `Attendee: ${match ? match.label : value}` });
+         });
 
          return chips;
       },
       hasNonDefaultFilters: function () {
          return (
-            this.filters.type !== "" ||
+            this.filters.type.length > 0 ||
             this.filters.date_from !== this.defaultDateFrom() ||
             this.filters.date_to !== this.defaultDateTo()
          );
@@ -474,17 +474,17 @@ export default {
       },
       exportUrl: function () {
          const params = new URLSearchParams();
-         const payload = {
-            date_from: this.report.filters.date_from || undefined,
-            date_to: this.report.filters.date_to || undefined,
-            type: this.report.filters.type || undefined,
-         };
+         const reportFilters = this.report.filters || {};
 
-         Object.keys(payload).forEach((key) => {
-            if (payload[key] !== undefined && payload[key] !== null && payload[key] !== "") {
-               params.append(key, payload[key]);
-            }
-         });
+         if (reportFilters.date_from) {
+            params.append("date_from", reportFilters.date_from);
+         }
+         if (reportFilters.date_to) {
+            params.append("date_to", reportFilters.date_to);
+         }
+
+         const types = Array.isArray(reportFilters.type) ? reportFilters.type : reportFilters.type ? [reportFilters.type] : [];
+         types.forEach((value) => params.append("type[]", value));
 
          return `/panel/reports/attendance/export${params.toString() ? `?${params.toString()}` : ""}`;
       },
@@ -579,12 +579,12 @@ export default {
       resetFilters: function () {
          this.filters.date_from = this.defaultDateFrom();
          this.filters.date_to = this.defaultDateTo();
-         this.filters.type = "";
+         this.filters.type = [];
          this.fetchReport();
       },
-      clearChip: function (key) {
-         if (key === "type") {
-            this.filters.type = "";
+      clearChip: function (chip) {
+         if (chip && chip.group && Array.isArray(this.filters[chip.group])) {
+            this.filters[chip.group] = this.filters[chip.group].filter((value) => value !== chip.value);
          }
 
          this.fetchReport();
@@ -593,7 +593,7 @@ export default {
          return {
             date_from: this.filters.date_from || undefined,
             date_to: this.filters.date_to || undefined,
-            type: this.filters.type || undefined,
+            type: this.filters.type.length ? this.filters.type : undefined,
          };
       },
       fetchReport: function () {

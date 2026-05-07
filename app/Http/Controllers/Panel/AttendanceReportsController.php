@@ -112,8 +112,8 @@ class AttendanceReportsController extends Controller
     private function reportPayload(Request $request): array
     {
         $data = $request->validate([
-            'type' => [
-                'nullable',
+            'type' => ['nullable', 'array'],
+            'type.*' => [
                 Rule::in([
                     Attendance::TYPE_MEMBER,
                     Attendance::TYPE_WALK_IN,
@@ -124,8 +124,10 @@ class AttendanceReportsController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
+        $types = array_values(array_filter($data['type'] ?? [], fn ($value) => $value !== null && $value !== ''));
+
         $attendanceRecords = Attendance::query()
-            ->when($data['type'] ?? null, fn ($query) => $query->where('attendee_type', $data['type']))
+            ->when(! empty($types), fn ($query) => $query->whereIn('attendee_type', $types))
             ->when($data['date_from'] ?? null, fn ($query) => $query->whereDate('checked_in_at', '>=', $data['date_from']))
             ->when($data['date_to'] ?? null, fn ($query) => $query->whereDate('checked_in_at', '<=', $data['date_to']))
             ->orderByDesc('checked_in_at')
@@ -142,8 +144,10 @@ class AttendanceReportsController extends Controller
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
                 'date_to' => $data['date_to'] ?? null,
-                'type' => $data['type'] ?? null,
-                'type_label' => ($data['type'] ?? null) ? $this->typeLabel($data['type']) : null,
+                'type' => $types,
+                'type_label' => ! empty($types)
+                    ? collect($types)->map(fn (string $type) => $this->typeLabel($type))->implode(', ')
+                    : null,
             ],
             'summary' => $this->summary($attendanceRecords),
             'type_breakdown' => $this->typeBreakdown($attendanceRecords),

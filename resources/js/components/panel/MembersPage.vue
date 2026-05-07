@@ -44,18 +44,21 @@
                </div>
             </div>
             <div class="col-6 col-md-3">
-               <select class="form-select" v-model="selectedStatus" @change="fetchMembers(1)">
-                  <option value="">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="suspended">Suspended</option>
-               </select>
+               <MultiSelect
+                  v-model="selectedStatus"
+                  :options="statusOptions"
+                  placeholder="All Status"
+                  @update:modelValue="fetchMembers(1)"
+               />
             </div>
             <div class="col-6 col-md-3">
-               <select class="form-select" v-model="selectedPlan" @change="fetchMembers(1)">
-                  <option value="">All Plans</option>
-                  <option v-for="p in ratePlansData" :key="p.id" :value="p.id">{{ p.name }}</option>
-               </select>
+               <MultiSelect
+                  v-model="selectedPlan"
+                  :options="planOptions"
+                  placeholder="All Plans"
+                  searchable
+                  @update:modelValue="fetchMembers(1)"
+               />
             </div>
          </div>
       </div>
@@ -387,9 +390,13 @@
 
 <script>
 import { Modal } from "bootstrap";
+import MultiSelect from "./vendor/MultiSelect.vue";
 import { formatDate, toDateInputValue } from "../../dates";
 
 export default {
+   components: {
+      MultiSelect,
+   },
    props: {
       ratePlansData: {
          type: Array,
@@ -408,8 +415,8 @@ export default {
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { total: 0, active: 0, inactive: 0, suspended: 0 },
          search: new URLSearchParams(window.location.search).get("search") || "",
-         selectedStatus: "",
-         selectedPlan: "",
+         selectedStatus: [],
+         selectedPlan: [],
          currentPage: 1,
          searchTimer: null,
          modalMode: "add",
@@ -452,8 +459,8 @@ export default {
             .get("/panel/members/list", {
                params: {
                   search: this.search || undefined,
-                  status: this.selectedStatus || undefined,
-                  plan: this.selectedPlan || undefined,
+                  status: this.selectedStatus.length ? this.selectedStatus : undefined,
+                  plan: this.selectedPlan.length ? this.selectedPlan : undefined,
                   page: page || this.currentPage,
                },
             })
@@ -583,7 +590,17 @@ export default {
 
    computed: {
       hasActiveFilters: function () {
-         return !!(this.search || this.selectedStatus || this.selectedPlan);
+         return !!(this.search || this.selectedStatus.length || this.selectedPlan.length);
+      },
+      statusOptions: function () {
+         return [
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+            { value: "suspended", label: "Suspended" },
+         ];
+      },
+      planOptions: function () {
+         return this.ratePlansData.map((plan) => ({ value: plan.id, label: plan.name }));
       },
       statCards: function () {
          return [

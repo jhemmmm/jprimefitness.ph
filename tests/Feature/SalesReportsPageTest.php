@@ -90,8 +90,8 @@ class SalesReportsPageTest extends TestCase
         $response->assertJsonMissingPath('location_breakdown');
         $response->assertJsonPath('filters.date_from', '2026-03-01');
         $response->assertJsonPath('filters.date_to', '2026-03-31');
-        $response->assertJsonPath('filters.type', null);
-        $response->assertJsonPath('filters.payment_method', null);
+        $response->assertJsonPath('filters.type', []);
+        $response->assertJsonPath('filters.payment_method', []);
         $response->assertJsonPath('summary.total_sales', 3500);
         $response->assertJsonPath('summary.transaction_count', 2);
         $response->assertJsonPath('summary.average_sale', 1750);

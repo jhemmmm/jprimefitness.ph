@@ -462,13 +462,12 @@
                      </div>
                   </div>
                   <div class="col-6 col-md-3">
-                     <select class="form-select" v-model="historyFilters.type" @change="fetchHistory(1)">
-                        <option value="">All Types</option>
-                        <option value="inventory">Inventory</option>
-                        <option value="membership">Membership</option>
-                        <option value="pt_package">PT Package</option>
-                        <option value="walk_in">Walk-in</option>
-                     </select>
+                     <MultiSelect
+                        v-model="historyFilters.type"
+                        :options="historyTypeOptions"
+                        placeholder="All Types"
+                        @update:modelValue="fetchHistory(1)"
+                     />
                   </div>
                   <div class="col-6 col-md-2">
                      <input type="date" class="form-control" v-model="historyFilters.date_from" @change="fetchHistory(1)" />
@@ -716,10 +715,14 @@
 
 <script>
 import { Modal } from "bootstrap";
+import MultiSelect from "./vendor/MultiSelect.vue";
 import { formatDate, formatDateTime, nowTimestamp, todayDate, toDateTimeInputValue } from "../../dates";
 import { printMembershipCard } from "../../print-membership-card";
 
 export default {
+   components: {
+      MultiSelect,
+   },
    props: {
       profile: {
          type: Object,
@@ -752,7 +755,7 @@ export default {
          historyPagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          historyFilters: {
             search: "",
-            type: "",
+            type: [],
             date_from: "",
             date_to: "",
          },
@@ -844,6 +847,14 @@ export default {
    computed: {
       hasProfile: function () {
          return Boolean(this.profile?.id || window.JPrime?.profile?.id);
+      },
+      historyTypeOptions: function () {
+         return [
+            { value: "inventory", label: "Inventory" },
+            { value: "membership", label: "Membership" },
+            { value: "pt_package", label: "PT Package" },
+            { value: "walk_in", label: "Walk-in" },
+         ];
       },
       pendingLabels: function () {
          if (!this.pendingTarget) return { title: "", button: "" };
@@ -1070,7 +1081,7 @@ export default {
             .get("/panel/sales/history", {
                params: {
                   search: this.historyFilters.search || undefined,
-                  type: this.historyFilters.type || undefined,
+                  type: this.historyFilters.type.length ? this.historyFilters.type : undefined,
                   date_from: this.historyFilters.date_from || undefined,
                   date_to: this.historyFilters.date_to || undefined,
                   page: page,

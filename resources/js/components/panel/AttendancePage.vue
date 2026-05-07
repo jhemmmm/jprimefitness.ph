@@ -44,12 +44,12 @@
                </div>
             </div>
             <div class="col-6 col-md-2 col-lg-2">
-               <select class="form-select" v-model="selectedType" @change="fetchRecords(1)">
-                  <option value="">All Types</option>
-                  <option value="member">Members</option>
-                  <option value="walk_in">Walk-ins</option>
-                  <option value="employee">Employees</option>
-               </select>
+               <MultiSelect
+                  v-model="selectedType"
+                  :options="attendeeTypeOptions"
+                  placeholder="All Types"
+                  @update:modelValue="fetchRecords(1)"
+               />
             </div>
             <div class="col-6 col-md-2 col-lg-2">
                <input type="date" class="form-control" v-model="dateFrom" @change="fetchRecords(1)" title="From date" />
@@ -382,11 +382,13 @@
 <script>
 import { Modal } from "bootstrap";
 import AsyncSearchSelect from "./vendor/AsyncSearchSelect.vue";
+import MultiSelect from "./vendor/MultiSelect.vue";
 import { formatDateTime, toDateTimeInputValue } from "../../dates";
 
 export default {
    components: {
       AsyncSearchSelect,
+      MultiSelect,
    },
    data: function () {
       return {
@@ -398,7 +400,7 @@ export default {
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          stats: { today: 0, this_week: 0, this_month: 0, currently_in: 0 },
          search: "",
-         selectedType: "",
+         selectedType: [],
          dateFrom: "",
          dateTo: "",
          currentPage: 1,
@@ -440,7 +442,7 @@ export default {
                params: {
                   page,
                   search: this.search || undefined,
-                  type: this.selectedType || undefined,
+                  type: this.selectedType.length ? this.selectedType : undefined,
                   date_from: this.dateFrom || undefined,
                   date_to: this.dateTo || undefined,
                },
@@ -635,7 +637,15 @@ export default {
       },
 
       hasActiveFilters: function () {
-         return !!(this.search || this.selectedType || this.dateFrom || this.dateTo);
+         return !!(this.search || this.selectedType.length || this.dateFrom || this.dateTo);
+      },
+
+      attendeeTypeOptions: function () {
+         return [
+            { value: "member", label: "Members" },
+            { value: "walk_in", label: "Walk-ins" },
+            { value: "employee", label: "Employees" },
+         ];
       },
 
       personSelectPlaceholder: function () {

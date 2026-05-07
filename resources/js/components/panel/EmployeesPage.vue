@@ -22,20 +22,21 @@
                </div>
             </div>
             <div class="col-md-3">
-               <select class="form-select" v-model="selectedRole" @change="fetchEmployees">
-                  <option value="">All Roles</option>
-                  <option v-for="r in allowedRoles" :key="r.id" :value="r.id">
-                     {{ $filters.capitalize(r.name) }}
-                  </option>
-               </select>
+               <MultiSelect
+                  v-model="selectedRole"
+                  :options="allowedRoles"
+                  placeholder="All Roles"
+                  searchable
+                  @update:modelValue="fetchEmployees"
+               />
             </div>
             <div class="col-md-3">
-               <select class="form-select" v-model="selectedStatus" @change="fetchEmployees">
-                  <option value="">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="suspended">Suspended</option>
-               </select>
+               <MultiSelect
+                  v-model="selectedStatus"
+                  :options="statusOptions"
+                  placeholder="All Status"
+                  @update:modelValue="fetchEmployees"
+               />
             </div>
          </div>
       </div>
@@ -374,8 +375,8 @@ export default {
          employees: [],
          pagination: null,
          search: new URLSearchParams(window.location.search).get("search") || "",
-         selectedRole: "",
-         selectedStatus: "",
+         selectedRole: [],
+         selectedStatus: [],
          searchTimer: null,
          employeeModal: null,
          deleteModal: null,
@@ -425,6 +426,13 @@ export default {
                id: r.id,
                name: this.$filters.capitalize(r.name),
             }));
+      },
+      statusOptions: function () {
+         return [
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+            { value: "suspended", label: "Suspended" },
+         ];
       },
       biometricDisplayStatus: function () {
          return this.biometricSession?.status || this.biometricEmployee?.employee_profile?.biometric_status || "";
@@ -553,8 +561,8 @@ export default {
             .get("/panel/employees/list", {
                params: {
                   search: this.search || undefined,
-                  role: this.selectedRole || undefined,
-                  status: this.selectedStatus || undefined,
+                  role: this.selectedRole.length ? this.selectedRole : undefined,
+                  status: this.selectedStatus.length ? this.selectedStatus : undefined,
                },
             })
             .then((res) => {

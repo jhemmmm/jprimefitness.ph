@@ -33,25 +33,29 @@
             <div class="row g-3 align-items-end">
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Date From</label>
-                  <input type="date" class="form-control" v-model="filters.date_from" />
+                  <input type="date" class="form-control" v-model="filters.date_from" @change="fetchReport" />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Date To</label>
-                  <input type="date" class="form-control" v-model="filters.date_to" />
+                  <input type="date" class="form-control" v-model="filters.date_to" @change="fetchReport" />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Status</label>
-                  <select class="form-select" v-model="filters.status">
-                     <option value="">All Active Statuses</option>
-                     <option v-for="status in payrollStatuses" :key="status.value" :value="status.value">{{ status.label }}</option>
-                  </select>
+                  <MultiSelect
+                     v-model="filters.status"
+                     :options="payrollStatuses"
+                     placeholder="All Active Statuses"
+                     @update:modelValue="fetchReport"
+                  />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Pay Frequency</label>
-                  <select class="form-select" v-model="filters.pay_frequency">
-                     <option value="">All Frequencies</option>
-                     <option v-for="frequency in payFrequencies" :key="frequency.value" :value="frequency.value">{{ frequency.label }}</option>
-                  </select>
+                  <MultiSelect
+                     v-model="filters.pay_frequency"
+                     :options="payFrequencies"
+                     placeholder="All Frequencies"
+                     @update:modelValue="fetchReport"
+                  />
                </div>
             </div>
 
@@ -70,7 +74,7 @@
                <span class="text-muted small">Active filters:</span>
                <span v-for="chip in activeFilterChips" :key="chip.key" class="m-badge m-badge--plan d-inline-flex align-items-center gap-1">
                   {{ chip.label }}
-                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip.key)"></button>
+                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip)"></button>
                </span>
                <button type="button" class="btn btn-link btn-sm text-danger px-2 py-0 ms-1" @click="resetFilters">Clear all</button>
             </div>
@@ -411,6 +415,7 @@
 <script>
 import PayrollStatusBreakdownChart from "./charts/PayrollStatusBreakdownChart.vue";
 import PayrollTrendChart from "./charts/PayrollTrendChart.vue";
+import MultiSelect from "./vendor/MultiSelect.vue";
 import dateRangePresets from "../../mixins/dateRangePresets";
 import { formatDate, startOfCurrentMonthDate, todayDate } from "../../dates";
 
@@ -418,6 +423,7 @@ export default {
    components: {
       PayrollStatusBreakdownChart,
       PayrollTrendChart,
+      MultiSelect,
    },
    mixins: [dateRangePresets],
    props: {
@@ -435,8 +441,8 @@ export default {
          filters: {
             date_from: this.defaultDateFrom(),
             date_to: this.defaultDateTo(),
-            status: "",
-            pay_frequency: "",
+            status: [],
+            pay_frequency: [],
          },
          report: this.emptyReport(),
       };
@@ -457,33 +463,25 @@ export default {
             { value: "monthly", label: "Monthly" },
          ];
       },
-      statusLabel: function () {
-         const match = this.payrollStatuses.find((option) => option.value === this.filters.status);
-
-         return match ? match.label : "";
-      },
-      payFrequencyLabel: function () {
-         const match = this.payFrequencies.find((option) => option.value === this.filters.pay_frequency);
-
-         return match ? match.label : "";
-      },
       activeFilterChips: function () {
          const chips = [];
 
-         if (this.filters.status) {
-            chips.push({ key: "status", label: `Status: ${this.statusLabel}` });
-         }
+         this.filters.status.forEach((value) => {
+            const match = this.payrollStatuses.find((option) => option.value === value);
+            chips.push({ key: `status:${value}`, group: "status", value: value, label: `Status: ${match ? match.label : value}` });
+         });
 
-         if (this.filters.pay_frequency) {
-            chips.push({ key: "pay_frequency", label: `Frequency: ${this.payFrequencyLabel}` });
-         }
+         this.filters.pay_frequency.forEach((value) => {
+            const match = this.payFrequencies.find((option) => option.value === value);
+            chips.push({ key: `pay_frequency:${value}`, group: "pay_frequency", value: value, label: `Frequency: ${match ? match.label : value}` });
+         });
 
          return chips;
       },
       hasNonDefaultFilters: function () {
          return (
-            this.filters.status !== "" ||
-            this.filters.pay_frequency !== "" ||
+            this.filters.status.length > 0 ||
+            this.filters.pay_frequency.length > 0 ||
             this.filters.date_from !== this.defaultDateFrom() ||
             this.filters.date_to !== this.defaultDateTo()
          );
@@ -517,18 +515,20 @@ export default {
       },
       exportUrl: function () {
          const params = new URLSearchParams();
-         const payload = {
-            date_from: this.report.filters.date_from || undefined,
-            date_to: this.report.filters.date_to || undefined,
-            status: this.report.filters.status || undefined,
-            pay_frequency: this.report.filters.pay_frequency || undefined,
-         };
+         const reportFilters = this.report.filters || {};
 
-         Object.keys(payload).forEach((key) => {
-            if (payload[key] !== undefined && payload[key] !== null && payload[key] !== "") {
-               params.append(key, payload[key]);
-            }
-         });
+         if (reportFilters.date_from) {
+            params.append("date_from", reportFilters.date_from);
+         }
+         if (reportFilters.date_to) {
+            params.append("date_to", reportFilters.date_to);
+         }
+
+         const statuses = Array.isArray(reportFilters.status) ? reportFilters.status : reportFilters.status ? [reportFilters.status] : [];
+         statuses.forEach((value) => params.append("status[]", value));
+
+         const frequencies = Array.isArray(reportFilters.pay_frequency) ? reportFilters.pay_frequency : reportFilters.pay_frequency ? [reportFilters.pay_frequency] : [];
+         frequencies.forEach((value) => params.append("pay_frequency[]", value));
 
          return `/panel/reports/payroll/export${params.toString() ? `?${params.toString()}` : ""}`;
       },
@@ -660,15 +660,13 @@ export default {
       resetFilters: function () {
          this.filters.date_from = this.defaultDateFrom();
          this.filters.date_to = this.defaultDateTo();
-         this.filters.status = "";
-         this.filters.pay_frequency = "";
+         this.filters.status = [];
+         this.filters.pay_frequency = [];
          this.fetchReport();
       },
-      clearChip: function (key) {
-         if (key === "status") {
-            this.filters.status = "";
-         } else if (key === "pay_frequency") {
-            this.filters.pay_frequency = "";
+      clearChip: function (chip) {
+         if (chip && chip.group && Array.isArray(this.filters[chip.group])) {
+            this.filters[chip.group] = this.filters[chip.group].filter((value) => value !== chip.value);
          }
 
          this.fetchReport();
@@ -695,8 +693,8 @@ export default {
          return {
             date_from: this.filters.date_from || undefined,
             date_to: this.filters.date_to || undefined,
-            status: this.filters.status || undefined,
-            pay_frequency: this.filters.pay_frequency || undefined,
+            status: this.filters.status.length ? this.filters.status : undefined,
+            pay_frequency: this.filters.pay_frequency.length ? this.filters.pay_frequency : undefined,
          };
       },
       fetchReport: function () {

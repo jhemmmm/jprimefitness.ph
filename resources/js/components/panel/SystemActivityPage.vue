@@ -48,19 +48,25 @@
                   </div>
                </div>
                <div class="col-6 col-md-3 col-lg-2">
-                  <select class="form-select" v-model="filters.subject_type" @change="fetchSystemActivity(1)">
-                     <option value="">All Subjects</option>
-                     <option v-for="option in subjectOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-                  </select>
+                  <MultiSelect
+                     v-model="filters.subject_type"
+                     :options="subjectOptions"
+                     placeholder="All Subjects"
+                     searchable
+                     @update:modelValue="fetchSystemActivity(1)"
+                  />
                </div>
                <div class="col-6 col-md-3 col-lg-2">
                   <input type="number" min="1" class="form-control" placeholder="Subject ID" v-model="filters.subject_id" @change="fetchSystemActivity(1)" />
                </div>
                <div class="col-6 col-md-3 col-lg-2">
-                  <select class="form-select" v-model="filters.event" @change="fetchSystemActivity(1)">
-                     <option value="">All Events</option>
-                     <option v-for="option in eventOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
-                  </select>
+                  <MultiSelect
+                     v-model="filters.event"
+                     :options="eventOptions"
+                     placeholder="All Events"
+                     searchable
+                     @update:modelValue="fetchSystemActivity(1)"
+                  />
                </div>
                <div class="col-6 col-md-3 col-lg-1">
                   <input type="date" class="form-control" v-model="filters.date_from" @change="fetchSystemActivity(1)" />
@@ -74,7 +80,7 @@
                <span class="text-muted small">Active filters:</span>
                <span v-for="chip in activeFilterChips" :key="chip.key" class="m-badge m-badge--plan d-inline-flex align-items-center gap-1">
                   {{ chip.label }}
-                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip.key)"></button>
+                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip)"></button>
                </span>
                <button type="button" class="btn btn-link btn-sm text-danger px-2 py-0 ms-1" @click="resetFilters">Clear all</button>
             </div>
@@ -335,10 +341,14 @@
 
 <script>
 import { Modal } from "bootstrap";
+import MultiSelect from "./vendor/MultiSelect.vue";
 import dateRangePresets from "../../mixins/dateRangePresets";
 import { formatDateTime } from "../../dates";
 
 export default {
+   components: {
+      MultiSelect,
+   },
    mixins: [dateRangePresets],
    data: function () {
       return {
@@ -352,9 +362,9 @@ export default {
          successMessage: "",
          events: [],
          filters: {
-            subject_type: "",
+            subject_type: [],
             subject_id: "",
-            event: "",
+            event: [],
             date_from: "",
             date_to: "",
             search: "",
@@ -377,43 +387,35 @@ export default {
    },
 
    computed: {
-      subjectTypeLabel: function () {
-         const match = this.subjectOptions.find((option) => option.value === this.filters.subject_type);
-
-         return match ? match.label : this.filters.subject_type;
-      },
-      eventLabel: function () {
-         const match = this.eventOptions.find((option) => option.value === this.filters.event);
-
-         return match ? match.label : this.filters.event;
-      },
       activeFilterChips: function () {
          const chips = [];
 
          if (this.filters.search) {
-            chips.push({ key: "search", label: `Search: "${this.filters.search}"` });
+            chips.push({ key: "search", group: "scalar", scalarKey: "search", label: `Search: "${this.filters.search}"` });
          }
 
-         if (this.filters.subject_type) {
-            chips.push({ key: "subject_type", label: `Subject: ${this.subjectTypeLabel}` });
-         }
+         this.filters.subject_type.forEach((value) => {
+            const match = this.subjectOptions.find((option) => option.value === value);
+            chips.push({ key: `subject_type:${value}`, group: "subject_type", value: value, label: `Subject: ${match ? match.label : value}` });
+         });
 
          if (String(this.filters.subject_id).trim() !== "") {
-            chips.push({ key: "subject_id", label: `Subject ID: #${this.filters.subject_id}` });
+            chips.push({ key: "subject_id", group: "scalar", scalarKey: "subject_id", label: `Subject ID: #${this.filters.subject_id}` });
          }
 
-         if (this.filters.event) {
-            chips.push({ key: "event", label: `Event: ${this.eventLabel}` });
-         }
+         this.filters.event.forEach((value) => {
+            const match = this.eventOptions.find((option) => option.value === value);
+            chips.push({ key: `event:${value}`, group: "event", value: value, label: `Event: ${match ? match.label : value}` });
+         });
 
          return chips;
       },
       hasActiveFilters: function () {
          return (
             Boolean(this.filters.search) ||
-            Boolean(this.filters.subject_type) ||
+            this.filters.subject_type.length > 0 ||
             String(this.filters.subject_id).trim() !== "" ||
-            Boolean(this.filters.event) ||
+            this.filters.event.length > 0 ||
             Boolean(this.filters.date_from) ||
             Boolean(this.filters.date_to)
          );
@@ -448,23 +450,19 @@ export default {
          this.fetchSystemActivity(1);
       },
       resetFilters: function () {
-         this.filters.subject_type = "";
+         this.filters.subject_type = [];
          this.filters.subject_id = "";
-         this.filters.event = "";
+         this.filters.event = [];
          this.filters.date_from = "";
          this.filters.date_to = "";
          this.filters.search = "";
          this.fetchSystemActivity(1);
       },
-      clearChip: function (key) {
-         if (key === "search") {
-            this.filters.search = "";
-         } else if (key === "subject_type") {
-            this.filters.subject_type = "";
-         } else if (key === "subject_id") {
-            this.filters.subject_id = "";
-         } else if (key === "event") {
-            this.filters.event = "";
+      clearChip: function (chip) {
+         if (chip && chip.group === "scalar") {
+            this.filters[chip.scalarKey] = "";
+         } else if (chip && chip.group && Array.isArray(this.filters[chip.group])) {
+            this.filters[chip.group] = this.filters[chip.group].filter((value) => value !== chip.value);
          }
 
          this.fetchSystemActivity(1);
@@ -475,9 +473,13 @@ export default {
          const requestedSortBy = params.get("sort_by") || "occurred_at";
          const requestedSortDirection = params.get("sort_direction") || "desc";
 
-         this.filters.subject_type = params.get("subject_type") || "";
+         this.filters.subject_type = params.getAll("subject_type[]").length
+            ? params.getAll("subject_type[]")
+            : (params.get("subject_type") ? [params.get("subject_type")] : []);
          this.filters.subject_id = params.get("subject_id") || "";
-         this.filters.event = params.get("event") || "";
+         this.filters.event = params.getAll("event[]").length
+            ? params.getAll("event[]")
+            : (params.get("event") ? [params.get("event")] : []);
          this.filters.date_from = params.get("date_from") || "";
          this.filters.date_to = params.get("date_to") || "";
          this.filters.search = params.get("search") || "";
@@ -493,9 +495,9 @@ export default {
          return axios
             .get("/panel/system-activity/list", {
                params: {
-                  subject_type: this.filters.subject_type || undefined,
+                  subject_type: this.filters.subject_type.length ? this.filters.subject_type : undefined,
                   subject_id: this.filters.subject_id || undefined,
-                  event: this.filters.event || undefined,
+                  event: this.filters.event.length ? this.filters.event : undefined,
                   date_from: this.filters.date_from || undefined,
                   date_to: this.filters.date_to || undefined,
                   search: this.filters.search || undefined,
@@ -666,7 +668,9 @@ export default {
          const params = new URLSearchParams();
 
          Object.entries(this.filters).forEach(([key, value]) => {
-            if (value !== null && value !== undefined && String(value).trim() !== "") {
+            if (Array.isArray(value)) {
+               value.forEach((item) => params.append(`${key}[]`, String(item)));
+            } else if (value !== null && value !== undefined && String(value).trim() !== "") {
                params.set(key, String(value));
             }
          });

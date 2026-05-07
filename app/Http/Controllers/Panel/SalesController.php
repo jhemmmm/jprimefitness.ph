@@ -71,7 +71,8 @@ class SalesController extends Controller
     public function history(Request $request): JsonResponse
     {
         $request->validate([
-            'type' => ['nullable', Rule::in([
+            'type' => ['nullable', 'array'],
+            'type.*' => [Rule::in([
                 SaleTransaction::TYPE_INVENTORY,
                 SaleTransaction::TYPE_MEMBERSHIP,
                 SaleTransaction::TYPE_PT_PACKAGE,
@@ -82,9 +83,11 @@ class SalesController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
+        $types = array_values(array_filter((array) $request->input('type', []), fn ($value) => $value !== null && $value !== ''));
+
         $history = SaleTransaction::query()
             ->with(['member:id,name', 'processedBy:id,name'])
-            ->when($request->type, fn ($query) => $query->where('type', $request->type))
+            ->when(! empty($types), fn ($query) => $query->whereIn('type', $types))
             ->when($request->search, function ($query) use ($request) {
                 $search = trim((string) $request->search);
 

@@ -39,25 +39,29 @@
                </div>
             </div>
             <div class="col-6 col-md-4 col-lg-2">
-               <select class="form-select" v-model="selectedCategory" @change="fetchItems(1)">
-                  <option value="">All Categories</option>
-                  <option v-for="category in categoriesData" :key="category.id" :value="category.id">{{ category.name }}</option>
-               </select>
+               <MultiSelect
+                  v-model="selectedCategory"
+                  :options="categoryOptions"
+                  placeholder="All Categories"
+                  searchable
+                  @update:modelValue="fetchItems(1)"
+               />
             </div>
             <div class="col-6 col-md-4 col-lg-2">
-               <select class="form-select" v-model="selectedStatus" @change="fetchItems(1)">
-                  <option value="">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-               </select>
+               <MultiSelect
+                  v-model="selectedStatus"
+                  :options="statusOptions"
+                  placeholder="All Statuses"
+                  @update:modelValue="fetchItems(1)"
+               />
             </div>
             <div class="col-6 col-md-4 col-lg-2">
-               <select class="form-select" v-model="selectedStockState" @change="fetchItems(1)">
-                  <option value="">All Stock</option>
-                  <option value="in_stock">In Stock</option>
-                  <option value="low_stock">Low Stock</option>
-                  <option value="out_of_stock">Out of Stock</option>
-               </select>
+               <MultiSelect
+                  v-model="selectedStockState"
+                  :options="stockStateOptions"
+                  placeholder="All Stock"
+                  @update:modelValue="fetchItems(1)"
+               />
             </div>
          </div>
 
@@ -66,7 +70,7 @@
             <span v-for="chip in activeFilterChips" :key="chip.key" class="filter-chip">
                <span class="filter-chip-label">{{ chip.label }}:</span>
                <span class="filter-chip-value">{{ chip.value }}</span>
-               <button type="button" class="filter-chip-remove" @click="clearFilter(chip.key)" :aria-label="'Remove ' + chip.label">
+               <button type="button" class="filter-chip-remove" @click="clearFilter(chip)" :aria-label="'Remove ' + chip.label">
                   <i class="bi bi-x-lg"></i>
                </button>
             </span>
@@ -544,9 +548,13 @@
 
 <script>
 import { Modal } from "bootstrap";
+import MultiSelect from "./vendor/MultiSelect.vue";
 import { formatDate, formatDateTime, toDateTimeInputValue } from "../../dates";
 
 export default {
+   components: {
+      MultiSelect,
+   },
    props: {
       categoriesData: {
          type: Array,
@@ -565,9 +573,9 @@ export default {
          stats: { total: 0, active: 0, low_stock: 0, out_of_stock: 0 },
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
          search: new URLSearchParams(window.location.search).get("search") || "",
-         selectedCategory: "",
-         selectedStatus: "",
-         selectedStockState: "",
+         selectedCategory: [],
+         selectedStatus: [],
+         selectedStockState: [],
          currentPage: 1,
          searchTimer: null,
          modalMode: "add",
@@ -615,9 +623,9 @@ export default {
             .get("/panel/inventory/list", {
                params: {
                   search: this.search || undefined,
-                  category: this.selectedCategory || undefined,
-                  status: this.selectedStatus || undefined,
-                  stock_state: this.selectedStockState || undefined,
+                  category: this.selectedCategory.length ? this.selectedCategory : undefined,
+                  status: this.selectedStatus.length ? this.selectedStatus : undefined,
+                  stock_state: this.selectedStockState.length ? this.selectedStockState : undefined,
                   page: page,
                },
             })
@@ -651,18 +659,21 @@ export default {
          var page = parseInt(new URL(link.url).searchParams.get("page") || "1", 10);
          this.fetchItems(page);
       },
-      clearFilter: function (key) {
-         if (key === "search") this.search = "";
-         if (key === "category") this.selectedCategory = "";
-         if (key === "status") this.selectedStatus = "";
-         if (key === "stock") this.selectedStockState = "";
+      clearFilter: function (chip) {
+         if (typeof chip === "string") {
+            if (chip === "search") this.search = "";
+         } else if (chip && chip.key === "search") {
+            this.search = "";
+         } else if (chip && chip.group && Array.isArray(this[chip.group])) {
+            this[chip.group] = this[chip.group].filter((value) => value !== chip.filterValue);
+         }
          this.fetchItems(1);
       },
       clearAllFilters: function () {
          this.search = "";
-         this.selectedCategory = "";
-         this.selectedStatus = "";
-         this.selectedStockState = "";
+         this.selectedCategory = [];
+         this.selectedStatus = [];
+         this.selectedStockState = [];
          this.fetchItems(1);
       },
       stockBadgeClass: function (item) {
@@ -868,20 +879,38 @@ export default {
    },
    computed: {
       hasActiveFilters: function () {
-         return !!(this.search || this.selectedCategory || this.selectedStatus || this.selectedStockState);
+         return !!(this.search || this.selectedCategory.length || this.selectedStatus.length || this.selectedStockState.length);
+      },
+      categoryOptions: function () {
+         return this.categoriesData.map((cat) => ({ value: cat.id, label: cat.name }));
+      },
+      statusOptions: function () {
+         return [
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+         ];
+      },
+      stockStateOptions: function () {
+         return [
+            { value: "in_stock", label: "In Stock" },
+            { value: "low_stock", label: "Low Stock" },
+            { value: "out_of_stock", label: "Out of Stock" },
+         ];
       },
       activeFilterChips: function () {
          var chips = [];
          if (this.search) chips.push({ key: "search", label: "Search", value: this.search });
-         if (this.selectedCategory) {
-            var cat = this.categoriesData.find((c) => c.id === Number(this.selectedCategory) || c.id === this.selectedCategory);
-            chips.push({ key: "category", label: "Category", value: cat ? cat.name : this.selectedCategory });
-         }
-         if (this.selectedStatus) chips.push({ key: "status", label: "Status", value: this.$filters.capitalize(this.selectedStatus) });
-         if (this.selectedStockState) {
-            var labels = { in_stock: "In Stock", low_stock: "Low Stock", out_of_stock: "Out of Stock" };
-            chips.push({ key: "stock", label: "Stock", value: labels[this.selectedStockState] || this.selectedStockState });
-         }
+         this.selectedCategory.forEach((id) => {
+            var cat = this.categoriesData.find((c) => c.id === Number(id) || c.id === id);
+            chips.push({ key: "category:" + id, group: "selectedCategory", filterValue: id, label: "Category", value: cat ? cat.name : id });
+         });
+         this.selectedStatus.forEach((value) => {
+            chips.push({ key: "status:" + value, group: "selectedStatus", filterValue: value, label: "Status", value: this.$filters.capitalize(value) });
+         });
+         var stockLabels = { in_stock: "In Stock", low_stock: "Low Stock", out_of_stock: "Out of Stock" };
+         this.selectedStockState.forEach((value) => {
+            chips.push({ key: "stock:" + value, group: "selectedStockState", filterValue: value, label: "Stock", value: stockLabels[value] || value });
+         });
          return chips;
       },
       statCards: function () {

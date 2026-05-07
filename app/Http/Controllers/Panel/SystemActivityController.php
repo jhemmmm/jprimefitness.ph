@@ -47,9 +47,11 @@ class SystemActivityController extends Controller
     public function list(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'subject_type' => ['nullable', 'string', 'max:60'],
+            'subject_type' => ['nullable'],
+            'subject_type.*' => ['string', 'max:60'],
             'subject_id' => ['nullable', 'integer', 'min:1'],
-            'event' => ['nullable', 'string', 'max:80'],
+            'event' => ['nullable'],
+            'event.*' => ['string', 'max:80'],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'search' => ['nullable', 'string', 'max:255'],
@@ -62,10 +64,13 @@ class SystemActivityController extends Controller
         $sortBy = (string) ($data['sort_by'] ?? 'occurred_at');
         $sortDirection = (string) ($data['sort_direction'] ?? 'desc');
 
+        $subjectTypes = array_values(array_filter((array) ($data['subject_type'] ?? []), fn ($value) => $value !== null && $value !== ''));
+        $events = array_values(array_filter((array) ($data['event'] ?? []), fn ($value) => $value !== null && $value !== ''));
+
         $systemActivitiesQuery = SystemActivity::query()
-            ->when(! empty($data['subject_type']), fn ($query) => $query->where('subject_type', $data['subject_type']))
+            ->when(! empty($subjectTypes), fn ($query) => $query->whereIn('subject_type', $subjectTypes))
             ->when(! empty($data['subject_id']), fn ($query) => $query->where('subject_id', $data['subject_id']))
-            ->when(! empty($data['event']), fn ($query) => $query->where('event', $data['event']))
+            ->when(! empty($events), fn ($query) => $query->whereIn('event', $events))
             ->when(! empty($data['date_from']), fn ($query) => $query->where('occurred_at', '>=', Carbon::parse((string) $data['date_from'])->startOfDay()))
             ->when(! empty($data['date_to']), fn ($query) => $query->where('occurred_at', '<=', Carbon::parse((string) $data['date_to'])->endOfDay()))
             ->when(! empty($data['search']), function ($query) use ($data) {

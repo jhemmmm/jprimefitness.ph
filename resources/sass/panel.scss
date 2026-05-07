@@ -797,7 +797,6 @@ body.panel-body {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
 }
 
 .panel-card-header {
@@ -2201,5 +2200,4 @@ body.auth-body {
             background: rgba(255, 255, 255, 0.04) !important;
         }
     }
-
 }

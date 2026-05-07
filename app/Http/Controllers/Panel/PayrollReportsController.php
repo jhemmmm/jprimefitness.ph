@@ -135,8 +135,8 @@ class PayrollReportsController extends Controller
     private function reportPayload(Request $request): array
     {
         $data = $request->validate([
-            'status' => [
-                'nullable',
+            'status' => ['nullable', 'array'],
+            'status.*' => [
                 Rule::in([
                     Payroll::STATUS_DRAFT,
                     Payroll::STATUS_APPROVED,
@@ -145,8 +145,8 @@ class PayrollReportsController extends Controller
                     Payroll::STATUS_CANCELED,
                 ]),
             ],
-            'pay_frequency' => [
-                'nullable',
+            'pay_frequency' => ['nullable', 'array'],
+            'pay_frequency.*' => [
                 Rule::in([
                     'monthly',
                     'semi_monthly',
@@ -155,6 +155,9 @@ class PayrollReportsController extends Controller
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
+
+        $data['status'] = array_values(array_filter($data['status'] ?? [], fn ($value) => $value !== null && $value !== ''));
+        $data['pay_frequency'] = array_values(array_filter($data['pay_frequency'] ?? [], fn ($value) => $value !== null && $value !== ''));
 
         $payrollQuery = $this->payrollQuery($data);
         $payoutQuery = $this->payoutQuery($data);
@@ -190,10 +193,14 @@ class PayrollReportsController extends Controller
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
                 'date_to' => $data['date_to'] ?? null,
-                'status' => $data['status'] ?? null,
-                'status_label' => ($data['status'] ?? null) ? $this->statusLabel($data['status']) : null,
-                'pay_frequency' => $data['pay_frequency'] ?? null,
-                'pay_frequency_label' => ($data['pay_frequency'] ?? null) ? $this->payFrequencyLabel($data['pay_frequency']) : null,
+                'status' => $data['status'],
+                'status_label' => ! empty($data['status'])
+                    ? collect($data['status'])->map(fn (string $status) => $this->statusLabel($status))->implode(', ')
+                    : null,
+                'pay_frequency' => $data['pay_frequency'],
+                'pay_frequency_label' => ! empty($data['pay_frequency'])
+                    ? collect($data['pay_frequency'])->map(fn (string $frequency) => $this->payFrequencyLabel($frequency))->implode(', ')
+                    : null,
             ],
             'summary' => [
                 'payroll_count' => $payrollCount,
@@ -221,9 +228,12 @@ class PayrollReportsController extends Controller
      */
     private function payrollQuery(array $filters): Builder
     {
+        $statuses = $filters['status'] ?? [];
+        $frequencies = $filters['pay_frequency'] ?? [];
+
         return Payroll::query()
-            ->when($filters['status'] ?? null, fn ($query) => $query->where('status', $filters['status']), fn ($query) => $query->where('status', '!=', Payroll::STATUS_CANCELED))
-            ->when($filters['pay_frequency'] ?? null, fn ($query) => $query->where('pay_frequency', $filters['pay_frequency']))
+            ->when(! empty($statuses), fn ($query) => $query->whereIn('status', $statuses), fn ($query) => $query->where('status', '!=', Payroll::STATUS_CANCELED))
+            ->when(! empty($frequencies), fn ($query) => $query->whereIn('pay_frequency', $frequencies))
             ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('period_end', '>=', $filters['date_from']))
             ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('period_end', '<=', $filters['date_to']));
     }
@@ -235,10 +245,13 @@ class PayrollReportsController extends Controller
      */
     private function payoutQuery(array $filters): Builder
     {
+        $statuses = $filters['status'] ?? [];
+        $frequencies = $filters['pay_frequency'] ?? [];
+
         return Payout::query()
             ->join('payrolls', 'payrolls.id', '=', 'payouts.payroll_id')
-            ->when($filters['status'] ?? null, fn ($query) => $query->where('payrolls.status', $filters['status']), fn ($query) => $query->where('payrolls.status', '!=', Payroll::STATUS_CANCELED))
-            ->when($filters['pay_frequency'] ?? null, fn ($query) => $query->where('payrolls.pay_frequency', $filters['pay_frequency']))
+            ->when(! empty($statuses), fn ($query) => $query->whereIn('payrolls.status', $statuses), fn ($query) => $query->where('payrolls.status', '!=', Payroll::STATUS_CANCELED))
+            ->when(! empty($frequencies), fn ($query) => $query->whereIn('payrolls.pay_frequency', $frequencies))
             ->when($filters['date_from'] ?? null, fn ($query) => $query->whereDate('payrolls.period_end', '>=', $filters['date_from']))
             ->when($filters['date_to'] ?? null, fn ($query) => $query->whereDate('payrolls.period_end', '<=', $filters['date_to']));
     }

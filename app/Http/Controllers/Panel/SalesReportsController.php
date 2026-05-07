@@ -54,10 +54,14 @@ class SalesReportsController extends Controller
                 return;
             }
 
+            $typeLabels = ! empty($report['filters']['type'])
+                ? collect($report['filters']['type'])->map(fn (string $type) => str($type)->replace('_', ' ')->title()->toString())->implode(', ')
+                : 'All Types';
+
             fputcsv($handle, ['Sales Reports']);
             fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '-']);
             fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '-']);
-            fputcsv($handle, ['Sale Type', $report['filters']['type'] ?: 'All Types']);
+            fputcsv($handle, ['Sale Type', $typeLabels]);
             fputcsv($handle, ['Payment Method', $report['filters']['payment_method_label'] ?: 'All Methods']);
             fputcsv($handle, []);
 
@@ -123,8 +127,8 @@ class SalesReportsController extends Controller
     private function reportPayload(Request $request): array
     {
         $data = $request->validate([
-            'type' => [
-                'nullable',
+            'type' => ['nullable', 'array'],
+            'type.*' => [
                 Rule::in([
                     SaleTransaction::TYPE_INVENTORY,
                     SaleTransaction::TYPE_MEMBERSHIP,
@@ -132,17 +136,20 @@ class SalesReportsController extends Controller
                     SaleTransaction::TYPE_WALK_IN,
                 ]),
             ],
-            'payment_method' => [
-                'nullable',
+            'payment_method' => ['nullable', 'array'],
+            'payment_method.*' => [
                 Rule::in(SaleTransaction::supportedPaymentMethods()),
             ],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
 
+        $types = array_values(array_filter($data['type'] ?? [], fn ($value) => $value !== null && $value !== ''));
+        $paymentMethods = array_values(array_filter($data['payment_method'] ?? [], fn ($value) => $value !== null && $value !== ''));
+
         $salesQuery = SaleTransaction::query()
-            ->when($data['type'] ?? null, fn ($query) => $query->where('type', $data['type']))
-            ->when($data['payment_method'] ?? null, fn ($query) => $query->where('payment_method', $data['payment_method']))
+            ->when(! empty($types), fn ($query) => $query->whereIn('type', $types))
+            ->when(! empty($paymentMethods), fn ($query) => $query->whereIn('payment_method', $paymentMethods))
             ->when($data['date_from'] ?? null, fn ($query) => $query->whereDate('sold_at', '>=', $data['date_from']))
             ->when($data['date_to'] ?? null, fn ($query) => $query->whereDate('sold_at', '<=', $data['date_to']));
 
@@ -150,10 +157,10 @@ class SalesReportsController extends Controller
             'filters' => [
                 'date_from' => $data['date_from'] ?? null,
                 'date_to' => $data['date_to'] ?? null,
-                'type' => $data['type'] ?? null,
-                'payment_method' => $data['payment_method'] ?? null,
-                'payment_method_label' => filled($data['payment_method'] ?? null)
-                    ? SaleTransaction::paymentMethodLabel($data['payment_method'])
+                'type' => $types,
+                'payment_method' => $paymentMethods,
+                'payment_method_label' => ! empty($paymentMethods)
+                    ? collect($paymentMethods)->map(fn (string $method) => SaleTransaction::paymentMethodLabel($method))->implode(', ')
                     : null,
             ],
             'summary' => $this->summary((clone $salesQuery)->toBase()),

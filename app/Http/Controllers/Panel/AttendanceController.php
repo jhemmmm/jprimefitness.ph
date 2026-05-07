@@ -32,12 +32,14 @@ class AttendanceController extends Controller
      */
     public function list(Request $request): JsonResponse
     {
+        $types = array_values(array_filter((array) $request->input('type', []), fn ($value) => $value !== null && $value !== ''));
+
         $records = Attendance::with(['user', 'recordedBy'])
             ->when($request->search, fn ($query) => $query->where(function ($inner) use ($request) {
                 $inner->where('name', 'like', "%{$request->search}%")
                     ->orWhereHas('user', fn ($userQuery) => $userQuery->where('name', 'like', "%{$request->search}%"));
             }))
-            ->when($request->type, fn ($query, $type) => $query->where('attendee_type', $type))
+            ->when(! empty($types), fn ($query) => $query->whereIn('attendee_type', $types))
             ->when($request->date_from, fn ($query, $date) => $query->whereDate('checked_in_at', '>=', $date))
             ->when($request->date_to, fn ($query, $date) => $query->whereDate('checked_in_at', '<=', $date))
             ->orderByDesc('checked_in_at')

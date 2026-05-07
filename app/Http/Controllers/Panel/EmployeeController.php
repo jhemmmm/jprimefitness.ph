@@ -75,6 +75,9 @@ class EmployeeController extends Controller
      */
     public function list(Request $request): JsonResponse
     {
+        $roles = array_values(array_filter((array) $request->input('role', []), fn ($value) => $value !== null && $value !== ''));
+        $statuses = array_values(array_filter((array) $request->input('status', []), fn ($value) => $value !== null && $value !== ''));
+
         $employees = User::role(['employee', 'coach', 'manager', 'admin', 'staff'])
             ->with(['roles', 'employeeProfile'])
             ->when(! empty($request->search), function ($query) use ($request) {
@@ -86,8 +89,8 @@ class EmployeeController extends Controller
                         ->orWhere('phone', 'like', "%{$search}%");
                 });
             })
-            ->when(! empty($request->role), fn ($query) => $query->whereHas('roles', fn ($roleQuery) => $roleQuery->where('id', $request->role)))
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->status))
+            ->when(! empty($roles), fn ($query) => $query->whereHas('roles', fn ($roleQuery) => $roleQuery->whereIn('id', $roles)))
+            ->when(! empty($statuses), fn ($query) => $query->whereIn('status', $statuses))
             ->orderBy('name')
             ->get()
             ->map(fn (User $employee) => $this->serializeEmployee($employee))

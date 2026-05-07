@@ -41,9 +41,13 @@ class InventoryController extends Controller
      */
     public function list(Request $request): JsonResponse
     {
+        $categories = array_values(array_filter((array) $request->input('category', []), fn ($value) => $value !== null && $value !== ''));
+        $statuses = array_values(array_filter((array) $request->input('status', []), fn ($value) => $value !== null && $value !== ''));
+        $stockStates = array_values(array_filter((array) $request->input('stock_state', []), fn ($value) => $value !== null && $value !== ''));
+
         $itemsQuery = InventoryItem::query()
             ->with('category:id,name')
-            ->when($request->category, fn ($query) => $query->where('inventory_category_id', $request->category))
+            ->when(! empty($categories), fn ($query) => $query->whereIn('inventory_category_id', $categories))
             ->when($request->search, function ($query) use ($request) {
                 $search = trim((string) $request->search);
 
@@ -54,34 +58,40 @@ class InventoryController extends Controller
                         ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('name', 'like', "%{$search}%"));
                 });
             })
-            ->when($request->status, fn ($query) => $query->where('status', $request->status))
-            ->when($request->stock_state, function ($query) use ($request) {
-                $stockState = $request->stock_state;
+            ->when(! empty($statuses), fn ($query) => $query->whereIn('status', $statuses))
+            ->when(! empty($stockStates), function ($query) use ($stockStates) {
+                $query->where(function ($outer) use ($stockStates) {
+                    foreach ($stockStates as $stockState) {
+                        if ($stockState === 'out_of_stock') {
+                            $outer->orWhere(function ($inner) {
+                                $inner->where('tracks_stock', true)->where('quantity', '<=', 0);
+                            });
+                        }
 
-                if ($stockState === 'out_of_stock') {
-                    $query->where('tracks_stock', true)->where('quantity', '<=', 0);
-                }
-
-                if ($stockState === 'low_stock') {
-                    $query->where('tracks_stock', true)
-                        ->where('quantity', '>', 0)
-                        ->where('low_stock_threshold', '>', 0)
-                        ->whereColumn('quantity', '<=', 'low_stock_threshold');
-                }
-
-                if ($stockState === 'in_stock') {
-                    $query->where(function ($inner) {
-                        $inner->where('tracks_stock', false)
-                            ->orWhere(function ($stocked) {
-                                $stocked->where('tracks_stock', true)
+                        if ($stockState === 'low_stock') {
+                            $outer->orWhere(function ($inner) {
+                                $inner->where('tracks_stock', true)
                                     ->where('quantity', '>', 0)
-                                    ->where(function ($threshold) {
-                                        $threshold->where('low_stock_threshold', '<=', 0)
-                                            ->orWhereColumn('quantity', '>', 'low_stock_threshold');
+                                    ->where('low_stock_threshold', '>', 0)
+                                    ->whereColumn('quantity', '<=', 'low_stock_threshold');
+                            });
+                        }
+
+                        if ($stockState === 'in_stock') {
+                            $outer->orWhere(function ($inner) {
+                                $inner->where('tracks_stock', false)
+                                    ->orWhere(function ($stocked) {
+                                        $stocked->where('tracks_stock', true)
+                                            ->where('quantity', '>', 0)
+                                            ->where(function ($threshold) {
+                                                $threshold->where('low_stock_threshold', '<=', 0)
+                                                    ->orWhereColumn('quantity', '>', 'low_stock_threshold');
+                                            });
                                     });
                             });
-                    });
-                }
+                        }
+                    }
+                });
             });
 
         $inventory = (clone $itemsQuery)
