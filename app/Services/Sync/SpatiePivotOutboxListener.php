@@ -6,6 +6,7 @@ namespace App\Services\Sync;
 
 use App\Services\Sync\Receivers\ModelHasPermissionReceiver;
 use App\Services\Sync\Receivers\ModelHasRoleReceiver;
+use App\Services\Sync\Receivers\RoleHasPermissionReceiver;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -43,12 +44,45 @@ class SpatiePivotOutboxListener
 
     public function handlePermissionAttached(PermissionAttachedEvent $event): void
     {
+        if ($event->model instanceof RoleContract) {
+            $this->emitRolePermissionEvent($event->model, $event->permissionsOrIds, SyncOp::CREATE);
+
+            return;
+        }
+
         $this->emitPermissionEvent($event->model, $event->permissionsOrIds, SyncOp::CREATE);
     }
 
     public function handlePermissionDetached(PermissionDetachedEvent $event): void
     {
+        if ($event->model instanceof RoleContract) {
+            $this->emitRolePermissionEvent($event->model, $event->permissionsOrIds, SyncOp::DELETE);
+
+            return;
+        }
+
         $this->emitPermissionEvent($event->model, $event->permissionsOrIds, SyncOp::DELETE);
+    }
+
+    private function emitRolePermissionEvent(Model $role, mixed $permissionsOrIds, string $op): void
+    {
+        if (OutboxWriter::isMuted()) {
+            return;
+        }
+
+        foreach ($this->resolvePermissions($permissionsOrIds) as $perm) {
+            $this->writer->writeRaw(
+                'role_has_permissions',
+                RoleHasPermissionReceiver::entityId($role->name, $role->guard_name, $perm['name'], $perm['guard_name']),
+                $op,
+                [
+                    'role_name' => $role->name,
+                    'role_guard' => $role->guard_name,
+                    'permission_name' => $perm['name'],
+                    'permission_guard' => $perm['guard_name'],
+                ]
+            );
+        }
     }
 
     private function emitRoleEvent(Model $model, mixed $rolesOrIds, string $op): void

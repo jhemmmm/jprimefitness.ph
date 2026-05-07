@@ -72,6 +72,24 @@ return [
     |
     */
     'entities' => [
+        // Spatie auth foundation. The Role / Permission models subclass
+        // Spatie's and use SyncsToOutbox, so create / update / delete
+        // each emit an outbox row through the standard Eloquent path.
+        // The role_has_permissions pivot has no model; the Spatie
+        // PermissionAttached / PermissionDetached event listener emits
+        // those via OutboxWriter::writeRaw().
+        'permission' => [
+            'model' => \App\Models\Permission::class,
+            'receiver' => \App\Services\Sync\Receivers\PermissionReceiver::class,
+        ],
+        'role' => [
+            'model' => \App\Models\Role::class,
+            'receiver' => \App\Services\Sync\Receivers\RoleReceiver::class,
+        ],
+        'role_has_permissions' => [
+            'receiver' => \App\Services\Sync\Receivers\RoleHasPermissionReceiver::class,
+        ],
+
         // Master data - no foreign-key dependencies.
         'rate_plan' => ['model' => \App\Models\RatePlan::class],
         'pt_product' => ['model' => \App\Models\PTProduct::class],

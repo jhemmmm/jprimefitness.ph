@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use LaravelAndVueJS\Traits\LaravelPermissionToVueJS;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([

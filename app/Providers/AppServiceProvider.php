@@ -24,7 +24,7 @@ use Spatie\Permission\Events\PermissionAttachedEvent;
 use Spatie\Permission\Events\PermissionDetachedEvent;
 use Spatie\Permission\Events\RoleAttachedEvent;
 use Spatie\Permission\Events\RoleDetachedEvent;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {

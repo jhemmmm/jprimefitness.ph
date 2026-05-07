@@ -41,6 +41,8 @@ class ModelHasRoleReceiver extends DefaultReceiver
 
                 if ($modelId === null || $roleId === null) {
                     Log::warning('sync.model_has_roles.unresolved', [
+                        'missing_role' => $roleId === null,
+                        'missing_model' => $modelId === null,
                         'model_uuid' => $modelUuid,
                         'model_type' => $modelType,
                         'role_name' => $roleName,
