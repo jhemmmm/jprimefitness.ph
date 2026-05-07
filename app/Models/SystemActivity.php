@@ -61,19 +61,14 @@ class SystemActivity extends Model
 
     public function syncableAttributes(): array
     {
-        $attributes = $this->getAttributes();
+        $attributes = $this->decodeJsonCastAttributes($this->getAttributes());
 
         // Sync conflict rows embed the rejected payload in metadata. That
         // payload already lives in the originating outbox event, so we'd
         // be syncing it twice (and the embedding would be re-embedded
         // ad infinitum on subsequent re-conflicts).
-        if (isset($attributes['metadata']) && is_string($attributes['metadata'])) {
-            $decoded = json_decode($attributes['metadata'], true);
-
-            if (is_array($decoded) && isset($decoded['incoming_payload'])) {
-                unset($decoded['incoming_payload']);
-                $attributes['metadata'] = json_encode($decoded);
-            }
+        if (isset($attributes['metadata']) && is_array($attributes['metadata']) && isset($attributes['metadata']['incoming_payload'])) {
+            unset($attributes['metadata']['incoming_payload']);
         }
 
         return $attributes;

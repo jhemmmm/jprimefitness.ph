@@ -181,9 +181,63 @@ class DefaultReceiver
      */
     protected function fillModel(Model $model, array $payload): void
     {
+        $payload = $this->decodeJsonCastStrings($model, $payload);
+
         foreach ($payload as $key => $value) {
             $model->setAttribute($key, $value);
         }
+    }
+
+    /**
+     * Defensive decode for legacy outbox events that were emitted with
+     * raw JSON strings in `array`/`json`/`object`/`collection`-cast
+     * columns. Without this, `setAttribute` re-encodes the string and
+     * stores a doubly-encoded value that reads back as a string instead
+     * of an array. Models emitted by the up-to-date `SyncsToOutbox`
+     * trait already send decoded arrays, so this is a no-op for them.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    protected function decodeJsonCastStrings(Model $model, array $payload): array
+    {
+        $casts = $model->getCasts();
+
+        foreach ($payload as $key => $value) {
+            if (! is_string($value) || $value === '') {
+                continue;
+            }
+
+            if (! isset($casts[$key])) {
+                continue;
+            }
+
+            $cast = strtolower(trim((string) $casts[$key]));
+            $isJsonCast = in_array($cast, ['array', 'json', 'object', 'collection'], true);
+
+            if (! $isJsonCast) {
+                foreach (['encrypted:array', 'encrypted:json', 'encrypted:object', 'encrypted:collection'] as $prefix) {
+                    if ($cast === $prefix || str_starts_with($cast, $prefix.':')) {
+                        $isJsonCast = true;
+                        break;
+                    }
+                }
+            }
+
+            if (! $isJsonCast) {
+                continue;
+            }
+
+            $decoded = json_decode($value, true);
+
+            if ($decoded === null && strtolower(trim($value)) !== 'null') {
+                continue;
+            }
+
+            $payload[$key] = $decoded;
+        }
+
+        return $payload;
     }
 
     /**
