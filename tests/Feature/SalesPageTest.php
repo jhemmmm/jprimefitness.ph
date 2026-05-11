@@ -12,6 +12,7 @@ use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\SystemActivity;
 use App\Models\User;
+use App\Providers\AppServiceProvider;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -427,7 +428,7 @@ class SalesPageTest extends TestCase
             'status' => InventoryItem::STATUS_ACTIVE,
         ]);
 
-        $transactionId = $this->actingAs($manager)
+        $saleResponse = $this->actingAs($manager)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_INVENTORY,
                 'items' => [[
@@ -438,8 +439,11 @@ class SalesPageTest extends TestCase
                 'amount_received' => 400,
                 'sold_at' => '2026-03-29 14:00:00',
             ])
-            ->assertCreated()
-            ->json('id');
+            ->assertCreated();
+
+        $transactionId = $saleResponse->json('id');
+
+        $this->assertSame(route('panel.sales.void', $transactionId), $saleResponse->json('void_url'));
 
         $this->assertSame('7.00', $item->fresh()->quantity);
 
@@ -480,6 +484,40 @@ class SalesPageTest extends TestCase
             ->assertJsonPath('transactions.data.0.status', SaleTransaction::STATUS_VOIDED)
             ->assertJsonPath('transactions.data.0.void_reason', 'Wrong product was selected.')
             ->assertJsonPath('transactions.data.0.void_url', null);
+    }
+
+    public function test_https_app_url_forces_sales_void_link_to_https(): void
+    {
+        config(['app.url' => 'https://jprime.test']);
+
+        $forceHttpsScheme = new \ReflectionMethod(AppServiceProvider::class, 'forceHttpsUrlSchemeWhenConfigured');
+        $forceHttpsScheme->invoke(new AppServiceProvider(app()));
+
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
+        $item = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Protein Shake',
+            'quantity' => 10,
+            'selling_price' => 120,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $saleResponse = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 3,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 400,
+                'sold_at' => '2026-03-29 14:00:00',
+            ])
+            ->assertCreated();
+
+        $this->assertStringStartsWith('https://jprime.test/panel/sales/', $saleResponse->json('void_url'));
+        $this->assertStringNotContainsString('http://', $saleResponse->json('void_url'));
     }
 
     public function test_staff_cannot_void_sales(): void

@@ -7,6 +7,8 @@ use App\Models\SaleTransaction;
 class SaleTransactionPresenter
 {
     /**
+     * Convert a sale transaction into the panel sales payload.
+     *
      * @return array<string, mixed>
      */
     public static function panelArray(SaleTransaction $transaction, bool $canVoid = false): array
