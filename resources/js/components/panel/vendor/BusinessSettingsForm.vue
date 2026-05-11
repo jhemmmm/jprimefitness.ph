@@ -111,21 +111,46 @@
                            <div class="invalid-feedback" v-if="errors.address">{{ errors.address[0] }}</div>
                         </div>
                         <div class="col-md-4">
-                           <label class="form-label form-label-sm fw-semibold">Opening Time</label>
-                           <input type="time" class="form-control" :class="{ 'is-invalid': errors.opening_time }" v-model="form.opening_time" />
-                           <div class="invalid-feedback" v-if="errors.opening_time">{{ errors.opening_time[0] }}</div>
-                        </div>
-                        <div class="col-md-4">
-                           <label class="form-label form-label-sm fw-semibold">Closing Time</label>
-                           <input type="time" class="form-control" :class="{ 'is-invalid': errors.closing_time }" v-model="form.closing_time" />
-                           <div class="invalid-feedback" v-if="errors.closing_time">{{ errors.closing_time[0] }}</div>
-                        </div>
-                        <div class="col-md-4">
                            <label class="form-label form-label-sm fw-semibold">Timezone</label>
                            <select class="form-select" :class="{ 'is-invalid': errors.timezone }" v-model="form.timezone">
                               <option v-for="timezone in timezoneOptions" :key="timezone.value" :value="timezone.value">{{ timezone.label }}</option>
                            </select>
                            <div class="invalid-feedback" v-if="errors.timezone">{{ errors.timezone[0] }}</div>
+                        </div>
+                        <div class="col-12">
+                           <label class="form-label form-label-sm fw-semibold">Weekly Operating Hours</label>
+                           <div class="business-settings-hours-grid" :class="{ 'is-invalid': errors.operating_hours }">
+                              <div class="business-settings-hours-row" v-for="(day, index) in form.operating_hours" :key="day.key">
+                                 <div class="business-settings-hours-day">{{ day.day }}</div>
+                                 <div>
+                                    <label class="form-label form-label-sm text-muted" :for="`opening-${day.key}`">Opening</label>
+                                    <input
+                                       :id="`opening-${day.key}`"
+                                       type="time"
+                                       class="form-control"
+                                       :class="{ 'is-invalid': firstError(`operating_hours.${index}.opening_time`) }"
+                                       v-model="day.opening_time"
+                                    />
+                                    <div class="invalid-feedback" v-if="firstError(`operating_hours.${index}.opening_time`)">
+                                       {{ firstError(`operating_hours.${index}.opening_time`) }}
+                                    </div>
+                                 </div>
+                                 <div>
+                                    <label class="form-label form-label-sm text-muted" :for="`closing-${day.key}`">Closing</label>
+                                    <input
+                                       :id="`closing-${day.key}`"
+                                       type="time"
+                                       class="form-control"
+                                       :class="{ 'is-invalid': firstError(`operating_hours.${index}.closing_time`) }"
+                                       v-model="day.closing_time"
+                                    />
+                                    <div class="invalid-feedback" v-if="firstError(`operating_hours.${index}.closing_time`)">
+                                       {{ firstError(`operating_hours.${index}.closing_time`) }}
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                           <div class="invalid-feedback d-block" v-if="errors.operating_hours">{{ errors.operating_hours[0] }}</div>
                         </div>
                         <div class="col-12">
                            <label class="form-label form-label-sm fw-semibold">Amenities</label>
@@ -253,6 +278,16 @@ const TIMEZONE_OPTIONS = (supportedTimezones.length ? supportedTimezones : FALLB
    }))
    .sort((left, right) => left.label.localeCompare(right.label));
 
+const OPERATING_DAYS = [
+   { key: "monday", day: "Monday" },
+   { key: "tuesday", day: "Tuesday" },
+   { key: "wednesday", day: "Wednesday" },
+   { key: "thursday", day: "Thursday" },
+   { key: "friday", day: "Friday" },
+   { key: "saturday", day: "Saturday" },
+   { key: "sunday", day: "Sunday" },
+];
+
 const SECTION_LINKS = [
    {
       id: "business-identity",
@@ -323,11 +358,13 @@ export default {
          return !this.is("super admin");
       },
       businessHoursLabel: function () {
-         if (!this.form.opening_time && !this.form.closing_time) {
+         const groups = this.groupedOperatingHours(this.form.operating_hours);
+
+         if (!groups.length) {
             return "Not set";
          }
 
-         return [this.formatShortTime(this.form.opening_time), this.formatShortTime(this.form.closing_time)].filter(Boolean).join(" - ");
+         return groups.map((group) => `${group.days}: ${group.hours}`).join(", ");
       },
       hasPendingChanges: function () {
          return JSON.stringify(this.buildPayload()) !== JSON.stringify(this.normalizePayload(this.profile));
@@ -345,9 +382,8 @@ export default {
             city: profile.city || "",
             province: profile.province || "",
             address: profile.address || "",
-            opening_time: profile.opening_time ? String(profile.opening_time).slice(0, 5) : "",
-            closing_time: profile.closing_time ? String(profile.closing_time).slice(0, 5) : "",
             timezone: profile.timezone || "Asia/Manila",
+            operating_hours: this.getOperatingHours(profile),
             amenities_text: Array.isArray(profile.amenities) ? profile.amenities.join(", ") : "",
          };
       },
@@ -364,8 +400,7 @@ export default {
             address: source.address || "",
             timezone: source.timezone || "Asia/Manila",
             amenities: Array.isArray(source.amenities) ? source.amenities.filter(Boolean) : [],
-            opening_time: source.opening_time ? String(source.opening_time).slice(0, 5) : "",
-            closing_time: source.closing_time ? String(source.closing_time).slice(0, 5) : "",
+            operating_hours: this.getOperatingHours(source),
             ...overrides,
          };
       },
@@ -378,6 +413,56 @@ export default {
             },
             overrides
          );
+      },
+
+      getOperatingHours: function (source) {
+         const entries = Array.isArray(source.operating_hours) ? source.operating_hours : [];
+
+         return OPERATING_DAYS.map((day) => {
+            const entry = entries.find((candidate) => candidate.day === day.day || candidate.key === day.key) || {};
+            const weekdayOpeningTime = source.opening_time ? String(source.opening_time).slice(0, 5) : "06:00";
+            const weekdayClosingTime = source.closing_time ? String(source.closing_time).slice(0, 5) : "23:00";
+            const openingTime = day.key === "saturday" || day.key === "sunday" ? "08:00" : weekdayOpeningTime;
+
+            return {
+               ...day,
+               opening_time: entry.opening_time ? String(entry.opening_time).slice(0, 5) : openingTime,
+               closing_time: entry.closing_time ? String(entry.closing_time).slice(0, 5) : weekdayClosingTime,
+            };
+         });
+      },
+
+      groupedOperatingHours: function (operatingHours) {
+         const groups = [];
+
+         this.getOperatingHours({ operating_hours: operatingHours }).forEach((day) => {
+            const hours = [this.formatShortTime(day.opening_time), this.formatShortTime(day.closing_time)].filter(Boolean).join(" - ");
+            const lastGroup = groups[groups.length - 1];
+
+            if (lastGroup?.hours === hours) {
+               lastGroup.days.push(day.day);
+
+               return;
+            }
+
+            groups.push({
+               days: [day.day],
+               hours,
+            });
+         });
+
+         return groups.map((group) => ({
+            days: this.formatDayRange(group.days),
+            hours: group.hours,
+         }));
+      },
+
+      formatDayRange: function (days) {
+         if (days.length === 1) {
+            return days[0];
+         }
+
+         return `${days[0]}-${days[days.length - 1]}`;
       },
 
       formatShortTime: function (value) {
@@ -397,6 +482,10 @@ export default {
          hour = hour % 12 || 12;
 
          return `${hour}:${minute} ${suffix}`;
+      },
+
+      firstError: function (key) {
+         return Array.isArray(this.errors[key]) ? this.errors[key][0] : "";
       },
 
       scrollToSection: function (sectionId) {

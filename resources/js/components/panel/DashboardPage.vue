@@ -608,14 +608,37 @@ export default {
          return this.businessProfile?.name || window.JPrime?.profile?.name || "this business";
       },
       businessHoursLabel: function () {
-         const opening = this.formatBusinessTime(this.businessProfile?.opening_time);
-         const closing = this.formatBusinessTime(this.businessProfile?.closing_time);
+         const groups = [];
+         const entries = Array.isArray(this.businessProfile?.operating_hours) ? this.businessProfile.operating_hours : [];
 
-         if (opening && closing) {
-            return `${opening} - ${closing}`;
+         entries.forEach((day) => {
+            const opening = this.formatBusinessTime(day.opening_time);
+            const closing = this.formatBusinessTime(day.closing_time);
+
+            if (!day.day || !opening || !closing) {
+               return;
+            }
+
+            const hours = `${opening} - ${closing}`;
+            const lastGroup = groups[groups.length - 1];
+
+            if (lastGroup?.hours === hours) {
+               lastGroup.days.push(day.day);
+
+               return;
+            }
+
+            groups.push({
+               days: [day.day],
+               hours,
+            });
+         });
+
+         if (groups.length) {
+            return groups.map((group) => `${this.formatDayRange(group.days)}: ${group.hours}`).join(", ");
          }
 
-         return opening || closing || "Not set";
+         return "Not set";
       },
       operationsSummaryItems: function () {
          return [
@@ -895,6 +918,13 @@ export default {
          hour = hour % 12 || 12;
 
          return `${hour}:${minute} ${suffix}`;
+      },
+      formatDayRange: function (days) {
+         if (days.length === 1) {
+            return days[0];
+         }
+
+         return `${days[0]}-${days[days.length - 1]}`;
       },
    },
 };

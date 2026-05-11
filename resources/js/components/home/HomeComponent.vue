@@ -782,17 +782,9 @@
                   <div class="card">
                      <div class="card-body p-4">
                         <h5 class="fw-bold mb-3">Business hours</h5>
-                        <div class="pricing-row">
-                           <span class="pricing-label">Mon &ndash; Fri</span>
-                           <span class="pricing-value">{{ hoursLong }}</span>
-                        </div>
-                        <div class="pricing-row">
-                           <span class="pricing-label">Saturday</span>
-                           <span class="pricing-value">{{ hoursLong }}</span>
-                        </div>
-                        <div class="pricing-row">
-                           <span class="pricing-label">Sunday</span>
-                           <span class="pricing-value">{{ hoursLong }}</span>
+                        <div class="pricing-row" v-for="group in operatingHourGroups" :key="group.days">
+                           <span class="pricing-label">{{ group.days }}</span>
+                           <span class="pricing-value">{{ group.hours }}</span>
                         </div>
                         <div class="text-center pt-3 mt-2 text-muted" style="border-top: 1px solid #eee">
                            <i class="bi bi-geo-alt-fill text-danger me-1"></i>
@@ -869,23 +861,73 @@ export default {
          return Array.isArray(this.business.amenities) ? this.business.amenities.filter(Boolean) : [];
       },
       hoursLong: function () {
-         const o = this.$filters.formatTime(this.business.opening_time);
-         const c = this.$filters.formatTime(this.business.closing_time);
-         if (o && c) return `${o} – ${c}`;
+         if (this.operatingHourGroups.length) {
+            return this.operatingHourGroups.map((group) => `${group.days} ${group.hours}`).join(", ");
+         }
+
          return "Hours to be announced";
       },
       hoursShort: function () {
-         const o = this.$filters.formatTime(this.business.opening_time, true);
-         const c = this.$filters.formatTime(this.business.closing_time, true);
-         if (o && c) return `${o}–${c}`;
+         if (this.operatingHourGroups.length) {
+            return this.operatingHourGroups.map((group) => `${group.days} ${group.hoursShort}`).join(", ");
+         }
+
          return "Open daily";
       },
       openHoursPerDay: function () {
-         const open = this.parseClock(this.business.opening_time);
-         const close = this.parseClock(this.business.closing_time);
+         const firstDay = this.weeklyOperatingHours[0] || {};
+         const open = this.parseClock(firstDay.opening_time);
+         const close = this.parseClock(firstDay.closing_time);
          if (open == null || close == null) return "–";
          const diff = (close - open) / 60;
          return diff > 0 ? Math.round(diff) : "–";
+      },
+      weeklyOperatingHours: function () {
+         const entries = Array.isArray(this.business.operating_hours) ? this.business.operating_hours : [];
+
+         return entries
+            .map((entry) => ({
+               day: entry.day,
+               opening_time: entry.opening_time,
+               closing_time: entry.closing_time,
+            }))
+            .filter((entry) => entry.day && entry.opening_time && entry.closing_time);
+      },
+      operatingHourGroups: function () {
+         const groups = [];
+
+         this.weeklyOperatingHours.forEach((day) => {
+            const opening = this.$filters.formatTime(day.opening_time);
+            const closing = this.$filters.formatTime(day.closing_time);
+            const openingShort = this.$filters.formatTime(day.opening_time, true);
+            const closingShort = this.$filters.formatTime(day.closing_time, true);
+
+            if (!opening || !closing) {
+               return;
+            }
+
+            const hours = `${opening} – ${closing}`;
+            const hoursShort = `${openingShort}–${closingShort}`;
+            const lastGroup = groups[groups.length - 1];
+
+            if (lastGroup?.hours === hours) {
+               lastGroup.days.push(day.day);
+
+               return;
+            }
+
+            groups.push({
+               days: [day.day],
+               hours,
+               hoursShort,
+            });
+         });
+
+         return groups.map((group) => ({
+            days: this.formatDayRange(group.days),
+            hours: group.hours,
+            hoursShort: group.hoursShort,
+         }));
       },
       heroBadge: function () {
          const loc = this.business.city || this.business.province;
@@ -960,6 +1002,10 @@ export default {
          const price = parseFloat(pt.price || 0);
          const n = parseInt(pt.session_count || 0, 10);
          return n > 0 ? price / n : 0;
+      },
+      formatDayRange: function (days) {
+         if (days.length === 1) return days[0];
+         return `${days[0]}-${days[days.length - 1]}`;
       },
       parseClock: function (value) {
          if (!value) return null;

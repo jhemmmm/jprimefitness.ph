@@ -886,6 +886,28 @@ body.panel-body {
     padding: 1rem 1.1rem;
 }
 
+.business-settings-hours-grid {
+    display: grid;
+    gap: 10px;
+}
+
+.business-settings-hours-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) repeat(2, minmax(130px, 180px));
+    gap: 12px;
+    align-items: end;
+    padding: 0.9rem 1rem;
+    border: 1px solid #eef1f4;
+    border-radius: 14px;
+    background: #fafbfc;
+}
+
+.business-settings-hours-day {
+    align-self: center;
+    font-weight: 700;
+    color: #111827;
+}
+
 .business-settings-media-count {
     font-size: 2rem;
     font-weight: 800;
@@ -982,6 +1004,10 @@ body.panel-body {
 
     .business-settings-shortcut {
         padding: 0.8rem 0.9rem;
+    }
+
+    .business-settings-hours-row {
+        grid-template-columns: 1fr;
     }
 }
 

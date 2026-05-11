@@ -882,6 +882,7 @@ class SystemActivityExpansionTest extends TestCase
             'amenities' => $profile->amenities ?? [],
             'opening_time' => $profile->opening_time,
             'closing_time' => $profile->closing_time,
+            'operating_hours' => $profile->operating_hours ?? BusinessProfile::defaultOperatingHours(),
         ], $overrides);
     }
 

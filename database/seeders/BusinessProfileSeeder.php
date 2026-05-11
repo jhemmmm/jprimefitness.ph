@@ -23,15 +23,7 @@ class BusinessProfileSeeder extends Seeder
                 'Showers',
                 'Wi-Fi',
             ],
-            'operating_hours' => [
-                ['day' => 'Monday', 'hours' => '6:00 AM - 10:00 PM'],
-                ['day' => 'Tuesday', 'hours' => '6:00 AM - 10:00 PM'],
-                ['day' => 'Wednesday', 'hours' => '6:00 AM - 10:00 PM'],
-                ['day' => 'Thursday', 'hours' => '6:00 AM - 10:00 PM'],
-                ['day' => 'Friday', 'hours' => '6:00 AM - 10:00 PM'],
-                ['day' => 'Saturday', 'hours' => '7:00 AM - 9:00 PM'],
-                ['day' => 'Sunday', 'hours' => '8:00 AM - 8:00 PM'],
-            ],
+            'operating_hours' => BusinessProfile::defaultOperatingHours(),
         ]);
 
         $profile = BusinessProfile::query()->first();

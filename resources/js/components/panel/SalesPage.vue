@@ -551,7 +551,7 @@
                            </td>
                            <td>
                               <span class="m-badge m-badge--open">{{ $filters.capitalize(transaction.type) }}</span>
-                              <span class="m-badge m-badge--cancelled ms-1" v-if="transaction.is_voided">Voided</span>
+                              <span class="m-badge m-badge--plan-cancelled ms-1" v-if="transaction.is_voided">Voided</span>
                            </td>
                            <td class="small">
                               <div>{{ transaction.item_name || "-" }}</div>
@@ -604,7 +604,7 @@
                      </div>
                      <div class="member-card-tags">
                         <span class="m-badge m-badge--open">{{ $filters.capitalize(transaction.type) }}</span>
-                        <span class="m-badge m-badge--cancelled" v-if="transaction.is_voided">Voided</span>
+                        <span class="m-badge m-badge--plan-cancelled" v-if="transaction.is_voided">Voided</span>
                         <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(transaction.total) }}</span>
                         <span v-if="transaction.discount" class="m-badge m-badge--cancelled"> {{ $filters.capitalize(transaction.discount.type) }} −{{ transaction.discount.percent }}% </span>
                      </div>

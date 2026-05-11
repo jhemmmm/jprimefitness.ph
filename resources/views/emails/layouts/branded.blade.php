@@ -66,9 +66,9 @@
                             @if ($footerAddress)
                                 <div style="font-size:12px;color:#64748b;line-height:1.5;">{{ $footerAddress }}</div>
                             @endif
-                            @if (!empty($business->opening_time) && !empty($business->closing_time))
+                            @if ($business->formattedOperatingHours())
                                 <div style="font-size:12px;color:#64748b;line-height:1.5;margin-top:4px;">
-                                    Open daily {{ \Illuminate\Support\Carbon::parse($business->opening_time)->format('g:i A') }} – {{ \Illuminate\Support\Carbon::parse($business->closing_time)->format('g:i A') }}
+                                    Open {{ $business->formattedOperatingHours() }}
                                 </div>
                             @endif
                         </td>

@@ -33,13 +33,9 @@
             <div class="border rounded-3 p-3 h-100">
                <div class="small text-uppercase text-muted fw-semibold mb-3">Hours</div>
                <div class="row g-3">
-                  <div class="col-sm-6">
-                     <div class="text-muted small">Opening Time</div>
-                     <div class="fw-semibold">{{ formatTime(profile.opening_time) || "-" }}</div>
-                  </div>
-                  <div class="col-sm-6">
-                     <div class="text-muted small">Closing Time</div>
-                     <div class="fw-semibold">{{ formatTime(profile.closing_time) || "-" }}</div>
+                  <div class="col-sm-6" v-for="group in operatingHourGroups" :key="group.days">
+                     <div class="text-muted small">{{ group.days }}</div>
+                     <div class="fw-semibold">{{ group.hours }}</div>
                   </div>
                   <div class="col-12">
                      <div class="text-muted small">Timezone</div>
@@ -75,9 +71,48 @@ export default {
       fullAddress: function () {
          return [this.profile.address, this.profile.city, this.profile.province].filter(Boolean).join(", ") || "-";
       },
+      operatingHourGroups: function () {
+         const groups = [];
+         const entries = Array.isArray(this.profile.operating_hours) ? this.profile.operating_hours : [];
+
+         entries.forEach((day) => {
+            const opening = this.formatTime(day.opening_time);
+            const closing = this.formatTime(day.closing_time);
+
+            if (!day.day || !opening || !closing) {
+               return;
+            }
+
+            const hours = `${opening} - ${closing}`;
+            const lastGroup = groups[groups.length - 1];
+
+            if (lastGroup?.hours === hours) {
+               lastGroup.days.push(day.day);
+
+               return;
+            }
+
+            groups.push({
+               days: [day.day],
+               hours,
+            });
+         });
+
+         return groups.map((group) => ({
+            days: this.formatDayRange(group.days),
+            hours: group.hours,
+         }));
+      },
    },
 
    methods: {
+      formatDayRange: function (days) {
+         if (days.length === 1) {
+            return days[0];
+         }
+
+         return `${days[0]}-${days[days.length - 1]}`;
+      },
       formatTime: function (timeStr) {
          if (!timeStr) {
             return "";

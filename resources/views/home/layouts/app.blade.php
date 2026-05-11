@@ -101,7 +101,7 @@
         $footerAddress = collect([$bp->address, $bp->city, $bp->province])
             ->filter()
             ->join(', ');
-        $footerHours = $bp->opening_time && $bp->closing_time ? \Illuminate\Support\Carbon::parse($bp->opening_time)->format('g:i A') . ' – ' . \Illuminate\Support\Carbon::parse($bp->closing_time)->format('g:i A') : 'Hours to be announced';
+        $footerHours = $bp->formattedOperatingHours() ?? 'Hours to be announced';
     @endphp
     <footer class="jprime-footer bg-dark text-white pt-5">
         <div class="container">
