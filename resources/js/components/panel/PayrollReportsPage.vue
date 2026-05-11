@@ -33,11 +33,11 @@
             <div class="row g-3 align-items-end">
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Date From</label>
-                  <input type="date" class="form-control" v-model="filters.date_from" @change="fetchReport" />
+                  <input type="date" class="form-control" v-model="filters.date_from" @change="fetchReport(1)" />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Date To</label>
-                  <input type="date" class="form-control" v-model="filters.date_to" @change="fetchReport" />
+                  <input type="date" class="form-control" v-model="filters.date_to" @change="fetchReport(1)" />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Status</label>
@@ -45,7 +45,7 @@
                      v-model="filters.status"
                      :options="payrollStatuses"
                      placeholder="All Active Statuses"
-                     @update:modelValue="fetchReport"
+                     @update:modelValue="fetchReport(1)"
                   />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
@@ -54,13 +54,13 @@
                      v-model="filters.pay_frequency"
                      :options="payFrequencies"
                      placeholder="All Frequencies"
-                     @update:modelValue="fetchReport"
+                     @update:modelValue="fetchReport(1)"
                   />
                </div>
             </div>
 
             <div class="d-flex flex-wrap gap-2 mt-3">
-               <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport" :disabled="loading">
+               <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport(detailPagination.current_page)" :disabled="loading">
                   <i class="bi bi-arrow-repeat me-1"></i>
                   Refresh
                </button>
@@ -323,8 +323,11 @@
          <div class="panel-card">
             <div class="panel-card-header">
                <div>
-                  <div class="panel-card-title">Recent Payrolls</div>
-                  <div class="panel-card-sub">Latest payroll runs, payout progress, and approval context for the selected report scope.</div>
+                  <div class="panel-card-title">
+                     Payroll Runs
+                     <span class="badge-count ms-1">{{ loading ? "-" : detailPagination.total }}</span>
+                  </div>
+                  <div class="panel-card-sub" v-if="!loading && detailPagination.total > 0">Showing {{ detailPagination.from }}–{{ detailPagination.to }} of {{ detailPagination.total }}</div>
                </div>
             </div>
             <div class="panel-card-body p-0">
@@ -343,7 +346,7 @@
                      </div>
                   </div>
                </div>
-               <div v-else-if="report.recent_payrolls.length === 0" class="text-center py-5 text-muted">
+               <div v-else-if="detailRows.length === 0" class="text-center py-5 text-muted">
                   <i class="bi bi-receipt empty-icon"></i>
                   <p class="mt-2 mb-1">No payroll records found for this filter.</p>
                </div>
@@ -363,7 +366,7 @@
                            </tr>
                         </thead>
                         <tbody>
-                           <tr v-for="payroll in report.recent_payrolls" :key="payroll.id">
+                           <tr v-for="payroll in detailRows" :key="payroll.id">
                               <td>
                                  <div class="fw-semibold">{{ payroll.employee_name || "-" }}</div>
                                  <div class="small text-muted" v-if="payroll.approved_by_name">Approved by {{ payroll.approved_by_name }}</div>
@@ -384,7 +387,7 @@
                      </table>
                   </div>
                   <div class="d-md-none p-3">
-                     <div class="member-card" v-for="payroll in report.recent_payrolls" :key="'recent-mobile-' + payroll.id">
+                     <div class="member-card" v-for="payroll in detailRows" :key="'payroll-mobile-' + payroll.id">
                         <div class="member-card-top">
                            <div>
                               <div class="member-card-name">{{ payroll.employee_name || "-" }}</div>
@@ -407,6 +410,15 @@
                      </div>
                   </div>
                </div>
+               <div v-if="!loading && detailPagination.last_page > 1" class="d-flex justify-content-center py-3 border-top">
+                  <nav>
+                     <ul class="pagination pagination-sm mb-0">
+                        <li v-for="link in detailPagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
+                           <a class="page-link" href="#" @click.prevent="goToPage(link)" v-html="link.label"></a>
+                        </li>
+                     </ul>
+                  </nav>
+               </div>
             </div>
          </div>
    </div>
@@ -417,7 +429,7 @@ import PayrollStatusBreakdownChart from "./charts/PayrollStatusBreakdownChart.vu
 import PayrollTrendChart from "./charts/PayrollTrendChart.vue";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import dateRangePresets from "../../mixins/dateRangePresets";
-import { formatDate, startOfCurrentMonthDate, todayDate } from "../../dates";
+import { formatDate } from "../../dates";
 
 export default {
    components: {
@@ -602,6 +614,12 @@ export default {
       chartStatusBreakdown: function () {
          return this.report.status_breakdown.filter((row) => Number(row.net_payroll) > 0);
       },
+      detailPagination: function () {
+         return this.report.payrolls || this.emptyPagination();
+      },
+      detailRows: function () {
+         return this.detailPagination.data || [];
+      },
    },
    mounted: function () {
       this.fetchReport();
@@ -633,14 +651,26 @@ export default {
             pay_frequency_breakdown: [],
             payout_method_breakdown: [],
             payroll_trend: [],
-            recent_payrolls: [],
+            payrolls: this.emptyPagination(),
+         };
+      },
+      emptyPagination: function () {
+         return {
+            data: [],
+            current_page: 1,
+            per_page: 25,
+            total: 0,
+            last_page: 1,
+            from: 0,
+            to: 0,
+            links: [],
          };
       },
       defaultDateFrom: function () {
-         return startOfCurrentMonthDate();
+         return "";
       },
       defaultDateTo: function () {
-         return todayDate();
+         return "";
       },
       applyRangePreset: function (key) {
          if (this.activeRangeKey === key) {
@@ -655,21 +685,21 @@ export default {
 
          this.filters.date_from = bounds.from;
          this.filters.date_to = bounds.to;
-         this.fetchReport();
+         this.fetchReport(1);
       },
       resetFilters: function () {
          this.filters.date_from = this.defaultDateFrom();
          this.filters.date_to = this.defaultDateTo();
          this.filters.status = [];
          this.filters.pay_frequency = [];
-         this.fetchReport();
+         this.fetchReport(1);
       },
       clearChip: function (chip) {
          if (chip && chip.group && Array.isArray(this.filters[chip.group])) {
             this.filters[chip.group] = this.filters[chip.group].filter((value) => value !== chip.value);
          }
 
-         this.fetchReport();
+         this.fetchReport(1);
       },
       formatCurrencyLabel: function (amount) {
          return `₱${this.$filters.formatMoney(amount || 0)}`;
@@ -689,21 +719,23 @@ export default {
 
          return `${progress}% released so far`;
       },
-      buildParams: function () {
+      buildParams: function (page = 1) {
          return {
             date_from: this.filters.date_from || undefined,
             date_to: this.filters.date_to || undefined,
             status: this.filters.status.length ? this.filters.status : undefined,
             pay_frequency: this.filters.pay_frequency.length ? this.filters.pay_frequency : undefined,
+            page: page,
+            per_page: this.detailPagination.per_page || 25,
          };
       },
-      fetchReport: function () {
+      fetchReport: function (page = 1) {
          this.loading = true;
          this.pageError = "";
 
          axios
             .get("/panel/reports/payroll/data", {
-               params: this.buildParams(),
+               params: this.buildParams(page),
             })
             .then((response) => {
                this.report = response.data;
@@ -715,6 +747,14 @@ export default {
             .finally(() => {
                this.loading = false;
             });
+      },
+      goToPage: function (link) {
+         if (!link.url) {
+            return;
+         }
+
+         const page = parseInt(new URL(link.url).searchParams.get("page") || "1", 10);
+         this.fetchReport(page);
       },
    },
 };

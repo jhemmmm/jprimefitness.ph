@@ -47,7 +47,7 @@ class PayrollReportsController extends Controller
     {
         abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
 
-        $report = $this->reportPayload($request);
+        $report = $this->reportPayload($request, false);
         $dateSuffix = now()->format('Ymd_His');
         $fileName = "payroll-report-{$dateSuffix}.csv";
 
@@ -107,9 +107,9 @@ class PayrollReportsController extends Controller
             }
             fputcsv($handle, []);
 
-            fputcsv($handle, ['Recent Payrolls']);
+            fputcsv($handle, ['Payroll Runs']);
             fputcsv($handle, ['Employee', 'Period', 'Pay Frequency', 'Status', 'Gross', 'Net', 'Paid Out', 'Outstanding', 'Approved By']);
-            foreach ($report['recent_payrolls'] as $row) {
+            foreach ($report['payrolls'] as $row) {
                 fputcsv($handle, [
                     $row['employee_name'],
                     $row['period_label'],
@@ -132,7 +132,7 @@ class PayrollReportsController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function reportPayload(Request $request): array
+    private function reportPayload(Request $request, bool $paginatePayrolls = true): array
     {
         $data = $request->validate([
             'status' => ['nullable', 'array'],
@@ -154,10 +154,14 @@ class PayrollReportsController extends Controller
             ],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $data['status'] = array_values(array_filter($data['status'] ?? [], fn ($value) => $value !== null && $value !== ''));
         $data['pay_frequency'] = array_values(array_filter($data['pay_frequency'] ?? [], fn ($value) => $value !== null && $value !== ''));
+        $page = (int) ($data['page'] ?? 1);
+        $perPage = (int) ($data['per_page'] ?? 25);
 
         $payrollQuery = $this->payrollQuery($data);
         $payoutQuery = $this->payoutQuery($data);
@@ -217,7 +221,9 @@ class PayrollReportsController extends Controller
             'pay_frequency_breakdown' => $this->payFrequencyBreakdown(clone $payrollQuery),
             'payout_method_breakdown' => $this->payoutMethodBreakdown(clone $payoutQuery),
             'payroll_trend' => $this->payrollTrend(clone $payrollQuery),
-            'recent_payrolls' => $this->recentPayrolls(clone $payrollQuery),
+            'payrolls' => $paginatePayrolls
+                ? $this->paginatedPayrolls(clone $payrollQuery, $page, $perPage)
+                : $this->payrolls(clone $payrollQuery),
         ];
     }
 
@@ -376,7 +382,7 @@ class PayrollReportsController extends Controller
      * @param  Builder  $query
      * @return array<int, array<string, mixed>>
      */
-    private function recentPayrolls(Builder $query): array
+    private function payrolls(Builder $query): array
     {
         return (clone $query)
             ->with([
@@ -386,32 +392,57 @@ class PayrollReportsController extends Controller
             ->withSum('payouts as total_paid', 'amount')
             ->orderByDesc('period_end')
             ->orderByDesc('id')
-            ->limit(10)
             ->get()
-            ->map(function (Payroll $payroll): array {
-                $totalPaid = round((float) ($payroll->total_paid ?? 0), 2);
-
-                return [
-                    'id' => $payroll->id,
-                    'employee_name' => $payroll->employee?->name,
-                    'period_start' => $payroll->period_start?->toDateString(),
-                    'period_end' => $payroll->period_end?->toDateString(),
-                    'period_label' => $payroll->period_start?->format('Y-m-d').' – '.$payroll->period_end?->format('Y-m-d'),
-                    'pay_frequency' => $payroll->pay_frequency,
-                    'pay_frequency_label' => $this->payFrequencyLabel($payroll->pay_frequency),
-                    'status' => $payroll->status,
-                    'status_label' => $this->statusLabel($payroll->status),
-                    'gross_amount' => round((float) $payroll->gross_amount, 2),
-                    'total_deductions' => $payroll->employeeDeductionsTotal(),
-                    'net_amount' => round((float) $payroll->net_amount, 2),
-                    'total_paid' => $totalPaid,
-                    'outstanding_balance' => round(max(0, (float) $payroll->net_amount - $totalPaid), 2),
-                    'approved_by_name' => $payroll->approvedBy?->name,
-                    'approved_at' => $payroll->approved_at?->toISOString(),
-                ];
-            })
+            ->map(fn (Payroll $payroll) => $this->payrollPayload($payroll))
             ->values()
             ->all();
+    }
+
+    private function paginatedPayrolls(Builder $query, int $page, int $perPage): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    {
+        $payrolls = (clone $query)
+            ->with([
+                'employee:id,name',
+                'approvedBy:id,name',
+            ])
+            ->withSum('payouts as total_paid', 'amount')
+            ->orderByDesc('period_end')
+            ->orderByDesc('id')
+            ->paginate($perPage, ['*'], 'page', $page)
+            ->withQueryString();
+
+        $payrolls->setCollection(
+            $payrolls->getCollection()->map(fn (Payroll $payroll) => $this->payrollPayload($payroll))
+        );
+
+        return $payrolls;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function payrollPayload(Payroll $payroll): array
+    {
+        $totalPaid = round((float) ($payroll->total_paid ?? 0), 2);
+
+        return [
+            'id' => $payroll->id,
+            'employee_name' => $payroll->employee?->name,
+            'period_start' => $payroll->period_start?->toDateString(),
+            'period_end' => $payroll->period_end?->toDateString(),
+            'period_label' => $payroll->period_start?->format('Y-m-d').' – '.$payroll->period_end?->format('Y-m-d'),
+            'pay_frequency' => $payroll->pay_frequency,
+            'pay_frequency_label' => $this->payFrequencyLabel($payroll->pay_frequency),
+            'status' => $payroll->status,
+            'status_label' => $this->statusLabel($payroll->status),
+            'gross_amount' => round((float) $payroll->gross_amount, 2),
+            'total_deductions' => $payroll->employeeDeductionsTotal(),
+            'net_amount' => round((float) $payroll->net_amount, 2),
+            'total_paid' => $totalPaid,
+            'outstanding_balance' => round(max(0, (float) $payroll->net_amount - $totalPaid), 2),
+            'approved_by_name' => $payroll->approvedBy?->name,
+            'approved_at' => $payroll->approved_at?->toISOString(),
+        ];
     }
 
     /**

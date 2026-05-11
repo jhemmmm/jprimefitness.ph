@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -40,7 +41,7 @@ class AttendanceReportsController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
-        $report = $this->reportPayload($request);
+        $report = $this->reportPayload($request, false);
         $dateSuffix = now()->format('Ymd_His');
         $fileName = "attendance-report-{$dateSuffix}.csv";
 
@@ -87,9 +88,9 @@ class AttendanceReportsController extends Controller
             }
             fputcsv($handle, []);
 
-            fputcsv($handle, ['Recent Attendance Records']);
+            fputcsv($handle, ['Attendance Records']);
             fputcsv($handle, ['Name', 'Type', 'Checked In', 'Checked Out', 'Duration Minutes', 'Status']);
-            foreach ($report['recent_records'] as $row) {
+            foreach ($report['records'] as $row) {
                 fputcsv($handle, [
                     $row['name'],
                     $row['attendee_type_label'],
@@ -109,7 +110,7 @@ class AttendanceReportsController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function reportPayload(Request $request): array
+    private function reportPayload(Request $request, bool $paginateRecords = true): array
     {
         $data = $request->validate([
             'type' => ['nullable', 'array'],
@@ -122,15 +123,22 @@ class AttendanceReportsController extends Controller
             ],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $types = array_values(array_filter($data['type'] ?? [], fn ($value) => $value !== null && $value !== ''));
+        $page = (int) ($data['page'] ?? 1);
+        $perPage = (int) ($data['per_page'] ?? 25);
 
-        $attendanceRecords = Attendance::query()
+        $attendanceQuery = Attendance::query()
             ->when(! empty($types), fn ($query) => $query->whereIn('attendee_type', $types))
             ->when($data['date_from'] ?? null, fn ($query) => $query->whereDate('checked_in_at', '>=', $data['date_from']))
-            ->when($data['date_to'] ?? null, fn ($query) => $query->whereDate('checked_in_at', '<=', $data['date_to']))
+            ->when($data['date_to'] ?? null, fn ($query) => $query->whereDate('checked_in_at', '<=', $data['date_to']));
+
+        $attendanceRecords = (clone $attendanceQuery)
             ->orderByDesc('checked_in_at')
+            ->orderByDesc('id')
             ->get([
                 'id',
                 'attendee_type',
@@ -153,7 +161,9 @@ class AttendanceReportsController extends Controller
             'type_breakdown' => $this->typeBreakdown($attendanceRecords),
             'daily_trend' => $this->dailyTrend($attendanceRecords),
             'busiest_hours' => $this->busiestHours($attendanceRecords),
-            'recent_records' => $this->recentRecords($attendanceRecords),
+            'records' => $paginateRecords
+                ? $this->paginatedRecords((clone $attendanceQuery)->orderByDesc('checked_in_at')->orderByDesc('id'), $page, $perPage)
+                : $this->records($attendanceRecords),
         ];
     }
 
@@ -247,22 +257,45 @@ class AttendanceReportsController extends Controller
      * @param  Collection<int, Attendance>  $attendanceRecords
      * @return array<int, array<string, mixed>>
      */
-    private function recentRecords(Collection $attendanceRecords): array
+    private function records(Collection $attendanceRecords): array
     {
         return $attendanceRecords
-            ->take(10)
-            ->map(fn (Attendance $attendance) => [
-                'id' => $attendance->id,
-                'name' => $attendance->name,
-                'attendee_type' => $attendance->attendee_type,
-                'attendee_type_label' => $this->typeLabel($attendance->attendee_type),
-                'checked_in_at' => $attendance->checked_in_at?->toISOString(),
-                'checked_out_at' => $attendance->checked_out_at?->toISOString(),
-                'duration_minutes' => $this->durationMinutes($attendance),
-                'is_currently_in' => $attendance->checked_out_at === null,
-            ])
+            ->map(fn (Attendance $attendance) => $this->recordPayload($attendance))
             ->values()
             ->all();
+    }
+
+    private function paginatedRecords(Builder $query, int $page, int $perPage): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    {
+        $records = $query->paginate(
+            $perPage,
+            ['id', 'attendee_type', 'user_id', 'name', 'checked_in_at', 'checked_out_at'],
+            'page',
+            $page
+        )->withQueryString();
+
+        $records->setCollection(
+            $records->getCollection()->map(fn (Attendance $attendance) => $this->recordPayload($attendance))
+        );
+
+        return $records;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function recordPayload(Attendance $attendance): array
+    {
+        return [
+            'id' => $attendance->id,
+            'name' => $attendance->name,
+            'attendee_type' => $attendance->attendee_type,
+            'attendee_type_label' => $this->typeLabel($attendance->attendee_type),
+            'checked_in_at' => $attendance->checked_in_at?->toISOString(),
+            'checked_out_at' => $attendance->checked_out_at?->toISOString(),
+            'duration_minutes' => $this->durationMinutes($attendance),
+            'is_currently_in' => $attendance->checked_out_at === null,
+        ];
     }
 
     /**

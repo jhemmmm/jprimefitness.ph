@@ -33,11 +33,11 @@
             <div class="row g-3 align-items-end">
                <div class="col-12 col-md-4">
                   <label class="form-label">Date From</label>
-                  <input type="date" class="form-control" v-model="filters.date_from" @change="fetchReport" />
+                  <input type="date" class="form-control" v-model="filters.date_from" @change="fetchReport(1)" />
                </div>
                <div class="col-12 col-md-4">
                   <label class="form-label">Date To</label>
-                  <input type="date" class="form-control" v-model="filters.date_to" @change="fetchReport" />
+                  <input type="date" class="form-control" v-model="filters.date_to" @change="fetchReport(1)" />
                </div>
                <div class="col-12 col-md-4">
                   <label class="form-label">Attendee Type</label>
@@ -45,13 +45,13 @@
                      v-model="filters.type"
                      :options="attendeeTypes"
                      placeholder="All Types"
-                     @update:modelValue="fetchReport"
+                     @update:modelValue="fetchReport(1)"
                   />
                </div>
             </div>
 
             <div class="d-flex flex-wrap gap-2 mt-3">
-               <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport" :disabled="loading">
+               <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport(detailPagination.current_page)" :disabled="loading">
                   <i class="bi bi-arrow-repeat me-1"></i>
                   Refresh
                </button>
@@ -304,8 +304,11 @@
          <div class="panel-card">
             <div class="panel-card-header">
                <div>
-                  <div class="panel-card-title">Recent Attendance Records</div>
-                  <div class="panel-card-sub">Latest check-ins and active attendees within the selected report scope.</div>
+                  <div class="panel-card-title">
+                     Attendance Records
+                     <span class="badge-count ms-1">{{ loading ? "-" : detailPagination.total }}</span>
+                  </div>
+                  <div class="panel-card-sub" v-if="!loading && detailPagination.total > 0">Showing {{ detailPagination.from }}–{{ detailPagination.to }} of {{ detailPagination.total }}</div>
                </div>
             </div>
             <div class="panel-card-body p-0">
@@ -327,7 +330,7 @@
                      </div>
                   </div>
                </div>
-               <div v-else-if="report.recent_records.length === 0" class="text-center py-5 text-muted">
+               <div v-else-if="detailRows.length === 0" class="text-center py-5 text-muted">
                   <i class="bi bi-calendar-check empty-icon"></i>
                   <p class="mt-2 mb-1">No attendance records found for this filter.</p>
                </div>
@@ -345,7 +348,7 @@
                            </tr>
                         </thead>
                         <tbody>
-                           <tr v-for="record in report.recent_records" :key="record.id">
+                           <tr v-for="record in detailRows" :key="record.id">
                               <td>{{ record.name }}</td>
                               <td>
                                  <span :class="['m-badge', $filters.roleBadge(record.attendee_type)]">{{ record.attendee_type_label }}</span>
@@ -363,7 +366,7 @@
                      </table>
                   </div>
                   <div class="d-md-none p-3">
-                     <div class="member-card" v-for="record in report.recent_records" :key="'recent-mobile-' + record.id">
+                     <div class="member-card" v-for="record in detailRows" :key="'attendance-record-mobile-' + record.id">
                         <div class="member-card-top">
                            <div class="member-card-identity">
                               <div class="member-avatar">
@@ -389,6 +392,15 @@
                      </div>
                   </div>
                </div>
+               <div v-if="!loading && detailPagination.last_page > 1" class="d-flex justify-content-center py-3 border-top">
+                  <nav>
+                     <ul class="pagination pagination-sm mb-0">
+                        <li v-for="link in detailPagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
+                           <a class="page-link" href="#" @click.prevent="goToPage(link)" v-html="link.label"></a>
+                        </li>
+                     </ul>
+                  </nav>
+               </div>
             </div>
          </div>
    </div>
@@ -398,7 +410,7 @@
 import AttendanceDailyTrendChart from "./charts/AttendanceDailyTrendChart.vue";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import dateRangePresets from "../../mixins/dateRangePresets";
-import { formatDate, formatDateTime, startOfCurrentMonthDate, todayDate } from "../../dates";
+import { formatDate, formatDateTime } from "../../dates";
 
 export default {
    components: {
@@ -471,6 +483,12 @@ export default {
 
             return { ...row, share };
          });
+      },
+      detailPagination: function () {
+         return this.report.records || this.emptyPagination();
+      },
+      detailRows: function () {
+         return this.detailPagination.data || [];
       },
       exportUrl: function () {
          const params = new URLSearchParams();
@@ -552,14 +570,26 @@ export default {
             type_breakdown: [],
             daily_trend: [],
             busiest_hours: [],
-            recent_records: [],
+            records: this.emptyPagination(),
+         };
+      },
+      emptyPagination: function () {
+         return {
+            data: [],
+            current_page: 1,
+            per_page: 25,
+            total: 0,
+            last_page: 1,
+            from: 0,
+            to: 0,
+            links: [],
          };
       },
       defaultDateFrom: function () {
-         return startOfCurrentMonthDate();
+         return "";
       },
       defaultDateTo: function () {
-         return todayDate();
+         return "";
       },
       applyRangePreset: function (key) {
          if (this.activeRangeKey === key) {
@@ -574,35 +604,37 @@ export default {
 
          this.filters.date_from = bounds.from;
          this.filters.date_to = bounds.to;
-         this.fetchReport();
+         this.fetchReport(1);
       },
       resetFilters: function () {
          this.filters.date_from = this.defaultDateFrom();
          this.filters.date_to = this.defaultDateTo();
          this.filters.type = [];
-         this.fetchReport();
+         this.fetchReport(1);
       },
       clearChip: function (chip) {
          if (chip && chip.group && Array.isArray(this.filters[chip.group])) {
             this.filters[chip.group] = this.filters[chip.group].filter((value) => value !== chip.value);
          }
 
-         this.fetchReport();
+         this.fetchReport(1);
       },
-      buildParams: function () {
+      buildParams: function (page = 1) {
          return {
             date_from: this.filters.date_from || undefined,
             date_to: this.filters.date_to || undefined,
             type: this.filters.type.length ? this.filters.type : undefined,
+            page: page,
+            per_page: this.detailPagination.per_page || 25,
          };
       },
-      fetchReport: function () {
+      fetchReport: function (page = 1) {
          this.loading = true;
          this.pageError = "";
 
          axios
             .get("/panel/reports/attendance/data", {
-               params: this.buildParams(),
+               params: this.buildParams(page),
             })
             .then((response) => {
                this.report = response.data;
@@ -614,6 +646,14 @@ export default {
             .finally(() => {
                this.loading = false;
             });
+      },
+      goToPage: function (link) {
+         if (!link.url) {
+            return;
+         }
+
+         const page = parseInt(new URL(link.url).searchParams.get("page") || "1", 10);
+         this.fetchReport(page);
       },
       formatDuration: function (minutes) {
          if (!minutes && minutes !== 0) {

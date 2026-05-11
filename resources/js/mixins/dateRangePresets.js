@@ -12,6 +12,7 @@ export default {
       rangePresets: function () {
          return [
             { key: "today", label: "Today" },
+            { key: "yesterday", label: "Yesterday" },
             { key: "7d", label: "Last 7 Days" },
             { key: "30d", label: "Last 30 Days" },
             { key: "this_month", label: "This Month" },
@@ -23,6 +24,7 @@ export default {
 
          return {
             today: { from: today, to: today },
+            yesterday: { from: daysAgoDate(1), to: daysAgoDate(1) },
             "7d": { from: daysAgoDate(6), to: today },
             "30d": { from: daysAgoDate(29), to: today },
             this_month: { from: startOfCurrentMonthDate(), to: today },

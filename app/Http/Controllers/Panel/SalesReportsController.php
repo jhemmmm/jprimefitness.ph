@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\SaleTransaction;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -43,7 +44,7 @@ class SalesReportsController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
-        $report = $this->reportPayload($request);
+        $report = $this->reportPayload($request, false);
         $dateSuffix = now()->format('Ymd_His');
         $fileName = "sales-report-{$dateSuffix}.csv";
 
@@ -101,9 +102,9 @@ class SalesReportsController extends Controller
             }
             fputcsv($handle, []);
 
-            fputcsv($handle, ['Recent Transactions']);
+            fputcsv($handle, ['Transactions']);
             fputcsv($handle, ['Customer', 'Item', 'Type', 'Payment Method', 'Total', 'Processed By', 'Sold At']);
-            foreach ($report['recent_transactions'] as $row) {
+            foreach ($report['transactions'] as $row) {
                 fputcsv($handle, [
                     $row['customer_name'],
                     $row['item_name'],
@@ -124,7 +125,7 @@ class SalesReportsController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function reportPayload(Request $request): array
+    private function reportPayload(Request $request, bool $paginateTransactions = true): array
     {
         $data = $request->validate([
             'type' => ['nullable', 'array'],
@@ -142,10 +143,14 @@ class SalesReportsController extends Controller
             ],
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $types = array_values(array_filter($data['type'] ?? [], fn ($value) => $value !== null && $value !== ''));
         $paymentMethods = array_values(array_filter($data['payment_method'] ?? [], fn ($value) => $value !== null && $value !== ''));
+        $page = (int) ($data['page'] ?? 1);
+        $perPage = (int) ($data['per_page'] ?? 25);
 
         $salesQuery = SaleTransaction::query()
             ->completed()
@@ -169,7 +174,9 @@ class SalesReportsController extends Controller
             'payment_breakdown' => $this->paymentBreakdown((clone $salesQuery)->toBase()),
             'daily_trend' => $this->dailyTrend((clone $salesQuery)->toBase()),
             'top_items' => $this->topItems((clone $salesQuery)->get()),
-            'recent_transactions' => $this->recentTransactions((clone $salesQuery)->with(['processedBy:id,name'])->orderByDesc('sold_at')->limit(10)->get()),
+            'transactions' => $paginateTransactions
+                ? $this->paginatedTransactions((clone $salesQuery)->with(['processedBy:id,name'])->orderByDesc('sold_at')->orderByDesc('id'), $page, $perPage)
+                : $this->transactions((clone $salesQuery)->with(['processedBy:id,name'])->orderByDesc('sold_at')->orderByDesc('id')->get()),
         ];
     }
 
@@ -337,23 +344,40 @@ class SalesReportsController extends Controller
      * @param  Collection<int, SaleTransaction>  $transactions
      * @return array<int, array<string, mixed>>
      */
-    private function recentTransactions(Collection $transactions): array
+    private function transactions(Collection $transactions): array
     {
         return $transactions
-            ->sortByDesc('sold_at')
-            ->take(10)
-            ->map(fn (SaleTransaction $transaction) => [
-                'id' => $transaction->id,
-                'customer_name' => $transaction->customer_name,
-                'item_name' => $transaction->item_name,
-                'type' => $transaction->type,
-                'payment_method' => $transaction->payment_method,
-                'payment_method_label' => SaleTransaction::paymentMethodLabel($transaction->payment_method),
-                'total' => round((float) $transaction->total, 2),
-                'processed_by' => $transaction->processedBy?->name,
-                'sold_at' => $transaction->sold_at?->toISOString(),
-            ])
+            ->map(fn (SaleTransaction $transaction) => $this->transactionPayload($transaction))
             ->values()
             ->all();
+    }
+
+    private function paginatedTransactions(EloquentBuilder $query, int $page, int $perPage): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    {
+        $transactions = $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+
+        $transactions->setCollection(
+            $transactions->getCollection()->map(fn (SaleTransaction $transaction) => $this->transactionPayload($transaction))
+        );
+
+        return $transactions;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function transactionPayload(SaleTransaction $transaction): array
+    {
+        return [
+            'id' => $transaction->id,
+            'customer_name' => $transaction->customer_name,
+            'item_name' => $transaction->item_name,
+            'type' => $transaction->type,
+            'payment_method' => $transaction->payment_method,
+            'payment_method_label' => SaleTransaction::paymentMethodLabel($transaction->payment_method),
+            'total' => round((float) $transaction->total, 2),
+            'processed_by' => $transaction->processedBy?->name,
+            'sold_at' => $transaction->sold_at?->toISOString(),
+        ];
     }
 }

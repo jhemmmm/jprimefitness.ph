@@ -246,8 +246,56 @@ class PayrollReportsPageTest extends TestCase
         $response->assertJsonPath('payout_method_breakdown.0.total_paid', 2000);
         $response->assertJsonPath('payroll_trend.0.period_end', '2026-03-15');
         $response->assertJsonPath('payroll_trend.1.period_end', '2026-03-31');
-        $response->assertJsonPath('recent_payrolls.0.employee_name', 'Maria Santos');
-        $response->assertJsonPath('recent_payrolls.0.total_paid', 2000);
+        $response->assertJsonPath('payrolls.data.0.employee_name', 'Maria Santos');
+        $response->assertJsonPath('payrolls.data.0.total_paid', 2000);
+    }
+
+    public function test_payroll_reports_details_default_to_all_time_and_are_paginated(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Payroll Manager');
+        $employee = $this->createUserWithRole('staff', 'Juan Dela Cruz');
+
+        foreach ([
+            ['2026-05-01', '2026-05-15', 1500],
+            ['2026-04-01', '2026-04-15', 1400],
+            ['2026-01-01', '2026-01-15', 1300],
+        ] as [$periodStart, $periodEnd, $amount]) {
+            Payroll::create([
+                'employee_id' => $employee->id,
+                'pay_frequency' => 'semi_monthly',
+                'period_start' => $periodStart,
+                'period_end' => $periodEnd,
+                'gross_amount' => $amount,
+                'withholding_tax' => 0,
+                'manual_deductions' => 0,
+                'net_amount' => $amount,
+                'status' => Payroll::STATUS_APPROVED,
+                'generated_by' => $manager->id,
+                'approved_by' => $manager->id,
+                'approved_at' => $periodEnd.' 17:00:00',
+            ]);
+        }
+
+        $response = $this->actingAs($manager)
+            ->getJson('/panel/reports/payroll/data?per_page=2')
+            ->assertOk();
+
+        $response->assertJsonPath('filters.date_from', null);
+        $response->assertJsonPath('filters.date_to', null);
+        $response->assertJsonPath('summary.payroll_count', 3);
+        $response->assertJsonPath('payrolls.current_page', 1);
+        $response->assertJsonPath('payrolls.per_page', 2);
+        $response->assertJsonPath('payrolls.total', 3);
+        $response->assertJsonPath('payrolls.last_page', 2);
+        $response->assertJsonPath('payrolls.data.0.period_end', '2026-05-15');
+        $response->assertJsonPath('payrolls.data.1.period_end', '2026-04-15');
+
+        $this->actingAs($manager)
+            ->getJson('/panel/reports/payroll/data?per_page=2&page=2')
+            ->assertOk()
+            ->assertJsonPath('payrolls.current_page', 2)
+            ->assertJsonPath('payrolls.data.0.period_end', '2026-01-15');
     }
 
     public function test_payroll_reports_can_be_exported_to_csv(): void
@@ -299,8 +347,23 @@ class PayrollReportsPageTest extends TestCase
             'approved_at' => '2026-03-16 09:00:00',
         ]);
 
+        Payroll::create([
+            'employee_id' => $employee->id,
+            'pay_frequency' => 'semi_monthly',
+            'period_start' => '2026-01-01',
+            'period_end' => '2026-01-15',
+            'gross_amount' => 1200,
+            'withholding_tax' => 0,
+            'manual_deductions' => 0,
+            'net_amount' => 1200,
+            'status' => Payroll::STATUS_APPROVED,
+            'generated_by' => $manager->id,
+            'approved_by' => $manager->id,
+            'approved_at' => '2026-01-16 09:00:00',
+        ]);
+
         $response = $this->actingAs($manager)
-            ->get('/panel/reports/payroll/export?date_from=2026-03-01&date_to=2026-03-31');
+            ->get('/panel/reports/payroll/export');
 
         $response->assertOk();
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
@@ -314,8 +377,9 @@ class PayrollReportsPageTest extends TestCase
         $this->assertStringContainsString("Employee Government Contributions", $content);
         $this->assertStringContainsString("Employer Government Contributions", $content);
         $this->assertStringContainsString('Paid Out To Date', $content);
-        $this->assertStringContainsString('Recent Payrolls', $content);
+        $this->assertStringContainsString('Payroll Runs', $content);
         $this->assertStringContainsString('Juan Dela Cruz', $content);
+        $this->assertStringContainsString('2026-01-01 – 2026-01-15', $content);
         $this->assertStringNotContainsString('Location Totals', $content);
     }
 

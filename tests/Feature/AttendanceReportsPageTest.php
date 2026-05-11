@@ -116,8 +116,48 @@ class AttendanceReportsPageTest extends TestCase
         $response->assertJsonPath('daily_trend.2.attendance_date', '2026-03-04');
         $response->assertJsonPath('busiest_hours.0.hour_slot', '08:00');
         $response->assertJsonPath('busiest_hours.0.check_in_count', 2);
-        $response->assertJsonPath('recent_records.0.name', 'Walk-in Lee');
-        $response->assertJsonPath('recent_records.1.name', 'Walk-in Kai');
+        $response->assertJsonPath('records.data.0.name', 'Walk-in Lee');
+        $response->assertJsonPath('records.data.1.name', 'Walk-in Kai');
+    }
+
+    public function test_attendance_reports_details_default_to_all_time_and_are_paginated(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+
+        foreach ([
+            ['Recent Attendee', '2026-05-10 09:00:00'],
+            ['Middle Attendee', '2026-04-10 09:00:00'],
+            ['Old Attendee', '2026-01-10 09:00:00'],
+        ] as [$name, $checkedInAt]) {
+            Attendance::create([
+                'attendee_type' => Attendance::TYPE_WALK_IN,
+                'name' => $name,
+                'checked_in_at' => $checkedInAt,
+                'checked_out_at' => null,
+                'recorded_by' => $staff->id,
+            ]);
+        }
+
+        $response = $this->actingAs($staff)
+            ->getJson('/panel/reports/attendance/data?per_page=2')
+            ->assertOk();
+
+        $response->assertJsonPath('filters.date_from', null);
+        $response->assertJsonPath('filters.date_to', null);
+        $response->assertJsonPath('summary.total_check_ins', 3);
+        $response->assertJsonPath('records.current_page', 1);
+        $response->assertJsonPath('records.per_page', 2);
+        $response->assertJsonPath('records.total', 3);
+        $response->assertJsonPath('records.last_page', 2);
+        $response->assertJsonPath('records.data.0.name', 'Recent Attendee');
+        $response->assertJsonPath('records.data.1.name', 'Middle Attendee');
+
+        $this->actingAs($staff)
+            ->getJson('/panel/reports/attendance/data?per_page=2&page=2')
+            ->assertOk()
+            ->assertJsonPath('records.current_page', 2)
+            ->assertJsonPath('records.data.0.name', 'Old Attendee');
     }
 
     public function test_attendance_reports_can_be_exported_to_csv(): void
@@ -133,8 +173,16 @@ class AttendanceReportsPageTest extends TestCase
             'recorded_by' => $staff->id,
         ]);
 
+        Attendance::create([
+            'attendee_type' => Attendance::TYPE_WALK_IN,
+            'name' => 'Old Walk-in',
+            'checked_in_at' => '2026-01-05 08:00:00',
+            'checked_out_at' => '2026-01-05 09:00:00',
+            'recorded_by' => $staff->id,
+        ]);
+
         $response = $this->actingAs($staff)
-            ->get('/panel/reports/attendance/export?date_from=2026-03-01&date_to=2026-03-31');
+            ->get('/panel/reports/attendance/export');
 
         $response->assertOk();
         $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
@@ -143,7 +191,9 @@ class AttendanceReportsPageTest extends TestCase
         $this->assertStringContainsString('Attendance Reports', $content);
         $this->assertStringContainsString('Summary', $content);
         $this->assertStringContainsString('Attendance by Type', $content);
+        $this->assertStringContainsString('Attendance Records', $content);
         $this->assertStringContainsString('Member Joy', $content);
+        $this->assertStringContainsString('Old Walk-in', $content);
         $this->assertStringNotContainsString('Location Totals', $content);
     }
 
