@@ -10,6 +10,7 @@ use App\Models\MemberSubscription;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
+use App\Models\SystemActivity;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -412,6 +413,215 @@ class SalesPageTest extends TestCase
 
         $this->assertContains('Walk-in Carla', $customerNames);
         $this->assertContains('Other Guest', $customerNames);
+    }
+
+    public function test_manager_can_void_inventory_sale_with_reason_and_restore_stock(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
+        $item = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Protein Shake',
+            'quantity' => 10,
+            'selling_price' => 120,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $transactionId = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 3,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 400,
+                'sold_at' => '2026-03-29 14:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $this->assertSame('7.00', $item->fresh()->quantity);
+
+        $response = $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transactionId), [
+                'reason' => 'Wrong product was selected.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', SaleTransaction::STATUS_VOIDED)
+            ->assertJsonPath('is_voided', true)
+            ->assertJsonPath('void_reason', 'Wrong product was selected.')
+            ->assertJsonPath('voided_by', 'Manager Sol')
+            ->assertJsonPath('void_url', null);
+
+        $this->assertSame($transactionId, $response->json('id'));
+        $this->assertSame('10.00', $item->fresh()->quantity);
+
+        $this->assertDatabaseHas('sale_transactions', [
+            'id' => $transactionId,
+            'status' => SaleTransaction::STATUS_VOIDED,
+            'void_reason' => 'Wrong product was selected.',
+            'voided_by' => $manager->id,
+        ]);
+
+        $activity = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_SALE_TRANSACTION)
+            ->where('subject_id', $transactionId)
+            ->where('event', 'voided')
+            ->first();
+
+        $this->assertNotNull($activity);
+        $this->assertSame('Wrong product was selected.', $activity->metadata['void_reason'] ?? null);
+
+        $this->actingAs($manager)
+            ->getJson('/panel/sales/history')
+            ->assertOk()
+            ->assertJsonPath('transactions.data.0.id', $transactionId)
+            ->assertJsonPath('transactions.data.0.status', SaleTransaction::STATUS_VOIDED)
+            ->assertJsonPath('transactions.data.0.void_reason', 'Wrong product was selected.')
+            ->assertJsonPath('transactions.data.0.void_url', null);
+    }
+
+    public function test_staff_cannot_void_sales(): void
+    {
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $transaction = SaleTransaction::factory()->create([
+            'processed_by' => $staff->id,
+        ]);
+
+        $this->actingAs($staff)
+            ->postJson(route('panel.sales.void', $transaction), [
+                'reason' => 'Unauthorized void attempt.',
+            ])
+            ->assertForbidden();
+
+        $this->assertSame(SaleTransaction::STATUS_COMPLETED, $transaction->fresh()->status);
+    }
+
+    public function test_void_reason_is_required_and_completed_sale_cannot_be_voided_twice(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $transaction = SaleTransaction::factory()->create([
+            'processed_by' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transaction), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['reason']);
+
+        $this->assertSame(SaleTransaction::STATUS_COMPLETED, $transaction->fresh()->status);
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transaction), [
+                'reason' => 'Duplicate transaction.',
+            ])
+            ->assertOk();
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transaction), [
+                'reason' => 'Trying again.',
+            ])
+            ->assertStatus(409);
+    }
+
+    public function test_voiding_membership_sale_cancels_linked_subscription(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $ratePlan = $this->createRatePlan('Monthly', 30, [
+            'price' => 1500,
+        ]);
+
+        $transactionId = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => '2026-04-01',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 1500,
+                'sold_at' => '2026-03-29 15:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $subscription = MemberSubscription::where('user_id', $member->id)->firstOrFail();
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transactionId), [
+                'reason' => 'Membership payment was refunded.',
+            ])
+            ->assertOk();
+
+        $this->assertSame(MemberSubscription::STATUS_CANCELLED, $subscription->fresh()->status);
+    }
+
+    public function test_voiding_unused_pt_package_sale_cancels_linked_package(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $ptProduct = $this->createPtProduct('12 Sessions', 12, [
+            'price' => 3600,
+        ]);
+
+        $transactionId = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'assigned_at' => '2026-03-29',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 3600,
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $package = MemberPtPackage::where('user_id', $member->id)->firstOrFail();
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transactionId), [
+                'reason' => 'PT package sale was cancelled.',
+            ])
+            ->assertOk();
+
+        $this->assertSame(MemberPtPackage::STATUS_CANCELLED, $package->fresh()->status);
+        $this->assertSame(12, (int) $package->fresh()->remaining_sessions);
+    }
+
+    public function test_pt_package_sale_with_used_sessions_cannot_be_voided(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $ptProduct = $this->createPtProduct('12 Sessions', 12, [
+            'price' => 3600,
+        ]);
+
+        $transactionId = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'assigned_at' => '2026-03-29',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 3600,
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $package = MemberPtPackage::where('user_id', $member->id)->firstOrFail();
+        $package->consumeSessions(1, '2026-03-30', $manager->id);
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transactionId), [
+                'reason' => 'PT package sale was cancelled.',
+            ])
+            ->assertStatus(409);
+
+        $this->assertSame(MemberPtPackage::STATUS_ACTIVE, $package->fresh()->status);
+        $this->assertSame(SaleTransaction::STATUS_COMPLETED, SaleTransaction::findOrFail($transactionId)->status);
     }
 
     /**

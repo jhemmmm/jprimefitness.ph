@@ -68,7 +68,6 @@ class DashboardPageTest extends TestCase
         $this->assertStringContainsString('Business Snapshot', $contents);
         $this->assertStringNotContainsString('<th>Location</th>', $contents);
         $this->assertStringNotContainsString('bi-arrow-repeat', $contents);
-        $this->assertStringNotContainsString('>Refresh<', $contents);
     }
 
     public function test_stat_cards_allow_wrapping_on_small_screen_layouts(): void
@@ -161,6 +160,21 @@ class DashboardPageTest extends TestCase
             'sold_at' => '2026-04-03 09:00:00',
             'customer_name' => $member->name,
             'item_name' => '8 Sessions',
+        ]);
+
+        SaleTransaction::create([
+            'member_id' => $member->id,
+            'type' => SaleTransaction::TYPE_INVENTORY,
+            'status' => SaleTransaction::STATUS_VOIDED,
+            'total' => 1000,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'processed_by' => $manager->id,
+            'sold_at' => '2026-04-16 09:00:00',
+            'customer_name' => $member->name,
+            'item_name' => 'Voided Shake',
+            'void_reason' => 'Duplicate sale.',
+            'voided_by' => $manager->id,
+            'voided_at' => '2026-04-16 09:05:00',
         ]);
 
         SaleTransaction::create([

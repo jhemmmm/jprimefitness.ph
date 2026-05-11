@@ -86,7 +86,7 @@ class SalesController extends Controller
         $types = array_values(array_filter((array) $request->input('type', []), fn ($value) => $value !== null && $value !== ''));
 
         $history = SaleTransaction::query()
-            ->with(['member:id,name', 'processedBy:id,name'])
+            ->with(['member:id,name', 'processedBy:id,name', 'voidedBy:id,name'])
             ->when(! empty($types), fn ($query) => $query->whereIn('type', $types))
             ->when($request->search, function ($query) use ($request) {
                 $search = trim((string) $request->search);
@@ -118,9 +118,39 @@ class SalesController extends Controller
     {
         $data = $this->validateStorePayload($request);
         $transaction = $this->posSaleService->processSale($data, auth()->user())
-            ->load(['member:id,name', 'processedBy:id,name']);
+            ->load(['member:id,name', 'processedBy:id,name', 'voidedBy:id,name']);
 
         return response()->json($this->transformTransaction($transaction), 201);
+    }
+
+    /**
+     * Void a sales transaction.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function void(Request $request, SaleTransaction $saleTransaction): JsonResponse
+    {
+        $actor = auth()->user();
+
+        abort_unless($this->canVoidSales($actor), 403);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $reason = trim((string) $data['reason']);
+
+        if ($reason === '') {
+            throw ValidationException::withMessages([
+                'reason' => ['Enter the reason this sale is being voided.'],
+            ]);
+        }
+
+        $transaction = $this->posSaleService
+            ->voidSale($saleTransaction, $actor, $reason)
+            ->load(['member:id,name', 'processedBy:id,name', 'voidedBy:id,name']);
+
+        return response()->json($this->transformTransaction($transaction));
     }
 
     /**
@@ -209,9 +239,9 @@ class SalesController extends Controller
             );
         });
 
-        $transaction->load(['member:id,name', 'processedBy:id,name']);
+        $transaction->load(['member:id,name', 'processedBy:id,name', 'voidedBy:id,name']);
 
-        return response()->json(SaleTransactionPresenter::panelArray($transaction), 201);
+        return response()->json($this->transformTransaction($transaction), 201);
     }
 
     /**
@@ -256,6 +286,7 @@ class SalesController extends Controller
     public function membershipQr(SaleTransaction $saleTransaction): JsonResponse
     {
         abort_unless($saleTransaction->type === SaleTransaction::TYPE_MEMBERSHIP, 404);
+        abort_if($saleTransaction->isVoided(), 404);
 
         $subscriptionId = (int) data_get($saleTransaction->details, 'subscription_id');
         abort_unless($subscriptionId > 0, 404);
@@ -380,7 +411,7 @@ class SalesController extends Controller
      */
     private function transformTransaction(SaleTransaction $transaction): array
     {
-        return SaleTransactionPresenter::panelArray($transaction);
+        return SaleTransactionPresenter::panelArray($transaction, $this->canVoidSales(auth()->user()));
     }
 
     /**
@@ -422,6 +453,7 @@ class SalesController extends Controller
         $saleTransaction->loadMissing([
             'member:id,name,email,phone',
             'processedBy:id,name',
+            'voidedBy:id,name',
         ]);
 
         $details = $saleTransaction->details ?? [];
@@ -453,6 +485,18 @@ class SalesController extends Controller
             || $subscription->pending_payment_method !== MemberSubscription::PENDING_PAYMENT_ON_SITE) {
             abort(409, 'This registration is no longer pending on-site payment.');
         }
+    }
+
+    /**
+     * Determine whether the user may void sales.
+     *
+     * @return bool
+     */
+    private function canVoidSales(mixed $user): bool
+    {
+        return $user !== null
+            && method_exists($user, 'hasAnyRole')
+            && $user->hasAnyRole(['super admin', 'admin', 'manager']);
     }
 
     /**

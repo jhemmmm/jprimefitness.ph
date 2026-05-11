@@ -56,6 +56,7 @@ class SystemActivitySubjectRegistry
             'checked_in',
             'checked_out',
             'stock_deducted',
+            'voided',
             'biometric_enrollment_started',
             'biometric_enrolled',
             'biometric_removed',

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\SyncsToOutbox;
 use Database\Factories\SaleTransactionFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,10 @@ class SaleTransaction extends Model
 
     public const TYPE_WALK_IN = 'walk_in';
 
+    public const STATUS_COMPLETED = 'completed';
+
+    public const STATUS_VOIDED = 'voided';
+
     public const PAYMENT_METHOD_CASH = 'cash';
 
     public const PAYMENT_METHOD_ONLINE_PAYMENT = 'online_payment';
@@ -34,6 +39,7 @@ class SaleTransaction extends Model
     protected $fillable = [
         'member_id',
         'type',
+        'status',
         'total',
         'payment_method',
         'processed_by',
@@ -41,6 +47,13 @@ class SaleTransaction extends Model
         'customer_name',
         'item_name',
         'details',
+        'void_reason',
+        'voided_by',
+        'voided_at',
+    ];
+
+    protected $attributes = [
+        'status' => self::STATUS_COMPLETED,
     ];
 
     protected function casts(): array
@@ -49,17 +62,58 @@ class SaleTransaction extends Model
             'total' => 'decimal:2',
             'sold_at' => 'datetime',
             'details' => 'array',
+            'voided_at' => 'datetime',
         ];
     }
 
+    /**
+     * Get the member attached to the transaction.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function member(): BelongsTo
     {
         return $this->belongsTo(User::class, 'member_id');
     }
 
+    /**
+     * Get the panel user who processed the transaction.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function processedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'processed_by');
+    }
+
+    /**
+     * Get the panel user who voided the transaction.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
+    }
+
+    /**
+     * Scope the query to completed transactions.
+     *
+     * @return void
+     */
+    public function scopeCompleted(Builder $query): void
+    {
+        $query->where('status', self::STATUS_COMPLETED);
+    }
+
+    /**
+     * Determine whether the transaction has been voided.
+     *
+     * @return bool
+     */
+    public function isVoided(): bool
+    {
+        return $this->status === self::STATUS_VOIDED;
     }
 
     /**

@@ -88,6 +88,7 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::post('/sales', [SalesController::class, 'store'])->name('sales.store');
     Route::post('/sales/pending-memberships/{subscription}/confirm', [SalesController::class, 'confirmPendingMembership'])->name('sales.pending-memberships.confirm')->whereNumber('subscription');
     Route::post('/sales/pending-memberships/{subscription}/cancel', [SalesController::class, 'cancelPendingMembership'])->name('sales.pending-memberships.cancel')->whereNumber('subscription');
+    Route::post('/sales/{saleTransaction}/void', [SalesController::class, 'void'])->name('sales.void')->whereNumber('saleTransaction');
     Route::get('/sales/{saleTransaction}/membership-qr', [SalesController::class, 'membershipQr'])->name('sales.membership-qr')->whereNumber('saleTransaction');
     Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
 

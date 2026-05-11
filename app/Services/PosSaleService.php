@@ -127,6 +127,44 @@ class PosSaleService
     }
 
     /**
+     * Void a completed sale and reverse its linked operational effects.
+     *
+     * @return \App\Models\SaleTransaction
+     */
+    public function voidSale(SaleTransaction $saleTransaction, User $voidedBy, string $reason): SaleTransaction
+    {
+        return DB::transaction(function () use ($saleTransaction, $voidedBy, $reason): SaleTransaction {
+            $transaction = SaleTransaction::query()
+                ->lockForUpdate()
+                ->findOrFail($saleTransaction->id);
+
+            if ($transaction->isVoided()) {
+                abort(409, 'This sale has already been voided.');
+            }
+
+            match ($transaction->type) {
+                SaleTransaction::TYPE_INVENTORY => $this->reverseInventorySale($transaction),
+                SaleTransaction::TYPE_MEMBERSHIP => $this->reverseMembershipSale($transaction),
+                SaleTransaction::TYPE_PT_PACKAGE => $this->reversePtPackageSale($transaction),
+                SaleTransaction::TYPE_WALK_IN => null,
+                default => abort(409, 'This sale type cannot be voided.'),
+            };
+
+            $transaction->forceFill([
+                'status' => SaleTransaction::STATUS_VOIDED,
+                'void_reason' => $reason,
+                'voided_by' => $voidedBy->id,
+                'voided_at' => now(),
+            ])->save();
+
+            $transaction->refresh()->load(['member:id,name', 'processedBy:id,name', 'voidedBy:id,name']);
+            $this->recordSaleTransactionVoidedSystemActivity($transaction, $voidedBy);
+
+            return $transaction;
+        });
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     private function sellInventory(array $data, User $processedBy): SaleTransaction
@@ -448,6 +486,94 @@ class PosSaleService
     }
 
     /**
+     * Reverse stock deductions created by an inventory sale.
+     *
+     * @return void
+     */
+    private function reverseInventorySale(SaleTransaction $saleTransaction): void
+    {
+        $lineItems = collect(Arr::wrap(data_get($saleTransaction->details, 'line_items', [])))
+            ->filter(fn ($lineItem): bool => (int) data_get($lineItem, 'inventory_item_id') > 0 && (float) data_get($lineItem, 'quantity', 0) > 0);
+
+        foreach ($lineItems as $lineItem) {
+            $inventoryItem = InventoryItem::withTrashed()
+                ->lockForUpdate()
+                ->find((int) data_get($lineItem, 'inventory_item_id'));
+
+            if (! $inventoryItem) {
+                abort(409, 'This inventory sale cannot be voided because one of its items no longer exists.');
+            }
+
+            if (! $inventoryItem->tracks_stock) {
+                continue;
+            }
+
+            $inventoryItem->quantity = round((float) $inventoryItem->quantity + (float) data_get($lineItem, 'quantity', 0), 2);
+            $inventoryItem->saveQuietly();
+            $this->inventoryStockAlertService->sync($inventoryItem);
+        }
+    }
+
+    /**
+     * Cancel the membership subscription created by a membership sale.
+     *
+     * @return void
+     */
+    private function reverseMembershipSale(SaleTransaction $saleTransaction): void
+    {
+        $subscriptionId = (int) data_get($saleTransaction->details, 'subscription_id');
+
+        if ($subscriptionId < 1) {
+            abort(409, 'This membership sale cannot be voided because it is not linked to a membership.');
+        }
+
+        $subscription = MemberSubscription::query()
+            ->lockForUpdate()
+            ->find($subscriptionId);
+
+        if (! $subscription) {
+            abort(409, 'This membership sale cannot be voided because the linked membership no longer exists.');
+        }
+
+        $subscription->forceFill([
+            'status' => MemberSubscription::STATUS_CANCELLED,
+            'pending_payment_method' => null,
+        ])->save();
+    }
+
+    /**
+     * Cancel the PT package created by a PT package sale when unused.
+     *
+     * @return void
+     */
+    private function reversePtPackageSale(SaleTransaction $saleTransaction): void
+    {
+        $packageId = (int) data_get($saleTransaction->details, 'member_pt_package_id');
+
+        if ($packageId < 1) {
+            abort(409, 'This PT package sale cannot be voided because it is not linked to a PT package.');
+        }
+
+        $package = MemberPtPackage::query()
+            ->withCount('usages')
+            ->lockForUpdate()
+            ->find($packageId);
+
+        if (! $package) {
+            abort(409, 'This PT package sale cannot be voided because the linked PT package no longer exists.');
+        }
+
+        if ($package->usages_count > 0) {
+            abort(409, 'This PT package sale cannot be voided because sessions have already been used.');
+        }
+
+        $package->forceFill([
+            'status' => MemberPtPackage::STATUS_CANCELLED,
+            'remaining_sessions' => $package->total_sessions,
+        ])->save();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function recordSaleTransactionSystemActivity(SaleTransaction $saleTransaction, User $processedBy): array
@@ -475,6 +601,25 @@ class PosSaleService
         );
 
         return $causedBy;
+    }
+
+    /**
+     * Record a sale void system activity.
+     *
+     * @return void
+     */
+    private function recordSaleTransactionVoidedSystemActivity(SaleTransaction $saleTransaction, User $voidedBy): void
+    {
+        $this->systemActivityService->recordSubjectEvent(
+            SystemActivity::SUBJECT_SALE_TRANSACTION,
+            $saleTransaction->id,
+            'voided',
+            $this->saleTransactionSystemActivitySnapshot($saleTransaction),
+            [],
+            $voidedBy->id,
+            $voidedBy->name,
+            $saleTransaction->voided_at ?? now(),
+        );
     }
 
     private function recordMembershipCreatedSystemActivity(
@@ -556,6 +701,10 @@ class PosSaleService
             'item_name' => $saleTransaction->item_name,
             'payment_method' => $saleTransaction->payment_method,
             'total' => round((float) $saleTransaction->total, 2),
+            'status' => $saleTransaction->status,
+            'void_reason' => $saleTransaction->void_reason,
+            'voided_by' => $saleTransaction->voidedBy?->name,
+            'voided_at' => $saleTransaction->voided_at?->toDateTimeString(),
         ];
     }
 

@@ -74,6 +74,20 @@ class SalesReportsPageTest extends TestCase
 
         SaleTransaction::factory()->create([
             'processed_by' => $staff->id,
+            'type' => SaleTransaction::TYPE_INVENTORY,
+            'status' => SaleTransaction::STATUS_VOIDED,
+            'total' => 999,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'customer_name' => 'Voided Customer',
+            'item_name' => 'Voided Shake',
+            'sold_at' => '2026-03-04 10:00:00',
+            'void_reason' => 'Duplicate sale.',
+            'voided_by' => $staff->id,
+            'voided_at' => '2026-03-04 10:05:00',
+        ]);
+
+        SaleTransaction::factory()->create([
+            'processed_by' => $staff->id,
             'type' => SaleTransaction::TYPE_WALK_IN,
             'total' => 300,
             'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
@@ -110,6 +124,7 @@ class SalesReportsPageTest extends TestCase
         $response->assertJsonPath('top_items.0.quantity', 20);
         $response->assertJsonPath('recent_transactions.0.customer_name', 'Member Joy');
         $response->assertJsonPath('recent_transactions.1.customer_name', 'Counter Sale');
+        $this->assertFalse(collect($response->json('recent_transactions'))->contains('customer_name', 'Voided Customer'));
     }
 
     public function test_sales_reports_can_be_exported_to_csv(): void

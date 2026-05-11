@@ -213,6 +213,18 @@
             color: #374151;
             font-size: 10px;
         }
+
+        .void-banner {
+            margin: 14px 20px 0;
+            border: 2px solid #d72638;
+            background: #fef2f2;
+            color: #991b1b;
+            padding: 10px 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-align: center;
+        }
     </style>
 </head>
 
@@ -235,7 +247,7 @@
                             <img src="{{ $logoData }}" alt="JPrime Fitness Logo"
                                 style="width: 28px; height: 28px; display: block; margin-bottom: 6px;">
                         @endif
-                        <h1 class="document-title">Sales Receipt</h1>
+                        <h1 class="document-title">{{ $saleTransaction->isVoided() ? 'Voided Sales Receipt' : 'Sales Receipt' }}</h1>
                         <p class="document-copy">POS receipt for inventory products, memberships, PT packages, and
                             walk-in access.</p>
                     </td>
@@ -254,11 +266,23 @@
                                 <td class="meta-value">
                                     {{ str((string) $saleTransaction->type)->replace('_', ' ')->title() }}</td>
                             </tr>
+                            @if ($saleTransaction->isVoided())
+                                <tr>
+                                    <td class="meta-label">Status</td>
+                                    <td class="meta-value">VOIDED</td>
+                                </tr>
+                            @endif
                         </table>
                     </td>
                 </tr>
             </table>
         </div>
+
+        @if ($saleTransaction->isVoided())
+            <div class="void-banner">
+                VOIDED - This receipt is not an active sale record.
+            </div>
+        @endif
 
         <div class="section">
             <h2 class="section-title">Receipt Details</h2>
@@ -371,6 +395,19 @@
                 <div class="note-box">
                     <span class="note-label">Notes</span>
                     <div class="note-copy">{{ data_get($saleTransaction->details, 'notes') }}</div>
+                </div>
+            @endif
+
+            @if ($saleTransaction->isVoided())
+                <div class="note-box">
+                    <span class="note-label">Void Details</span>
+                    <div class="note-copy">
+                        Voided by {{ $saleTransaction->voidedBy?->name ?? 'Unknown User' }}
+                        @if ($saleTransaction->voided_at)
+                            on {{ $saleTransaction->voided_at->format('M d, Y h:i A') }}
+                        @endif
+                        . Reason: {{ $saleTransaction->void_reason }}
+                    </div>
                 </div>
             @endif
         </div>

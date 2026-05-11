@@ -148,6 +148,7 @@ class SalesReportsController extends Controller
         $paymentMethods = array_values(array_filter($data['payment_method'] ?? [], fn ($value) => $value !== null && $value !== ''));
 
         $salesQuery = SaleTransaction::query()
+            ->completed()
             ->when(! empty($types), fn ($query) => $query->whereIn('type', $types))
             ->when(! empty($paymentMethods), fn ($query) => $query->whereIn('payment_method', $paymentMethods))
             ->when($data['date_from'] ?? null, fn ($query) => $query->whereDate('sold_at', '>=', $data['date_from']))

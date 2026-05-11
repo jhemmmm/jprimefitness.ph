@@ -108,6 +108,7 @@ class SystemActivityExpansionTest extends TestCase
         ], collect($response->json('meta.subject_types'))->pluck('value')->all());
 
         $this->assertContains('stock_deducted', collect($response->json('meta.event_options'))->pluck('value')->all());
+        $this->assertContains('voided', collect($response->json('meta.event_options'))->pluck('value')->all());
 
         $response
             ->assertJsonPath('events.total', 1)
@@ -645,6 +646,7 @@ class SystemActivityExpansionTest extends TestCase
         $membershipPlan = $this->createRatePlan('6 Months', 180, [
             'price' => 4999.50,
         ]);
+        $member = $this->createUserWithRole('member', 'Member Mia');
         $ptProduct = $this->createPtProduct('24 Sessions', 24, [
             'price' => 7200,
         ]);
@@ -665,10 +667,7 @@ class SystemActivityExpansionTest extends TestCase
         $this->actingAs($manager)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_MEMBERSHIP,
-                'member_mode' => 'new',
-                'customer_name' => 'New Member Mia',
-                'customer_email' => 'mia.activity@example.com',
-                'customer_phone' => '09173334444',
+                'member_id' => $member->id,
                 'rate_plan_id' => $membershipPlan->id,
                 'start_date' => '2026-04-11',
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
@@ -677,12 +676,9 @@ class SystemActivityExpansionTest extends TestCase
             ])
             ->assertCreated();
 
-        $member = User::query()->where('email', 'mia.activity@example.com')->firstOrFail();
-
         $this->actingAs($manager)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_PT_PACKAGE,
-                'member_mode' => 'existing',
                 'member_id' => $member->id,
                 'pt_product_id' => $ptProduct->id,
                 'assigned_at' => '2026-04-10',
@@ -692,7 +688,7 @@ class SystemActivityExpansionTest extends TestCase
             ])
             ->assertCreated();
 
-        $this->actingAs($manager)
+        $walkInTransactionId = $this->actingAs($manager)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_WALK_IN,
                 'customer_name' => 'Walk-in Carla',
@@ -702,7 +698,8 @@ class SystemActivityExpansionTest extends TestCase
                 'amount_received' => 500,
                 'sold_at' => '2026-04-10 13:00:00',
             ])
-            ->assertCreated();
+            ->assertCreated()
+            ->json('id');
 
         $this->assertSame(
             4,
@@ -728,16 +725,6 @@ class SystemActivityExpansionTest extends TestCase
                 ->exists()
         );
 
-        $memberCreatedEvent = SystemActivity::query()
-            ->where('subject_type', SystemActivity::SUBJECT_MEMBER)
-            ->where('event', 'created')
-            ->get()
-            ->first(fn (SystemActivity $systemActivity): bool => ($systemActivity->metadata['caused_by']['subject_type'] ?? null) === SystemActivity::SUBJECT_SALE_TRANSACTION);
-
-        $this->assertNotNull($memberCreatedEvent);
-        $this->assertSame($member->id, $memberCreatedEvent->subject_id);
-        $this->assertSame('2026-04-10 11:00:00', $memberCreatedEvent->occurred_at?->toDateTimeString());
-
         $membershipCreatedEvent = SystemActivity::query()
             ->where('subject_type', SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION)
             ->where('event', 'created')
@@ -755,6 +742,23 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertNotNull($ptPackageCreatedEvent);
         $this->assertSame('2026-04-10 12:00:00', $ptPackageCreatedEvent->occurred_at?->toDateTimeString());
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $walkInTransactionId), [
+                'reason' => 'Customer requested cancellation.',
+            ])
+            ->assertOk();
+
+        $voidedEvent = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_SALE_TRANSACTION)
+            ->where('subject_id', $walkInTransactionId)
+            ->where('event', 'voided')
+            ->first();
+
+        $this->assertNotNull($voidedEvent);
+        $this->assertSame('Sale voided', $voidedEvent->title);
+        $this->assertSame('Customer requested cancellation.', $voidedEvent->metadata['void_reason'] ?? null);
+        $this->assertSame('Manager Sol', $voidedEvent->metadata['voided_by'] ?? null);
 
     }
 

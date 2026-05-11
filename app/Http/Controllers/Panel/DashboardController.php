@@ -151,6 +151,7 @@ class DashboardController extends Controller
     private function revenueForWindow(\DateTimeInterface $start, \DateTimeInterface $end): float
     {
         return round((float) SaleTransaction::query()
+            ->completed()
             ->whereBetween('sold_at', [$start, $end])
             ->sum('total'), 2);
     }
@@ -277,6 +278,7 @@ class DashboardController extends Controller
     private function recentSales(): array
     {
         return SaleTransaction::query()
+            ->completed()
             ->with(['member:id,name'])
             ->orderByDesc('sold_at')
             ->orderByDesc('id')

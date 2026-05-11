@@ -116,7 +116,10 @@ class PanelSystemActivityFormatter
                 'restored' => 'Attendance restored',
                 default => 'Attendance updated',
             },
-            SystemActivity::SUBJECT_SALE_TRANSACTION => 'Sale created',
+            SystemActivity::SUBJECT_SALE_TRANSACTION => match ($event) {
+                'voided' => 'Sale voided',
+                default => 'Sale created',
+            },
             SystemActivity::SUBJECT_INVENTORY_ITEM => match ($event) {
                 'created' => 'Inventory item created',
                 'deleted' => 'Inventory item deleted',
@@ -154,7 +157,7 @@ class PanelSystemActivityFormatter
             SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => $this->ptPackageMessage($event, $snapshot),
             SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => $this->ptSessionUsageMessage($snapshot),
             SystemActivity::SUBJECT_ATTENDANCE => $this->attendanceMessage($event, $snapshot),
-            SystemActivity::SUBJECT_SALE_TRANSACTION => $this->saleMessage($snapshot),
+            SystemActivity::SUBJECT_SALE_TRANSACTION => $this->saleMessage($event, $snapshot),
             SystemActivity::SUBJECT_INVENTORY_ITEM => $this->inventoryMessage($event, $snapshot, $metadata),
             SystemActivity::SUBJECT_RATE_PLAN => $this->ratePlanMessage($event, $snapshot),
             SystemActivity::SUBJECT_PT_PRODUCT => $this->ptProductMessage($event, $snapshot),
@@ -264,6 +267,10 @@ class PanelSystemActivityFormatter
                 'payment_method' => $snapshot['payment_method'] ?? null,
                 'member_id' => $snapshot['member_id'] ?? null,
                 'total' => $this->nullableMoney($snapshot['total'] ?? null),
+                'status' => $snapshot['status'] ?? null,
+                'void_reason' => $snapshot['void_reason'] ?? null,
+                'voided_by' => $snapshot['voided_by'] ?? null,
+                'voided_at' => $snapshot['voided_at'] ?? null,
             ],
             SystemActivity::SUBJECT_INVENTORY_ITEM => [
                 'inventory_name' => $snapshot['name'] ?? null,
@@ -433,12 +440,18 @@ class PanelSystemActivityFormatter
     /**
      * @param  array<string, mixed>  $snapshot
      */
-    private function saleMessage(array $snapshot): string
+    private function saleMessage(string $event, array $snapshot): string
     {
         $saleType = $this->saleTypeLabel((string) ($snapshot['type'] ?? ''));
         $itemName = (string) ($snapshot['item_name'] ?? 'item');
         $customerName = (string) ($snapshot['customer_name'] ?? 'Unknown Customer');
         $total = $this->currency((float) ($snapshot['total'] ?? 0));
+
+        if ($event === 'voided') {
+            $reason = trim((string) ($snapshot['void_reason'] ?? 'No reason provided.'));
+
+            return sprintf('A %s sale for %s worth %s was voided for %s. Reason: %s', $saleType, $itemName, $total, $customerName, $reason);
+        }
 
         return sprintf('A %s sale for %s worth %s was recorded for %s.', $saleType, $itemName, $total, $customerName);
     }

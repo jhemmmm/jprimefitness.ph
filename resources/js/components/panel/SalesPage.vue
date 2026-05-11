@@ -551,8 +551,12 @@
                            </td>
                            <td>
                               <span class="m-badge m-badge--open">{{ $filters.capitalize(transaction.type) }}</span>
+                              <span class="m-badge m-badge--cancelled ms-1" v-if="transaction.is_voided">Voided</span>
                            </td>
-                           <td class="small">{{ transaction.item_name || "-" }}</td>
+                           <td class="small">
+                              <div>{{ transaction.item_name || "-" }}</div>
+                              <div class="text-danger" v-if="transaction.is_voided">{{ transaction.void_reason }}</div>
+                           </td>
                            <td class="small">
                               <div>{{ transaction.payment_method_label || $filters.capitalize(transaction.payment_method) }}</div>
                               <div class="text-muted" v-if="transaction.payment_reference">{{ transaction.payment_reference }}</div>
@@ -576,6 +580,10 @@
                                  <a class="btn btn-sm btn-outline-dark" :href="transaction.source_url" v-if="transaction.source_url" title="Open source record">
                                     <i class="bi bi-box-arrow-up-right tbl-icon"></i>
                                  </a>
+                                 <button type="button" class="btn btn-sm btn-outline-danger" v-if="transaction.void_url" title="Void sale" @click="openVoidSale(transaction)" :disabled="voidingSaleId === transaction.id">
+                                    <span v-if="voidingSaleId === transaction.id" class="spinner-border spinner-border-sm"></span>
+                                    <i v-else class="bi bi-x-circle tbl-icon"></i>
+                                 </button>
                               </div>
                            </td>
                         </tr>
@@ -596,6 +604,7 @@
                      </div>
                      <div class="member-card-tags">
                         <span class="m-badge m-badge--open">{{ $filters.capitalize(transaction.type) }}</span>
+                        <span class="m-badge m-badge--cancelled" v-if="transaction.is_voided">Voided</span>
                         <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(transaction.total) }}</span>
                         <span v-if="transaction.discount" class="m-badge m-badge--cancelled"> {{ $filters.capitalize(transaction.discount.type) }} −{{ transaction.discount.percent }}% </span>
                      </div>
@@ -603,11 +612,16 @@
                         <div>{{ transaction.item_name || "-" }}</div>
                         <div>{{ transaction.payment_method_label || $filters.capitalize(transaction.payment_method) }}</div>
                         <div>{{ formatDateTime(transaction.sold_at) }}</div>
+                        <div class="text-danger" v-if="transaction.is_voided">{{ transaction.void_reason }}</div>
                      </div>
                      <div class="d-flex gap-2 mt-3">
                         <a class="btn btn-sm btn-outline-info" :href="transaction.receipt_url" target="_blank" rel="noopener">Download Receipt</a>
                         <button type="button" class="btn btn-sm btn-outline-secondary" v-if="transaction.membership_qr_url" @click="openMembershipQr(transaction)">QR</button>
                         <a class="btn btn-sm btn-outline-primary" :href="transaction.source_url" v-if="transaction.source_url">Open Record</a>
+                        <button type="button" class="btn btn-sm btn-outline-danger" v-if="transaction.void_url" @click="openVoidSale(transaction)" :disabled="voidingSaleId === transaction.id">
+                           <span v-if="voidingSaleId === transaction.id" class="spinner-border spinner-border-sm me-1"></span>
+                           Void
+                        </button>
                      </div>
                   </div>
                </div>
@@ -680,6 +694,36 @@
          </div>
       </div>
 
+      <div class="modal fade" tabindex="-1" ref="voidSaleModal">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">Void Sale</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" :disabled="voidingSaleId === voidTarget?.id"></button>
+               </div>
+               <div class="modal-body" v-if="voidTarget">
+                  <div v-if="voidError" class="alert alert-danger py-2 small">{{ voidError }}</div>
+                  <p class="small mb-3">
+                     Void <strong>{{ voidTarget.receipt_number }}</strong> for <strong>{{ voidTarget.customer_name || voidTarget.item_name }}</strong>?
+                     This will reverse linked inventory, membership, or PT package effects when safe.
+                  </p>
+                  <div>
+                     <label class="form-label">Reason <span class="text-danger">*</span></label>
+                     <textarea class="form-control" rows="4" v-model="voidForm.reason" :class="{ 'is-invalid': voidErrors.reason }" placeholder="Enter the reason this sale is being voided"></textarea>
+                     <div class="invalid-feedback" v-if="voidErrors.reason">{{ voidErrors.reason }}</div>
+                  </div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" :disabled="voidingSaleId === voidTarget?.id">Back</button>
+                  <button type="button" class="btn btn-danger px-4" @click="submitVoidSale" :disabled="voidingSaleId === voidTarget?.id">
+                     <span v-if="voidingSaleId === voidTarget?.id" class="spinner-border spinner-border-sm me-1"></span>
+                     Void Sale
+                  </button>
+               </div>
+            </div>
+         </div>
+      </div>
+
       <div class="modal fade" tabindex="-1" ref="membershipQrModal">
          <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -742,9 +786,17 @@ export default {
          lastCompletedSale: null,
          historySearchTimer: null,
          membershipQrModal: null,
+         voidSaleModal: null,
          loadingQr: false,
          selectedQr: null,
          qrError: "",
+         voidTarget: null,
+         voidingSaleId: null,
+         voidError: "",
+         voidErrors: {},
+         voidForm: {
+            reason: "",
+         },
          context: {
             inventory_items: [],
             membership_rates: [],
@@ -808,6 +860,7 @@ export default {
    },
    mounted: function () {
       this.membershipQrModal = new Modal(this.$refs.membershipQrModal);
+      this.voidSaleModal = new Modal(this.$refs.voidSaleModal);
       this.pendingPaymentModal = new Modal(this.$refs.pendingPaymentModal);
       this.form = this.defaultForm();
       this.fetchContext();
@@ -1312,6 +1365,56 @@ export default {
             this.qrError = "Unable to open the print window. Please allow pop-ups for this site.";
          }
       },
+      openVoidSale: function (transaction) {
+         if (!transaction.void_url) {
+            return;
+         }
+
+         this.voidTarget = transaction;
+         this.voidForm.reason = "";
+         this.voidErrors = {};
+         this.voidError = "";
+         this.voidSaleModal?.show();
+      },
+      submitVoidSale: function () {
+         if (!this.voidTarget?.void_url) {
+            return;
+         }
+
+         this.voidingSaleId = this.voidTarget.id;
+         this.voidErrors = {};
+         this.voidError = "";
+
+         axios
+            .post(this.voidTarget.void_url, {
+               reason: this.voidForm.reason,
+            })
+            .then((response) => {
+               this.voidSaleModal?.hide();
+               this.successMessage = `Sale ${response.data.receipt_number} was voided.`;
+               this.lastCompletedSale = null;
+               this.voidTarget = null;
+               this.voidForm.reason = "";
+               this.fetchContext();
+               this.fetchPendingPayments();
+               this.fetchHistory(this.historyPagination.currentPage || 1);
+            })
+            .catch((error) => {
+               if (error.response?.status === 422) {
+                  this.voidErrors = Object.fromEntries(
+                     Object.entries(error.response.data.errors || {}).map(function ([field, messages]) {
+                        return [field, Array.isArray(messages) ? messages[0] : messages];
+                     }),
+                  );
+                  return;
+               }
+
+               this.voidError = error.response?.data?.message || "Failed to void sale.";
+            })
+            .finally(() => {
+               this.voidingSaleId = null;
+            });
+      },
       fetchPendingPayments: function () {
          this.loadingPendingPayments = true;
          axios
@@ -1381,6 +1484,7 @@ export default {
       clearTimeout(this.historySearchTimer);
       clearInterval(this.pendingPaymentsTimer);
       this.pendingPaymentModal?.dispose();
+      this.voidSaleModal?.dispose();
       this.membershipQrModal?.dispose();
    },
 };

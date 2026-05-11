@@ -9,17 +9,20 @@ class SaleTransactionPresenter
     /**
      * @return array<string, mixed>
      */
-    public static function panelArray(SaleTransaction $transaction): array
+    public static function panelArray(SaleTransaction $transaction, bool $canVoid = false): array
     {
         $details = $transaction->details ?? [];
         $discount = data_get($details, 'discount');
         $subtotal = data_get($details, 'subtotal');
+        $isVoided = $transaction->isVoided();
 
         return [
             'id' => $transaction->id,
             'receipt_number' => $transaction->receiptNumber(),
             'member_id' => $transaction->member_id,
             'type' => $transaction->type,
+            'status' => $transaction->status,
+            'is_voided' => $isVoided,
             'total' => round((float) $transaction->total, 2),
             'subtotal' => $subtotal !== null ? round((float) $subtotal, 2) : round((float) $transaction->total, 2),
             'discount' => $discount ? [
@@ -34,12 +37,17 @@ class SaleTransactionPresenter
             'payment_reference' => $transaction->paymentReference(),
             'processed_by' => $transaction->processedBy?->name,
             'sold_at' => $transaction->sold_at?->toISOString(),
+            'void_reason' => $transaction->void_reason,
+            'voided_by' => $transaction->voidedBy?->name,
+            'voided_at' => $transaction->voided_at?->toISOString(),
             'customer_name' => $transaction->customer_name ?: $transaction->member?->name,
             'item_name' => $transaction->item_name,
             'details' => $details,
             'receipt_url' => route('panel.sales.receipt', $transaction),
+            'void_url' => $canVoid && ! $isVoided ? route('panel.sales.void', $transaction) : null,
             'membership_qr_url' => $transaction->type === SaleTransaction::TYPE_MEMBERSHIP
                 && filled(data_get($details, 'subscription_id'))
+                && ! $isVoided
                     ? route('panel.sales.membership-qr', $transaction)
                     : null,
             'source_url' => match ($transaction->type) {
