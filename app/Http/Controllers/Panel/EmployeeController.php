@@ -339,7 +339,7 @@ class EmployeeController extends Controller
             ->whereNotNull('checked_in_at')
             ->whereNotNull('checked_out_at')
             ->get(['checked_in_at', 'checked_out_at'])
-            ->sum(fn (Attendance $a) => max(0, $a->checked_out_at->diffInMinutes($a->checked_in_at)));
+            ->sum(fn (Attendance $a) => max(0, $a->checked_in_at->diffInMinutes($a->checked_out_at)));
 
         return response()->json([
             'records' => $records,
