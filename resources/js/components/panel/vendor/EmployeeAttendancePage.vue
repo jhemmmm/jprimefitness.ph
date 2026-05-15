@@ -5,7 +5,7 @@
       <!-- Stats -->
       <div class="row g-3 mb-4">
          <template v-if="loading">
-            <div class="col-4" v-for="i in 3" :key="'sk-s-' + i">
+            <div class="col-6 col-md-3" v-for="i in 4" :key="'sk-s-' + i">
                <div class="stat-card">
                   <div class="skeleton-box rounded-circle flex-shrink-0" style="width: 40px; height: 40px"></div>
                   <div class="stat-card-body">
@@ -16,7 +16,7 @@
             </div>
          </template>
          <template v-else>
-            <div class="col-4" v-for="s in statCards" :key="s.label">
+            <div class="col-6 col-md-3" v-for="s in statCards" :key="s.label">
                <div class="stat-card">
                   <div class="stat-card-icon" :class="s.iconBg"><i class="bi" :class="[s.icon, s.iconColor]"></i></div>
                   <div class="stat-card-body">
@@ -59,6 +59,7 @@
                <tr>
                   <th>Checked In</th>
                   <th>Checked Out</th>
+                  <th>Hours</th>
                   <th>Status</th>
                   <th>Source</th>
                   <th class="col-actions"></th>
@@ -70,6 +71,10 @@
                   <td>
                      <span v-if="r.checked_out_at" class="text-muted small">{{ formatDateTime(r.checked_out_at) }}</span>
                      <button v-else class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+                  </td>
+                  <td class="small">
+                     <span v-if="r.checked_out_at">{{ formatHours(r) }}</span>
+                     <span v-else class="text-muted">—</span>
                   </td>
                   <td>
                      <span :class="['m-badge', $filters.statusBadge(r.checked_out_at ? 'inactive' : 'active')]">
@@ -108,6 +113,7 @@
             </div>
             <div class="member-card-footer">
                <span v-if="r.checked_out_at" class="text-muted small"><i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(r.checked_out_at) }}</span>
+               <span v-if="r.checked_out_at" class="text-muted small ms-2"><i class="bi bi-clock me-1"></i>{{ formatHours(r) }}</span>
                <button v-if="!r.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-auto" @click="confirmDelete(r)"><i class="bi bi-trash"></i></button>
             </div>
@@ -197,7 +203,7 @@ export default {
          deleting: false,
          records: [],
          pagination: { lastPage: 1, links: [] },
-         stats: { total: 0, this_month: 0, currently_in: 0 },
+         stats: { total: 0, this_month: 0, currently_in: 0, total_hours: 0 },
          dateFrom: "",
          dateTo: "",
          currentPage: 1,
@@ -223,6 +229,7 @@ export default {
          return [
             { label: "Total", value: this.stats.total, icon: "bi-calendar-check", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             { label: "This Month", value: this.stats.this_month, icon: "bi-calendar-month", iconBg: "bg-success-soft", iconColor: "text-success" },
+            { label: "Total Hours", value: this.stats.total_hours + "h", icon: "bi-clock-history", iconBg: "bg-warning-soft", iconColor: "text-warning" },
             { label: "Currently In", value: this.stats.currently_in, icon: "bi-door-open-fill", iconBg: "bg-danger-soft", iconColor: "text-danger" },
          ];
       },
@@ -319,6 +326,17 @@ export default {
             })
             .catch((err) => (this.pageError = err.response?.data?.message || "Failed to delete attendance record."))
             .finally(() => (this.deleting = false));
+      },
+      formatHours: function (r) {
+         if (!r.checked_in_at || !r.checked_out_at) return "—";
+         const ms = new Date(r.checked_out_at).getTime() - new Date(r.checked_in_at).getTime();
+         if (!isFinite(ms) || ms < 0) return "—";
+         const totalMinutes = Math.round(ms / 60000);
+         const h = Math.floor(totalMinutes / 60);
+         const m = totalMinutes % 60;
+         if (h === 0) return m + "m";
+         if (m === 0) return h + "h";
+         return h + "h " + m + "m";
       },
       sourceLabel: function (source) {
          return source === "hikvision" ? "Hikvision" : "Manual";

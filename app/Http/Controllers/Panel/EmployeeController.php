@@ -335,12 +335,19 @@ class EmployeeController extends Controller
 
         $statsQuery = Attendance::query()->where('user_id', $employee->id);
 
+        $totalMinutes = (clone $statsQuery)
+            ->whereNotNull('checked_in_at')
+            ->whereNotNull('checked_out_at')
+            ->get(['checked_in_at', 'checked_out_at'])
+            ->sum(fn (Attendance $a) => max(0, $a->checked_out_at->diffInMinutes($a->checked_in_at)));
+
         return response()->json([
             'records' => $records,
             'stats' => [
                 'total' => (clone $statsQuery)->count(),
                 'this_month' => (clone $statsQuery)->whereMonth('checked_in_at', now()->month)->whereYear('checked_in_at', now()->year)->count(),
                 'currently_in' => (clone $statsQuery)->whereNull('checked_out_at')->count(),
+                'total_hours' => round($totalMinutes / 60, 1),
             ],
         ]);
     }
