@@ -37,7 +37,9 @@ class EmployeeController extends Controller
         private NotificationRecipientResolver $notificationRecipientResolver,
         private SystemActivityService $systemActivityService,
     ) {
-        $this->middleware('can:manage employees')->except('show');
+        $this->middleware('can:manage employees')->except([
+            'show', 'schedule', 'attendance', 'payrolls', 'payslip', 'payouts', 'payrollPayouts',
+        ]);
     }
 
     /**
@@ -57,10 +59,7 @@ class EmployeeController extends Controller
      */
     public function show(User $employee): View
     {
-        abort_unless(
-            (int) $employee->id === (int) auth()->id() || auth()->user()->can('manage employees'),
-            403
-        );
+        $this->authorizeSelfOrManager($employee);
 
         return view('panel.employees.show', [
             'employee' => $this->serializeEmployee($employee->load('roles')),
@@ -254,6 +253,8 @@ class EmployeeController extends Controller
      */
     public function schedule(User $employee): JsonResponse
     {
+        $this->authorizeSelfOrManager($employee);
+
         $profile = $this->ensureEmployeeProfile($employee);
         $profile->load('scheduleShifts');
 
@@ -316,6 +317,8 @@ class EmployeeController extends Controller
      */
     public function attendance(Request $request, User $employee): JsonResponse
     {
+        $this->authorizeSelfOrManager($employee);
+
         $records = Attendance::query()
             ->where('user_id', $employee->id)
             ->when($request->filled('date_from'), fn ($query) => $query->whereDate('checked_in_at', '>=', $request->date_from))
@@ -359,6 +362,8 @@ class EmployeeController extends Controller
      */
     public function payrolls(User $employee): JsonResponse
     {
+        $this->authorizeSelfOrManager($employee);
+
         $payrolls = Payroll::query()
             ->where('employee_id', $employee->id)
             ->with('approvedBy:id,name')
@@ -380,6 +385,8 @@ class EmployeeController extends Controller
      */
     public function payslip(User $employee, Payroll $payroll): Responsable
     {
+        $this->authorizeSelfOrManager($employee);
+
         abort_if($payroll->employee_id !== $employee->id, 404);
 
         $payroll->load([
@@ -400,6 +407,53 @@ class EmployeeController extends Controller
             'payroll' => $payroll,
             'businessProfile' => $businessProfile,
         ])->driver('dompdf')->format('a4')->margins(8, 8, 8, 8)->download($fileName);
+    }
+
+    /**
+     * Preview statutory contribution amounts for given profile inputs.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function contributionPreview(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'pay_frequency' => ['nullable', Rule::in(['monthly', 'semi_monthly'])],
+            'sss_covered' => ['sometimes', 'boolean'],
+            'sss_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
+            'philhealth_covered' => ['sometimes', 'boolean'],
+            'philhealth_monthly_basic_salary' => ['nullable', 'numeric', 'min:0'],
+            'pagibig_covered' => ['sometimes', 'boolean'],
+            'pagibig_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        return response()->json($this->payrollService->previewGovernmentContributions(
+            $data,
+            $data['pay_frequency'] ?? 'semi_monthly'
+        ));
+    }
+
+    /**
+     * Display the payroll create/edit document page.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
+    public function createPayrollPage(Request $request, User $employee): View
+    {
+        $payroll = null;
+
+        if ($request->filled('payroll')) {
+            $payroll = Payroll::query()
+                ->where('employee_id', $employee->id)
+                ->findOrFail($request->integer('payroll'));
+
+            abort_unless($payroll->status === Payroll::STATUS_DRAFT, 404);
+        }
+
+        return view('panel.employees.payroll-form', [
+            'employee' => $this->serializeEmployee($employee->load('roles')),
+            'employeeName' => $employee->name,
+            'payroll' => $payroll ? $this->serializePayroll($payroll) : null,
+        ]);
     }
 
     /**
@@ -699,6 +753,8 @@ class EmployeeController extends Controller
      */
     public function payouts(User $employee): JsonResponse
     {
+        $this->authorizeSelfOrManager($employee);
+
         $payouts = Payout::query()
             ->where('employee_id', $employee->id)
             ->with(['payroll:id,period_start,period_end', 'releasedBy:id,name'])
@@ -718,6 +774,8 @@ class EmployeeController extends Controller
      */
     public function payrollPayouts(User $employee, Payroll $payroll): JsonResponse
     {
+        $this->authorizeSelfOrManager($employee);
+
         abort_if($payroll->employee_id !== $employee->id, 404);
 
         $payouts = $payroll->payouts()
@@ -772,6 +830,17 @@ class EmployeeController extends Controller
         $payout = $payout->fresh(['payroll', 'releasedBy', 'employee:id,name']);
 
         return response()->json($this->serializePayout($payout), 201);
+    }
+
+    /**
+     * Allow employees to view their own records; everything else needs the permission.
+     */
+    private function authorizeSelfOrManager(User $employee): void
+    {
+        abort_unless(
+            (int) $employee->id === (int) auth()->id() || auth()->user()->can('manage employees'),
+            403
+        );
     }
 
     /**

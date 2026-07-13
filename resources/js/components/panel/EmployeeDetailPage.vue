@@ -35,7 +35,7 @@
       </div>
 
       <ul class="nav nav-tabs mb-0" style="border-bottom: none">
-         <li class="nav-item" v-for="tab in tabs" :key="tab.key">
+         <li class="nav-item" v-for="tab in visibleTabs" :key="tab.key">
             <button class="nav-link" :class="{ active: activeTab === tab.key }" @click="activeTab = tab.key"><i class="bi me-1" :class="tab.icon"></i>{{ tab.label }}</button>
          </li>
       </ul>
@@ -69,7 +69,7 @@ export default {
    data: function () {
       return {
          localEmployee: { ...this.employee },
-         activeTab: "attendance",
+         activeTab: new URLSearchParams(window.location.search).get("tab") || "attendance",
          tabs: [
             { key: "attendance", label: "Attendance", icon: "bi-calendar-check" },
             { key: "schedule", label: "Schedule", icon: "bi-calendar-week" },
@@ -80,7 +80,22 @@ export default {
       };
    },
 
+   mounted: function () {
+      if (!this.visibleTabs.some((tab) => tab.key === this.activeTab)) {
+         this.activeTab = "attendance";
+      }
+   },
+
    computed: {
+      visibleTabs: function () {
+         if (this.can("manage employees")) {
+            return this.tabs;
+         }
+
+         return this.tabs.filter(function (tab) {
+            return tab.key !== "settings";
+         });
+      },
       activeComponent: function () {
          return {
             attendance: "EmployeeAttendancePage",

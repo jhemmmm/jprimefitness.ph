@@ -57,6 +57,9 @@ app.component("employees-page", EmployeesPage);
 import EmployeeDetailPage from "./components/panel/EmployeeDetailPage.vue";
 app.component("employee-detail-page", EmployeeDetailPage);
 
+import PayrollDocumentPage from "./components/panel/PayrollDocumentPage.vue";
+app.component("payroll-document-page", PayrollDocumentPage);
+
 import NotificationsPage from "./components/panel/NotificationsPage.vue";
 app.component("notifications-page", NotificationsPage);
 

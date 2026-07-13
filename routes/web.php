@@ -132,7 +132,9 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/employees/{employee}/schedule', [EmployeeController::class, 'schedule'])->name('employees.schedule.show')->whereNumber('employee')->withTrashed();
     Route::put('/employees/{employee}/schedule', [EmployeeController::class, 'updateSchedule'])->name('employees.schedule.update')->whereNumber('employee');
     Route::post('/employees/{employee}/attendance', [EmployeeController::class, 'attendance'])->name('employees.attendance')->whereNumber('employee')->withTrashed();
+    Route::get('/employees/contribution-preview', [EmployeeController::class, 'contributionPreview'])->name('employees.contributions.preview');
     Route::get('/employees/{employee}/payrolls', [EmployeeController::class, 'payrolls'])->name('employees.payrolls.list')->whereNumber('employee')->withTrashed();
+    Route::get('/employees/{employee}/payrolls/create', [EmployeeController::class, 'createPayrollPage'])->name('employees.payrolls.create')->whereNumber('employee');
     Route::post('/employees/{employee}/payrolls', [EmployeeController::class, 'storePayroll'])->name('employees.payrolls.store')->whereNumber('employee');
     Route::get('/employees/{employee}/payrolls/suggest', [EmployeeController::class, 'payrollSuggest'])->name('employees.payrolls.suggest')->whereNumber('employee')->withTrashed();
     Route::get('/employees/{employee}/payrolls/{payroll}/payslip', [EmployeeController::class, 'payslip'])->name('employees.payrolls.payslip')->whereNumber('employee')->whereNumber('payroll')->withTrashed();

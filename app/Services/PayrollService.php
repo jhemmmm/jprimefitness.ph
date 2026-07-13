@@ -177,6 +177,7 @@ class PayrollService
      *
      * @return array{
      *     daily_rate: float,
+     *     days: list<array{date: string, time_in: ?string, time_out: ?string, scheduled_hours: float, worked_hours: float, paid_hours: float, day_pay_amount: float, deduction_amount: float, status: string, late_minutes: int}>,
      *     days_worked: int,
      *     gross_amount: float,
      *     open_attendance_count: int,
@@ -205,11 +206,14 @@ class PayrollService
             return $this->suggestFromScheduledAttendance(
                 $employee,
                 $attendanceRecords,
-                $payOverworkHours
+                $payOverworkHours,
+                $periodStart,
+                $periodEnd
             );
         }
 
         $workedMinutesByDate = [];
+        $timesByDate = [];
         $openAttendanceCount = 0;
 
         foreach ($attendanceRecords as $attendance) {
@@ -222,20 +226,41 @@ class PayrollService
             $workDate = $attendance->checked_in_at->toDateString();
             $workedMinutesByDate[$workDate] = ($workedMinutesByDate[$workDate] ?? 0)
                 + max(0, $attendance->checked_in_at->diffInMinutes($attendance->checked_out_at));
+
+            $times = $timesByDate[$workDate] ?? null;
+            $timesByDate[$workDate] = [
+                'in' => $times && $times['in']->lessThan($attendance->checked_in_at) ? $times['in'] : $attendance->checked_in_at,
+                'out' => $times && $times['out']->greaterThan($attendance->checked_out_at) ? $times['out'] : $attendance->checked_out_at,
+            ];
         }
 
-        $regularMinutes = 0;
-        $overworkMinutes = 0;
-
-        foreach ($workedMinutesByDate as $workedMinutes) {
-            $regularMinutes += min($workedMinutes, self::STANDARD_WORKDAY_MINUTES);
-
-            if ($payOverworkHours) {
-                $overworkMinutes += max(0, $workedMinutes - self::STANDARD_WORKDAY_MINUTES);
-            }
-        }
+        ksort($workedMinutesByDate);
 
         $dailyRate = (float) ($employee->employeeProfile?->daily_rate ?? 0);
+        $regularMinutes = 0;
+        $overworkMinutes = 0;
+        $days = [];
+
+        foreach ($workedMinutesByDate as $workDate => $workedMinutes) {
+            $paidMinutes = min($workedMinutes, self::STANDARD_WORKDAY_MINUTES);
+            $dayOverworkMinutes = $payOverworkHours ? max(0, $workedMinutes - self::STANDARD_WORKDAY_MINUTES) : 0;
+            $regularMinutes += $paidMinutes;
+            $overworkMinutes += $dayOverworkMinutes;
+
+            $days[] = $this->dayRow(
+                $workDate,
+                0,
+                $workedMinutes,
+                $paidMinutes,
+                round($dailyRate * (($paidMinutes + $dayOverworkMinutes) / self::STANDARD_WORKDAY_MINUTES), 2),
+                'unscheduled',
+                0,
+                $dailyRate,
+                $timesByDate[$workDate]['in'] ?? null,
+                $timesByDate[$workDate]['out'] ?? null
+            );
+        }
+
         $daysWorked = count($workedMinutesByDate);
         $regularHours = round($regularMinutes / 60, 2);
         $overworkHours = round($overworkMinutes / 60, 2);
@@ -258,14 +283,20 @@ class PayrollService
             'overwork_pay_amount' => $overworkPayAmount,
             'open_attendance_count' => $openAttendanceCount,
             'gross_amount' => $gross,
+            'days' => $days,
         ];
     }
 
     /**
      * Suggest gross amount from attendance using the employee's saved schedule.
      *
+     * A late check-in slides the whole scheduled window forward ("shift refill"):
+     * scheduled 06:00-14:00 with a 08:00 check-in is payable until 16:00. Time
+     * before the scheduled start is never paid as regular hours.
+     *
      * @return array{
      *     daily_rate: float,
+     *     days: list<array{date: string, time_in: ?string, time_out: ?string, scheduled_hours: float, worked_hours: float, paid_hours: float, day_pay_amount: float, deduction_amount: float, status: string, late_minutes: int}>,
      *     days_worked: int,
      *     gross_amount: float,
      *     open_attendance_count: int,
@@ -280,14 +311,21 @@ class PayrollService
     private function suggestFromScheduledAttendance(
         User $employee,
         Collection $attendanceRecords,
-        bool $payOverworkHours
+        bool $payOverworkHours,
+        string $periodStart,
+        string $periodEnd
     ): array {
         $attendanceIntervalsByDate = [];
         $openAttendanceCount = 0;
+        $openOnlyDates = [];
 
         foreach ($attendanceRecords as $attendance) {
             if (! $attendance->checked_in_at || ! $attendance->checked_out_at) {
                 $openAttendanceCount++;
+
+                if ($attendance->checked_in_at) {
+                    $openOnlyDates[$attendance->checked_in_at->toDateString()] = true;
+                }
 
                 continue;
             }
@@ -299,34 +337,112 @@ class PayrollService
             ];
         }
 
+        $dailyRate = (float) ($employee->employeeProfile?->daily_rate ?? 0);
         $regularMinutes = 0;
         $overworkMinutes = 0;
+        $days = [];
+        $today = now()->toDateString();
 
-        foreach ($attendanceIntervalsByDate as $workDate => $attendanceIntervals) {
+        $cursor = Carbon::parse($periodStart)->startOfDay();
+        $endDate = Carbon::parse($periodEnd)->startOfDay();
+
+        for (; $cursor->lte($endDate); $cursor->addDay()) {
+            $workDate = $cursor->toDateString();
             $scheduleIntervals = $this->scheduleIntervalsForDate($employee, $workDate);
-            $workedMinutes = $this->sumIntervalMinutes($attendanceIntervals);
+            $attendanceIntervals = $attendanceIntervalsByDate[$workDate] ?? [];
 
-            if ($scheduleIntervals === []) {
-                if ($payOverworkHours) {
-                    $overworkMinutes += $workedMinutes;
+            if ($attendanceIntervals === []) {
+                // A day with only an open check-in isn't absent; the
+                // open_attendance_count warning already covers it.
+                if ($scheduleIntervals !== [] && $workDate <= $today && ! isset($openOnlyDates[$workDate])) {
+                    $days[] = $this->dayRow($workDate, $this->sumIntervalMinutes($scheduleIntervals), 0, 0, 0.0, 'absent', 0, $dailyRate, null, null);
                 }
 
                 continue;
+            }
+
+            $workedMinutes = $this->sumIntervalMinutes($attendanceIntervals);
+
+            if ($scheduleIntervals === []) {
+                $dayOverworkMinutes = $payOverworkHours ? $workedMinutes : 0;
+                $overworkMinutes += $dayOverworkMinutes;
+
+                $days[] = $this->dayRow(
+                    $workDate,
+                    0,
+                    $workedMinutes,
+                    0,
+                    round($dailyRate * ($dayOverworkMinutes / self::STANDARD_WORKDAY_MINUTES), 2),
+                    'unscheduled',
+                    0,
+                    $dailyRate,
+                    collect($attendanceIntervals)->min('start'),
+                    collect($attendanceIntervals)->max('end')
+                );
+
+                continue;
+            }
+
+            $firstCheckIn = collect($attendanceIntervals)->min('start');
+            $scheduledStart = collect($scheduleIntervals)->min('start');
+            $lateMinutes = max(0, (int) floor($scheduledStart->diffInMinutes($firstCheckIn, false)));
+
+            // ponytail: all of the day's shifts slide together by the lateness;
+            // per-shift sliding if split-shift lateness ever needs finer handling.
+            $slidIntervals = array_map(fn (array $interval): array => [
+                'start' => $interval['start']->copy()->addMinutes($lateMinutes),
+                'end' => $interval['end']->copy()->addMinutes($lateMinutes),
+            ], $scheduleIntervals);
+
+            // Overlapping attendance rows (double punches) can double-count here,
+            // but the scheduled-minutes cap below bounds the damage.
+            $paidRegularMinutes = 0;
+
+            foreach ($attendanceIntervals as $attendanceInterval) {
+                foreach ($slidIntervals as $slidInterval) {
+                    $overlapStart = $attendanceInterval['start']->greaterThan($slidInterval['start'])
+                        ? $attendanceInterval['start']
+                        : $slidInterval['start'];
+                    $overlapEnd = $attendanceInterval['end']->lessThan($slidInterval['end'])
+                        ? $attendanceInterval['end']
+                        : $slidInterval['end'];
+
+                    if ($overlapStart->lessThan($overlapEnd)) {
+                        $paidRegularMinutes += (int) floor($overlapStart->diffInMinutes($overlapEnd));
+                    }
+                }
             }
 
             $scheduledRegularMinutes = min(
                 $this->sumIntervalMinutes($scheduleIntervals),
                 self::STANDARD_WORKDAY_MINUTES
             );
-            $regularWorkedMinutes = min($workedMinutes, $scheduledRegularMinutes);
-            $regularMinutes += $regularWorkedMinutes;
+            $paidRegularMinutes = min($paidRegularMinutes, $scheduledRegularMinutes);
+            $regularMinutes += $paidRegularMinutes;
 
-            if ($payOverworkHours) {
-                $overworkMinutes += max(0, $workedMinutes - $regularWorkedMinutes);
-            }
+            $dayOverworkMinutes = $payOverworkHours ? max(0, $workedMinutes - $paidRegularMinutes) : 0;
+            $overworkMinutes += $dayOverworkMinutes;
+
+            $status = match (true) {
+                $paidRegularMinutes < $scheduledRegularMinutes => 'undertime',
+                $lateMinutes > 0 => 'late',
+                default => 'full',
+            };
+
+            $days[] = $this->dayRow(
+                $workDate,
+                $this->sumIntervalMinutes($scheduleIntervals),
+                $workedMinutes,
+                $paidRegularMinutes,
+                round($dailyRate * (($paidRegularMinutes + $dayOverworkMinutes) / self::STANDARD_WORKDAY_MINUTES), 2),
+                $status,
+                $lateMinutes,
+                $dailyRate,
+                $firstCheckIn,
+                collect($attendanceIntervals)->max('end')
+            );
         }
 
-        $dailyRate = (float) ($employee->employeeProfile?->daily_rate ?? 0);
         $daysWorked = count($attendanceIntervalsByDate);
         $regularHours = round($regularMinutes / 60, 2);
         $overworkHours = round($overworkMinutes / 60, 2);
@@ -349,6 +465,38 @@ class PayrollService
             'overwork_pay_amount' => $overworkPayAmount,
             'open_attendance_count' => $openAttendanceCount,
             'gross_amount' => $gross,
+            'days' => $days,
+        ];
+    }
+
+    /**
+     * @return array{date: string, time_in: ?string, time_out: ?string, scheduled_hours: float, worked_hours: float, paid_hours: float, day_pay_amount: float, deduction_amount: float, status: string, late_minutes: int}
+     */
+    private function dayRow(
+        string $date,
+        int $scheduledMinutes,
+        int $workedMinutes,
+        int $paidMinutes,
+        float $payAmount,
+        string $status,
+        int $lateMinutes,
+        float $dailyRate,
+        ?Carbon $timeIn,
+        ?Carbon $timeOut
+    ): array {
+        $scheduledPaidMinutes = min($scheduledMinutes, self::STANDARD_WORKDAY_MINUTES);
+
+        return [
+            'date' => $date,
+            'time_in' => $timeIn?->toIso8601String(),
+            'time_out' => $timeOut?->toIso8601String(),
+            'scheduled_hours' => round($scheduledMinutes / 60, 2),
+            'worked_hours' => round($workedMinutes / 60, 2),
+            'paid_hours' => round($paidMinutes / 60, 2),
+            'day_pay_amount' => $payAmount,
+            'deduction_amount' => round($dailyRate * max(0, $scheduledPaidMinutes - $paidMinutes) / self::STANDARD_WORKDAY_MINUTES, 2),
+            'status' => $status,
+            'late_minutes' => $lateMinutes,
         ];
     }
 
@@ -381,6 +529,28 @@ class PayrollService
             ),
             0
         );
+    }
+
+    /**
+     * Preview statutory contributions for arbitrary profile inputs, ignoring
+     * the once-a-month semi-monthly allocation (always applies amounts).
+     *
+     * @param  array<string, mixed>  $profileInputs
+     * @return array{
+     *     employee_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
+     *     employer_contributions: array<string, array{label: string, total: float, lines: array<string, array{label: string, amount: float}>}>,
+     *     employee_contributions_total: float,
+     *     employer_contributions_total: float
+     * }
+     */
+    public function previewGovernmentContributions(array $profileInputs, ?string $payFrequency): array
+    {
+        $countryCode = BusinessProfile::current()->country_code;
+
+        return $this->resolveTaxProfile($countryCode)->calculateGovernmentContributions($payFrequency, [
+            ...$profileInputs,
+            'apply' => true,
+        ]);
     }
 
     public function manualGrossAdjustmentAmount(

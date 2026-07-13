@@ -116,68 +116,7 @@
                </section>
 
                <section class="border rounded-3 p-3 bg-light" v-if="isPhilippinesPayroll">
-                  <div class="fw-semibold mb-1">Philippine Government Contributions</div>
-                  <div class="text-muted small mb-3">Save the monthly statutory bases used to snapshot SSS, PhilHealth, and Pag-IBIG on payrolls.</div>
-
-                  <div class="row g-3">
-                     <div class="col-12">
-                        <div class="form-check form-switch mb-2">
-                           <input class="form-check-input" type="checkbox" id="employee-settings-sss-covered" v-model="form.employee_profile.sss_covered" />
-                           <label class="form-check-label fw-semibold" for="employee-settings-sss-covered">SSS Covered</label>
-                        </div>
-                        <label class="form-label form-label-sm fw-semibold">SSS Monthly Compensation (₱)</label>
-                        <input
-                           type="number"
-                           class="form-control"
-                           :class="{ 'is-invalid': errors['employee_profile.sss_monthly_compensation'] }"
-                           v-model="form.employee_profile.sss_monthly_compensation"
-                           min="0"
-                           step="0.01"
-                           placeholder="0.00"
-                           :disabled="!form.employee_profile.sss_covered"
-                        />
-                        <div class="form-text small">Required when SSS coverage is enabled.</div>
-                        <div class="invalid-feedback" v-if="errors['employee_profile.sss_monthly_compensation']">{{ errors["employee_profile.sss_monthly_compensation"][0] }}</div>
-                     </div>
-                     <div class="col-12">
-                        <div class="form-check form-switch mb-2">
-                           <input class="form-check-input" type="checkbox" id="employee-settings-philhealth-covered" v-model="form.employee_profile.philhealth_covered" />
-                           <label class="form-check-label fw-semibold" for="employee-settings-philhealth-covered">PhilHealth Covered</label>
-                        </div>
-                        <label class="form-label form-label-sm fw-semibold">PhilHealth Monthly Basic Salary (₱)</label>
-                        <input
-                           type="number"
-                           class="form-control"
-                           :class="{ 'is-invalid': errors['employee_profile.philhealth_monthly_basic_salary'] }"
-                           v-model="form.employee_profile.philhealth_monthly_basic_salary"
-                           min="0"
-                           step="0.01"
-                           placeholder="0.00"
-                           :disabled="!form.employee_profile.philhealth_covered"
-                        />
-                        <div class="form-text small">Required when PhilHealth coverage is enabled.</div>
-                        <div class="invalid-feedback" v-if="errors['employee_profile.philhealth_monthly_basic_salary']">{{ errors["employee_profile.philhealth_monthly_basic_salary"][0] }}</div>
-                     </div>
-                     <div class="col-12">
-                        <div class="form-check form-switch mb-2">
-                           <input class="form-check-input" type="checkbox" id="employee-settings-pagibig-covered" v-model="form.employee_profile.pagibig_covered" />
-                           <label class="form-check-label fw-semibold" for="employee-settings-pagibig-covered">Pag-IBIG Covered</label>
-                        </div>
-                        <label class="form-label form-label-sm fw-semibold">Pag-IBIG Monthly Compensation (₱)</label>
-                        <input
-                           type="number"
-                           class="form-control"
-                           :class="{ 'is-invalid': errors['employee_profile.pagibig_monthly_compensation'] }"
-                           v-model="form.employee_profile.pagibig_monthly_compensation"
-                           min="0"
-                           step="0.01"
-                           placeholder="0.00"
-                           :disabled="!form.employee_profile.pagibig_covered"
-                        />
-                        <div class="form-text small">Required when Pag-IBIG coverage is enabled.</div>
-                        <div class="invalid-feedback" v-if="errors['employee_profile.pagibig_monthly_compensation']">{{ errors["employee_profile.pagibig_monthly_compensation"][0] }}</div>
-                     </div>
-                  </div>
+                  <contribution-settings-fields :profile="form.employee_profile" :errors="errors" id-prefix="employee-settings" />
                </section>
             </div>
          </div>
@@ -252,9 +191,11 @@
 import { Modal } from "bootstrap";
 import { formatDateTime } from "../../../dates";
 import MultiSelect from "./MultiSelect.vue";
+import ContributionSettingsFields from "./ContributionSettingsFields.vue";
 
 export default {
    components: {
+      ContributionSettingsFields,
       MultiSelect,
    },
    props: {

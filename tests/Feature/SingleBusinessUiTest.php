@@ -204,12 +204,12 @@ class SingleBusinessUiTest extends TestCase
         $this->assertStringContainsString('<span class="sidebar-nav-label">Settings</span>', $contents);
     }
 
-    public function test_employee_payroll_page_contains_only_current_payroll_inputs(): void
+    public function test_payroll_document_page_contains_only_current_payroll_inputs(): void
     {
-        $contents = file_get_contents(resource_path('js/components/panel/vendor/EmployeePayrollPage.vue'));
+        $contents = file_get_contents(resource_path('js/components/panel/PayrollDocumentPage.vue'));
 
         $this->assertNotFalse($contents);
-        $this->assertStringContainsString('Other Deductions', $contents);
+        $this->assertStringContainsString('Other deductions', $contents);
         $this->assertStringNotContainsString('Auto-fill', $contents);
     }
 
@@ -228,7 +228,7 @@ class SingleBusinessUiTest extends TestCase
         $this->assertStringContainsString('<section class="border rounded-3 p-3 bg-light">', $contents);
         $this->assertStringContainsString('<div class="fw-semibold">Biometric Fingerprint</div>', $contents);
         $this->assertStringContainsString('<section class="border rounded-3 p-3 bg-light" v-if="isPhilippinesPayroll">', $contents);
-        $this->assertStringContainsString('<div class="fw-semibold mb-1">Philippine Government Contributions</div>', $contents);
+        $this->assertStringContainsString('<contribution-settings-fields', $contents);
         $this->assertStringNotContainsString('Biometric Attendance', $contents);
     }
 

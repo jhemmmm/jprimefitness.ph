@@ -5,46 +5,38 @@
     <meta charset="utf-8">
     <title>Payslip - {{ $employee->name }}</title>
     <style>
+        * {
+            font-family: 'DejaVu Sans', sans-serif;
+        }
+
         body {
             margin: 0;
-            font-family: DejaVu Sans, Arial, Helvetica, sans-serif;
             color: #111827;
-            font-size: 12px;
-            line-height: 1.45;
+            font-size: 10px;
+            line-height: 1.3;
             background: #ffffff;
         }
 
         .sheet {
-            padding: 0;
             border: 1px solid #d1d5db;
         }
 
-        .header-table,
-        .info-table,
-        .summary-table,
-        .breakdown-table,
-        .payout-table,
-        .signature-table {
+        table {
             width: 100%;
             border-collapse: collapse;
+        }
+
+        .header-band {
+            border-bottom: 4px solid #d72638;
+            padding: 10px 14px 8px;
         }
 
         .header-table td {
             vertical-align: top;
         }
 
-        .header-band {
-            background: #ffffff;
-            border-bottom: 6px solid #d72638;
-            padding: 16px 20px 14px;
-        }
-
-        .header-left {
-            color: #111827;
-        }
-
         .brand-table {
-            border-collapse: collapse;
+            width: auto;
         }
 
         .brand-table td {
@@ -52,63 +44,59 @@
         }
 
         .brand-mark {
-            width: 28px;
-            height: 28px;
+            width: 26px;
+            height: 26px;
             display: block;
             margin-right: 8px;
         }
 
         .header-kicker {
-            margin: 2px 0 2px;
+            margin: 0;
             color: #d72638;
-            font-size: 10px;
-            letter-spacing: 1.8px;
+            font-size: 8px;
+            letter-spacing: 1.5px;
             text-transform: uppercase;
-            font-weight: 700;
+            font-weight: bold;
         }
 
-        .brand-copy {
-            margin: 0;
-            color: #6b7280;
-            max-width: 300px;
-            font-size: 11px;
-            line-height: 1.35;
+        .brand-name {
+            margin: 1px 0 0;
+            font-size: 13px;
+            font-weight: bold;
         }
 
         .document-title {
-            margin: 0 0 6px;
-            font-size: 22px;
-            font-weight: 800;
+            margin: 0 0 3px;
+            font-size: 17px;
+            font-weight: bold;
             text-align: right;
-            color: #111827;
         }
 
         .meta-table {
+            width: auto;
             margin-left: auto;
-            border-collapse: collapse;
         }
 
         .meta-table td {
-            padding: 2px 0 2px 12px;
-            font-size: 10px;
-            color: #111827;
+            padding: 1px 0 1px 10px;
+            font-size: 8.5px;
         }
 
         .meta-label {
             color: #6b7280;
             text-transform: uppercase;
             letter-spacing: 0.8px;
-            font-weight: 700;
+            font-weight: bold;
         }
 
         .status-pill {
             display: inline-block;
-            padding: 4px 10px;
+            padding: 2px 8px;
             border-radius: 999px;
-            font-size: 10px;
+            font-size: 8px;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 700;
+            letter-spacing: 0.8px;
+            font-weight: bold;
             background: #ecfdf5;
             color: #166534;
         }
@@ -124,47 +112,48 @@
             color: #b45309;
         }
 
-        .divider {
-            margin: 0 20px;
-            border-top: 1px solid #e5e7eb;
+        .content {
+            padding: 10px 14px;
         }
 
         .section-title {
-            margin: 0 0 8px;
-            color: #111827;
-            font-size: 9px;
-            letter-spacing: 1.2px;
+            margin: 0 0 5px;
+            font-size: 8px;
+            letter-spacing: 1px;
             text-transform: uppercase;
-            font-weight: 700;
-            border-left: 4px solid #d72638;
-            padding-left: 8px;
+            font-weight: bold;
+            border-left: 3px solid #d72638;
+            padding-left: 6px;
+        }
+
+        .spacer {
+            height: 8px;
         }
 
         .info-table td {
-            width: 50%;
-            padding: 7px 9px;
+            padding: 5px 7px;
             border: 1px solid #e5e7eb;
             vertical-align: top;
         }
 
         .field-label {
             display: block;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
             color: #6b7280;
-            font-size: 10px;
+            font-size: 7.5px;
             text-transform: uppercase;
-            letter-spacing: 0.8px;
-            font-weight: 700;
+            letter-spacing: 0.6px;
+            font-weight: bold;
         }
 
         .field-value {
-            font-size: 12px;
-            font-weight: 700;
+            font-size: 10px;
+            font-weight: bold;
         }
 
         .summary-table td {
             width: 25%;
-            padding: 9px;
+            padding: 6px 7px;
             border: 1px solid #e5e7eb;
             background: #fbfbfc;
             vertical-align: top;
@@ -172,16 +161,16 @@
 
         .summary-label {
             color: #6b7280;
-            font-size: 10px;
+            font-size: 7.5px;
             text-transform: uppercase;
-            letter-spacing: 0.8px;
-            font-weight: 700;
+            letter-spacing: 0.6px;
+            font-weight: bold;
         }
 
         .summary-value {
-            margin-top: 5px;
-            font-size: 17px;
-            font-weight: 800;
+            margin-top: 3px;
+            font-size: 13px;
+            font-weight: bold;
         }
 
         .summary-value--success {
@@ -194,18 +183,17 @@
 
         .box {
             border: 1px solid #e5e7eb;
-            padding: 10px 12px;
-            background: #ffffff;
+            padding: 7px 9px;
         }
 
         .box-heading {
-            margin: 0 0 8px;
-            font-size: 11px;
-            font-weight: 800;
+            margin: 0 0 5px;
+            font-size: 9.5px;
+            font-weight: bold;
         }
 
         .breakdown-table td {
-            padding: 5px 0;
+            padding: 3px 0;
             border-bottom: 1px solid #e5e7eb;
         }
 
@@ -219,7 +207,7 @@
 
         .breakdown-amount {
             text-align: right;
-            font-weight: 700;
+            font-weight: bold;
         }
 
         .amount-positive {
@@ -232,30 +220,29 @@
 
         .notes-copy {
             color: #4b5563;
-            min-height: 54px;
-            font-size: 11px;
-            line-height: 1.35;
+            font-size: 9px;
+            line-height: 1.3;
         }
 
         .meta-note {
-            margin-top: 7px;
-            font-size: 11px;
+            margin-top: 4px;
+            font-size: 9px;
         }
 
         .payout-table th,
         .payout-table td {
-            padding: 6px 8px;
+            padding: 4px 6px;
             border: 1px solid #e5e7eb;
             text-align: left;
-            font-size: 11px;
+            font-size: 9px;
         }
 
         .payout-table th {
             background: #f9fafb;
             color: #6b7280;
-            font-size: 9px;
+            font-size: 7.5px;
             text-transform: uppercase;
-            letter-spacing: 0.8px;
+            letter-spacing: 0.6px;
         }
 
         .payout-table th:last-child,
@@ -265,25 +252,21 @@
 
         .signature-table td {
             width: 33.33%;
-            padding-top: 18px;
+            padding-top: 16px;
             vertical-align: top;
         }
 
         .signature-line {
             border-top: 1px solid #9ca3af;
-            padding-top: 6px;
-            font-size: 10px;
+            padding-top: 4px;
+            font-size: 8.5px;
         }
 
         .footer-note {
-            margin-top: 12px;
+            margin-top: 8px;
             color: #6b7280;
-            font-size: 9px;
+            font-size: 7.5px;
             text-align: center;
-        }
-
-        .content {
-            padding: 14px 20px 14px;
         }
     </style>
 </head>
@@ -321,18 +304,17 @@
         <div class="header-band">
             <table class="header-table">
                 <tr>
-                    <td style="width: 58%;" class="header-left">
+                    <td style="width: 58%;">
                         <table class="brand-table">
                             <tr>
-                                <td style="width: 36px;">
+                                <td style="width: 34px;">
                                     @if ($logoData)
-                                        <img src="{{ $logoData }}" alt="JPrime Fitness Logo" class="brand-mark">
+                                        <img src="{{ $logoData }}" alt="Logo" class="brand-mark">
                                     @endif
                                 </td>
                                 <td>
                                     <div class="header-kicker">Official Payroll Document</div>
-                                    <p class="brand-copy">Employee compensation statement with payroll totals, payouts,
-                                        deductions, and approval trail.</p>
+                                    <p class="brand-name">{{ $locationName ?: 'Payslip' }}</p>
                                 </td>
                             </tr>
                         </table>
@@ -366,39 +348,29 @@
         </div>
 
         <div class="content">
-            <div class="divider"></div>
-
             <div class="section-title">Employee Details</div>
             <table class="info-table">
                 <tr>
-                    <td>
+                    <td style="width: 30%;">
                         <span class="field-label">Employee Name</span>
                         <span class="field-value">{{ $employee->name }}</span>
                     </td>
-                    <td>
-                        <span class="field-label">Location</span>
-                        <span class="field-value">{{ $locationName ?: '-' }}</span>
-                    </td>
-                </tr>
-                <tr>
-                    <td>
-                        <span class="field-label">Email Address</span>
-                        <span class="field-value">{{ $employee->email }}</span>
-                    </td>
-                    <td>
+                    <td style="width: 20%;">
                         <span class="field-label">Role</span>
                         <span class="field-value">{{ $roleNames ?: 'Employee' }}</span>
                     </td>
-                </tr>
-                <tr>
-                    <td colspan="2">
+                    <td style="width: 30%;">
+                        <span class="field-label">Email Address</span>
+                        <span class="field-value">{{ $employee->email }}</span>
+                    </td>
+                    <td style="width: 20%;">
                         <span class="field-label">Phone</span>
                         <span class="field-value">{{ $employee->phone ?: '-' }}</span>
                     </td>
                 </tr>
             </table>
 
-            <div style="height: 12px;"></div>
+            <div class="spacer"></div>
 
             <div class="section-title">Payroll Summary</div>
             <table class="summary-table">
@@ -426,11 +398,11 @@
                 </tr>
             </table>
 
-            <div style="height: 12px;"></div>
+            <div class="spacer"></div>
 
-            <table style="width: 100%; border-collapse: collapse;">
+            <table>
                 <tr>
-                    <td style="width: 54%; padding-right: 8px; vertical-align: top;">
+                    <td style="width: 54%; padding-right: 6px; vertical-align: top;">
                         <div class="box">
                             <div class="box-heading">Compensation Breakdown</div>
                             <table class="breakdown-table">
@@ -518,9 +490,9 @@
                             </table>
                         </div>
                     </td>
-                    <td style="width: 46%; padding-left: 8px; vertical-align: top;">
+                    <td style="width: 46%; padding-left: 6px; vertical-align: top;">
                         <div class="box">
-                            <div class="box-heading">Notes & Approval</div>
+                            <div class="box-heading">Notes &amp; Approval</div>
                             <div class="notes-copy">{{ $payroll->notes ?: 'No additional payroll notes recorded.' }}
                             </div>
                             <div class="meta-note"><strong>Prepared By:</strong>
@@ -530,34 +502,21 @@
                             <div class="meta-note"><strong>Approved At:</strong>
                                 {{ $payroll->approved_at?->format('M d, Y h:i A') ?: 'Pending approval' }}</div>
                         </div>
-                        <div style="height: 12px;"></div>
+                        <div class="spacer"></div>
                         <div class="box">
                             <div class="box-heading">Employer Contributions</div>
-                            <div class="notes-copy" style="min-height: 0; margin-bottom: 8px;">Reference only. These employer-share statutory amounts do not reduce employee net pay.</div>
+                            <div class="notes-copy" style="margin-bottom: 5px;">Reference only. These employer-share statutory amounts do not reduce employee net pay.</div>
                             <table class="breakdown-table">
                                 @forelse ($employerContributionPrograms as $programKey => $program)
                                     @php
                                         $programLabel = $program['label'] ?? str($programKey)->replace('_', ' ')->title()->toString();
-                                        $programLines = collect($program['lines'] ?? [])
-                                            ->filter(fn(array $line): bool => (float) ($line['amount'] ?? 0) > 0);
                                     @endphp
-                                    @forelse ($programLines as $lineKey => $line)
-                                        <tr>
-                                            <td class="breakdown-label">
-                                                {{ $programLabel }} - {{ $line['label'] ?? str($lineKey)->replace('_', ' ')->title()->toString() }}
-                                            </td>
-                                            <td class="breakdown-amount">
-                                                PHP {{ number_format((float) ($line['amount'] ?? 0), 2) }}
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td class="breakdown-label">{{ $programLabel }}</td>
-                                            <td class="breakdown-amount">
-                                                PHP {{ number_format((float) ($program['total'] ?? 0), 2) }}
-                                            </td>
-                                        </tr>
-                                    @endforelse
+                                    <tr>
+                                        <td class="breakdown-label">{{ $programLabel }}</td>
+                                        <td class="breakdown-amount">
+                                            PHP {{ number_format((float) ($program['total'] ?? 0), 2) }}
+                                        </td>
+                                    </tr>
                                 @empty
                                     <tr>
                                         <td class="breakdown-label">No employer contribution snapshot was stored for this payroll.</td>
@@ -577,7 +536,7 @@
                 </tr>
             </table>
 
-            <div style="height: 12px;"></div>
+            <div class="spacer"></div>
 
             <div class="section-title">Payout History</div>
             <table class="payout-table">
@@ -609,24 +568,22 @@
                 </tbody>
             </table>
 
-            <div style="height: 18px;"></div>
-
-            <div class="section-title">Acknowledgement</div>
+            <div class="section-title" style="margin-top: 10px;">Acknowledgement</div>
             <table class="signature-table">
                 <tr>
-                    <td style="padding-right: 16px;">
+                    <td style="padding-right: 14px;">
                         <div class="signature-line">
                             <strong>{{ $employee->name }}</strong><br>
                             Employee Signature
                         </div>
                     </td>
-                    <td style="padding: 18px 8px 0;">
+                    <td style="padding: 16px 7px 0;">
                         <div class="signature-line">
                             <strong>{{ $payroll->approvedBy?->name ?: 'Pending approval' }}</strong><br>
                             Approved By
                         </div>
                     </td>
-                    <td style="padding-left: 16px;">
+                    <td style="padding-left: 14px;">
                         <div class="signature-line">
                             <strong>{{ $payroll->generatedBy?->name ?: 'Payroll Officer' }}</strong><br>
                             Prepared By
@@ -636,8 +593,8 @@
             </table>
 
             <div class="footer-note">
-                This payslip is generated from the JPrime Fitness panel and is intended for payroll documentation and
-                employee payout reference.
+                This payslip is generated from the {{ $locationName ?: 'JPrime Fitness' }} panel and is intended for
+                payroll documentation and employee payout reference.
             </div>
         </div>
     </div>

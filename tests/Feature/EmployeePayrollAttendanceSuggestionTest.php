@@ -275,6 +275,154 @@ class EmployeePayrollAttendanceSuggestionTest extends TestCase
             ->assertJsonPath('0.manual_gross_adjustment_amount', null);
     }
 
+    public function test_late_check_in_slides_window_and_refills_full_pay(): void
+    {
+        $this->setBusinessProfile(false);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Refill Staff');
+
+        EmployeeScheduleShift::factory()->create([
+            'employee_profile_id' => $employee->employeeProfile->id,
+            'day_of_week' => 1,
+            'start_time' => '06:00:00',
+            'end_time' => '14:00:00',
+        ]);
+
+        $this->createAttendance($employee, '2026-03-02 08:00:00', '2026-03-02 16:00:00');
+
+        $this->actingAs($manager)
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-01&period_end=2026-03-15")
+            ->assertOk()
+            ->assertJsonPath('regular_hours', 8)
+            ->assertJsonPath('gross_amount', 800)
+            ->assertJsonPath('days.0.date', '2026-03-02')
+            ->assertJsonPath('days.0.status', 'late')
+            ->assertJsonPath('days.0.late_minutes', 120)
+            ->assertJsonPath('days.0.paid_hours', 8)
+            ->assertJsonPath('days.0.day_pay_amount', 800)
+            ->assertJsonPath('days.1.date', '2026-03-09')
+            ->assertJsonPath('days.1.status', 'absent')
+            ->assertJsonPath('days.1.paid_hours', 0);
+    }
+
+    public function test_early_check_in_does_not_pay_before_scheduled_start(): void
+    {
+        $this->setBusinessProfile(false);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Early Staff');
+
+        EmployeeScheduleShift::factory()->create([
+            'employee_profile_id' => $employee->employeeProfile->id,
+            'day_of_week' => 1,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+        ]);
+
+        $this->createAttendance($employee, '2026-03-02 07:00:00', '2026-03-02 15:00:00');
+
+        $this->actingAs($manager)
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-02&period_end=2026-03-02")
+            ->assertOk()
+            ->assertJsonPath('regular_hours', 6)
+            ->assertJsonPath('gross_amount', 600)
+            ->assertJsonPath('days.0.status', 'undertime')
+            ->assertJsonPath('days.0.late_minutes', 0)
+            ->assertJsonPath('days.0.worked_hours', 8)
+            ->assertJsonPath('days.0.paid_hours', 6);
+    }
+
+    public function test_partial_refill_is_reported_as_undertime_with_late_minutes(): void
+    {
+        $this->setBusinessProfile(false);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Partial Staff');
+
+        EmployeeScheduleShift::factory()->create([
+            'employee_profile_id' => $employee->employeeProfile->id,
+            'day_of_week' => 1,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+        ]);
+
+        $this->createAttendance($employee, '2026-03-02 10:00:00', '2026-03-02 15:00:00');
+
+        $this->actingAs($manager)
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-02&period_end=2026-03-02")
+            ->assertOk()
+            ->assertJsonPath('regular_hours', 5)
+            ->assertJsonPath('gross_amount', 500)
+            ->assertJsonPath('days.0.status', 'undertime')
+            ->assertJsonPath('days.0.late_minutes', 60)
+            ->assertJsonPath('days.0.paid_hours', 5);
+    }
+
+    public function test_split_shifts_slide_together_on_late_check_in(): void
+    {
+        $this->setBusinessProfile(false);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Split Staff');
+
+        EmployeeScheduleShift::factory()->create([
+            'employee_profile_id' => $employee->employeeProfile->id,
+            'day_of_week' => 1,
+            'start_time' => '06:00:00',
+            'end_time' => '10:00:00',
+        ]);
+        EmployeeScheduleShift::factory()->create([
+            'employee_profile_id' => $employee->employeeProfile->id,
+            'day_of_week' => 1,
+            'start_time' => '16:00:00',
+            'end_time' => '20:00:00',
+        ]);
+
+        $this->createAttendance($employee, '2026-03-02 08:00:00', '2026-03-02 12:00:00');
+        $this->createAttendance($employee, '2026-03-02 18:00:00', '2026-03-02 22:00:00');
+
+        $this->actingAs($manager)
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-02&period_end=2026-03-02")
+            ->assertOk()
+            ->assertJsonPath('regular_hours', 8)
+            ->assertJsonPath('gross_amount', 800)
+            ->assertJsonPath('days.0.status', 'late')
+            ->assertJsonPath('days.0.late_minutes', 120)
+            ->assertJsonPath('days.0.paid_hours', 8);
+    }
+
+    public function test_simple_path_returns_unscheduled_day_rows_and_open_only_days_are_not_absent(): void
+    {
+        $this->setBusinessProfile(false);
+        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $employee = $this->createEmployeeWithRole('staff', 'Simple Staff');
+
+        $this->createAttendance($employee, '2026-03-01 08:00:00', '2026-03-01 09:00:00');
+
+        $this->actingAs($manager)
+            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-01&period_end=2026-03-15")
+            ->assertOk()
+            ->assertJsonPath('days.0.date', '2026-03-01')
+            ->assertJsonPath('days.0.status', 'unscheduled')
+            ->assertJsonPath('days.0.scheduled_hours', 0)
+            ->assertJsonPath('days.0.worked_hours', 1)
+            ->assertJsonCount(1, 'days');
+
+        $scheduled = $this->createEmployeeWithRole('staff', 'Open Staff');
+
+        EmployeeScheduleShift::factory()->create([
+            'employee_profile_id' => $scheduled->employeeProfile->id,
+            'day_of_week' => 1,
+            'start_time' => '09:00:00',
+            'end_time' => '17:00:00',
+        ]);
+
+        $this->createAttendance($scheduled, '2026-03-02 09:00:00', null);
+
+        $this->actingAs($manager)
+            ->getJson("/panel/employees/{$scheduled->id}/payrolls/suggest?period_start=2026-03-02&period_end=2026-03-02")
+            ->assertOk()
+            ->assertJsonPath('open_attendance_count', 1)
+            ->assertJsonCount(0, 'days');
+    }
+
     private function setBusinessProfile(bool $payOverworkHours, string $countryCode = BusinessProfile::COUNTRY_PHILIPPINES): BusinessProfile
     {
         return BusinessProfile::factory()->create([

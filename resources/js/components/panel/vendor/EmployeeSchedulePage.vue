@@ -27,7 +27,7 @@
                   <span v-else-if="savedAt" class="text-success small"><i class="bi bi-check-circle-fill me-1"></i>Saved</span>
                </div>
             </div>
-            <div class="schedule-actions">
+            <div class="schedule-actions" v-if="canManage">
                <div class="dropdown">
                   <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
                      <i class="bi bi-magic me-1"></i>Template
@@ -66,7 +66,7 @@
                   <div class="schedule-day-meta">
                      <span v-if="entriesFor(day.key).length" class="schedule-hours">{{ dayTotals.get(day.key) }}h</span>
                      <span v-else class="schedule-off">Day off</span>
-                     <div class="dropdown">
+                     <div class="dropdown" v-if="canManage">
                         <button class="btn btn-sm btn-link p-0 schedule-menu-btn" type="button" data-bs-toggle="dropdown" :aria-label="'Actions for ' + day.label">
                            <i class="bi bi-three-dots-vertical"></i>
                         </button>
@@ -89,20 +89,20 @@
 
                <div class="schedule-shifts" v-if="entriesFor(day.key).length">
                   <div v-for="entry in entriesFor(day.key)" :key="'s-' + entry.index" class="schedule-shift" :class="{ 'has-error': hasErrorsForShift(entry.index) }">
-                     <input type="time" class="form-control form-control-sm schedule-time" v-model="shifts[entry.index].start_time" @input="onShiftChange" />
+                     <input type="time" class="form-control form-control-sm schedule-time" v-model="shifts[entry.index].start_time" :disabled="!canManage" @input="onShiftChange" />
                      <span class="schedule-dash">–</span>
-                     <input type="time" class="form-control form-control-sm schedule-time" v-model="shifts[entry.index].end_time" @input="onShiftChange" />
+                     <input type="time" class="form-control form-control-sm schedule-time" v-model="shifts[entry.index].end_time" :disabled="!canManage" @input="onShiftChange" />
                      <span class="schedule-dur">{{ entry.durationHours }}h</span>
-                     <button type="button" class="btn btn-sm btn-link text-danger schedule-remove" @click="removeShift(entry.index)" :aria-label="'Remove shift'">
+                     <button v-if="canManage" type="button" class="btn btn-sm btn-link text-danger schedule-remove" @click="removeShift(entry.index)" :aria-label="'Remove shift'">
                         <i class="bi bi-x-lg"></i>
                      </button>
                      <div class="schedule-error" v-if="errorFor(entry.index)">{{ errorFor(entry.index) }}</div>
                   </div>
-                  <button type="button" class="btn btn-sm btn-link p-0 schedule-add-link" @click="addShift(day.key)">
+                  <button v-if="canManage" type="button" class="btn btn-sm btn-link p-0 schedule-add-link" @click="addShift(day.key)">
                      <i class="bi bi-plus-lg"></i> Add shift
                   </button>
                </div>
-               <button v-else type="button" class="btn btn-sm btn-link p-0 schedule-add-link" @click="addShift(day.key)">
+               <button v-else-if="canManage" type="button" class="btn btn-sm btn-link p-0 schedule-add-link" @click="addShift(day.key)">
                   <i class="bi bi-plus-lg"></i> Add shift
                </button>
             </div>
@@ -175,6 +175,9 @@ export default {
    },
 
    computed: {
+      canManage: function () {
+         return this.can("manage employees");
+      },
       byDay: function () {
          const map = new Map();
          this.days.forEach((d) => map.set(d.key, []));

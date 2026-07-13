@@ -37,7 +37,7 @@
             <input type="date" class="form-control" v-model="dateTo" @change="fetchRecords(1)" placeholder="To" />
          </div>
          <div class="col-md-6 text-end">
-            <button class="btn btn-danger btn-sm" @click="openLogModal"><i class="bi bi-plus-lg me-1"></i>Log Attendance</button>
+            <button v-if="canManage" class="btn btn-danger btn-sm" @click="openLogModal"><i class="bi bi-plus-lg me-1"></i>Log Attendance</button>
          </div>
       </div>
 
@@ -70,7 +70,8 @@
                   <td class="small">{{ formatDateTime(r.checked_in_at) }}</td>
                   <td>
                      <span v-if="r.checked_out_at" class="text-muted small">{{ formatDateTime(r.checked_out_at) }}</span>
-                     <button v-else class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+                     <button v-else-if="canManage" class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+                     <span v-else class="text-muted small">—</span>
                   </td>
                   <td class="small">
                      <span v-if="r.checked_out_at">{{ formatHours(r) }}</span>
@@ -88,7 +89,7 @@
                      <div v-if="r.source_device_serial" class="small text-muted mt-1">{{ r.source_device_serial }}</div>
                   </td>
                   <td>
-                     <button class="btn btn-sm btn-outline-danger" title="Delete" @click="confirmDelete(r)">
+                     <button v-if="canManage" class="btn btn-sm btn-outline-danger" title="Delete" @click="confirmDelete(r)">
                         <i class="bi bi-trash tbl-icon"></i>
                      </button>
                   </td>
@@ -114,8 +115,8 @@
             <div class="member-card-footer">
                <span v-if="r.checked_out_at" class="text-muted small"><i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(r.checked_out_at) }}</span>
                <span v-if="r.checked_out_at" class="text-muted small ms-2"><i class="bi bi-clock me-1"></i>{{ formatHours(r) }}</span>
-               <button v-if="!r.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
-               <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-auto" @click="confirmDelete(r)"><i class="bi bi-trash"></i></button>
+               <button v-if="canManage && !r.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+               <button v-if="canManage" class="btn btn-sm btn-outline-danger py-0 px-2 ms-auto" @click="confirmDelete(r)"><i class="bi bi-trash"></i></button>
             </div>
             <div v-if="r.source_device_serial" class="small text-muted mt-2 px-1">{{ r.source_device_serial }}</div>
          </div>
@@ -225,6 +226,9 @@ export default {
    },
 
    computed: {
+      canManage: function () {
+         return this.can("manage employees");
+      },
       statCards: function () {
          return [
             { label: "Total", value: this.stats.total, icon: "bi-calendar-check", iconBg: "bg-primary-soft", iconColor: "text-primary" },
