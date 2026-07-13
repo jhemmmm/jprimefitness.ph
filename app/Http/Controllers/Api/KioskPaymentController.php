@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\KioskPayment;
+use App\Models\MemberProfile;
 use App\Models\RatePlan;
 use App\Services\PaymongoPaymentService;
 use Carbon\Carbon;
@@ -42,7 +43,7 @@ class KioskPaymentController extends Controller
 
         $baseAmount = $this->resolveWalkInAmount();
         $amount = $discountType !== null
-            ? round($baseAmount * (100 - KioskPayment::DISCOUNT_PERCENT) / 100, 2)
+            ? MemberProfile::discountedPrice($baseAmount)
             : $baseAmount;
         $timeoutSec = $method === 'cash'
             ? (int) config('services.kiosk.cash_payment_timeout_seconds', 1800)

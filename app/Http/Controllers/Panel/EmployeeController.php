@@ -361,7 +361,9 @@ class EmployeeController extends Controller
     {
         $payrolls = Payroll::query()
             ->where('employee_id', $employee->id)
-            ->with(['payouts', 'approvedBy:id,name'])
+            ->with('approvedBy:id,name')
+            ->withSum('payouts', 'amount')
+            ->withCount('payouts')
             ->orderByDesc('period_start')
             ->get()
             ->map(fn (Payroll $payroll) => $this->serializePayroll($payroll))
@@ -418,58 +420,12 @@ class EmployeeController extends Controller
 
         $employee->loadMissing('employeeProfile');
 
-        $data = $request->validate([
-            'period_start' => ['required', 'date'],
-            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
-            'gross_amount' => ['required', 'numeric', 'min:0'],
-            'manual_deductions' => ['nullable', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-        ]);
-
-        $businessProfile = BusinessProfile::current();
-        $countryCode = $businessProfile->country_code;
-        $attendanceSuggestion = $this->payrollService->suggestFromAttendance(
-            $employee,
-            $data['period_start'],
-            $data['period_end'],
-            (bool) $businessProfile->pay_overwork_hours,
-        );
-        $gross = (float) $data['gross_amount'];
-        $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
-        $payFrequency = $this->employeePayFrequency($employee);
-        $payrollTaxContext = [
-            'employee_id' => $employee->id,
-            'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
-            'business_profile' => $this->serializeBusinessProfilePayrollSettings($businessProfile),
-            'period_start' => $data['period_start'],
-            'period_end' => $data['period_end'],
-        ];
-
-        $payrollTotals = $this->payrollService->calculatePayrollTotals(
-            $countryCode,
-            $payFrequency,
-            $gross,
-            $manualDeductions,
-            $payrollTaxContext
-        );
+        $data = $this->validatePayrollInput($request);
 
         $payroll = Payroll::create([
             'employee_id' => $employee->id,
-            'pay_frequency' => $payFrequency,
-            'period_start' => $data['period_start'],
-            'period_end' => $data['period_end'],
-            'regular_hours' => $attendanceSuggestion['regular_hours'],
-            'regular_pay_amount' => $attendanceSuggestion['regular_pay_amount'],
-            'overwork_hours' => $attendanceSuggestion['overwork_hours'],
-            'overwork_pay_amount' => $attendanceSuggestion['overwork_pay_amount'],
-            'gross_amount' => $gross,
-            'withholding_tax' => $payrollTotals['withholding_tax'],
-            'employee_contributions' => $payrollTotals['employee_contributions'],
-            'employer_contributions' => $payrollTotals['employer_contributions'],
-            'manual_deductions' => $manualDeductions,
-            'net_amount' => $payrollTotals['net_amount'],
+            ...$this->payrollAttributes($employee, $data),
             'status' => Payroll::STATUS_DRAFT,
-            'notes' => $data['notes'] ?? null,
             'generated_by' => auth()->id(),
         ]);
 
@@ -493,59 +449,9 @@ class EmployeeController extends Controller
             return response()->json(['message' => 'Only draft payrolls can be edited.'], 422);
         }
 
-        $data = $request->validate([
-            'period_start' => ['required', 'date'],
-            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
-            'gross_amount' => ['required', 'numeric', 'min:0'],
-            'manual_deductions' => ['nullable', 'numeric', 'min:0'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-        ]);
+        $data = $this->validatePayrollInput($request);
 
-        $businessProfile = BusinessProfile::current();
-        $countryCode = $businessProfile->country_code;
-        $attendanceSuggestion = $this->payrollService->suggestFromAttendance(
-            $employee,
-            $data['period_start'],
-            $data['period_end'],
-            (bool) $businessProfile->pay_overwork_hours,
-        );
-        $gross = (float) $data['gross_amount'];
-        $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
-        $payFrequency = $this->employeePayFrequency($employee);
-        $payrollTaxContext = [
-            'employee_id' => $employee->id,
-            'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
-            'business_profile' => $this->serializeBusinessProfilePayrollSettings($businessProfile),
-            'payroll_id' => $payroll->id,
-            'exclude_payroll_id' => $payroll->id,
-            'period_start' => $data['period_start'],
-            'period_end' => $data['period_end'],
-        ];
-
-        $payrollTotals = $this->payrollService->calculatePayrollTotals(
-            $countryCode,
-            $payFrequency,
-            $gross,
-            $manualDeductions,
-            $payrollTaxContext
-        );
-
-        $payroll->update([
-            'period_start' => $data['period_start'],
-            'period_end' => $data['period_end'],
-            'pay_frequency' => $payFrequency,
-            'regular_hours' => $attendanceSuggestion['regular_hours'],
-            'regular_pay_amount' => $attendanceSuggestion['regular_pay_amount'],
-            'overwork_hours' => $attendanceSuggestion['overwork_hours'],
-            'overwork_pay_amount' => $attendanceSuggestion['overwork_pay_amount'],
-            'gross_amount' => $gross,
-            'withholding_tax' => $payrollTotals['withholding_tax'],
-            'employee_contributions' => $payrollTotals['employee_contributions'],
-            'employer_contributions' => $payrollTotals['employer_contributions'],
-            'manual_deductions' => $manualDeductions,
-            'net_amount' => $payrollTotals['net_amount'],
-            'notes' => $data['notes'] ?? null,
-        ]);
+        $payroll->update($this->payrollAttributes($employee, $data, $payroll));
 
         $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
@@ -562,6 +468,78 @@ class EmployeeController extends Controller
         );
 
         return response()->json($this->serializePayroll($payroll));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatePayrollInput(Request $request): array
+    {
+        return $request->validate([
+            'period_start' => ['required', 'date'],
+            'period_end' => ['required', 'date', 'after_or_equal:period_start'],
+            'gross_amount' => ['required', 'numeric', 'min:0'],
+            'manual_deductions' => ['nullable', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+    }
+
+    /**
+     * Build the shared payroll column set from validated input: attendance
+     * suggestion, tax/contribution totals, and period metadata.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function payrollAttributes(User $employee, array $data, ?Payroll $existingPayroll = null): array
+    {
+        $businessProfile = BusinessProfile::current();
+        $attendanceSuggestion = $this->payrollService->suggestFromAttendance(
+            $employee,
+            $data['period_start'],
+            $data['period_end'],
+            (bool) $businessProfile->pay_overwork_hours,
+        );
+        $gross = (float) $data['gross_amount'];
+        $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
+        $payFrequency = $this->employeePayFrequency($employee);
+        $payrollTaxContext = [
+            'employee_id' => $employee->id,
+            'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
+            'business_profile' => $this->serializeBusinessProfilePayrollSettings($businessProfile),
+            'period_start' => $data['period_start'],
+            'period_end' => $data['period_end'],
+        ];
+
+        if ($existingPayroll) {
+            $payrollTaxContext['payroll_id'] = $existingPayroll->id;
+            $payrollTaxContext['exclude_payroll_id'] = $existingPayroll->id;
+        }
+
+        $payrollTotals = $this->payrollService->calculatePayrollTotals(
+            $businessProfile->country_code,
+            $payFrequency,
+            $gross,
+            $manualDeductions,
+            $payrollTaxContext
+        );
+
+        return [
+            'period_start' => $data['period_start'],
+            'period_end' => $data['period_end'],
+            'pay_frequency' => $payFrequency,
+            'regular_hours' => $attendanceSuggestion['regular_hours'],
+            'regular_pay_amount' => $attendanceSuggestion['regular_pay_amount'],
+            'overwork_hours' => $attendanceSuggestion['overwork_hours'],
+            'overwork_pay_amount' => $attendanceSuggestion['overwork_pay_amount'],
+            'gross_amount' => $gross,
+            'withholding_tax' => $payrollTotals['withholding_tax'],
+            'employee_contributions' => $payrollTotals['employee_contributions'],
+            'employer_contributions' => $payrollTotals['employer_contributions'],
+            'manual_deductions' => $manualDeductions,
+            'net_amount' => $payrollTotals['net_amount'],
+            'notes' => $data['notes'] ?? null,
+        ];
     }
 
     /**
@@ -1088,8 +1066,22 @@ class EmployeeController extends Controller
      */
     private function serializePayroll(Payroll $payroll): array
     {
-        $payroll->loadMissing(['payouts', 'approvedBy:id,name']);
-        $totalPaid = (float) $payroll->payouts->sum('amount');
+        $payroll->loadMissing('approvedBy:id,name');
+
+        // Prefer the SQL aggregates when the caller used withSum/withCount (list endpoint);
+        // otherwise fall back to loading the payouts of this single payroll.
+        $hasAggregates = array_key_exists('payouts_sum_amount', $payroll->getAttributes());
+
+        if (! $hasAggregates) {
+            $payroll->loadMissing('payouts');
+        }
+
+        $totalPaid = $hasAggregates
+            ? (float) ($payroll->payouts_sum_amount ?? 0)
+            : (float) $payroll->payouts->sum('amount');
+        $payoutsCount = $hasAggregates
+            ? (int) $payroll->payouts_count
+            : $payroll->payouts->count();
         $manualGrossAdjustmentAmount = $payroll->hasAttendanceBreakdownSnapshot()
             ? $this->payrollService->manualGrossAdjustmentAmount(
                 (float) $payroll->gross_amount,
@@ -1122,7 +1114,7 @@ class EmployeeController extends Controller
             'notes' => $payroll->notes,
             'total_paid' => $totalPaid,
             'remaining_balance' => max(0, (float) $payroll->net_amount - $totalPaid),
-            'payouts_count' => $payroll->payouts->count(),
+            'payouts_count' => $payoutsCount,
             'approved_by_name' => $payroll->approvedBy?->name,
             'approved_at' => $payroll->approved_at?->toISOString(),
             'created_at' => $payroll->created_at?->toISOString(),

@@ -21,7 +21,7 @@ class PayrollReportsController extends Controller
      */
     public function index(): View
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->isManagement(), 403);
 
         return view('panel.reports.payroll');
     }
@@ -33,7 +33,7 @@ class PayrollReportsController extends Controller
      */
     public function data(Request $request): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->isManagement(), 403);
 
         return response()->json($this->reportPayload($request));
     }
@@ -45,7 +45,7 @@ class PayrollReportsController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->isManagement(), 403);
 
         $report = $this->reportPayload($request, false);
         $dateSuffix = now()->format('Ymd_His');

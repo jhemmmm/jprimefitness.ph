@@ -169,7 +169,7 @@
                      </tr>
                   </thead>
                   <tbody>
-                     <tr v-for="(member, i) in members" :key="member.id">
+                     <tr v-for="({ member, currentMembership, activePtPackage }, i) in memberRows" :key="member.id">
                         <td class="text-muted small">{{ pagination.from + i }}</td>
                         <td>
                            <a :href="`/panel/members/${member.id}`" class="text-decoration-none d-flex align-items-center gap-2">
@@ -183,16 +183,16 @@
                         </td>
                         <td class="text-muted small">{{ member.phone || "-" }}</td>
                         <td>
-                           <template v-if="getCurrentMembership(member)">
-                              <div class="plan-name mb-1">{{ getCurrentMembership(member).rate_plan.name }}</div>
-                              <span class="m-badge" :class="getPlanStatusClass(getCurrentMembership(member).status)">
-                                 {{ $filters.capitalize(getCurrentMembership(member).status) }}
+                           <template v-if="currentMembership">
+                              <div class="plan-name mb-1">{{ currentMembership.rate_plan.name }}</div>
+                              <span class="m-badge" :class="getPlanStatusClass(currentMembership.status)">
+                                 {{ $filters.capitalize(currentMembership.status) }}
                               </span>
-                              <div class="small text-muted mt-1" v-if="getActivePtPackage(member)">{{ getActivePtPackage(member).pt_product?.name || "PT Package" }} • {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} left</div>
+                              <div class="small text-muted mt-1" v-if="activePtPackage">{{ activePtPackage.pt_product?.name || "PT Package" }} • {{ activePtPackage.remaining_sessions }}/{{ activePtPackage.total_sessions }} left</div>
                            </template>
-                           <template v-else-if="getActivePtPackage(member)">
-                              <div class="plan-name mb-1">{{ getActivePtPackage(member).pt_product?.name || "PT Package" }}</div>
-                              <span class="m-badge m-badge--plan-active"> {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} left </span>
+                           <template v-else-if="activePtPackage">
+                              <div class="plan-name mb-1">{{ activePtPackage.pt_product?.name || "PT Package" }}</div>
+                              <span class="m-badge m-badge--plan-active"> {{ activePtPackage.remaining_sessions }}/{{ activePtPackage.total_sessions }} left </span>
                            </template>
                            <span v-else class="text-muted small">-</span>
                         </td>
@@ -213,7 +213,7 @@
             </div>
             <!-- Mobile cards -->
             <div class="d-md-none">
-               <div class="member-card" v-for="member in members" :key="'mc' + member.id">
+               <div class="member-card" v-for="{ member, currentMembership, activePtPackage } in memberRows" :key="'mc' + member.id">
                   <div class="member-card-top">
                      <a :href="`/panel/members/${member.id}`" class="member-card-identity text-decoration-none">
                         <div class="member-avatar">{{ $filters.getNameInitials(member.name) }}</div>
@@ -236,17 +236,17 @@
                   </div>
                   <div class="member-card-tags">
                      <span :class="['m-badge', $filters.statusBadge(member.status)]">{{ $filters.capitalize(member.status) }}</span>
-                     <template v-if="getCurrentMembership(member)">
-                        <span class="text-capitalize m-badge m-badge--plan">{{ getCurrentMembership(member).rate_plan.name }}</span>
-                        <span class="m-badge" :class="getPlanStatusClass(getCurrentMembership(member).status)">{{ $filters.capitalize(getCurrentMembership(member).status) }}</span>
+                     <template v-if="currentMembership">
+                        <span class="text-capitalize m-badge m-badge--plan">{{ currentMembership.rate_plan.name }}</span>
+                        <span class="m-badge" :class="getPlanStatusClass(currentMembership.status)">{{ $filters.capitalize(currentMembership.status) }}</span>
                      </template>
-                     <span v-if="getActivePtPackage(member)" class="m-badge m-badge--plan-active"> PT {{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} </span>
+                     <span v-if="activePtPackage" class="m-badge m-badge--plan-active"> PT {{ activePtPackage.remaining_sessions }}/{{ activePtPackage.total_sessions }} </span>
                   </div>
                   <div class="small text-muted mt-2" v-if="member.profile && member.profile.notes">
                      {{ member.profile.notes }}
                   </div>
                   <div class="member-card-footer">
-                     <span v-if="getActivePtPackage(member)">{{ getActivePtPackage(member).remaining_sessions }}/{{ getActivePtPackage(member).total_sessions }} PT left</span>
+                     <span v-if="activePtPackage">{{ activePtPackage.remaining_sessions }}/{{ activePtPackage.total_sessions }} PT left</span>
                      <span><i class="bi bi-calendar3 me-1"></i>{{ formatDate(member.created_at) }}</span>
                      <span class="member-card-num">#{{ member.id }}</span>
                   </div>
@@ -589,6 +589,13 @@ export default {
    },
 
    computed: {
+      memberRows: function () {
+         return this.members.map((member) => ({
+            member,
+            currentMembership: this.getCurrentMembership(member),
+            activePtPackage: this.getActivePtPackage(member),
+         }));
+      },
       hasActiveFilters: function () {
          return !!(this.search || this.selectedStatus.length || this.selectedPlan.length);
       },

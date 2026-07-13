@@ -10,11 +10,17 @@ use Illuminate\Support\Facades\Notification as NotificationFacade;
 class NotificationRecipientResolver
 {
     /**
+     * @var Collection<int, User>|null
+     */
+    private ?Collection $recipients = null;
+
+    /**
      * @return Collection<int, User>
      */
     public function resolve(): Collection
     {
-        return User::query()
+        // ponytail: memoized for the request; several alerts in one action reuse the same recipient set
+        return $this->recipients ??= User::query()
             ->whereHas('roles', fn ($query) => $query->whereIn('name', ['super admin', 'admin', 'manager']))
             ->get();
     }

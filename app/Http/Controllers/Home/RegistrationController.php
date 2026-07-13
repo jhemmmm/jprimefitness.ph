@@ -76,7 +76,7 @@ class RegistrationController extends Controller
 
         $plan = RatePlan::findOrFail((int) $data['rate_plan_id']);
         $soldPrice = $discountType !== null
-            ? round(((float) $plan->price) * (100 - MemberProfile::DISCOUNT_PERCENT) / 100, 2)
+            ? MemberProfile::discountedPrice((float) $plan->price)
             : (float) $plan->price;
         $startDate = $data['preferred_start_date'] ?? now()->toDateString();
         $endDate = $plan->duration_days <= 1

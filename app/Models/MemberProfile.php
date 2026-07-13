@@ -32,6 +32,14 @@ class MemberProfile extends Model
             || $this->discount_type === self::DISCOUNT_SENIOR;
     }
 
+    /**
+     * Apply the student/senior discount to a base price.
+     */
+    public static function discountedPrice(float $basePrice): float
+    {
+        return round($basePrice * (100 - self::DISCOUNT_PERCENT) / 100, 2);
+    }
+
     protected $casts = [
         'date_of_birth' => 'date',
     ];

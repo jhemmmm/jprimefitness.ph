@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Concerns\SyncsToOutbox;
 use Carbon\Carbon;
 use Database\Factories\UserFactory;
@@ -39,6 +38,14 @@ class User extends Authenticatable
     public const STATUS_INACTIVE = 'inactive';
 
     public const STATUS_SUSPENDED = 'suspended';
+
+    /**
+     * Whether the user holds a management role (super admin, admin, or manager).
+     */
+    public function isManagement(): bool
+    {
+        return $this->hasAnyRole(['super admin', 'admin', 'manager']);
+    }
 
     public function profile(): HasOne
     {

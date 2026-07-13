@@ -359,6 +359,7 @@
 
 <script>
 import { Modal } from "bootstrap";
+import { formatDateTime } from "../../dates";
 import MultiSelect from "./vendor/MultiSelect.vue";
 
 export default {
@@ -794,17 +795,7 @@ export default {
          }[status] || "m-badge--draft";
       },
       formatShortDateTime: function (value) {
-         if (!value) {
-            return "";
-         }
-
-         return new Date(value).toLocaleString("en-PH", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-         });
+         return value ? formatDateTime(value) : "";
       },
    },
 };

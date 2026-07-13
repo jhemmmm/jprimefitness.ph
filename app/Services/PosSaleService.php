@@ -217,7 +217,8 @@ class PosSaleService
                     $item->saveQuietly();
                     $this->inventoryStockAlertService->sync($item);
                     $stockDeductions[] = [
-                        'item' => $item->fresh('category:id,name'),
+                        // $item already carries the decremented quantity and eager-loaded category
+                        'item' => $item,
                         'deducted_quantity' => $quantity,
                         'remaining_quantity' => (float) $item->quantity,
                     ];

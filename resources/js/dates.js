@@ -100,6 +100,59 @@ export function formatTime(value) {
    return parsedValue.isValid() ? parsedValue.format("h:mm A") : "-";
 }
 
+// Formats a bare "HH:mm" clock string (e.g. operating hours) — not a datetime.
+export function formatClockTime(value, short = false) {
+   if (!value) return "";
+   const [hStr, mStr] = String(value).split(":");
+   const h = parseInt(hStr, 10);
+   const m = parseInt(mStr || "0", 10);
+   if (isNaN(h)) return "";
+   const am = h < 12;
+   const display = h % 12 === 0 ? 12 : h % 12;
+   if (short) return `${display}${am ? "am" : "pm"}`;
+   const mm = m.toString().padStart(2, "0");
+   return `${display}:${mm} ${am ? "AM" : "PM"}`;
+}
+
+export function formatDayRange(days) {
+   if (days.length === 1) {
+      return days[0];
+   }
+
+   return `${days[0]}-${days[days.length - 1]}`;
+}
+
+// Groups consecutive operating-hour entries sharing the same open/close times.
+// Returns [{ days: [...], hours: "8:00 AM - 10:00 PM" }].
+export function groupOperatingHours(entries) {
+   const groups = [];
+
+   (Array.isArray(entries) ? entries : []).forEach((day) => {
+      const opening = formatClockTime(day.opening_time);
+      const closing = formatClockTime(day.closing_time);
+
+      if (!day.day || !opening || !closing) {
+         return;
+      }
+
+      const hours = `${opening} - ${closing}`;
+      const lastGroup = groups[groups.length - 1];
+
+      if (lastGroup?.hours === hours) {
+         lastGroup.days.push(day.day);
+
+         return;
+      }
+
+      groups.push({
+         days: [day.day],
+         hours,
+      });
+   });
+
+   return groups;
+}
+
 export function formatShortMonthDay(value) {
    const parsedValue = appDayjs(value);
 

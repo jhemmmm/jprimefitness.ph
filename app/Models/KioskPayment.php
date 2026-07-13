@@ -27,11 +27,12 @@ class KioskPayment extends Model
 
     public const STATUS_CANCELLED = 'cancelled';
 
-    public const DISCOUNT_STUDENT = 'student';
+    // Single source of truth for the student/senior discount is MemberProfile.
+    public const DISCOUNT_STUDENT = MemberProfile::DISCOUNT_STUDENT;
 
-    public const DISCOUNT_SENIOR = 'senior';
+    public const DISCOUNT_SENIOR = MemberProfile::DISCOUNT_SENIOR;
 
-    public const DISCOUNT_PERCENT = 20;
+    public const DISCOUNT_PERCENT = MemberProfile::DISCOUNT_PERCENT;
 
     protected $fillable = [
         'reference',

@@ -16,10 +16,12 @@
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, Tooltip } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { todayIndexMondayFirst } from "../../../dates";
+import { chartTheme, pesoLabel } from "./chartTheme";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, ChartDataLabels);
 
 export default {
+   mixins: [chartTheme],
    props: {
       earnings: {
          type: Array,
@@ -30,19 +32,9 @@ export default {
    },
    data: function () {
       return {
-         chart: null,
          weekDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
          todayIdx: todayIndexMondayFirst(),
       };
-   },
-   mounted: function () {
-      this.buildChart();
-      document.querySelectorAll("#appearanceToggle").forEach((el) => {
-         el.addEventListener("change", () => setTimeout(this.refreshTheme, 50));
-      });
-   },
-   beforeUnmount: function () {
-      if (this.chart) this.chart.destroy();
    },
    watch: {
       earnings: function () {
@@ -54,15 +46,6 @@ export default {
       },
    },
    methods: {
-      isDark: function () {
-         return document.documentElement.getAttribute("data-bs-theme") === "dark";
-      },
-      gridColor: function () {
-         return this.isDark() ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
-      },
-      labelColor: function () {
-         return this.isDark() ? "#adb5bd" : "#6c757d";
-      },
       buildData: function () {
          return this.earnings.map((v, i) => (i <= this.todayIdx ? v : null));
       },
@@ -103,10 +86,10 @@ export default {
                      offset: 2,
                      color: this.labelColor(),
                      font: { size: 10, weight: "600", family: "Inter, sans-serif" },
-                     formatter: (v) => (v !== null ? `₱${v.toLocaleString()}` : ""),
+                     formatter: (v) => (v !== null ? pesoLabel(v) : ""),
                   },
                   tooltip: {
-                     callbacks: { label: (ctx) => ` ₱${ctx.parsed.y.toLocaleString()}` },
+                     callbacks: { label: (ctx) => ` ${pesoLabel(ctx.parsed.y)}` },
                   },
                },
                scales: {
@@ -119,7 +102,7 @@ export default {
                      beginAtZero: true,
                      grid: { color: this.gridColor() },
                      border: { display: false },
-                     ticks: { color: this.labelColor(), callback: (v) => `₱${v.toLocaleString()}` },
+                     ticks: { color: this.labelColor(), callback: (v) => pesoLabel(v) },
                   },
                },
             },

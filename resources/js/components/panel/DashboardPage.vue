@@ -571,7 +571,7 @@
 
 <script>
 import PeakHoursChart from "./charts/PeakHoursChart.vue";
-import { daysBetween, formatDate, formatDateTime, formatTime, todayDate } from "../../dates";
+import { daysBetween, formatDate, formatDateTime, formatDayRange, formatTime, groupOperatingHours, todayDate } from "../../dates";
 
 export default {
    components: {
@@ -608,34 +608,10 @@ export default {
          return this.businessProfile?.name || window.JPrime?.profile?.name || "this business";
       },
       businessHoursLabel: function () {
-         const groups = [];
-         const entries = Array.isArray(this.businessProfile?.operating_hours) ? this.businessProfile.operating_hours : [];
-
-         entries.forEach((day) => {
-            const opening = this.formatBusinessTime(day.opening_time);
-            const closing = this.formatBusinessTime(day.closing_time);
-
-            if (!day.day || !opening || !closing) {
-               return;
-            }
-
-            const hours = `${opening} - ${closing}`;
-            const lastGroup = groups[groups.length - 1];
-
-            if (lastGroup?.hours === hours) {
-               lastGroup.days.push(day.day);
-
-               return;
-            }
-
-            groups.push({
-               days: [day.day],
-               hours,
-            });
-         });
+         const groups = groupOperatingHours(this.businessProfile?.operating_hours);
 
          if (groups.length) {
-            return groups.map((group) => `${this.formatDayRange(group.days)}: ${group.hours}`).join(", ");
+            return groups.map((group) => `${formatDayRange(group.days)}: ${group.hours}`).join(", ");
          }
 
          return "Not set";
@@ -900,31 +876,10 @@ export default {
             });
       },
       formatCount: function (value) {
-         return Number(value || 0).toLocaleString("en-PH");
+         return this.$filters.formatQuantity(value || 0);
       },
       formatCurrency: function (value) {
-         return `₱${this.$filters.formatMoney(value || 0)}`;
-      },
-      formatBusinessTime: function (value) {
-         if (!value) {
-            return "";
-         }
-
-         const parts = String(value).split(":");
-         let hour = parseInt(parts[0], 10);
-         const minute = parts[1];
-         const suffix = hour >= 12 ? "PM" : "AM";
-
-         hour = hour % 12 || 12;
-
-         return `${hour}:${minute} ${suffix}`;
-      },
-      formatDayRange: function (days) {
-         if (days.length === 1) {
-            return days[0];
-         }
-
-         return `${days[0]}-${days[days.length - 1]}`;
+         return this.$filters.formatPeso(value);
       },
    },
 };

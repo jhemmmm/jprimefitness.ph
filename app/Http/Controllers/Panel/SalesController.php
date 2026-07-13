@@ -9,6 +9,7 @@ use App\Models\MemberProfile;
 use App\Models\MemberSubscription;
 use App\Models\SaleTransaction;
 use App\Models\SystemActivity;
+use App\Models\User;
 use App\Services\MemberActivationService;
 use App\Services\MembershipQrService;
 use App\Services\PosSaleService;
@@ -494,9 +495,7 @@ class SalesController extends Controller
      */
     private function canVoidSales(mixed $user): bool
     {
-        return $user !== null
-            && method_exists($user, 'hasAnyRole')
-            && $user->hasAnyRole(['super admin', 'admin', 'manager']);
+        return $user instanceof User && $user->isManagement();
     }
 
     /**

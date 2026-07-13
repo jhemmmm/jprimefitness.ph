@@ -15,16 +15,9 @@
 <script>
 import { ArcElement, Chart, DoughnutController, Legend, Tooltip } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
+import { chartTheme, isDark, labelColor, pesoAmount, pesoLabel } from "./chartTheme";
 
 Chart.register(DoughnutController, ArcElement, Tooltip, Legend, ChartDataLabels);
-
-function isDark() {
-   return document.documentElement.getAttribute("data-bs-theme") === "dark";
-}
-
-function labelColor() {
-   return isDark() ? "#adb5bd" : "#6c757d";
-}
 
 const centerTextPlugin = {
    id: "payrollStatusCenterText",
@@ -43,7 +36,7 @@ const centerTextPlugin = {
       ctx.textBaseline = "middle";
       ctx.font = "bold 22px Inter, sans-serif";
       ctx.fillStyle = isDark() ? "#ffffff" : "#0d0f12";
-      ctx.fillText(`₱${Number(total).toLocaleString("en-PH")}`, centerX, centerY - 8);
+      ctx.fillText(pesoLabel(total), centerX, centerY - 8);
       ctx.font = "500 11px Inter, sans-serif";
       ctx.fillStyle = labelColor();
       ctx.fillText("Net Payroll", centerX, centerY + 16);
@@ -52,6 +45,7 @@ const centerTextPlugin = {
 };
 
 export default {
+   mixins: [chartTheme],
    props: {
       breakdown: {
          type: Array,
@@ -62,20 +56,8 @@ export default {
    },
    data: function () {
       return {
-         chart: null,
          colors: ["#6c757d", "#0d6efd", "#f59f00", "#198754", "#c8102e"],
       };
-   },
-   mounted: function () {
-      this.buildChart();
-      document.querySelectorAll("#darkModeToggle").forEach((el) => {
-         el.addEventListener("change", () => setTimeout(this.refreshTheme, 50));
-      });
-   },
-   beforeUnmount: function () {
-      if (this.chart) {
-         this.chart.destroy();
-      }
    },
    watch: {
       breakdown: function () {
@@ -119,7 +101,7 @@ export default {
                         return ctx.dataset.data[ctx.dataIndex] > 0;
                      },
                      formatter: function (value, ctx) {
-                        return `${ctx.chart.data.labels[ctx.dataIndex]}\n₱${Number(value).toLocaleString("en-PH")}`;
+                        return `${ctx.chart.data.labels[ctx.dataIndex]}\n${pesoLabel(value)}`;
                      },
                   },
                   legend: {
@@ -134,7 +116,7 @@ export default {
                   tooltip: {
                      callbacks: {
                         label: function (ctx) {
-                           return ` ${ctx.label}: ₱${Number(ctx.parsed).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                           return ` ${ctx.label}: ${pesoAmount(ctx.parsed)}`;
                         },
                      },
                   },

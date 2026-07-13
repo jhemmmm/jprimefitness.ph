@@ -242,7 +242,7 @@ class MembersController extends Controller
     public function updateMembership(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->isManagement(), 403);
 
         $data = $request->validate([
             'rate_plan_id' => ['required', 'exists:rate_plans,id'],
@@ -278,7 +278,7 @@ class MembersController extends Controller
     public function updateMembershipStatus(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->isManagement(), 403);
 
         $data = $request->validate([
             'status' => [
@@ -335,7 +335,7 @@ class MembersController extends Controller
     public function storePtPackage(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->isManagement(), 403);
 
         $data = $request->validate([
             'pt_product_id' => ['required', 'integer', 'exists:pt_products,id'],

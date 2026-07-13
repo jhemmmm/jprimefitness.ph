@@ -59,6 +59,8 @@
 </template>
 
 <script>
+import { formatDayRange, groupOperatingHours } from "../../../dates";
+
 export default {
    props: {
       profile: { type: Object, required: true },
@@ -72,60 +74,10 @@ export default {
          return [this.profile.address, this.profile.city, this.profile.province].filter(Boolean).join(", ") || "-";
       },
       operatingHourGroups: function () {
-         const groups = [];
-         const entries = Array.isArray(this.profile.operating_hours) ? this.profile.operating_hours : [];
-
-         entries.forEach((day) => {
-            const opening = this.formatTime(day.opening_time);
-            const closing = this.formatTime(day.closing_time);
-
-            if (!day.day || !opening || !closing) {
-               return;
-            }
-
-            const hours = `${opening} - ${closing}`;
-            const lastGroup = groups[groups.length - 1];
-
-            if (lastGroup?.hours === hours) {
-               lastGroup.days.push(day.day);
-
-               return;
-            }
-
-            groups.push({
-               days: [day.day],
-               hours,
-            });
-         });
-
-         return groups.map((group) => ({
-            days: this.formatDayRange(group.days),
+         return groupOperatingHours(this.profile.operating_hours).map((group) => ({
+            days: formatDayRange(group.days),
             hours: group.hours,
          }));
-      },
-   },
-
-   methods: {
-      formatDayRange: function (days) {
-         if (days.length === 1) {
-            return days[0];
-         }
-
-         return `${days[0]}-${days[days.length - 1]}`;
-      },
-      formatTime: function (timeStr) {
-         if (!timeStr) {
-            return "";
-         }
-
-         const parts = String(timeStr).split(":");
-         let hour = parseInt(parts[0], 10);
-         const minute = parts[1];
-         const suffix = hour >= 12 ? "PM" : "AM";
-
-         hour = hour % 12 || 12;
-
-         return `${hour}:${minute} ${suffix}`;
       },
    },
 };

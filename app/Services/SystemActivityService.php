@@ -148,8 +148,7 @@ class SystemActivityService
 
     public function canViewSystemActivity(mixed $user): bool
     {
-        return $user !== null && method_exists($user, 'hasAnyRole')
-            && $user->hasAnyRole(['super admin', 'admin', 'manager']);
+        return $user instanceof User && $user->isManagement();
     }
 
     /**

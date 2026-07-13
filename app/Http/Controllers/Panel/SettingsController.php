@@ -43,7 +43,7 @@ class SettingsController extends Controller
      */
     public function update(Request $request): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']), 403);
+        abort_unless(auth()->user()->isManagement(), 403);
 
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],

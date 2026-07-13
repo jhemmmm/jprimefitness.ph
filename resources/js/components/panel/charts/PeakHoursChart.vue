@@ -15,10 +15,12 @@
 <script>
 import { BarController, BarElement, CategoryScale, Chart, Legend, LinearScale, Tooltip } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
+import { chartTheme } from "./chartTheme";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, Tooltip, Legend, ChartDataLabels);
 
 export default {
+   mixins: [chartTheme],
    props: {
       hours: {
          type: Array,
@@ -27,37 +29,12 @@ export default {
          },
       },
    },
-   data: function () {
-      return {
-         chart: null,
-      };
-   },
-   mounted: function () {
-      this.buildChart();
-      document.querySelectorAll("#darkModeToggle").forEach((element) => {
-         element.addEventListener("change", () => setTimeout(this.refreshTheme, 50));
-      });
-   },
-   beforeUnmount: function () {
-      if (this.chart) {
-         this.chart.destroy();
-      }
-   },
    watch: {
       hours: function () {
          this.updateChart();
       },
    },
    methods: {
-      isDark: function () {
-         return document.documentElement.getAttribute("data-bs-theme") === "dark";
-      },
-      gridColor: function () {
-         return this.isDark() ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
-      },
-      labelColor: function () {
-         return this.isDark() ? "#adb5bd" : "#6c757d";
-      },
       barColor: function () {
          return this.isDark() ? "rgba(200,16,46,0.78)" : "rgba(200,16,46,0.9)";
       },

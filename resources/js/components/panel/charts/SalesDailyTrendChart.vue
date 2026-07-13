@@ -16,10 +16,12 @@
 import { Chart, CategoryScale, Filler, LineController, LineElement, LinearScale, PointElement, Tooltip } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { formatShortMonthDay } from "../../../dates";
+import { chartTheme, pesoAmount, pesoLabel } from "./chartTheme";
 
 Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Filler, ChartDataLabels);
 
 export default {
+   mixins: [chartTheme],
    props: {
       trend: {
          type: Array,
@@ -28,37 +30,12 @@ export default {
          },
       },
    },
-   data: function () {
-      return {
-         chart: null,
-      };
-   },
-   mounted: function () {
-      this.buildChart();
-      document.querySelectorAll("#appearanceToggle").forEach((el) => {
-         el.addEventListener("change", () => setTimeout(this.refreshTheme, 50));
-      });
-   },
-   beforeUnmount: function () {
-      if (this.chart) {
-         this.chart.destroy();
-      }
-   },
    watch: {
       trend: function () {
          this.updateChart();
       },
    },
    methods: {
-      isDark: function () {
-         return document.documentElement.getAttribute("data-bs-theme") === "dark";
-      },
-      gridColor: function () {
-         return this.isDark() ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.06)";
-      },
-      labelColor: function () {
-         return this.isDark() ? "#adb5bd" : "#6c757d";
-      },
       lineColor: function () {
          return "#c8102e";
       },
@@ -107,13 +84,13 @@ export default {
                      color: this.labelColor(),
                      font: { size: 10, weight: "600", family: "Inter, sans-serif" },
                      formatter: function (value) {
-                        return value > 0 ? `₱${Number(value).toLocaleString("en-PH")}` : "";
+                        return value > 0 ? pesoLabel(value) : "";
                      },
                   },
                   tooltip: {
                      callbacks: {
                         label: function (ctx) {
-                           return ` ₱${Number(ctx.parsed.y).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                           return ` ${pesoAmount(ctx.parsed.y)}`;
                         },
                      },
                   },
@@ -131,7 +108,7 @@ export default {
                      ticks: {
                         color: this.labelColor(),
                         callback: function (value) {
-                           return `₱${Number(value).toLocaleString("en-PH")}`;
+                           return pesoLabel(value);
                         },
                      },
                   },

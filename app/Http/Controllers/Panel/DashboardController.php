@@ -41,7 +41,7 @@ class DashboardController extends Controller
     private function dashboardPayload(): array
     {
         $user = auth()->user();
-        $canViewFinancialData = $user->hasAnyRole(['super admin', 'admin', 'manager']);
+        $canViewFinancialData = $user->isManagement();
         $todayStart = now()->startOfDay();
         $todayEnd = now()->endOfDay();
         $monthStart = now()->startOfMonth();

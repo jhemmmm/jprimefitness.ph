@@ -49,8 +49,8 @@
                <div class="d-flex align-items-start justify-content-between gap-3 flex-wrap">
                   <div class="flex-grow-1 min-w-0">
                      <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <span class="badge rounded-pill" :class="severityBadgeClass(notification.severity)">
-                           {{ severityLabel(notification.severity) }}
+                        <span class="badge rounded-pill" :class="$filters.severityBadge(notification.severity)">
+                           {{ $filters.severityLabel(notification.severity) }}
                         </span>
                         <span v-if="!notification.is_read" class="badge rounded-pill text-bg-danger-subtle notification-unread-badge">Unread</span>
                      </div>
@@ -233,25 +233,6 @@ export default {
          return formatDateTime(value);
       },
 
-      severityLabel: function (severity) {
-         return {
-            success: "Success",
-            info: "Info",
-            warning: "Warning",
-            danger: "Urgent",
-            muted: "Update",
-         }[severity] || "Info";
-      },
-
-      severityBadgeClass: function (severity) {
-         return {
-            success: "text-bg-success",
-            info: "text-bg-primary",
-            warning: "text-bg-warning",
-            danger: "text-bg-danger",
-            muted: "text-bg-secondary",
-         }[severity] || "text-bg-primary";
-      },
    },
 };
 </script>

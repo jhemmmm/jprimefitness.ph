@@ -244,6 +244,8 @@
 </template>
 
 <script>
+import { formatClockTime, formatDayRange } from "../../../dates";
+
 const regionNames = typeof Intl !== "undefined" && typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
 
 const COUNTRY_CODES = ["PH", "US", "CA", "AU", "NZ", "GB", "SG", "MY", "ID", "TH", "VN", "JP", "KR", "HK", "TW", "CN", "IN", "AE"];
@@ -436,7 +438,7 @@ export default {
          const groups = [];
 
          this.getOperatingHours({ operating_hours: operatingHours }).forEach((day) => {
-            const hours = [this.formatShortTime(day.opening_time), this.formatShortTime(day.closing_time)].filter(Boolean).join(" - ");
+            const hours = [formatClockTime(day.opening_time), formatClockTime(day.closing_time)].filter(Boolean).join(" - ");
             const lastGroup = groups[groups.length - 1];
 
             if (lastGroup?.hours === hours) {
@@ -452,36 +454,9 @@ export default {
          });
 
          return groups.map((group) => ({
-            days: this.formatDayRange(group.days),
+            days: formatDayRange(group.days),
             hours: group.hours,
          }));
-      },
-
-      formatDayRange: function (days) {
-         if (days.length === 1) {
-            return days[0];
-         }
-
-         return `${days[0]}-${days[days.length - 1]}`;
-      },
-
-      formatShortTime: function (value) {
-         if (!value) {
-            return "";
-         }
-
-         const [rawHour = "0", minute = "00"] = String(value).split(":");
-         let hour = parseInt(rawHour, 10);
-
-         if (Number.isNaN(hour)) {
-            return "";
-         }
-
-         const suffix = hour >= 12 ? "PM" : "AM";
-
-         hour = hour % 12 || 12;
-
-         return `${hour}:${minute} ${suffix}`;
       },
 
       firstError: function (key) {

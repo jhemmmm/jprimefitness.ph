@@ -702,7 +702,7 @@ export default {
          this.fetchReport(1);
       },
       formatCurrencyLabel: function (amount) {
-         return `₱${this.$filters.formatMoney(amount || 0)}`;
+         return this.$filters.formatPeso(amount);
       },
       currentPayrollScopeLabel: function () {
          const statusLabel = this.report.filters.status_label || "Active statuses";

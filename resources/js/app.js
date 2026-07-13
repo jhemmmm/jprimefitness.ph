@@ -1,4 +1,5 @@
 import "./bootstrap";
+import { formatClockTime } from "./dates";
 import { createApp } from "vue";
 const app = createApp({});
 
@@ -87,18 +88,10 @@ app.config.globalProperties.$filters = {
       if (!value && value !== 0) return "0.00";
       return parseFloat(value).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
    },
-   formatTime: function (value, short = false) {
-      if (!value) return "";
-      const [hStr, mStr] = String(value).split(":");
-      const h = parseInt(hStr, 10);
-      const m = parseInt(mStr || "0", 10);
-      if (isNaN(h)) return "";
-      const am = h < 12;
-      const display = h % 12 === 0 ? 12 : h % 12;
-      if (short) return `${display}${am ? "am" : "pm"}`;
-      const mm = m.toString().padStart(2, "0");
-      return `${display}:${mm} ${am ? "AM" : "PM"}`;
+   formatPeso(value) {
+      return `₱${this.formatMoney(value || 0)}`;
    },
+   formatTime: formatClockTime,
    capitalize: function (str) {
       return String(str ?? "")
          .trim()
@@ -154,6 +147,28 @@ app.config.globalProperties.$filters = {
             bank_transfer: "m-badge--approved",
             online_payment: "m-badge--open",
          }[normalizeKey(status)] ?? ""
+      );
+   },
+   severityLabel(severity) {
+      return (
+         {
+            success: "Success",
+            info: "Info",
+            warning: "Warning",
+            danger: "Urgent",
+            muted: "Update",
+         }[severity] || "Info"
+      );
+   },
+   severityBadge(severity) {
+      return (
+         {
+            success: "text-bg-success",
+            info: "text-bg-primary",
+            warning: "text-bg-warning",
+            danger: "text-bg-danger",
+            muted: "text-bg-secondary",
+         }[severity] || "text-bg-primary"
       );
    },
 };
