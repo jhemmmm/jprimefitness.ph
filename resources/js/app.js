@@ -60,6 +60,9 @@ app.component("employee-detail-page", EmployeeDetailPage);
 import PayrollDocumentPage from "./components/panel/PayrollDocumentPage.vue";
 app.component("payroll-document-page", PayrollDocumentPage);
 
+import CashDrawerPage from "./components/panel/CashDrawerPage.vue";
+app.component("cash-drawer-page", CashDrawerPage);
+
 import NotificationsPage from "./components/panel/NotificationsPage.vue";
 app.component("notifications-page", NotificationsPage);
 

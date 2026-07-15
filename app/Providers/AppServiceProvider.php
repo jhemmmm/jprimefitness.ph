@@ -11,12 +11,14 @@ use App\Models\Payout;
 use App\Models\Payroll;
 use App\Models\RatePlan;
 use App\Models\Role;
+use App\Models\SaleTransaction;
 use App\Observers\AttendanceObserver;
 use App\Observers\BusinessProfileObserver;
 use App\Observers\InventoryItemObserver;
 use App\Observers\MemberPtSessionUsageObserver;
 use App\Observers\PayoutObserver;
 use App\Observers\PayrollObserver;
+use App\Observers\SaleTransactionObserver;
 use App\Services\Sync\SpatiePivotOutboxListener;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
@@ -53,6 +55,7 @@ class AppServiceProvider extends ServiceProvider
         MemberPtSessionUsage::observe(MemberPtSessionUsageObserver::class);
         Payout::observe(PayoutObserver::class);
         Payroll::observe(PayrollObserver::class);
+        SaleTransaction::observe(SaleTransactionObserver::class);
 
         Event::listen(RoleAttachedEvent::class, [SpatiePivotOutboxListener::class, 'handleRoleAttached']);
         Event::listen(RoleDetachedEvent::class, [SpatiePivotOutboxListener::class, 'handleRoleDetached']);

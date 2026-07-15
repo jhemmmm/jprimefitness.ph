@@ -2,8 +2,10 @@
 
 namespace App\Observers;
 
+use App\Models\CashLedgerEntry;
 use App\Models\Payout;
 use App\Models\SystemActivity;
+use App\Services\CashDrawerService;
 use App\Services\SystemActivityService;
 
 class PayoutObserver
@@ -27,6 +29,18 @@ class PayoutObserver
             $payout->releasedBy?->name,
             $payout->paid_at ?? now(),
         );
+
+        if (config('jprime.cash_drawer') && $payout->method === Payout::METHOD_CASH) {
+            app(CashDrawerService::class)->recordSourceEntry(
+                CashLedgerEntry::TYPE_PAYOUT,
+                -round((float) $payout->amount, 2),
+                'payout',
+                $payout->id,
+                'Payout '.($payout->employee?->name ?? 'Employee'),
+                $payout->released_by,
+                $payout->paid_at,
+            );
+        }
     }
 
     /**

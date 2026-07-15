@@ -37,6 +37,10 @@ class SystemActivity extends Model
 
     public const SUBJECT_PT_PRODUCT = 'pt_product';
 
+    public const SUBJECT_CASH_DRAWER_SESSION = 'cash_drawer_session';
+
+    public const SUBJECT_CASH_LEDGER_ENTRY = 'cash_ledger_entry';
+
     public const SUBJECT_SYNC = 'sync';
 
     public const EVENT_SYNC_CONFLICT_DROPPED = 'sync.conflict_dropped';

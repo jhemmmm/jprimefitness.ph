@@ -143,6 +143,10 @@ return [
         'payroll' => ['model' => \App\Models\Payroll::class],
         'payout' => ['model' => \App\Models\Payout::class],
 
+        // Cash drawer (physical cash tracking).
+        'cash_drawer_session' => ['model' => \App\Models\CashDrawerSession::class],
+        'cash_ledger_entry' => ['model' => \App\Models\CashLedgerEntry::class],
+
         // Activity feeds (append-only audit, both sides keep both).
         'system_activity' => [
             'model' => \App\Models\SystemActivity::class,

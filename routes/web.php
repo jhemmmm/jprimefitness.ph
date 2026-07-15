@@ -5,6 +5,7 @@ use App\Http\Controllers\Home\HomeController;
 use App\Http\Controllers\Home\RegistrationController;
 use App\Http\Controllers\Panel\AttendanceController;
 use App\Http\Controllers\Panel\AttendanceReportsController;
+use App\Http\Controllers\Panel\CashDrawerController;
 use App\Http\Controllers\Panel\SystemActivityController;
 use App\Http\Controllers\Panel\DashboardController;
 use App\Http\Controllers\Panel\EmployeeBiometricController;
@@ -91,6 +92,17 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::post('/sales/{saleTransaction}/void', [SalesController::class, 'void'])->name('sales.void')->whereNumber('saleTransaction');
     Route::get('/sales/{saleTransaction}/membership-qr', [SalesController::class, 'membershipQr'])->name('sales.membership-qr')->whereNumber('saleTransaction');
     Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
+
+    // Cash drawer
+    Route::get('/cash-drawer', [CashDrawerController::class, 'index'])->name('cash-drawer.index');
+    Route::get('/cash-drawer/data', [CashDrawerController::class, 'data'])->name('cash-drawer.data');
+    Route::post('/cash-drawer/open', [CashDrawerController::class, 'open'])->name('cash-drawer.open');
+    Route::post('/cash-drawer/expenses', [CashDrawerController::class, 'storeExpense'])->name('cash-drawer.expenses.store');
+    Route::post('/cash-drawer/close', [CashDrawerController::class, 'close'])->name('cash-drawer.close');
+    Route::get('/cash-drawer/sessions', [CashDrawerController::class, 'sessions'])->name('cash-drawer.sessions');
+    Route::get('/cash-drawer/entries', [CashDrawerController::class, 'entries'])->name('cash-drawer.entries');
+    Route::get('/cash-drawer/entries/{entry}/receipt', [CashDrawerController::class, 'receipt'])->name('cash-drawer.entries.receipt')->whereNumber('entry');
+    Route::get('/cash-drawer/expense-summary', [CashDrawerController::class, 'expenseSummary'])->name('cash-drawer.expense-summary');
 
     // Kiosk counter walk-in actions (listing is folded into sales.pending-payments)
     Route::post('/kiosk-payments/{reference}/confirm', [KioskPaymentsController::class, 'confirm'])->name('kiosk-payments.confirm');

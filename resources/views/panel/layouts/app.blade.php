@@ -114,6 +114,14 @@
                         <span class="sidebar-nav-label">Pricing & Rates</span>
                     </a>
                 </div>
+                @if (config('jprime.cash_drawer') && auth()->user()->isManagement())
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.cash-drawer.index') }}" @class(['active' => request()->routeIs('panel.cash-drawer.*')])>
+                            <i class="bi bi-safe-fill"></i>
+                            <span class="sidebar-nav-label">Cash Drawer</span>
+                        </a>
+                    </div>
+                @endif
 
                 {{-- Operations --}}
                 <div class="sidebar-menu-heading">Operations</div>
