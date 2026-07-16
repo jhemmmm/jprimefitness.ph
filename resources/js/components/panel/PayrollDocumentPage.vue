@@ -148,6 +148,41 @@
                </table>
             </div>
 
+            <!-- PT commission detail -->
+            <template v-if="commissionSales.length">
+               <div class="doc-section-title">PT Commission Detail</div>
+               <div class="table-responsive mb-3">
+                  <table class="doc-table">
+                     <thead>
+                        <tr>
+                           <th>Date</th>
+                           <th>Member</th>
+                           <th>Plan</th>
+                           <th class="text-end">Sold Price</th>
+                           <th class="text-end">Rate</th>
+                           <th class="text-end">Commission</th>
+                        </tr>
+                     </thead>
+                     <tbody>
+                        <tr v-for="(sale, index) in commissionSales" :key="'commission-' + index">
+                           <td class="fw-semibold">{{ formatDate(sale.date) }}</td>
+                           <td>{{ sale.member_name || "-" }}</td>
+                           <td>{{ sale.plan_name || "-" }}</td>
+                           <td class="text-end">₱{{ $filters.formatMoney(sale.sold_price) }}</td>
+                           <td class="text-end">{{ sale.rate }}%</td>
+                           <td class="text-end doc-positive">+₱{{ $filters.formatMoney(sale.amount) }}</td>
+                        </tr>
+                     </tbody>
+                     <tfoot>
+                        <tr class="doc-table-total">
+                           <td colspan="5">Total PT commission</td>
+                           <td class="text-end doc-positive">+₱{{ $filters.formatMoney(commissionAmount) }}</td>
+                        </tr>
+                     </tfoot>
+                  </table>
+               </div>
+            </template>
+
             <!-- Compensation -->
             <div class="doc-section-title">Compensation Breakdown</div>
             <div class="row g-3 mb-3">
@@ -161,6 +196,10 @@
                         <tr v-if="payOverworkHours || form.overwork_pay_amount > 0">
                            <td>Overwork pay ({{ formatHours(form.overwork_hours) }} hrs)</td>
                            <td class="text-end fw-bold doc-positive">+ ₱{{ $filters.formatMoney(form.overwork_pay_amount) }}</td>
+                        </tr>
+                        <tr v-if="commissionAmount > 0">
+                           <td>PT commissions ({{ commissionSales.length }} {{ commissionSales.length === 1 ? "sale" : "sales" }})</td>
+                           <td class="text-end fw-bold doc-positive">+ ₱{{ $filters.formatMoney(commissionAmount) }}</td>
                         </tr>
                         <tr v-if="Math.abs(manualGrossAdjustment) >= 0.01">
                            <td>Manual gross adjustment</td>
@@ -314,6 +353,12 @@ export default {
       },
       manualGrossAdjustment: function () {
          return Number(this.suggestion?.manual_gross_adjustment_amount || 0);
+      },
+      commissionAmount: function () {
+         return Number(this.suggestion?.pt_commission_amount || 0);
+      },
+      commissionSales: function () {
+         return this.suggestion?.pt_commission_sales || [];
       },
       netPreview: function () {
          return Number(this.suggestion?.net_amount_preview || 0);

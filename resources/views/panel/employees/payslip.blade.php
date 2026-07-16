@@ -279,6 +279,8 @@
     $showOverworkBreakdown = $hasAttendanceBreakdownSnapshot
         && (float) $payroll->overwork_pay_amount > 0;
     $manualGrossAdjustmentAmount = $payroll->manualGrossAdjustmentAmount();
+    $commissionDetails = collect($payroll->commission_details ?? []);
+    $commissionAmount = (float) $payroll->commission_amount;
     $locationName = $businessProfile->name ?? null;
     $roleNames = $employee->roles->pluck('name')->map(fn($role) => ucfirst($role))->join(', ');
     $statusClass = 'status-pill--' . $payroll->status;
@@ -419,6 +421,14 @@
                                             <td class="breakdown-amount amount-positive">
                                                 + PHP {{ number_format((float) $payroll->overwork_pay_amount, 2) }}
                                                 ({{ number_format((float) $payroll->overwork_hours, 2) }} hrs)
+                                            </td>
+                                        </tr>
+                                    @endif
+                                    @if ($commissionAmount > 0)
+                                        <tr>
+                                            <td class="breakdown-label">PT commissions ({{ $commissionDetails->count() }} {{ $commissionDetails->count() === 1 ? 'sale' : 'sales' }})</td>
+                                            <td class="breakdown-amount amount-positive">
+                                                + PHP {{ number_format($commissionAmount, 2) }}
                                             </td>
                                         </tr>
                                     @endif
@@ -567,6 +577,38 @@
                     @endforelse
                 </tbody>
             </table>
+
+            @if ($commissionDetails->isNotEmpty())
+                <div class="section-title" style="margin-top: 10px;">PT Commission Detail</div>
+                <table class="payout-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Member</th>
+                            <th>Plan</th>
+                            <th>Sold Price</th>
+                            <th>Rate</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($commissionDetails as $sale)
+                            <tr>
+                                <td>{{ !empty($sale['date']) ? \Carbon\Carbon::parse($sale['date'])->format('M d, Y') : '-' }}</td>
+                                <td>{{ $sale['member_name'] ?? '-' }}</td>
+                                <td>{{ $sale['plan_name'] ?? '-' }}</td>
+                                <td>PHP {{ number_format((float) $sale['sold_price'], 2) }}</td>
+                                <td>{{ number_format((float) $sale['rate'], 2) }}%</td>
+                                <td>PHP {{ number_format((float) $sale['amount'], 2) }}</td>
+                            </tr>
+                        @endforeach
+                        <tr>
+                            <td colspan="5"><strong>Total PT commission</strong></td>
+                            <td><strong>PHP {{ number_format($commissionAmount, 2) }}</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            @endif
 
             <div class="section-title" style="margin-top: 10px;">Acknowledgement</div>
             <table class="signature-table">

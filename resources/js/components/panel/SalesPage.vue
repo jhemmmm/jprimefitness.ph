@@ -176,6 +176,15 @@
                                  <div class="small"><strong>Sessions:</strong> {{ selectedPtProduct.session_count }}</div>
                               </div>
                            </div>
+                           <div class="col-12">
+                              <label class="form-label">Coach <span class="text-danger">*</span></label>
+                              <select class="form-select" v-model="form.coach_id" :class="{ 'is-invalid': formErrors.coach_id }">
+                                 <option value="">Select coach</option>
+                                 <option v-for="coach in context.coaches" :key="'coach-' + coach.id" :value="coach.id">{{ coach.name }}</option>
+                              </select>
+                              <div class="invalid-feedback">{{ formErrors.coach_id }}</div>
+                              <div class="form-text">The selected coach earns the PT commission for this sale.</div>
+                           </div>
                            <div class="col-12 col-md-6">
                               <label class="form-label">Sale Date <span class="text-danger">*</span></label>
                               <input type="date" class="form-control" v-model="form.assigned_at" :class="{ 'is-invalid': formErrors.assigned_at }" />
@@ -188,7 +197,7 @@
                            </div>
                            <div class="col-12">
                               <label class="form-label">Notes</label>
-                              <input type="text" class="form-control" v-model="form.notes" :class="{ 'is-invalid': formErrors.notes }" placeholder="Coach assignment can be done later on the member profile" />
+                              <input type="text" class="form-control" v-model="form.notes" :class="{ 'is-invalid': formErrors.notes }" placeholder="Optional sale note" />
                               <div class="invalid-feedback">{{ formErrors.notes }}</div>
                            </div>
                         </div>
@@ -802,6 +811,7 @@ export default {
             membership_rates: [],
             walk_in_rates: [],
             pt_rates: [],
+            coaches: [],
          },
          history: [],
          historyPagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
@@ -828,6 +838,7 @@ export default {
             customer_phone: "",
             membership_rate_plan_id: "",
             pt_product_id: "",
+            coach_id: "",
             walk_in_rate_plan_id: "",
             start_date: todayDate(),
             assigned_at: todayDate(),
@@ -1076,6 +1087,7 @@ export default {
             customer_phone: "",
             membership_rate_plan_id: "",
             pt_product_id: "",
+            coach_id: "",
             walk_in_rate_plan_id: "",
             start_date: todayDate(),
             assigned_at: todayDate(),
@@ -1281,6 +1293,7 @@ export default {
          if (this.saleType === "pt_package") {
             payload.member_id = this.form.member_id || null;
             payload.pt_product_id = this.form.pt_product_id || null;
+            payload.coach_id = this.form.coach_id || null;
             payload.assigned_at = this.form.assigned_at || null;
             payload.expires_at = this.form.expires_at || null;
          }

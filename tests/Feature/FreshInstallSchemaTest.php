@@ -49,6 +49,7 @@ class FreshInstallSchemaTest extends TestCase
             'biometric_last_error',
             'daily_rate',
             'pay_frequency',
+            'pt_commission_rate',
             'sss_covered',
             'sss_monthly_compensation',
             'philhealth_covered',
@@ -100,6 +101,8 @@ class FreshInstallSchemaTest extends TestCase
             'regular_pay_amount',
             'overwork_hours',
             'overwork_pay_amount',
+            'commission_amount',
+            'commission_details',
         ]);
 
         $this->assertTableHasColumns('business_profiles', [

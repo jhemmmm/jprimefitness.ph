@@ -101,9 +101,7 @@ class DashboardController extends Controller
      */
     private function activeTrainerCount(): int
     {
-        return User::role('coach')
-            ->where('status', User::STATUS_ACTIVE)
-            ->count();
+        return User::query()->activeCoaches()->count();
     }
 
     /**
@@ -230,8 +228,8 @@ class DashboardController extends Controller
      */
     private function trainers(): array
     {
-        return User::role('coach')
-            ->where('status', User::STATUS_ACTIVE)
+        return User::query()
+            ->activeCoaches()
             ->orderBy('name')
             ->limit(6)
             ->get()

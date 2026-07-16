@@ -47,6 +47,21 @@ class User extends Authenticatable
         return $this->hasAnyRole(['super admin', 'admin', 'manager']);
     }
 
+    /**
+     * Active users holding the coach role. Uses whereHas instead of the
+     * Spatie role() scope so it does not throw when the role is absent
+     * (fresh installs, tests).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    public function scopeActiveCoaches($query)
+    {
+        return $query
+            ->whereHas('roles', fn ($roles) => $roles->where('name', 'coach'))
+            ->where('status', self::STATUS_ACTIVE);
+    }
+
     public function profile(): HasOne
     {
         return $this->hasOne(MemberProfile::class);

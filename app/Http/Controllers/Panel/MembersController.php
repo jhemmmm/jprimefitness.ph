@@ -759,9 +759,9 @@ class MembersController extends Controller
      */
     private function coachIsAssignable(int $coachId): bool
     {
-        return User::role('coach')
+        return User::query()
+            ->activeCoaches()
             ->whereKey($coachId)
-            ->where('status', User::STATUS_ACTIVE)
             ->exists();
     }
 
@@ -770,8 +770,8 @@ class MembersController extends Controller
      */
     private function availableCoaches(): array
     {
-        return User::role('coach')
-            ->where('status', User::STATUS_ACTIVE)
+        return User::query()
+            ->activeCoaches()
             ->orderBy('name')
             ->get(['users.id', 'users.name', 'users.status'])
             ->map(fn (User $coach) => [

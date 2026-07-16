@@ -327,6 +327,7 @@ class SalesController extends Controller
             'customer_phone' => ['nullable', 'string', 'max:50'],
             'rate_plan_id' => ['nullable', 'integer', 'exists:rate_plans,id'],
             'pt_product_id' => ['nullable', 'integer', 'exists:pt_products,id'],
+            'coach_id' => ['nullable', 'integer', 'exists:users,id'],
             'start_date' => ['nullable', 'date'],
             'assigned_at' => ['nullable', 'date'],
             'expires_at' => ['nullable', 'date', 'after_or_equal:assigned_at'],
@@ -381,6 +382,10 @@ class SalesController extends Controller
         if ($validated['type'] === SaleTransaction::TYPE_PT_PACKAGE) {
             if (empty($validated['pt_product_id'])) {
                 $errors['pt_product_id'][] = 'Select a PT package.';
+            }
+
+            if (empty($validated['coach_id'])) {
+                $errors['coach_id'][] = 'Select the coach for this PT sale.';
             }
 
             if (empty($validated['assigned_at'])) {

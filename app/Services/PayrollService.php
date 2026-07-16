@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Attendance;
 use App\Models\BusinessProfile;
 use App\Models\EmployeeProfile;
+use App\Models\MemberPtPackage;
 use App\Models\Payroll;
 use App\Models\User;
 use App\Services\Payroll\Contracts\PayrollTaxProfile;
@@ -556,9 +557,54 @@ class PayrollService
     public function manualGrossAdjustmentAmount(
         float $grossAmount,
         float $regularPayAmount,
-        float $overworkPayAmount
+        float $overworkPayAmount,
+        float $commissionAmount
     ): float {
-        return round($grossAmount - $regularPayAmount - $overworkPayAmount, 2);
+        return round($grossAmount - $regularPayAmount - $overworkPayAmount - $commissionAmount, 2);
+    }
+
+    /**
+     * PT plan commissions earned by a coach within a payroll period. One line
+     * per plan sold (member_pt_packages with this coach), rate read from the
+     * employee profile at computation time; the caller freezes the result.
+     *
+     * @return array{
+     *     amount: float,
+     *     sales: list<array{date: ?string, member_name: ?string, plan_name: ?string, sold_price: float, rate: float, amount: float}>
+     * }
+     */
+    public function suggestPtCommissions(User $employee, string $periodStart, string $periodEnd): array
+    {
+        $rate = round((float) ($employee->employeeProfile?->pt_commission_rate ?? 0), 2);
+
+        if ($rate <= 0) {
+            return ['amount' => 0.0, 'sales' => []];
+        }
+
+        $sales = MemberPtPackage::query()
+            ->with(['member:id,name', 'ptProduct:id,name'])
+            ->where('coach_id', $employee->id)
+            ->where('status', '!=', MemberPtPackage::STATUS_CANCELLED)
+            ->where('sold_price', '>', 0)
+            ->whereDate('assigned_at', '>=', $periodStart)
+            ->whereDate('assigned_at', '<=', $periodEnd)
+            ->orderBy('assigned_at')
+            ->get()
+            ->map(fn (MemberPtPackage $package): array => [
+                'date' => $package->assigned_at?->toDateString(),
+                'member_name' => $package->member?->name,
+                'plan_name' => $package->ptProduct?->name,
+                'sold_price' => round((float) $package->sold_price, 2),
+                'rate' => $rate,
+                'amount' => round((float) $package->sold_price * $rate / 100, 2),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'amount' => round(array_sum(array_column($sales, 'amount')), 2),
+            'sales' => $sales,
+        ];
     }
 
     /**

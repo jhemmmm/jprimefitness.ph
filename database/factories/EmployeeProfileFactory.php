@@ -27,6 +27,7 @@ class EmployeeProfileFactory extends Factory
             'biometric_last_error' => null,
             'daily_rate' => 0,
             'pay_frequency' => null,
+            'pt_commission_rate' => 0,
             'sss_covered' => false,
             'sss_monthly_compensation' => null,
             'philhealth_covered' => false,

@@ -170,6 +170,21 @@
                         <div class="form-text small">Set the payroll schedule directly on the employee contract.</div>
                         <div class="invalid-feedback" v-if="formErrors['employee_profile.pay_frequency']">{{ formErrors["employee_profile.pay_frequency"][0] }}</div>
                      </div>
+                     <div class="col-md-6">
+                        <label class="form-label fw-semibold">PT Commission Rate (%)</label>
+                        <input
+                           type="number"
+                           class="form-control"
+                           :class="{ 'is-invalid': formErrors['employee_profile.pt_commission_rate'] }"
+                           v-model="form.employee_profile.pt_commission_rate"
+                           min="0"
+                           max="100"
+                           step="0.01"
+                           placeholder="0"
+                        />
+                        <div class="form-text small">Share of every PT plan sold with this coach. Leave 0 for non-coaches.</div>
+                        <div class="invalid-feedback" v-if="formErrors['employee_profile.pt_commission_rate']">{{ formErrors["employee_profile.pt_commission_rate"][0] }}</div>
+                     </div>
                      <div class="col-12" v-if="isPhilippinesPayroll">
                         <div class="border rounded-3 p-3 bg-light">
                            <contribution-settings-fields :profile="form.employee_profile" :errors="formErrors" id-prefix="employee-create" />
@@ -474,6 +489,7 @@ export default {
       employeeProfileForm: function (profile) {
          return {
             daily_rate: profile?.daily_rate ?? "",
+            pt_commission_rate: profile?.pt_commission_rate ?? "",
             pay_frequency: profile?.pay_frequency || "semi_monthly",
             sss_covered: profile ? Boolean(profile.sss_covered) : this.isPhilippinesPayroll,
             sss_monthly_compensation: profile?.sss_monthly_compensation ?? (this.isPhilippinesPayroll ? MINIMUM_BASES.sss_monthly_compensation : ""),

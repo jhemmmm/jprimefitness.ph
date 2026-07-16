@@ -255,7 +255,7 @@ class SalesPageTest extends TestCase
         $this->assertDatabaseCount('sale_transactions', 0);
     }
 
-    public function test_pt_package_sale_can_attach_to_existing_member_without_coach_assignment(): void
+    public function test_pt_package_sale_requires_a_coach(): void
     {
         $staff = $this->createUserWithRole('staff', 'Staff Lou');
         $member = $this->createUserWithRole('member', 'Member Zoe');
@@ -274,21 +274,85 @@ class SalesPageTest extends TestCase
                 'payment_reference' => 'GCASH-20260329-001',
                 'sold_at' => '2026-03-29 16:00:00',
             ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['coach_id']);
+
+        $this->assertDatabaseCount('member_pt_packages', 0);
+        $this->assertDatabaseCount('sale_transactions', 0);
+    }
+
+    public function test_pt_package_sale_rejects_a_non_coach_user(): void
+    {
+        $staff = $this->createUserWithRole('staff', 'Staff Lou');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $ptProduct = $this->createPtProduct('24 Sessions', 24, [
+            'price' => 7200,
+        ]);
+
+        $this->actingAs($staff)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'coach_id' => $staff->id,
+                'assigned_at' => '2026-03-29',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 7200,
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['coach_id']);
+    }
+
+    public function test_pt_package_sale_stores_the_selling_coach(): void
+    {
+        $staff = $this->createUserWithRole('staff', 'Staff Lou');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
+        $ptProduct = $this->createPtProduct('24 Sessions', 24, [
+            'price' => 7200,
+        ]);
+
+        $this->actingAs($staff)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
+                'assigned_at' => '2026-03-29',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 7200,
+                'payment_reference' => 'GCASH-20260329-001',
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
             ->assertCreated()
             ->assertJsonPath('type', SaleTransaction::TYPE_PT_PACKAGE)
             ->assertJsonPath('customer_name', 'Member Zoe')
-            ->assertJsonPath('item_name', '24 Sessions')
-            ->assertJsonPath('payment_reference', 'GCASH-20260329-001');
+            ->assertJsonPath('item_name', '24 Sessions');
 
         $package = MemberPtPackage::where('user_id', $member->id)->firstOrFail();
 
-        $this->assertNull($package->coach_id);
+        $this->assertSame($coach->id, $package->coach_id);
 
-        $this->assertDatabaseHas('sale_transactions', [
-            'member_id' => $member->id,
-            'type' => SaleTransaction::TYPE_PT_PACKAGE,
-            'total' => 7200,
-        ]);
+        $transaction = SaleTransaction::where('type', SaleTransaction::TYPE_PT_PACKAGE)->firstOrFail();
+
+        $this->assertSame($coach->id, $transaction->details['coach_id']);
+        $this->assertSame('Coach Rey', $transaction->details['coach_name']);
+    }
+
+    public function test_sales_context_lists_active_coaches(): void
+    {
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
+        $inactiveCoach = $this->createUserWithRole('coach', 'Coach Gone');
+        $inactiveCoach->update(['status' => User::STATUS_INACTIVE]);
+
+        $this->actingAs($staff)
+            ->getJson('/panel/sales/context')
+            ->assertOk()
+            ->assertJsonCount(1, 'options.coaches')
+            ->assertJsonPath('options.coaches.0.id', $coach->id)
+            ->assertJsonPath('options.coaches.0.name', 'Coach Rey');
     }
 
     public function test_sales_page_no_longer_renders_new_member_sale_controls(): void
@@ -599,6 +663,7 @@ class SalesPageTest extends TestCase
     {
         $manager = $this->createUserWithRole('manager', 'Manager Sol');
         $member = $this->createUserWithRole('member', 'Member Zoe');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
         $ptProduct = $this->createPtProduct('12 Sessions', 12, [
             'price' => 3600,
         ]);
@@ -608,6 +673,7 @@ class SalesPageTest extends TestCase
                 'type' => SaleTransaction::TYPE_PT_PACKAGE,
                 'member_id' => $member->id,
                 'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
                 'assigned_at' => '2026-03-29',
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
                 'amount_received' => 3600,
@@ -632,6 +698,7 @@ class SalesPageTest extends TestCase
     {
         $manager = $this->createUserWithRole('manager', 'Manager Sol');
         $member = $this->createUserWithRole('member', 'Member Zoe');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
         $ptProduct = $this->createPtProduct('12 Sessions', 12, [
             'price' => 3600,
         ]);
@@ -641,6 +708,7 @@ class SalesPageTest extends TestCase
                 'type' => SaleTransaction::TYPE_PT_PACKAGE,
                 'member_id' => $member->id,
                 'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
                 'assigned_at' => '2026-03-29',
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
                 'amount_received' => 3600,

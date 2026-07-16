@@ -32,7 +32,8 @@ class PosSaleService
      *     inventory_items: array<int, array<string, mixed>>,
      *     membership_rates: array<int, array<string, mixed>>,
      *     walk_in_rates: array<int, array<string, mixed>>,
-     *     pt_rates: array<int, array<string, mixed>>
+     *     pt_rates: array<int, array<string, mixed>>,
+     *     coaches: array<int, array<string, mixed>>
      * }
      */
     public function context(): array
@@ -86,6 +87,17 @@ class PosSaleService
             ->values()
             ->all();
 
+        $coaches = User::query()
+            ->activeCoaches()
+            ->orderBy('name')
+            ->get(['users.id', 'users.name'])
+            ->map(fn (User $coach) => [
+                'id' => $coach->id,
+                'name' => $coach->name,
+            ])
+            ->values()
+            ->all();
+
         $ptRates = PTProduct::query()
             ->where('is_active', true)
             ->whereNotNull('price')
@@ -107,6 +119,7 @@ class PosSaleService
             'membership_rates' => $membershipRates,
             'walk_in_rates' => $walkInRates,
             'pt_rates' => $ptRates,
+            'coaches' => $coaches,
         ];
     }
 
@@ -343,6 +356,17 @@ class PosSaleService
                 ]);
             }
 
+            $coach = User::query()
+                ->activeCoaches()
+                ->whereKey((int) ($data['coach_id'] ?? 0))
+                ->first();
+
+            if (! $coach) {
+                throw ValidationException::withMessages([
+                    'coach_id' => ['Select an active coach for this PT sale.'],
+                ]);
+            }
+
             $member = $this->resolveMember($data);
             $soldPrice = round((float) $ptProduct->price, 2);
             $payment = $this->resolvePayment($soldPrice, $data);
@@ -350,7 +374,7 @@ class PosSaleService
             $package = $member->memberPtPackages()->create([
                 'pt_product_id' => $ptProduct->id,
                 'sold_price' => $soldPrice,
-                'coach_id' => null,
+                'coach_id' => $coach->id,
                 'total_sessions' => $ptProduct->session_count,
                 'remaining_sessions' => $ptProduct->session_count,
                 'assigned_at' => $data['assigned_at'],
@@ -371,6 +395,8 @@ class PosSaleService
                 'details' => [
                     'member_pt_package_id' => $package->id,
                     'pt_product_id' => $ptProduct->id,
+                    'coach_id' => $coach->id,
+                    'coach_name' => $coach->name,
                     'session_count' => $ptProduct->session_count,
                     'assigned_at' => $data['assigned_at'],
                     'expires_at' => $data['expires_at'] ?? null,

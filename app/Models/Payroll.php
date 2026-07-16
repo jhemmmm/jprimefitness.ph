@@ -30,6 +30,8 @@ class Payroll extends Model
         'regular_pay_amount',
         'overwork_hours',
         'overwork_pay_amount',
+        'commission_amount',
+        'commission_details',
         'gross_amount',
         'withholding_tax',
         'employee_contributions',
@@ -52,6 +54,8 @@ class Payroll extends Model
         'regular_pay_amount' => 'decimal:2',
         'overwork_hours' => 'decimal:2',
         'overwork_pay_amount' => 'decimal:2',
+        'commission_amount' => 'decimal:2',
+        'commission_details' => 'array',
         'gross_amount' => 'decimal:2',
         'withholding_tax' => 'decimal:2',
         'manual_deductions' => 'decimal:2',
@@ -135,7 +139,8 @@ class Payroll extends Model
         return round(
             (float) $this->gross_amount
             - (float) $this->regular_pay_amount
-            - (float) $this->overwork_pay_amount,
+            - (float) $this->overwork_pay_amount
+            - (float) $this->commission_amount,
             2
         );
     }

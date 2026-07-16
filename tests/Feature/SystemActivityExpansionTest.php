@@ -647,6 +647,7 @@ class SystemActivityExpansionTest extends TestCase
             'price' => 4999.50,
         ]);
         $member = $this->createUserWithRole('member', 'Member Mia');
+        $coach = $this->createUserWithRole('coach', 'Coach Rio');
         $ptProduct = $this->createPtProduct('24 Sessions', 24, [
             'price' => 7200,
         ]);
@@ -681,6 +682,7 @@ class SystemActivityExpansionTest extends TestCase
                 'type' => SaleTransaction::TYPE_PT_PACKAGE,
                 'member_id' => $member->id,
                 'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
                 'assigned_at' => '2026-04-10',
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
                 'amount_received' => 7200,

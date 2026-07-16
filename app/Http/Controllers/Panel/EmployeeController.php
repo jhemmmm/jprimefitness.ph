@@ -119,6 +119,7 @@ class EmployeeController extends Controller
             'employee_profile' => ['required', 'array'],
             'employee_profile.daily_rate' => ['required', 'numeric', 'min:0'],
             'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
+            'employee_profile.pt_commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'employee_profile.sss_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             'employee_profile.sss_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
             'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
@@ -179,6 +180,7 @@ class EmployeeController extends Controller
             'employee_profile' => ['required', 'array'],
             'employee_profile.daily_rate' => ['required', 'numeric', 'min:0'],
             'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
+            'employee_profile.pt_commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'employee_profile.sss_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             'employee_profile.sss_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
             'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
@@ -554,6 +556,7 @@ class EmployeeController extends Controller
             $data['period_end'],
             (bool) $businessProfile->pay_overwork_hours,
         );
+        $commission = $this->payrollService->suggestPtCommissions($employee, $data['period_start'], $data['period_end']);
         $gross = (float) $data['gross_amount'];
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $payFrequency = $this->employeePayFrequency($employee);
@@ -586,6 +589,8 @@ class EmployeeController extends Controller
             'regular_pay_amount' => $attendanceSuggestion['regular_pay_amount'],
             'overwork_hours' => $attendanceSuggestion['overwork_hours'],
             'overwork_pay_amount' => $attendanceSuggestion['overwork_pay_amount'],
+            'commission_amount' => $commission['amount'],
+            'commission_details' => $commission['sales'],
             'gross_amount' => $gross,
             'withholding_tax' => $payrollTotals['withholding_tax'],
             'employee_contributions' => $payrollTotals['employee_contributions'],
@@ -703,7 +708,9 @@ class EmployeeController extends Controller
             (bool) $businessProfile->pay_overwork_hours,
         );
         $payFrequency = $payroll?->pay_frequency ?? $this->employeePayFrequency($employee);
-        $grossAmount = (float) ($data['gross_amount'] ?? $attendanceSuggestion['gross_amount']);
+        $commission = $this->payrollService->suggestPtCommissions($employee, $data['period_start'], $data['period_end']);
+        $suggestedGross = round((float) $attendanceSuggestion['gross_amount'] + $commission['amount'], 2);
+        $grossAmount = (float) ($data['gross_amount'] ?? $suggestedGross);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
@@ -729,6 +736,9 @@ class EmployeeController extends Controller
         return response()->json(array_merge(
             $attendanceSuggestion,
             [
+                'gross_amount' => $suggestedGross,
+                'pt_commission_amount' => $commission['amount'],
+                'pt_commission_sales' => $commission['sales'],
                 'employee_contributions' => $payrollTotals['employee_contributions'],
                 'employee_contributions_total' => $payrollTotals['employee_contributions_total'],
                 'employer_contributions' => $payrollTotals['employer_contributions'],
@@ -741,6 +751,7 @@ class EmployeeController extends Controller
                     $grossAmount,
                     $attendanceSuggestion['regular_pay_amount'],
                     $attendanceSuggestion['overwork_pay_amount'],
+                    $commission['amount'],
                 ),
             ]
         ));
@@ -871,6 +882,7 @@ class EmployeeController extends Controller
      * @param  array{
      *     daily_rate?: float|int|string|null,
      *     pay_frequency?: string|null,
+     *     pt_commission_rate?: float|int|string|null,
      *     sss_covered?: bool,
      *     sss_monthly_compensation?: float|int|string|null,
      *     philhealth_covered?: bool,
@@ -899,6 +911,7 @@ class EmployeeController extends Controller
             $profile->fill([
                 'daily_rate' => $attributes['daily_rate'] ?? $profile->daily_rate,
                 'pay_frequency' => $attributes['pay_frequency'] ?? $profile->pay_frequency,
+                'pt_commission_rate' => $attributes['pt_commission_rate'] ?? $profile->pt_commission_rate,
                 'sss_covered' => $attributes['sss_covered'] ?? $profile->sss_covered,
                 'sss_monthly_compensation' => array_key_exists('sss_monthly_compensation', $attributes)
                     ? $attributes['sss_monthly_compensation']
@@ -916,6 +929,7 @@ class EmployeeController extends Controller
             if ($profile->isDirty([
                 'daily_rate',
                 'pay_frequency',
+                'pt_commission_rate',
                 'sss_covered',
                 'sss_monthly_compensation',
                 'philhealth_covered',
@@ -943,6 +957,7 @@ class EmployeeController extends Controller
             'id' => $employeeProfile->id,
             'daily_rate' => round((float) ($employeeProfile->daily_rate ?? 0), 2),
             'pay_frequency' => $employeeProfile->pay_frequency,
+            'pt_commission_rate' => round((float) ($employeeProfile->pt_commission_rate ?? 0), 2),
             'sss_covered' => (bool) $employeeProfile->sss_covered,
             'sss_monthly_compensation' => $employeeProfile->sss_monthly_compensation !== null
                 ? round((float) $employeeProfile->sss_monthly_compensation, 2)
@@ -1027,6 +1042,7 @@ class EmployeeController extends Controller
         $normalized = [
             'daily_rate' => round((float) ($attributes['daily_rate'] ?? 0), 2),
             'pay_frequency' => $attributes['pay_frequency'] ?? null,
+            'pt_commission_rate' => round((float) ($attributes['pt_commission_rate'] ?? 0), 2),
             'sss_covered' => $isPhilippinesBusiness ? (bool) ($attributes['sss_covered'] ?? false) : false,
             'sss_monthly_compensation' => $isPhilippinesBusiness
                 ? $this->normalizeNullableMoney($attributes['sss_monthly_compensation'] ?? null)
@@ -1151,13 +1167,7 @@ class EmployeeController extends Controller
         $payoutsCount = $hasAggregates
             ? (int) $payroll->payouts_count
             : $payroll->payouts->count();
-        $manualGrossAdjustmentAmount = $payroll->hasAttendanceBreakdownSnapshot()
-            ? $this->payrollService->manualGrossAdjustmentAmount(
-                (float) $payroll->gross_amount,
-                (float) $payroll->regular_pay_amount,
-                (float) $payroll->overwork_pay_amount,
-            )
-            : null;
+        $manualGrossAdjustmentAmount = $payroll->manualGrossAdjustmentAmount();
 
         return [
             'id' => $payroll->id,
@@ -1167,6 +1177,7 @@ class EmployeeController extends Controller
             'regular_pay_amount' => $payroll->regular_pay_amount !== null ? (float) $payroll->regular_pay_amount : null,
             'overwork_hours' => $payroll->overwork_hours !== null ? (float) $payroll->overwork_hours : null,
             'overwork_pay_amount' => $payroll->overwork_pay_amount !== null ? (float) $payroll->overwork_pay_amount : null,
+            'commission_amount' => $payroll->commission_amount !== null ? (float) $payroll->commission_amount : null,
             'manual_gross_adjustment_amount' => $manualGrossAdjustmentAmount,
             'gross_amount' => (float) $payroll->gross_amount,
             'pay_frequency' => $payroll->pay_frequency,

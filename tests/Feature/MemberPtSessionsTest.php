@@ -56,6 +56,27 @@ class MemberPtSessionsTest extends TestCase
         ]);
     }
 
+    public function test_manager_can_add_pt_package_without_a_coach(): void
+    {
+        $product = $this->createPtProduct('12 Sessions', 12);
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
+
+        $this->actingAs($manager)
+            ->postJson("/panel/members/{$member->id}/pt-packages", [
+                'pt_product_id' => $product->id,
+                'assigned_at' => '2026-04-01',
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('member_pt_packages', [
+            'user_id' => $member->id,
+            'pt_product_id' => $product->id,
+            'coach_id' => null,
+            'status' => MemberPtPackage::STATUS_ACTIVE,
+        ]);
+    }
+
     public function test_staff_can_log_pt_session_usage_and_reduce_balance(): void
     {
         $product = $this->createPtProduct('12 Sessions', 12);
