@@ -166,9 +166,14 @@ class PayrollReportsController extends Controller
         $payrollQuery = $this->payrollQuery($data);
         $payoutQuery = $this->payoutQuery($data);
 
-        $grossPayroll = round((float) (clone $payrollQuery)->sum('gross_amount'), 2);
-        $withholdingTax = round((float) (clone $payrollQuery)->sum('withholding_tax'), 2);
-        $manualDeductions = round((float) (clone $payrollQuery)->sum('manual_deductions'), 2);
+        $payrollAggregates = (clone $payrollQuery)
+            ->toBase()
+            ->selectRaw('COUNT(*) as payroll_count, SUM(gross_amount) as gross_amount, SUM(withholding_tax) as withholding_tax, SUM(manual_deductions) as manual_deductions, SUM(cash_advance_deductions) as cash_advance_deductions, SUM(net_amount) as net_amount')
+            ->first();
+        $grossPayroll = round((float) $payrollAggregates->gross_amount, 2);
+        $withholdingTax = round((float) $payrollAggregates->withholding_tax, 2);
+        $manualDeductions = round((float) $payrollAggregates->manual_deductions, 2);
+        $cashAdvanceDeductions = round((float) $payrollAggregates->cash_advance_deductions, 2);
         $payrollContributionSnapshots = (clone $payrollQuery)
             ->select([
                 'id',
@@ -185,12 +190,12 @@ class PayrollReportsController extends Controller
             2
         );
         $totalDeductions = round(
-            $withholdingTax + $manualDeductions + $employeeGovernmentContributions,
+            $withholdingTax + $manualDeductions + $cashAdvanceDeductions + $employeeGovernmentContributions,
             2
         );
-        $netPayroll = round((float) (clone $payrollQuery)->sum('net_amount'), 2);
+        $netPayroll = round((float) $payrollAggregates->net_amount, 2);
         $totalPaid = round((float) (clone $payoutQuery)->sum('payouts.amount'), 2);
-        $payrollCount = (int) (clone $payrollQuery)->count();
+        $payrollCount = (int) $payrollAggregates->payroll_count;
         $outstandingBalance = round(max(0, $netPayroll - $totalPaid), 2);
 
         return [

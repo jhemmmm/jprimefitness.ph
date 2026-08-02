@@ -229,6 +229,16 @@
                               <div class="invalid-feedback" v-if="formErrors.manual_deductions">{{ formErrors.manual_deductions }}</div>
                            </td>
                         </tr>
+                        <tr v-if="cashAdvanceOutstanding > 0 || form.cash_advance_deductions > 0">
+                           <td class="align-middle">
+                              Cash advance repayment
+                              <div class="text-muted small">Outstanding: ₱{{ $filters.formatMoney(cashAdvanceOutstanding) }}</div>
+                           </td>
+                           <td class="text-end">
+                              <input type="number" min="0" step="0.01" class="form-control form-control-sm text-end doc-amount-input" v-model="form.cash_advance_deductions" :class="{ 'is-invalid': formErrors.cash_advance_deductions }" />
+                              <div class="invalid-feedback" v-if="formErrors.cash_advance_deductions">{{ formErrors.cash_advance_deductions }}</div>
+                           </td>
+                        </tr>
                         <tr class="doc-net-row">
                            <td>Net pay</td>
                            <td class="text-end">₱{{ $filters.formatMoney(netPreview) }}</td>
@@ -309,6 +319,9 @@ export default {
       "form.manual_deductions"() {
          this.queueSuggestionFetch();
       },
+      "form.cash_advance_deductions": function () {
+         this.queueSuggestionFetch();
+      },
    },
 
    computed: {
@@ -363,6 +376,9 @@ export default {
       netPreview: function () {
          return Number(this.suggestion?.net_amount_preview || 0);
       },
+      cashAdvanceOutstanding: function () {
+         return Number(this.suggestion?.cash_advance_outstanding || 0);
+      },
    },
 
    methods: {
@@ -395,6 +411,7 @@ export default {
                gross_amount: this.payroll.gross_amount,
                withholding_tax: this.payroll.withholding_tax || 0,
                manual_deductions: this.payroll.manual_deductions || 0,
+               cash_advance_deductions: this.payroll.cash_advance_deductions || 0,
                employee_contributions: this.payroll.employee_contributions || {},
                employee_contributions_total: Number(this.payroll.employee_contributions_total || 0),
                employer_contributions: this.payroll.employer_contributions || {},
@@ -413,6 +430,7 @@ export default {
             gross_amount: "",
             withholding_tax: 0,
             manual_deductions: 0,
+            cash_advance_deductions: "",
             employee_contributions: {},
             employee_contributions_total: 0,
             employer_contributions: {},
@@ -478,6 +496,7 @@ export default {
                   payroll_id: this.form.id || null,
                   gross_amount: this.form.gross_amount === "" ? undefined : this.form.gross_amount,
                   manual_deductions: this.form.manual_deductions,
+                  cash_advance_deductions: this.form.cash_advance_deductions === "" ? undefined : this.form.cash_advance_deductions,
                },
             })
             .then((res) => {
@@ -491,6 +510,7 @@ export default {
 
                if (this.shouldAutofillSuggestedAmounts) {
                   if (this.form.gross_amount === "" && res.data.gross_amount > 0) this.form.gross_amount = res.data.gross_amount;
+                  if (this.form.cash_advance_deductions === "" && res.data.cash_advance_suggested > 0) this.form.cash_advance_deductions = res.data.cash_advance_suggested;
 
                   this.shouldAutofillSuggestedAmounts = false;
                }

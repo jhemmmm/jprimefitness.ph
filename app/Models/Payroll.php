@@ -37,6 +37,7 @@ class Payroll extends Model
         'employee_contributions',
         'employer_contributions',
         'manual_deductions',
+        'cash_advance_deductions',
         'net_amount',
         'status',
         'notes',
@@ -59,6 +60,7 @@ class Payroll extends Model
         'gross_amount' => 'decimal:2',
         'withholding_tax' => 'decimal:2',
         'manual_deductions' => 'decimal:2',
+        'cash_advance_deductions' => 'decimal:2',
         'employee_contributions' => 'array',
         'employer_contributions' => 'array',
         'net_amount' => 'decimal:2',
@@ -72,6 +74,11 @@ class Payroll extends Model
     public function payouts(): HasMany
     {
         return $this->hasMany(Payout::class);
+    }
+
+    public function cashAdvanceRepayments(): HasMany
+    {
+        return $this->hasMany(CashAdvanceRepayment::class);
     }
 
     public function generatedBy(): BelongsTo
@@ -99,6 +106,7 @@ class Payroll extends Model
         return round(
             (float) $this->withholding_tax
             + (float) $this->manual_deductions
+            + (float) $this->cash_advance_deductions
             + $this->employeeContributionsTotal(),
             2
         );

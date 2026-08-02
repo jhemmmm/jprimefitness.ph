@@ -142,6 +142,8 @@ return [
         // Payroll.
         'payroll' => ['model' => \App\Models\Payroll::class],
         'payout' => ['model' => \App\Models\Payout::class],
+        'cash_advance' => ['model' => \App\Models\CashAdvance::class],
+        'cash_advance_repayment' => ['model' => \App\Models\CashAdvanceRepayment::class],
 
         // Cash drawer (physical cash tracking).
         'cash_drawer_session' => ['model' => \App\Models\CashDrawerSession::class],

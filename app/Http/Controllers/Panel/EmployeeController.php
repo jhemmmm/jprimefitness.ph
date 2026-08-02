@@ -8,8 +8,11 @@ use App\Models\SystemActivity;
 use App\Models\BusinessProfile;
 use App\Models\EmployeeProfile;
 use App\Models\EmployeeScheduleShift;
+use App\Models\CashAdvance;
+use App\Models\CashAdvanceRepayment;
 use App\Models\Payout;
 use App\Models\Payroll;
+use App\Models\SaleTransaction;
 use App\Models\User;
 use App\Notifications\PayrollApprovedNotification;
 use App\Services\SystemActivityService;
@@ -38,7 +41,7 @@ class EmployeeController extends Controller
         private SystemActivityService $systemActivityService,
     ) {
         $this->middleware('can:manage employees')->except([
-            'show', 'schedule', 'attendance', 'payrolls', 'payslip', 'payouts', 'payrollPayouts',
+            'show', 'schedule', 'attendance', 'payrolls', 'payslip', 'payouts', 'payrollPayouts', 'cashAdvances',
         ]);
     }
 
@@ -476,7 +479,7 @@ class EmployeeController extends Controller
 
         $employee->loadMissing('employeeProfile');
 
-        $data = $this->validatePayrollInput($request);
+        $data = $this->validatePayrollInput($request, $employee);
 
         $payroll = Payroll::create([
             'employee_id' => $employee->id,
@@ -505,7 +508,7 @@ class EmployeeController extends Controller
             return response()->json(['message' => 'Only draft payrolls can be edited.'], 422);
         }
 
-        $data = $this->validatePayrollInput($request);
+        $data = $this->validatePayrollInput($request, $employee);
 
         $payroll->update($this->payrollAttributes($employee, $data, $payroll));
 
@@ -529,13 +532,16 @@ class EmployeeController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validatePayrollInput(Request $request): array
+    private function validatePayrollInput(Request $request, User $employee): array
     {
         return $request->validate([
             'period_start' => ['required', 'date'],
             'period_end' => ['required', 'date', 'after_or_equal:period_start'],
             'gross_amount' => ['required', 'numeric', 'min:0'],
             'manual_deductions' => ['nullable', 'numeric', 'min:0'],
+            'cash_advance_deductions' => $request->filled('cash_advance_deductions')
+                ? ['numeric', 'min:0', 'max:'.$this->cashAdvanceOutstanding($employee)]
+                : ['nullable'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
     }
@@ -559,6 +565,7 @@ class EmployeeController extends Controller
         $commission = $this->payrollService->suggestPtCommissions($employee, $data['period_start'], $data['period_end']);
         $gross = (float) $data['gross_amount'];
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
+        $cashAdvanceDeductions = (float) ($data['cash_advance_deductions'] ?? 0);
         $payFrequency = $this->employeePayFrequency($employee);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
@@ -578,8 +585,17 @@ class EmployeeController extends Controller
             $payFrequency,
             $gross,
             $manualDeductions,
-            $payrollTaxContext
+            $payrollTaxContext,
+            $cashAdvanceDeductions
         );
+
+        $availablePay = $this->availablePayForCashAdvance($gross, $manualDeductions, $payrollTotals);
+
+        if ($cashAdvanceDeductions > $availablePay) {
+            throw ValidationException::withMessages([
+                'cash_advance_deductions' => 'Cash advance repayment cannot exceed the pay available for this period (₱'.number_format($availablePay, 2).').',
+            ]);
+        }
 
         return [
             'period_start' => $data['period_start'],
@@ -596,6 +612,7 @@ class EmployeeController extends Controller
             'employee_contributions' => $payrollTotals['employee_contributions'],
             'employer_contributions' => $payrollTotals['employer_contributions'],
             'manual_deductions' => $manualDeductions,
+            'cash_advance_deductions' => $cashAdvanceDeductions,
             'net_amount' => $payrollTotals['net_amount'],
             'notes' => $data['notes'] ?? null,
         ];
@@ -614,11 +631,19 @@ class EmployeeController extends Controller
             return response()->json(['message' => 'Only draft payrolls can be approved.'], 422);
         }
 
-        $payroll->status = Payroll::STATUS_APPROVED;
-        $payroll->approved_by = auth()->id();
-        $payroll->approved_at = now();
-        $payroll->save();
+        DB::transaction(function () use ($payroll) {
+            $locked = Payroll::whereKey($payroll->getKey())->lockForUpdate()->firstOrFail();
+            abort_if($locked->status !== Payroll::STATUS_DRAFT, 422, 'Only draft payrolls can be approved.');
 
+            $this->applyCashAdvanceRepayments($locked);
+
+            $locked->status = Payroll::STATUS_APPROVED;
+            $locked->approved_by = auth()->id();
+            $locked->approved_at = now();
+            $locked->save();
+        });
+
+        $payroll->refresh();
         $this->payrollService->syncStatus($payroll);
 
         $this->notificationRecipientResolver->send(
@@ -687,6 +712,7 @@ class EmployeeController extends Controller
             'payroll_id' => ['nullable', 'integer', 'exists:payrolls,id'],
             'gross_amount' => ['nullable', 'numeric', 'min:0'],
             'manual_deductions' => ['nullable', 'numeric', 'min:0'],
+            'cash_advance_deductions' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $payroll = null;
@@ -712,6 +738,8 @@ class EmployeeController extends Controller
         $suggestedGross = round((float) $attendanceSuggestion['gross_amount'] + $commission['amount'], 2);
         $grossAmount = (float) ($data['gross_amount'] ?? $suggestedGross);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
+        $cashAdvanceOutstanding = $this->cashAdvanceOutstanding($employee);
+        $cashAdvanceDeductions = (float) ($data['cash_advance_deductions'] ?? 0);
         $payrollTaxContext = [
             'employee_id' => $employee->id,
             'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
@@ -730,7 +758,8 @@ class EmployeeController extends Controller
             $payFrequency,
             $grossAmount,
             $manualDeductions,
-            $payrollTaxContext
+            $payrollTaxContext,
+            $cashAdvanceDeductions
         );
 
         return response()->json(array_merge(
@@ -746,6 +775,11 @@ class EmployeeController extends Controller
                 'withholding_tax' => $payrollTotals['withholding_tax'],
                 'taxable_earnings' => $payrollTotals['taxable_earnings'],
                 'employee_deductions_total' => $payrollTotals['employee_deductions_total'],
+                'cash_advance_outstanding' => $cashAdvanceOutstanding,
+                'cash_advance_suggested' => min(
+                    $cashAdvanceOutstanding,
+                    $this->availablePayForCashAdvance($grossAmount, $manualDeductions, $payrollTotals)
+                ),
                 'net_amount_preview' => $payrollTotals['net_amount'],
                 'manual_gross_adjustment_amount' => $this->payrollService->manualGrossAdjustmentAmount(
                     $grossAmount,
@@ -841,6 +875,149 @@ class EmployeeController extends Controller
         $payout = $payout->fresh(['payroll', 'releasedBy', 'employee:id,name']);
 
         return response()->json($this->serializePayout($payout), 201);
+    }
+
+    /**
+     * Return employee cash advances.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cashAdvances(User $employee): JsonResponse
+    {
+        $this->authorizeSelfOrManager($employee);
+
+        $advances = CashAdvance::query()
+            ->where('employee_id', $employee->id)
+            ->with('releasedBy:id,name')
+            ->orderByDesc('paid_at')
+            ->get()
+            ->map(fn (CashAdvance $advance) => $this->serializeCashAdvance($advance))
+            ->values()
+            ->all();
+
+        return response()->json($advances);
+    }
+
+    /**
+     * Record an employee cash advance.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function storeCashAdvance(Request $request, User $employee): JsonResponse
+    {
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'method' => ['required', Rule::in([CashAdvance::METHOD_CASH, CashAdvance::METHOD_GCASH, CashAdvance::METHOD_ONLINE_PAYMENT])],
+            'reference_number' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'paid_at' => ['nullable', 'date'],
+        ]);
+
+        $advance = CashAdvance::create([
+            'employee_id' => $employee->id,
+            'amount' => $data['amount'],
+            'method' => $data['method'],
+            'reference_number' => $data['reference_number'] ?? null,
+            'released_by' => auth()->id(),
+            'notes' => $data['notes'] ?? null,
+            'paid_at' => $data['paid_at'] ?? now(),
+        ]);
+
+        $advance->loadMissing('releasedBy:id,name');
+
+        return response()->json($this->serializeCashAdvance($advance), 201);
+    }
+
+    /**
+     * Sum of unpaid cash advance balances for an employee.
+     */
+    private function cashAdvanceOutstanding(User $employee): float
+    {
+        return round((float) CashAdvance::query()
+            ->where('employee_id', $employee->id)
+            ->outstanding()
+            ->sum(DB::raw('amount - repaid_amount')), 2);
+    }
+
+    /**
+     * Net pay left to withhold an advance from: gross minus the other
+     * employee deductions, before the advance deduction itself.
+     *
+     * @param  array<string, mixed>  $payrollTotals
+     */
+    private function availablePayForCashAdvance(float $gross, float $manualDeductions, array $payrollTotals): float
+    {
+        return max(0, round(
+            $gross
+            - $manualDeductions
+            - (float) $payrollTotals['withholding_tax']
+            - (float) $payrollTotals['employee_contributions_total'],
+            2
+        ));
+    }
+
+    /**
+     * Allocate a payroll's cash advance deduction across outstanding
+     * advances, oldest first. Aborts if balances shrank since drafting.
+     */
+    private function applyCashAdvanceRepayments(Payroll $payroll): void
+    {
+        $remaining = round((float) $payroll->cash_advance_deductions, 2);
+
+        if ($remaining <= 0) {
+            return;
+        }
+
+        $advances = CashAdvance::query()
+            ->where('employee_id', $payroll->employee_id)
+            ->outstanding()
+            ->orderBy('paid_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        abort_if(
+            round($advances->sum(fn (CashAdvance $advance) => $advance->balance()), 2) < $remaining,
+            422,
+            'Outstanding cash advance balance changed; edit the payroll deduction first.'
+        );
+
+        foreach ($advances as $advance) {
+            $take = round(min($remaining, $advance->balance()), 2);
+            $advance->repaid_amount = round((float) $advance->repaid_amount + $take, 2);
+            $advance->save();
+
+            CashAdvanceRepayment::create([
+                'cash_advance_id' => $advance->id,
+                'payroll_id' => $payroll->id,
+                'amount' => $take,
+            ]);
+
+            $remaining = round($remaining - $take, 2);
+
+            if ($remaining <= 0) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function serializeCashAdvance(CashAdvance $advance): array
+    {
+        return [
+            'id' => $advance->id,
+            'amount' => (float) $advance->amount,
+            'repaid_amount' => (float) $advance->repaid_amount,
+            'balance' => $advance->balance(),
+            'method' => $advance->method,
+            'method_label' => SaleTransaction::paymentMethodLabel($advance->method),
+            'reference_number' => $advance->reference_number,
+            'notes' => $advance->notes,
+            'paid_at' => $advance->paid_at?->toISOString(),
+            'released_by_name' => $advance->releasedBy?->name,
+        ];
     }
 
     /**
@@ -1189,6 +1366,7 @@ class EmployeeController extends Controller
             'total_earnings' => $payroll->totalEarnings(),
             'withholding_tax' => (float) $payroll->withholding_tax,
             'manual_deductions' => (float) $payroll->manual_deductions,
+            'cash_advance_deductions' => (float) $payroll->cash_advance_deductions,
             'net_amount' => (float) $payroll->net_amount,
             'status' => $payroll->status,
             'notes' => $payroll->notes,
@@ -1269,6 +1447,7 @@ class EmployeeController extends Controller
             'employee_contributions_total' => $payroll->employeeContributionsTotal(),
             'employer_contributions' => $payroll->employer_contributions ?? [],
             'employer_contributions_total' => $payroll->employerContributionsTotal(),
+            'cash_advance_deductions' => round((float) $payroll->cash_advance_deductions, 2),
             'net_amount' => round((float) $payroll->net_amount, 2),
             'status' => $payroll->status,
         ];

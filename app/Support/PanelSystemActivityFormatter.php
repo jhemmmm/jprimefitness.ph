@@ -53,6 +53,7 @@ class PanelSystemActivityFormatter
             SystemActivity::SUBJECT_EMPLOYEE => sprintf('Employee #%d - %s', $subjectId, $snapshot['name'] ?? 'Unknown Employee'),
             SystemActivity::SUBJECT_PAYROLL => sprintf('Payroll #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
             SystemActivity::SUBJECT_PAYOUT => sprintf('Payout #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
+            SystemActivity::SUBJECT_CASH_ADVANCE => sprintf('Cash Advance #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
             SystemActivity::SUBJECT_MEMBER => sprintf('Member #%d - %s', $subjectId, $snapshot['name'] ?? 'Unknown Member'),
             SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => sprintf('Membership #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
             SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => sprintf('PT Package #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
@@ -93,6 +94,7 @@ class PanelSystemActivityFormatter
                 default => 'Payroll updated',
             },
             SystemActivity::SUBJECT_PAYOUT => 'Payout created',
+            SystemActivity::SUBJECT_CASH_ADVANCE => 'Cash advance recorded',
             SystemActivity::SUBJECT_MEMBER => match ($event) {
                 'created' => 'Member created',
                 default => 'Member updated',
@@ -152,6 +154,7 @@ class PanelSystemActivityFormatter
             SystemActivity::SUBJECT_EMPLOYEE => $this->employeeMessage($event, $snapshot),
             SystemActivity::SUBJECT_PAYROLL => $this->payrollMessage($event, $snapshot),
             SystemActivity::SUBJECT_PAYOUT => $this->payoutMessage($snapshot),
+            SystemActivity::SUBJECT_CASH_ADVANCE => $this->cashAdvanceMessage($snapshot),
             SystemActivity::SUBJECT_MEMBER => $this->memberMessage($event, $snapshot),
             SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => $this->membershipMessage($event, $snapshot),
             SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => $this->ptPackageMessage($event, $snapshot),
@@ -212,6 +215,12 @@ class PanelSystemActivityFormatter
                 'employee_name' => $snapshot['employee_name'] ?? null,
                 'payroll_id' => $snapshot['payroll_id'] ?? null,
                 'payroll_period' => $snapshot['payroll_period'] ?? null,
+                'amount' => $this->nullableMoney($snapshot['amount'] ?? null),
+                'method' => $snapshot['method'] ?? null,
+            ],
+            SystemActivity::SUBJECT_CASH_ADVANCE => [
+                'employee_id' => $snapshot['employee_id'] ?? null,
+                'employee_name' => $snapshot['employee_name'] ?? null,
                 'amount' => $this->nullableMoney($snapshot['amount'] ?? null),
                 'method' => $snapshot['method'] ?? null,
             ],
@@ -355,6 +364,18 @@ class PanelSystemActivityFormatter
         $period = (string) ($snapshot['payroll_period'] ?? 'the linked payroll');
 
         return 'A '.$method.' payout of '.$amount.' was recorded for '.$employeeName.' on '.$period.'.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function cashAdvanceMessage(array $snapshot): string
+    {
+        $employeeName = (string) ($snapshot['employee_name'] ?? 'Unknown Employee');
+        $amount = $this->currency((float) ($snapshot['amount'] ?? 0));
+        $method = $this->paymentMethodLabel((string) ($snapshot['method'] ?? ''));
+
+        return 'A '.$method.' cash advance of '.$amount.' was recorded for '.$employeeName.'.';
     }
 
     /**

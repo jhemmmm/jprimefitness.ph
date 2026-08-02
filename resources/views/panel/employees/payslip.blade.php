@@ -492,6 +492,14 @@
                                         {{ (float) $payroll->manual_deductions > 0 ? '- PHP ' . number_format((float) $payroll->manual_deductions, 2) : '-' }}
                                     </td>
                                 </tr>
+                                @if ((float) $payroll->cash_advance_deductions > 0)
+                                    <tr>
+                                        <td class="breakdown-label">Cash advance repayment</td>
+                                        <td class="breakdown-amount amount-negative">
+                                            - PHP {{ number_format((float) $payroll->cash_advance_deductions, 2) }}
+                                        </td>
+                                    </tr>
+                                @endif
                                 <tr>
                                     <td class="breakdown-label"><strong>Net pay</strong></td>
                                     <td class="breakdown-amount amount-positive">PHP

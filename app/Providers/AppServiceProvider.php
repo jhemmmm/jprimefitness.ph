@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Attendance;
 use App\Models\BusinessProfile;
+use App\Models\CashAdvance;
 use App\Models\InventoryItem;
 use App\Models\MemberPtSessionUsage;
 use App\Models\PTProduct;
@@ -14,6 +15,7 @@ use App\Models\Role;
 use App\Models\SaleTransaction;
 use App\Observers\AttendanceObserver;
 use App\Observers\BusinessProfileObserver;
+use App\Observers\CashAdvanceObserver;
 use App\Observers\InventoryItemObserver;
 use App\Observers\MemberPtSessionUsageObserver;
 use App\Observers\PayoutObserver;
@@ -51,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
 
         Attendance::observe(AttendanceObserver::class);
         BusinessProfile::observe(BusinessProfileObserver::class);
+        CashAdvance::observe(CashAdvanceObserver::class);
         InventoryItem::observe(InventoryItemObserver::class);
         MemberPtSessionUsage::observe(MemberPtSessionUsageObserver::class);
         Payout::observe(PayoutObserver::class);

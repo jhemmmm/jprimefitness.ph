@@ -369,6 +369,7 @@ export default {
                sale_void: "Void Refund",
                expense: "Expense",
                payout: "Payroll Payout",
+               cash_advance: "Cash Advance",
                adjustment: "Adjustment",
             }[type] || this.$filters.capitalize(type)
          );
@@ -380,6 +381,7 @@ export default {
                sale_void: "m-badge--suspended",
                expense: "m-badge--pending",
                payout: "m-badge--partial",
+               cash_advance: "m-badge--partial",
                adjustment: "m-badge--draft",
             }[type] || "m-badge--draft"
          );

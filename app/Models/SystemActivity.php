@@ -19,6 +19,8 @@ class SystemActivity extends Model
 
     public const SUBJECT_PAYOUT = 'payout';
 
+    public const SUBJECT_CASH_ADVANCE = 'cash_advance';
+
     public const SUBJECT_MEMBER = 'member';
 
     public const SUBJECT_MEMBER_SUBSCRIPTION = 'member_subscription';

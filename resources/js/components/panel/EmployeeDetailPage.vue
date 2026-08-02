@@ -49,6 +49,7 @@
 import EmployeeAttendancePage from "./vendor/EmployeeAttendancePage.vue";
 import EmployeePayrollPage from "./vendor/EmployeePayrollPage.vue";
 import EmployeePayoutPage from "./vendor/EmployeePayoutPage.vue";
+import EmployeeCashAdvancePage from "./vendor/EmployeeCashAdvancePage.vue";
 import EmployeeSchedulePage from "./vendor/EmployeeSchedulePage.vue";
 import EmployeeSettingsPage from "./vendor/EmployeeSettingsPage.vue";
 
@@ -57,6 +58,7 @@ export default {
       EmployeeAttendancePage,
       EmployeePayrollPage,
       EmployeePayoutPage,
+      EmployeeCashAdvancePage,
       EmployeeSchedulePage,
       EmployeeSettingsPage,
    },
@@ -75,6 +77,7 @@ export default {
             { key: "schedule", label: "Schedule", icon: "bi-calendar-week" },
             { key: "payroll", label: "Payrolls", icon: "bi-receipt" },
             { key: "payout", label: "Payouts", icon: "bi-cash-stack" },
+            { key: "cash-advance", label: "Cash Advances", icon: "bi-cash-coin" },
             { key: "settings", label: "Settings", icon: "bi-gear" },
          ],
       };
@@ -102,6 +105,7 @@ export default {
             schedule: "EmployeeSchedulePage",
             payroll: "EmployeePayrollPage",
             payout: "EmployeePayoutPage",
+            "cash-advance": "EmployeeCashAdvancePage",
             settings: "EmployeeSettingsPage",
          }[this.activeTab];
       },

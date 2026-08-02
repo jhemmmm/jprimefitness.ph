@@ -87,8 +87,10 @@ class PayrollService
         ?string $payFrequency,
         float $gross,
         float $manualDed,
-        array $context = []
+        array $context = [],
+        float $cashAdvanceDed = 0
     ): array {
+        $manualDed += max(0, $cashAdvanceDed);
         $taxProfile = $this->resolveTaxProfile($countryCode);
         $payrollCalculationSettings = $this->payrollCalculationSettings($context);
         $taxableEarnings = $this->taxableEarnings($gross);
@@ -161,7 +163,8 @@ class PayrollService
             $payroll->pay_frequency,
             (float) $payroll->gross_amount,
             (float) $payroll->manual_deductions,
-            $context
+            $context,
+            (float) $payroll->cash_advance_deductions
         );
 
         $payroll->withholding_tax = $totals['withholding_tax'];

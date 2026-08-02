@@ -96,6 +96,7 @@ class SystemActivityExpansionTest extends TestCase
             SystemActivity::SUBJECT_EMPLOYEE,
             SystemActivity::SUBJECT_PAYROLL,
             SystemActivity::SUBJECT_PAYOUT,
+            SystemActivity::SUBJECT_CASH_ADVANCE,
             SystemActivity::SUBJECT_MEMBER,
             SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
             SystemActivity::SUBJECT_MEMBER_PT_PACKAGE,
