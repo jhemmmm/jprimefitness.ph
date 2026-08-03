@@ -29,12 +29,16 @@ class CashAdvance extends Model
         'released_by',
         'notes',
         'paid_at',
+        'void_reason',
+        'voided_by',
+        'voided_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
         'repaid_amount' => 'decimal:2',
         'paid_at' => 'datetime',
+        'voided_at' => 'datetime',
     ];
 
     public function employee(): BelongsTo
@@ -47,6 +51,11 @@ class CashAdvance extends Model
         return $this->belongsTo(User::class, 'released_by');
     }
 
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
+    }
+
     public function repayments(): HasMany
     {
         return $this->hasMany(CashAdvanceRepayment::class);
@@ -54,11 +63,20 @@ class CashAdvance extends Model
 
     public function balance(): float
     {
+        if ($this->isVoided()) {
+            return 0.0;
+        }
+
         return max(0, round((float) $this->amount - (float) $this->repaid_amount, 2));
+    }
+
+    public function isVoided(): bool
+    {
+        return $this->voided_at !== null;
     }
 
     public function scopeOutstanding(Builder $query): Builder
     {
-        return $query->whereColumn('repaid_amount', '<', 'amount');
+        return $query->whereNull('voided_at')->whereColumn('repaid_amount', '<', 'amount');
     }
 }

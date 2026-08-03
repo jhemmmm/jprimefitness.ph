@@ -40,19 +40,29 @@
                   <th class="text-end">Repaid</th>
                   <th class="text-end">Balance</th>
                   <th>Released By</th>
+                  <th v-if="canManage"></th>
                </tr>
             </thead>
             <tbody>
-               <tr v-for="a in advances" :key="a.id">
+               <tr v-for="a in advances" :key="a.id" :class="{ 'opacity-50': a.voided }">
                   <td class="small">{{ formatDateTime(a.paid_at) }}</td>
                   <td>
-                     <span class="m-badge" :class="$filters.statusBadge(a.method)">{{ a.method_label }}</span>
+                     <div>
+                        <span class="m-badge" :class="$filters.statusBadge(a.method)">{{ a.method_label }}</span>
+                        <span class="m-badge m-badge--plan-cancelled ms-1" v-if="a.voided">Voided</span>
+                     </div>
+                     <div class="text-danger small" v-if="a.voided">{{ a.void_reason }}</div>
                   </td>
                   <td class="small text-muted">{{ a.reference_number || "-" }}</td>
-                  <td class="text-end fw-bold small">₱{{ $filters.formatMoney(a.amount) }}</td>
+                  <td class="text-end fw-bold small" :class="{ 'text-decoration-line-through': a.voided }">₱{{ $filters.formatMoney(a.amount) }}</td>
                   <td class="text-end text-success small">₱{{ $filters.formatMoney(a.repaid_amount) }}</td>
                   <td class="text-end small" :class="a.balance > 0 ? 'text-danger fw-bold' : 'text-muted'">₱{{ $filters.formatMoney(a.balance) }}</td>
                   <td class="small text-muted">{{ a.released_by_name || "-" }}</td>
+                  <td v-if="canManage">
+                     <button type="button" class="btn btn-sm btn-outline-danger" v-if="a.voidable" @click="openVoidModal(a)" title="Void cash advance">
+                        <i class="bi bi-x-circle"></i>
+                     </button>
+                  </td>
                </tr>
             </tbody>
          </table>
@@ -60,20 +70,23 @@
 
       <!-- Mobile cards -->
       <div class="d-md-none" v-if="!loading && advances.length">
-         <div class="member-card" v-for="a in advances" :key="'ca' + a.id">
+         <div class="member-card" v-for="a in advances" :key="'ca' + a.id" :class="{ 'opacity-50': a.voided }">
             <div class="member-card-top">
                <div>
-                  <div class="fw-semibold small">₱{{ $filters.formatMoney(a.amount) }}</div>
+                  <div class="fw-semibold small" :class="{ 'text-decoration-line-through': a.voided }">₱{{ $filters.formatMoney(a.amount) }}</div>
                   <div class="small" :class="a.balance > 0 ? 'text-danger' : 'text-success'">{{ a.balance > 0 ? "Balance: ₱" + $filters.formatMoney(a.balance) : "Fully Repaid" }}</div>
                </div>
                <div class="d-flex gap-2 align-items-center">
                   <span class="m-badge" :class="$filters.statusBadge(a.method)">{{ a.method_label }}</span>
+                  <span class="m-badge m-badge--plan-cancelled" v-if="a.voided">Voided</span>
                </div>
             </div>
             <div class="member-card-footer">
                <span class="text-muted small"><i class="bi bi-clock me-1"></i>{{ formatDateTime(a.paid_at) }}</span>
                <span class="text-muted small" v-if="a.reference_number"><i class="bi bi-hash me-1"></i>{{ a.reference_number }}</span>
+               <button type="button" class="btn btn-sm btn-outline-danger" v-if="a.voidable" @click="openVoidModal(a)">Void</button>
             </div>
+            <div class="text-danger small mt-1" v-if="a.voided">{{ a.void_reason }}</div>
          </div>
       </div>
 
@@ -122,6 +135,31 @@
             </div>
          </div>
       </div>
+
+      <!-- Void Modal -->
+      <div class="modal fade" tabindex="-1" ref="voidModal">
+         <div class="modal-dialog">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">Void Cash Advance</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" :disabled="voiding"></button>
+               </div>
+               <div class="modal-body" v-if="voidTarget">
+                  <div class="alert alert-danger py-2 small" v-if="voidError">{{ voidError }}</div>
+                  <p class="small">
+                     Void the ₱{{ $filters.formatMoney(voidTarget.amount) }} {{ voidTarget.method_label }} advance recorded on {{ formatDateTime(voidTarget.paid_at) }}? This cannot be undone.
+                  </p>
+                  <label class="form-label form-label-sm">Reason <span class="text-danger">*</span></label>
+                  <textarea class="form-control" rows="3" v-model="voidForm.reason" :class="{ 'is-invalid': voidErrors.reason }" placeholder="Enter the reason this cash advance is being voided"></textarea>
+                  <div class="invalid-feedback">{{ voidErrors.reason }}</div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal" :disabled="voiding">Back</button>
+                  <button type="button" class="btn btn-danger btn-sm" :disabled="voiding" @click="submitVoid"><span v-if="voiding" class="spinner-border spinner-border-sm me-1"></span>Void Advance</button>
+               </div>
+            </div>
+         </div>
+      </div>
    </div>
 </template>
 
@@ -143,6 +181,11 @@ export default {
          formError: "",
          formErrors: {},
          submitting: false,
+         voidTarget: null,
+         voidForm: { reason: "" },
+         voidError: "",
+         voidErrors: {},
+         voiding: false,
       };
    },
 
@@ -151,7 +194,7 @@ export default {
          return this.can("manage employees");
       },
       totalAdvanced: function () {
-         return this.advances.reduce((s, a) => s + a.amount, 0);
+         return this.advances.filter((a) => !a.voided).reduce((s, a) => s + a.amount, 0);
       },
       totalOutstanding: function () {
          return this.advances.reduce((s, a) => s + a.balance, 0);
@@ -161,6 +204,7 @@ export default {
    mounted: function () {
       this.fetchAdvances();
       this.modalInst = new Modal(this.$refs.advanceModal);
+      this.voidModalInst = new Modal(this.$refs.voidModal);
    },
 
    methods: {
@@ -209,6 +253,35 @@ export default {
                }
             })
             .finally(() => (this.submitting = false));
+      },
+      openVoidModal: function (advance) {
+         this.voidTarget = advance;
+         this.voidForm = { reason: "" };
+         this.voidError = "";
+         this.voidErrors = {};
+         this.voidModalInst.show();
+      },
+      submitVoid: function () {
+         this.voiding = true;
+         this.voidError = "";
+         this.voidErrors = {};
+
+         axios
+            .post(`/panel/employees/${this.employee.id}/cash-advances/${this.voidTarget.id}/void`, this.voidForm)
+            .then((res) => {
+               this.voidModalInst.hide();
+               const i = this.advances.findIndex((a) => a.id === res.data.id);
+               if (i !== -1) this.advances.splice(i, 1, res.data);
+            })
+            .catch((err) => {
+               if (err.response?.status === 422 && err.response.data.errors) {
+                  const errors = err.response.data.errors;
+                  this.voidErrors = Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, Array.isArray(v) ? v[0] : v]));
+               } else {
+                  this.voidError = err.response?.data?.message || "Something went wrong.";
+               }
+            })
+            .finally(() => (this.voiding = false));
       },
    },
 };

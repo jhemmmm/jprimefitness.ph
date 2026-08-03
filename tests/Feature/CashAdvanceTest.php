@@ -259,6 +259,113 @@ class CashAdvanceTest extends TestCase
         $this->assertDatabaseCount('cash_advance_repayments', 0);
     }
 
+    public function test_manager_can_void_an_unpaid_cash_advance(): void
+    {
+        $advance = CashAdvance::factory()->create([
+            'employee_id' => $this->employee->id,
+            'amount' => 300,
+            'method' => CashAdvance::METHOD_CASH,
+        ]);
+
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'source_type' => 'cash_advance',
+            'source_id' => $advance->id,
+            'type' => CashLedgerEntry::TYPE_CASH_ADVANCE,
+            'amount' => -300,
+        ]);
+
+        $this->actingAs($this->manager)
+            ->postJson("/panel/employees/{$this->employee->id}/cash-advances/{$advance->id}/void", [
+                'reason' => 'Recorded by mistake',
+            ])
+            ->assertOk()
+            ->assertJsonPath('voided', true)
+            ->assertJsonPath('void_reason', 'Recorded by mistake')
+            ->assertJsonPath('voided_by_name', 'Advance Manager')
+            ->assertJsonPath('balance', 0);
+
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'source_type' => 'cash_advance',
+            'source_id' => $advance->id,
+            'type' => CashLedgerEntry::TYPE_CASH_ADVANCE_VOID,
+            'amount' => 300,
+        ]);
+
+        $this->assertSame(0.0, $this->cashAdvanceOutstanding($this->employee));
+    }
+
+    public function test_voiding_a_gcash_advance_does_not_touch_the_cash_drawer(): void
+    {
+        $advance = CashAdvance::factory()->create([
+            'employee_id' => $this->employee->id,
+            'amount' => 300,
+            'method' => CashAdvance::METHOD_GCASH,
+        ]);
+
+        $this->actingAs($this->manager)
+            ->postJson("/panel/employees/{$this->employee->id}/cash-advances/{$advance->id}/void", [
+                'reason' => 'Duplicate entry',
+            ])
+            ->assertOk();
+
+        $this->assertDatabaseCount('cash_ledger_entries', 0);
+    }
+
+    public function test_cannot_void_an_already_voided_advance(): void
+    {
+        $advance = CashAdvance::factory()->create(['employee_id' => $this->employee->id, 'amount' => 100]);
+
+        $this->actingAs($this->manager)
+            ->postJson("/panel/employees/{$this->employee->id}/cash-advances/{$advance->id}/void", ['reason' => 'First void'])
+            ->assertOk();
+
+        $this->actingAs($this->manager)
+            ->postJson("/panel/employees/{$this->employee->id}/cash-advances/{$advance->id}/void", ['reason' => 'Second void'])
+            ->assertStatus(409);
+    }
+
+    public function test_cannot_void_an_advance_already_repaid_through_payroll(): void
+    {
+        $advance = CashAdvance::factory()->create(['employee_id' => $this->employee->id, 'amount' => 100]);
+
+        $payrollId = $this->actingAs($this->manager)
+            ->postJson("/panel/employees/{$this->employee->id}/payrolls", [
+                'period_start' => '2026-07-01',
+                'period_end' => '2026-07-15',
+                'gross_amount' => 1000,
+                'cash_advance_deductions' => 100,
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $this->actingAs($this->manager)
+            ->postJson("/panel/employees/{$this->employee->id}/payrolls/{$payrollId}/approve")
+            ->assertOk();
+
+        $this->actingAs($this->manager)
+            ->postJson("/panel/employees/{$this->employee->id}/cash-advances/{$advance->id}/void", ['reason' => 'Too late'])
+            ->assertUnprocessable();
+
+        $this->assertFalse($advance->fresh()->isVoided());
+    }
+
+    public function test_employee_cannot_void_a_cash_advance(): void
+    {
+        $advance = CashAdvance::factory()->create(['employee_id' => $this->employee->id, 'amount' => 100]);
+
+        $this->actingAs($this->employee)
+            ->postJson("/panel/employees/{$this->employee->id}/cash-advances/{$advance->id}/void", ['reason' => 'Not allowed'])
+            ->assertForbidden();
+    }
+
+    private function cashAdvanceOutstanding(User $employee): float
+    {
+        return round((float) CashAdvance::query()
+            ->where('employee_id', $employee->id)
+            ->outstanding()
+            ->sum(\Illuminate\Support\Facades\DB::raw('amount - repaid_amount')), 2);
+    }
+
     private function createEmployeeWithRole(string $role, string $name): User
     {
         $user = User::factory()->withEmployeeProfile([

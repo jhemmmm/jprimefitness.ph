@@ -21,6 +21,8 @@ class CashLedgerEntry extends Model
 
     public const TYPE_CASH_ADVANCE = 'cash_advance';
 
+    public const TYPE_CASH_ADVANCE_VOID = 'cash_advance_void';
+
     public const TYPE_ADJUSTMENT = 'adjustment';
 
     public const CATEGORIES = [

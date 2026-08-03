@@ -888,7 +888,7 @@ class EmployeeController extends Controller
 
         $advances = CashAdvance::query()
             ->where('employee_id', $employee->id)
-            ->with('releasedBy:id,name')
+            ->with(['releasedBy:id,name', 'voidedBy:id,name'])
             ->orderByDesc('paid_at')
             ->get()
             ->map(fn (CashAdvance $advance) => $this->serializeCashAdvance($advance))
@@ -926,6 +926,41 @@ class EmployeeController extends Controller
         $advance->loadMissing('releasedBy:id,name');
 
         return response()->json($this->serializeCashAdvance($advance), 201);
+    }
+
+    /**
+     * Void a cash advance recorded in error. Blocked once any payroll has
+     * repaid against it — that repayment is baked into an approved
+     * payroll's net pay and can't be undone by voiding the source advance.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function voidCashAdvance(Request $request, User $employee, CashAdvance $cashAdvance): JsonResponse
+    {
+        abort_if($cashAdvance->employee_id !== $employee->id, 404);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $voided = DB::transaction(function () use ($cashAdvance, $employee, $data) {
+            $locked = CashAdvance::whereKey($cashAdvance->getKey())->with('releasedBy:id,name')->lockForUpdate()->firstOrFail();
+
+            abort_if($locked->isVoided(), 409, 'This cash advance has already been voided.');
+            abort_if((float) $locked->repaid_amount > 0, 422, 'This cash advance has already been repaid through payroll and can no longer be voided.');
+
+            $locked->setRelation('employee', $employee);
+            $locked->setRelation('voidedBy', auth()->user());
+            $locked->forceFill([
+                'void_reason' => trim($data['reason']),
+                'voided_by' => auth()->id(),
+                'voided_at' => now(),
+            ])->save();
+
+            return $locked;
+        });
+
+        return response()->json($this->serializeCashAdvance($voided));
     }
 
     /**
@@ -1017,6 +1052,11 @@ class EmployeeController extends Controller
             'notes' => $advance->notes,
             'paid_at' => $advance->paid_at?->toISOString(),
             'released_by_name' => $advance->releasedBy?->name,
+            'voided' => $advance->isVoided(),
+            'voidable' => ! $advance->isVoided() && (float) $advance->repaid_amount <= 0,
+            'void_reason' => $advance->void_reason,
+            'voided_by_name' => $advance->voidedBy?->name,
+            'voided_at' => $advance->voided_at?->toISOString(),
         ];
     }
 

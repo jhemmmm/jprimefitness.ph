@@ -94,7 +94,10 @@ class PanelSystemActivityFormatter
                 default => 'Payroll updated',
             },
             SystemActivity::SUBJECT_PAYOUT => 'Payout created',
-            SystemActivity::SUBJECT_CASH_ADVANCE => 'Cash advance recorded',
+            SystemActivity::SUBJECT_CASH_ADVANCE => match ($event) {
+                'voided' => 'Cash advance voided',
+                default => 'Cash advance recorded',
+            },
             SystemActivity::SUBJECT_MEMBER => match ($event) {
                 'created' => 'Member created',
                 default => 'Member updated',
@@ -154,7 +157,7 @@ class PanelSystemActivityFormatter
             SystemActivity::SUBJECT_EMPLOYEE => $this->employeeMessage($event, $snapshot),
             SystemActivity::SUBJECT_PAYROLL => $this->payrollMessage($event, $snapshot),
             SystemActivity::SUBJECT_PAYOUT => $this->payoutMessage($snapshot),
-            SystemActivity::SUBJECT_CASH_ADVANCE => $this->cashAdvanceMessage($snapshot),
+            SystemActivity::SUBJECT_CASH_ADVANCE => $this->cashAdvanceMessage($event, $snapshot),
             SystemActivity::SUBJECT_MEMBER => $this->memberMessage($event, $snapshot),
             SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => $this->membershipMessage($event, $snapshot),
             SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => $this->ptPackageMessage($event, $snapshot),
@@ -223,6 +226,7 @@ class PanelSystemActivityFormatter
                 'employee_name' => $snapshot['employee_name'] ?? null,
                 'amount' => $this->nullableMoney($snapshot['amount'] ?? null),
                 'method' => $snapshot['method'] ?? null,
+                'void_reason' => $snapshot['void_reason'] ?? null,
             ],
             SystemActivity::SUBJECT_MEMBER => [
                 'member_id' => $snapshot['id'] ?? null,
@@ -369,11 +373,17 @@ class PanelSystemActivityFormatter
     /**
      * @param  array<string, mixed>  $snapshot
      */
-    private function cashAdvanceMessage(array $snapshot): string
+    private function cashAdvanceMessage(string $event, array $snapshot): string
     {
         $employeeName = (string) ($snapshot['employee_name'] ?? 'Unknown Employee');
         $amount = $this->currency((float) ($snapshot['amount'] ?? 0));
         $method = $this->paymentMethodLabel((string) ($snapshot['method'] ?? ''));
+
+        if ($event === 'voided') {
+            $reason = (string) ($snapshot['void_reason'] ?? '');
+
+            return 'A '.$method.' cash advance of '.$amount.' for '.$employeeName.' was voided'.($reason !== '' ? ': '.$reason : '.');
+        }
 
         return 'A '.$method.' cash advance of '.$amount.' was recorded for '.$employeeName.'.';
     }
