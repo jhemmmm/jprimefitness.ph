@@ -114,6 +114,7 @@
                               <th class="text-end">Over/Short</th>
                               <th class="text-end">Deposited</th>
                               <th>Closed By</th>
+                              <th></th>
                            </tr>
                         </thead>
                         <tbody>
@@ -130,6 +131,7 @@
                                  <div v-if="row.deposit_reference" class="text-muted" style="font-size: 0.72rem">{{ row.deposit_reference }}</div>
                               </td>
                               <td class="small text-muted">{{ row.closed_by_name || "-" }}</td>
+                              <td class="text-end"><button class="btn btn-outline-secondary btn-sm" @click="viewSession(row)">View</button></td>
                            </tr>
                         </tbody>
                      </table>
@@ -292,6 +294,53 @@
             </div>
          </div>
       </div>
+
+      <!-- Session Detail modal -->
+      <div class="modal fade" tabindex="-1" ref="sessionModal">
+         <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">{{ selectedSession ? formatDate(selectedSession.closed_at) : "" }} Cash Movements</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+               </div>
+               <div class="modal-body">
+                  <div v-if="selectedSessionEntries.length === 0" class="text-center py-4 text-muted">No cash movements recorded.</div>
+                  <div v-else class="table-responsive">
+                     <table class="table table-striped table-hover align-middle mb-0">
+                        <thead class="table-light">
+                           <tr>
+                              <th>Time</th>
+                              <th>Type</th>
+                              <th>Description</th>
+                              <th>By</th>
+                              <th class="text-end">Amount</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           <tr v-for="entry in selectedSessionEntries" :key="entry.id">
+                              <td class="small">{{ formatTime(entry.occurred_at) }}</td>
+                              <td>
+                                 <span :class="['m-badge', typeBadge(entry.type)]">{{ typeLabel(entry.type) }}</span>
+                                 <span v-if="entry.category" class="text-muted small ms-1">{{ categoryLabel(entry.category) }}</span>
+                              </td>
+                              <td class="small">
+                                 {{ entry.description }}
+                                 <a v-if="entry.receipt_url" :href="entry.receipt_url" target="_blank" class="ms-1 text-decoration-none"><i class="bi bi-paperclip"></i>Receipt</a>
+                                 <div v-if="entry.notes" class="text-muted" style="font-size: 0.75rem">{{ entry.notes }}</div>
+                              </td>
+                              <td class="small text-muted">{{ entry.recorded_by_name || "-" }}</td>
+                              <td class="text-end small fw-bold" :class="entry.amount < 0 ? 'text-danger' : 'text-success'">{{ entry.amount < 0 ? "-" : "+" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}</td>
+                           </tr>
+                        </tbody>
+                     </table>
+                  </div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+               </div>
+            </div>
+         </div>
+      </div>
    </div>
 </template>
 
@@ -311,6 +360,8 @@ export default {
          categories: [],
          sessions: [],
          sessionsPagination: { lastPage: 1, links: [] },
+         selectedSession: null,
+         selectedSessionEntries: [],
          expenseMonth: new Date().toISOString().slice(0, 7),
          expenseSummary: { categories: [], total: 0 },
          openForm: { opening_float: "", notes: "" },
@@ -326,6 +377,7 @@ export default {
          openModalInst: null,
          expenseModalInst: null,
          closeModalInst: null,
+         sessionModalInst: null,
       };
    },
 
@@ -333,6 +385,7 @@ export default {
       this.openModalInst = new Modal(this.$refs.openModal);
       this.expenseModalInst = new Modal(this.$refs.expenseModal);
       this.closeModalInst = new Modal(this.$refs.closeModal);
+      this.sessionModalInst = new Modal(this.$refs.sessionModal);
       this.fetchData();
       this.fetchSessions();
       this.fetchExpenseSummary();
@@ -421,6 +474,14 @@ export default {
             this.sessions = res.data.data;
             this.sessionsPagination = { lastPage: res.data.last_page, links: res.data.links };
          });
+      },
+      viewSession: function (row) {
+         this.selectedSession = row;
+         this.selectedSessionEntries = [];
+         axios.get("/panel/cash-drawer/entries", { params: { session_id: row.id } }).then((res) => {
+            this.selectedSessionEntries = res.data.data;
+         });
+         this.sessionModalInst.show();
       },
       goToSessionsPage: function (link) {
          if (!link.url) return;
