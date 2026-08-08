@@ -1,5 +1,5 @@
 <template>
-   <div>
+   <div class="cash-drawer-page">
       <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
          <div>
             <h4 class="fw-bold mb-0">Cash Drawer</h4>
@@ -91,88 +91,192 @@
          </div>
       </div>
 
-      <div class="row g-4">
-         <!-- Past sessions -->
-         <div class="col-lg-8">
-            <div class="panel-card h-100">
-               <div class="panel-card-header">
-                  <div>
-                     <div class="panel-card-title">Day History</div>
-                     <div class="panel-card-sub">Closed drawer sessions with over/short results</div>
+      <!-- Past sessions -->
+      <div class="panel-card mb-4">
+         <div class="panel-card-header flex-column flex-md-row align-items-md-center">
+            <div class="d-flex align-items-center gap-3">
+               <div class="history-heading-icon" aria-hidden="true"><i class="bi bi-clock-history"></i></div>
+               <div>
+                  <div class="panel-card-title">
+                     Drawer History
+                     <span v-if="!loadingSessions" class="badge-count ms-1">{{ sessionsPagination.total }}</span>
                   </div>
+                  <div class="panel-card-sub">Review previous cash counts, deposits, and reconciliation results</div>
                </div>
-               <div class="panel-card-body">
-                  <div v-if="sessions.length === 0" class="text-center py-4 text-muted">No closed sessions yet.</div>
-                  <div v-else class="table-responsive">
-                     <table class="table table-striped table-hover align-middle mb-0">
-                        <thead class="table-light">
-                           <tr>
-                              <th>Date</th>
-                              <th class="text-end">Opening</th>
-                              <th class="text-end">Expected</th>
-                              <th class="text-end">Counted</th>
-                              <th class="text-end">Over/Short</th>
-                              <th class="text-end">Deposited</th>
-                              <th>Closed By</th>
-                              <th></th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                           <tr v-for="row in sessions" :key="row.id">
-                              <td class="small fw-semibold">{{ formatDate(row.closed_at) }}</td>
-                              <td class="text-end small">₱{{ $filters.formatMoney(row.opening_float) }}</td>
-                              <td class="text-end small">₱{{ $filters.formatMoney(row.expected_cash) }}</td>
-                              <td class="text-end small">₱{{ $filters.formatMoney(row.counted_cash) }}</td>
-                              <td class="text-end small">
-                                 <span :class="['m-badge', overShortBadge(row.over_short)]">{{ overShortLabel(row.over_short) }}</span>
-                              </td>
-                              <td class="text-end small">
-                                 ₱{{ $filters.formatMoney(row.deposited_amount) }}
-                                 <div v-if="row.deposit_reference" class="text-muted" style="font-size: 0.72rem">{{ row.deposit_reference }}</div>
-                              </td>
-                              <td class="small text-muted">{{ row.closed_by_name || "-" }}</td>
-                              <td class="text-end"><button class="btn btn-outline-secondary btn-sm" @click="viewSession(row)">View</button></td>
-                           </tr>
-                        </tbody>
-                     </table>
+            </div>
+            <div v-if="!loadingSessions && sessionsPagination.total > 0" class="small text-muted">
+               Showing {{ sessionsPagination.from }}–{{ sessionsPagination.to }} of {{ sessionsPagination.total }} sessions
+            </div>
+         </div>
+
+         <div v-if="loadingSessions">
+            <div class="table-responsive d-none d-lg-block">
+               <table class="table align-middle mb-0 panel-table history-table">
+                  <thead>
+                     <tr>
+                        <th v-for="heading in historyHeadings" :key="heading">{{ heading }}</th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     <tr v-for="index in 5" :key="'history-sk-' + index">
+                        <td><div class="skeleton-box history-skeleton history-skeleton--date"></div></td>
+                        <td><div class="skeleton-box history-skeleton history-skeleton--amount"></div></td>
+                        <td><div class="skeleton-box history-skeleton history-skeleton--reconciliation"></div></td>
+                        <td><div class="skeleton-box history-skeleton history-skeleton--badge"></div></td>
+                        <td><div class="skeleton-box history-skeleton history-skeleton--amount"></div></td>
+                        <td><div class="skeleton-box history-skeleton history-skeleton--person"></div></td>
+                        <td><div class="skeleton-box history-skeleton history-skeleton--button ms-auto"></div></td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+            <div class="d-lg-none">
+               <div v-for="index in 3" :key="'history-mobile-sk-' + index" class="drawer-history-card">
+                  <div class="d-flex justify-content-between mb-3">
+                     <div class="skeleton-box history-skeleton history-skeleton--date"></div>
+                     <div class="skeleton-box history-skeleton history-skeleton--badge"></div>
                   </div>
-                  <div v-if="sessionsPagination.lastPage > 1" class="d-flex justify-content-center pt-3 border-top">
-                     <nav>
-                        <ul class="pagination pagination-sm mb-0">
-                           <li v-for="link in sessionsPagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
-                              <a class="page-link" href="#" @click.prevent="goToSessionsPage(link)" v-html="link.label"></a>
-                           </li>
-                        </ul>
-                     </nav>
+                  <div class="history-metric-grid">
+                     <div v-for="metric in 3" :key="metric" class="history-metric"><div class="skeleton-box history-skeleton history-skeleton--amount"></div></div>
                   </div>
                </div>
             </div>
          </div>
 
-         <!-- Expense summary -->
-         <div class="col-lg-4">
-            <div class="panel-card h-100">
-               <div class="panel-card-header">
-                  <div>
-                     <div class="panel-card-title">Expenses by Category</div>
-                     <div class="panel-card-sub">Monthly totals</div>
+         <div v-else-if="sessionsError" class="text-center py-5 px-3">
+            <i class="bi bi-exclamation-circle fs-2 d-block mb-2 text-danger opacity-75"></i>
+            <div class="fw-semibold">History could not be loaded</div>
+            <div class="small text-muted mb-3">{{ sessionsError }}</div>
+            <button type="button" class="btn btn-outline-secondary btn-sm" @click="fetchSessions()"><i class="bi bi-arrow-clockwise me-1"></i>Try Again</button>
+         </div>
+
+         <div v-else-if="sessions.length === 0" class="text-center py-5 text-muted">
+            <i class="bi bi-archive fs-1 d-block mb-2 opacity-25"></i>
+            <div class="fw-semibold text-body">No closed sessions yet</div>
+            <div class="small">Completed drawer sessions will appear here for review.</div>
+         </div>
+
+         <template v-else>
+            <div class="table-responsive d-none d-lg-block">
+               <table class="table table-hover align-middle mb-0 panel-table history-table">
+                  <thead>
+                     <tr>
+                        <th scope="col">Session</th>
+                        <th scope="col">Opening Float</th>
+                        <th scope="col">Reconciliation</th>
+                        <th scope="col">Result</th>
+                        <th scope="col">Bank Deposit</th>
+                        <th scope="col">Closed By</th>
+                        <th scope="col" class="col-actions"><span class="visually-hidden">Actions</span></th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     <tr v-for="row in sessions" :key="row.id">
+                        <td>
+                           <div class="fw-semibold">{{ formatDate(row.closed_at) }}</div>
+                           <div class="small text-muted"><i class="bi bi-clock me-1"></i>{{ formatTime(row.opened_at) }}–{{ formatTime(row.closed_at) }}</div>
+                        </td>
+                        <td class="fw-semibold">₱{{ $filters.formatMoney(row.opening_float) }}</td>
+                        <td>
+                           <div class="reconciliation-values">
+                              <div>
+                                 <span class="reconciliation-label">Expected</span>
+                                 <span class="fw-semibold">₱{{ $filters.formatMoney(row.expected_cash) }}</span>
+                              </div>
+                              <i class="bi bi-arrow-right text-muted" aria-hidden="true"></i>
+                              <div>
+                                 <span class="reconciliation-label">Counted</span>
+                                 <span class="fw-semibold">₱{{ $filters.formatMoney(row.counted_cash) }}</span>
+                              </div>
+                           </div>
+                        </td>
+                        <td><span :class="['m-badge', overShortBadge(row.over_short)]">{{ overShortLabel(row.over_short) }}</span></td>
+                        <td>
+                           <div class="fw-semibold">₱{{ $filters.formatMoney(row.deposited_amount) }}</div>
+                           <div class="small text-muted">{{ row.deposit_reference || "No reference" }}</div>
+                        </td>
+                        <td>
+                           <div class="fw-semibold">{{ row.closed_by_name || "-" }}</div>
+                           <div class="small text-muted">at {{ formatTime(row.closed_at) }}</div>
+                        </td>
+                        <td class="text-end">
+                           <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" :aria-label="'Review cash drawer session from ' + formatDate(row.closed_at)" @click="viewSession(row)">
+                              Review <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
+                           </button>
+                        </td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+
+            <div class="d-lg-none">
+               <article v-for="row in sessions" :key="'mobile-history-' + row.id" class="drawer-history-card">
+                  <div class="d-flex align-items-start justify-content-between gap-3">
+                     <div>
+                        <div class="fw-bold">{{ formatDate(row.closed_at) }}</div>
+                        <div class="small text-muted"><i class="bi bi-clock me-1"></i>{{ formatTime(row.opened_at) }}–{{ formatTime(row.closed_at) }}</div>
+                     </div>
+                     <span :class="['m-badge', overShortBadge(row.over_short)]">{{ overShortLabel(row.over_short) }}</span>
+                  </div>
+                  <div class="history-metric-grid">
+                     <div class="history-metric">
+                        <span>Opening</span>
+                        <strong>₱{{ $filters.formatMoney(row.opening_float) }}</strong>
+                     </div>
+                     <div class="history-metric">
+                        <span>Counted</span>
+                        <strong>₱{{ $filters.formatMoney(row.counted_cash) }}</strong>
+                     </div>
+                     <div class="history-metric">
+                        <span>Deposited</span>
+                        <strong>₱{{ $filters.formatMoney(row.deposited_amount) }}</strong>
+                     </div>
+                  </div>
+                  <div class="d-flex align-items-center justify-content-between gap-3 pt-3 border-top">
+                     <div class="small text-muted">
+                        <div>Expected ₱{{ $filters.formatMoney(row.expected_cash) }}</div>
+                        <div>Closed by {{ row.closed_by_name || "-" }}</div>
+                     </div>
+                     <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" @click="viewSession(row)">Review <i class="bi bi-chevron-right ms-1"></i></button>
+                  </div>
+               </article>
+            </div>
+         </template>
+
+         <div v-if="!loadingSessions && !sessionsError && sessionsPagination.lastPage > 1" class="d-flex justify-content-center py-3 border-top">
+            <nav aria-label="Cash drawer history pages">
+               <ul class="pagination pagination-sm mb-0">
+                  <li v-for="link in sessionsPagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
+                     <a class="page-link" href="#" @click.prevent="goToSessionsPage(link)" v-html="link.label"></a>
+                  </li>
+               </ul>
+            </nav>
+         </div>
+      </div>
+
+      <!-- Expense summary -->
+      <div class="panel-card">
+         <div class="panel-card-header flex-column flex-sm-row align-items-sm-center">
+            <div>
+               <div class="panel-card-title">Expenses by Category</div>
+               <div class="panel-card-sub">Monthly cash expenses recorded from the drawer</div>
+            </div>
+            <input type="month" class="form-control form-control-sm expense-month" v-model="expenseMonth" aria-label="Expense summary month" @change="fetchExpenseSummary" />
+         </div>
+         <div class="panel-card-body">
+            <div v-if="expenseSummary.categories.length === 0" class="text-center py-4 text-muted small">No expenses recorded this month.</div>
+            <template v-else>
+               <div class="expense-summary-grid">
+                  <div v-for="row in expenseSummary.categories" :key="row.category" class="expense-summary-item">
+                     <span class="text-muted small">{{ categoryLabel(row.category) }}</span>
+                     <span class="fw-bold text-danger">₱{{ $filters.formatMoney(row.total) }}</span>
                   </div>
                </div>
-               <div class="panel-card-body">
-                  <input type="month" class="form-control form-control-sm mb-3" v-model="expenseMonth" @change="fetchExpenseSummary" />
-                  <div v-if="expenseSummary.categories.length === 0" class="text-center py-4 text-muted small">No expenses recorded this month.</div>
-                  <template v-else>
-                     <div v-for="row in expenseSummary.categories" :key="row.category" class="d-flex justify-content-between align-items-center py-1 border-bottom small">
-                        <span>{{ categoryLabel(row.category) }}</span>
-                        <span class="fw-bold text-danger">₱{{ $filters.formatMoney(row.total) }}</span>
-                     </div>
-                     <div class="d-flex justify-content-between align-items-center pt-2 fw-bold">
-                        <span>Total</span>
-                        <span class="text-danger">₱{{ $filters.formatMoney(expenseSummary.total) }}</span>
-                     </div>
-                  </template>
+               <div class="d-flex justify-content-between align-items-center pt-3 mt-3 border-top fw-bold">
+                  <span>Monthly Total</span>
+                  <span class="text-danger fs-5">₱{{ $filters.formatMoney(expenseSummary.total) }}</span>
                </div>
-            </div>
+            </template>
          </div>
       </div>
 
@@ -296,43 +400,137 @@
       </div>
 
       <!-- Session Detail modal -->
-      <div class="modal fade" tabindex="-1" ref="sessionModal">
-         <div class="modal-dialog modal-lg">
+      <div class="modal fade" tabindex="-1" ref="sessionModal" aria-labelledby="sessionDetailTitle" aria-hidden="true">
+         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
                <div class="modal-header">
-                  <h5 class="modal-title fw-bold">{{ selectedSession ? formatDate(selectedSession.closed_at) : "" }} Cash Movements</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  <div>
+                     <h5 id="sessionDetailTitle" class="modal-title fw-bold">Cash Drawer Reconciliation</h5>
+                     <div v-if="selectedSession" class="small text-muted mt-1">
+                        {{ formatDate(selectedSession.closed_at) }} · {{ formatTime(selectedSession.opened_at) }}–{{ formatTime(selectedSession.closed_at) }}
+                     </div>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                </div>
-               <div class="modal-body">
-                  <div v-if="selectedSessionEntries.length === 0" class="text-center py-4 text-muted">No cash movements recorded.</div>
-                  <div v-else class="table-responsive">
-                     <table class="table table-striped table-hover align-middle mb-0">
-                        <thead class="table-light">
-                           <tr>
-                              <th>Time</th>
-                              <th>Type</th>
-                              <th>Description</th>
-                              <th>By</th>
-                              <th class="text-end">Amount</th>
-                           </tr>
-                        </thead>
-                        <tbody>
-                           <tr v-for="entry in selectedSessionEntries" :key="entry.id">
-                              <td class="small">{{ formatTime(entry.occurred_at) }}</td>
-                              <td>
+               <div v-if="selectedSession" class="modal-body p-0">
+                  <div class="session-detail-summary">
+                     <div class="session-detail-meta">
+                        <div>
+                           <span>Opened by</span>
+                           <strong>{{ selectedSession.opened_by_name || "-" }}</strong>
+                        </div>
+                        <div>
+                           <span>Closed by</span>
+                           <strong>{{ selectedSession.closed_by_name || "-" }}</strong>
+                        </div>
+                        <div v-if="selectedSession.deposit_reference">
+                           <span>Deposit reference</span>
+                           <strong>{{ selectedSession.deposit_reference }}</strong>
+                        </div>
+                     </div>
+                     <div class="session-summary-grid">
+                        <div class="session-summary-item">
+                           <span>Opening Float</span>
+                           <strong>₱{{ $filters.formatMoney(selectedSession.opening_float) }}</strong>
+                        </div>
+                        <div class="session-summary-item">
+                           <span>Expected Cash</span>
+                           <strong>₱{{ $filters.formatMoney(selectedSession.expected_cash) }}</strong>
+                        </div>
+                        <div class="session-summary-item">
+                           <span>Counted Cash</span>
+                           <strong>₱{{ $filters.formatMoney(selectedSession.counted_cash) }}</strong>
+                        </div>
+                        <div class="session-summary-item">
+                           <span>Bank Deposit</span>
+                           <strong>₱{{ $filters.formatMoney(selectedSession.deposited_amount) }}</strong>
+                        </div>
+                        <div class="session-summary-item session-summary-item--result">
+                           <span>Reconciliation</span>
+                           <strong><span :class="['m-badge', overShortBadge(selectedSession.over_short)]">{{ overShortLabel(selectedSession.over_short) }}</span></strong>
+                        </div>
+                     </div>
+                     <div v-if="selectedSession.notes" class="session-notes"><i class="bi bi-journal-text me-2"></i>{{ selectedSession.notes }}</div>
+                  </div>
+
+                  <div class="d-flex align-items-center justify-content-between gap-2 px-3 px-md-4 py-3 border-bottom">
+                     <div>
+                        <div class="fw-bold">Cash Movements</div>
+                        <div class="small text-muted">All transactions recorded during this drawer session</div>
+                     </div>
+                     <span v-if="!selectedSessionLoading && !selectedSessionError" class="badge-count">{{ selectedEntriesPagination.total }}</span>
+                  </div>
+
+                  <div v-if="selectedSessionLoading" class="py-5 text-center text-muted">
+                     <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Loading cash movements…
+                  </div>
+                  <div v-else-if="selectedSessionError" class="text-center py-5 px-3">
+                     <i class="bi bi-exclamation-circle fs-2 d-block mb-2 text-danger opacity-75"></i>
+                     <div class="fw-semibold">Cash movements could not be loaded</div>
+                     <div class="small text-muted mb-3">{{ selectedSessionError }}</div>
+                     <button type="button" class="btn btn-outline-secondary btn-sm" @click="fetchSessionEntries()"><i class="bi bi-arrow-clockwise me-1"></i>Try Again</button>
+                  </div>
+                  <div v-else-if="selectedSessionEntries.length === 0" class="text-center py-5 text-muted">
+                     <i class="bi bi-receipt fs-2 d-block mb-2 opacity-25"></i>
+                     <div>No cash movements were recorded for this session.</div>
+                  </div>
+                  <template v-else>
+                     <div class="table-responsive d-none d-md-block">
+                        <table class="table table-hover align-middle mb-0 panel-table session-entry-table">
+                           <thead>
+                              <tr>
+                                 <th scope="col">Time</th>
+                                 <th scope="col">Type</th>
+                                 <th scope="col">Description</th>
+                                 <th scope="col">Recorded By</th>
+                                 <th scope="col" class="text-end">Amount</th>
+                              </tr>
+                           </thead>
+                           <tbody>
+                              <tr v-for="entry in selectedSessionEntries" :key="entry.id">
+                                 <td class="small text-muted">{{ formatTime(entry.occurred_at) }}</td>
+                                 <td>
+                                    <span :class="['m-badge', typeBadge(entry.type)]">{{ typeLabel(entry.type) }}</span>
+                                    <div v-if="entry.category" class="small text-muted mt-1">{{ categoryLabel(entry.category) }}</div>
+                                 </td>
+                                 <td class="small">
+                                    <div class="fw-semibold">{{ entry.description }}</div>
+                                    <div v-if="entry.notes" class="text-muted">{{ entry.notes }}</div>
+                                    <a v-if="entry.receipt_url" :href="entry.receipt_url" target="_blank" rel="noopener" class="d-inline-block mt-1 text-decoration-none"><i class="bi bi-paperclip me-1"></i>View receipt</a>
+                                 </td>
+                                 <td class="small text-muted">{{ entry.recorded_by_name || "-" }}</td>
+                                 <td class="text-end fw-bold" :class="entry.amount < 0 ? 'text-danger' : 'text-success'">{{ entry.amount < 0 ? "−" : "+" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}</td>
+                              </tr>
+                           </tbody>
+                        </table>
+                     </div>
+                     <div class="d-md-none">
+                        <article v-for="entry in selectedSessionEntries" :key="'mobile-entry-' + entry.id" class="session-entry-card">
+                           <div class="d-flex align-items-start justify-content-between gap-3">
+                              <div>
                                  <span :class="['m-badge', typeBadge(entry.type)]">{{ typeLabel(entry.type) }}</span>
-                                 <span v-if="entry.category" class="text-muted small ms-1">{{ categoryLabel(entry.category) }}</span>
-                              </td>
-                              <td class="small">
-                                 {{ entry.description }}
-                                 <a v-if="entry.receipt_url" :href="entry.receipt_url" target="_blank" class="ms-1 text-decoration-none"><i class="bi bi-paperclip"></i>Receipt</a>
-                                 <div v-if="entry.notes" class="text-muted" style="font-size: 0.75rem">{{ entry.notes }}</div>
-                              </td>
-                              <td class="small text-muted">{{ entry.recorded_by_name || "-" }}</td>
-                              <td class="text-end small fw-bold" :class="entry.amount < 0 ? 'text-danger' : 'text-success'">{{ entry.amount < 0 ? "-" : "+" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}</td>
-                           </tr>
-                        </tbody>
-                     </table>
+                                 <span v-if="entry.category" class="small text-muted ms-1">{{ categoryLabel(entry.category) }}</span>
+                              </div>
+                              <div class="fw-bold text-nowrap" :class="entry.amount < 0 ? 'text-danger' : 'text-success'">{{ entry.amount < 0 ? "−" : "+" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}</div>
+                           </div>
+                           <div class="fw-semibold mt-3">{{ entry.description }}</div>
+                           <div v-if="entry.notes" class="small text-muted mt-1">{{ entry.notes }}</div>
+                           <div class="d-flex justify-content-between gap-2 small text-muted mt-3 pt-3 border-top">
+                              <span>{{ formatTime(entry.occurred_at) }} · {{ entry.recorded_by_name || "-" }}</span>
+                              <a v-if="entry.receipt_url" :href="entry.receipt_url" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-paperclip me-1"></i>Receipt</a>
+                           </div>
+                        </article>
+                     </div>
+                  </template>
+
+                  <div v-if="!selectedSessionLoading && !selectedSessionError && selectedEntriesPagination.lastPage > 1" class="d-flex justify-content-center py-3 border-top">
+                     <nav aria-label="Cash movement pages">
+                        <ul class="pagination pagination-sm mb-0">
+                           <li v-for="link in selectedEntriesPagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
+                              <a class="page-link" href="#" @click.prevent="goToSelectedSessionPage(link)" v-html="link.label"></a>
+                           </li>
+                        </ul>
+                     </nav>
                   </div>
                </div>
                <div class="modal-footer">
@@ -359,9 +557,15 @@ export default {
          unassignedTodayTotal: 0,
          categories: [],
          sessions: [],
-         sessionsPagination: { lastPage: 1, links: [] },
+         loadingSessions: true,
+         sessionsError: "",
+         historyHeadings: ["Session", "Opening Float", "Reconciliation", "Result", "Bank Deposit", "Closed By", ""],
+         sessionsPagination: { lastPage: 1, links: [], total: 0, from: 0, to: 0 },
          selectedSession: null,
          selectedSessionEntries: [],
+         selectedSessionLoading: false,
+         selectedSessionError: "",
+         selectedEntriesPagination: { lastPage: 1, links: [], total: 0 },
          expenseMonth: new Date().toISOString().slice(0, 7),
          expenseSummary: { categories: [], total: 0 },
          openForm: { opening_float: "", notes: "" },
@@ -389,6 +593,13 @@ export default {
       this.fetchData();
       this.fetchSessions();
       this.fetchExpenseSummary();
+   },
+
+   beforeUnmount: function () {
+      this.openModalInst?.dispose();
+      this.expenseModalInst?.dispose();
+      this.closeModalInst?.dispose();
+      this.sessionModalInst?.dispose();
    },
 
    computed: {
@@ -470,23 +681,60 @@ export default {
             .finally(() => (this.loading = false));
       },
       fetchSessions: function (page = 1) {
-         axios.get("/panel/cash-drawer/sessions", { params: { page } }).then((res) => {
-            this.sessions = res.data.data;
-            this.sessionsPagination = { lastPage: res.data.last_page, links: res.data.links };
-         });
+         this.loadingSessions = true;
+         this.sessionsError = "";
+         axios
+            .get("/panel/cash-drawer/sessions", { params: { page } })
+            .then((res) => {
+               this.sessions = res.data.data;
+               this.sessionsPagination = {
+                  lastPage: res.data.last_page,
+                  links: res.data.links,
+                  total: res.data.total,
+                  from: res.data.from || 0,
+                  to: res.data.to || 0,
+               };
+            })
+            .catch((err) => {
+               this.sessionsError = err.response?.data?.message || "Please check your connection and try again.";
+            })
+            .finally(() => (this.loadingSessions = false));
       },
       viewSession: function (row) {
          this.selectedSession = row;
          this.selectedSessionEntries = [];
-         axios.get("/panel/cash-drawer/entries", { params: { session_id: row.id } }).then((res) => {
-            this.selectedSessionEntries = res.data.data;
-         });
+         this.selectedEntriesPagination = { lastPage: 1, links: [], total: 0 };
          this.sessionModalInst.show();
+         this.fetchSessionEntries();
+      },
+      fetchSessionEntries: function (page = 1) {
+         if (!this.selectedSession) return;
+         this.selectedSessionLoading = true;
+         this.selectedSessionError = "";
+         axios
+            .get("/panel/cash-drawer/entries", { params: { session_id: this.selectedSession.id, page } })
+            .then((res) => {
+               this.selectedSessionEntries = res.data.data;
+               this.selectedEntriesPagination = {
+                  lastPage: res.data.last_page,
+                  links: res.data.links,
+                  total: res.data.total,
+               };
+            })
+            .catch((err) => {
+               this.selectedSessionError = err.response?.data?.message || "Please check your connection and try again.";
+            })
+            .finally(() => (this.selectedSessionLoading = false));
       },
       goToSessionsPage: function (link) {
          if (!link.url) return;
          const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
          this.fetchSessions(page);
+      },
+      goToSelectedSessionPage: function (link) {
+         if (!link.url) return;
+         const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
+         this.fetchSessionEntries(page);
       },
       fetchExpenseSummary: function () {
          axios.get("/panel/cash-drawer/expense-summary", { params: { month: this.expenseMonth } }).then((res) => {
@@ -575,3 +823,242 @@ export default {
    },
 };
 </script>
+
+<style scoped>
+.history-heading-icon {
+   width: 2.5rem;
+   height: 2.5rem;
+   border-radius: 0.75rem;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+   flex-shrink: 0;
+   background: rgba(220, 53, 69, 0.12);
+   color: #dc3545;
+   font-size: 1.1rem;
+}
+
+.history-table th {
+   white-space: nowrap;
+}
+
+.history-table tbody tr:last-child td {
+   border-bottom: 0;
+}
+
+.reconciliation-values {
+   display: flex;
+   align-items: center;
+   gap: 0.75rem;
+   white-space: nowrap;
+}
+
+.reconciliation-values > div {
+   display: flex;
+   flex-direction: column;
+}
+
+.reconciliation-label {
+   color: var(--bs-secondary-color);
+   font-size: 0.68rem;
+   line-height: 1.2;
+   text-transform: uppercase;
+   letter-spacing: 0.04em;
+}
+
+.drawer-history-card,
+.session-entry-card {
+   padding: 1rem;
+   border-bottom: 1px solid var(--bs-border-color);
+}
+
+.drawer-history-card:last-child,
+.session-entry-card:last-child {
+   border-bottom: 0;
+}
+
+.history-metric-grid {
+   display: grid;
+   grid-template-columns: repeat(3, minmax(0, 1fr));
+   gap: 0.5rem;
+   margin: 1rem 0;
+}
+
+.history-metric {
+   min-width: 0;
+   padding: 0.65rem;
+   border-radius: 0.5rem;
+   background: var(--bs-tertiary-bg);
+}
+
+.history-metric > span,
+.history-metric > strong {
+   display: block;
+   overflow-wrap: anywhere;
+}
+
+.history-metric > span {
+   margin-bottom: 0.15rem;
+   color: var(--bs-secondary-color);
+   font-size: 0.65rem;
+   text-transform: uppercase;
+   letter-spacing: 0.04em;
+}
+
+.history-metric > strong {
+   font-size: 0.82rem;
+}
+
+.history-skeleton {
+   height: 0.875rem;
+   border-radius: 0.25rem;
+}
+
+.history-skeleton--date {
+   width: 7.5rem;
+}
+
+.history-skeleton--amount {
+   width: 5rem;
+}
+
+.history-skeleton--reconciliation {
+   width: 11rem;
+}
+
+.history-skeleton--badge {
+   width: 5.5rem;
+   height: 1.5rem;
+   border-radius: 999px;
+}
+
+.history-skeleton--person {
+   width: 6.5rem;
+}
+
+.history-skeleton--button {
+   width: 4.75rem;
+   height: 2rem;
+   border-radius: 0.375rem;
+}
+
+.expense-month {
+   width: auto;
+   min-width: 10rem;
+}
+
+.expense-summary-grid {
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+   gap: 0.75rem;
+}
+
+.expense-summary-item {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 1rem;
+   padding: 0.75rem 0.875rem;
+   border: 1px solid var(--bs-border-color);
+   border-radius: 0.5rem;
+   background: var(--bs-tertiary-bg);
+}
+
+.session-detail-summary {
+   padding: 1.25rem 1.5rem;
+   border-bottom: 1px solid var(--bs-border-color);
+   background: var(--bs-tertiary-bg);
+}
+
+.session-detail-meta {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 0.75rem 2rem;
+   margin-bottom: 1rem;
+}
+
+.session-detail-meta > div {
+   display: flex;
+   flex-direction: column;
+}
+
+.session-detail-meta span,
+.session-summary-item > span {
+   color: var(--bs-secondary-color);
+   font-size: 0.68rem;
+   text-transform: uppercase;
+   letter-spacing: 0.05em;
+}
+
+.session-detail-meta strong {
+   font-size: 0.85rem;
+}
+
+.session-summary-grid {
+   display: grid;
+   grid-template-columns: repeat(5, minmax(0, 1fr));
+   gap: 0.75rem;
+}
+
+.session-summary-item {
+   min-width: 0;
+   padding: 0.875rem;
+   border: 1px solid var(--bs-border-color);
+   border-radius: 0.5rem;
+   background: var(--bs-body-bg);
+}
+
+.session-summary-item > span,
+.session-summary-item > strong {
+   display: block;
+}
+
+.session-summary-item > strong {
+   margin-top: 0.25rem;
+   font-size: 1rem;
+   overflow-wrap: anywhere;
+}
+
+.session-summary-item--result > strong {
+   margin-top: 0.4rem;
+}
+
+.session-notes {
+   margin-top: 1rem;
+   padding: 0.75rem 0.875rem;
+   border-left: 3px solid var(--bs-secondary-color);
+   border-radius: 0.25rem;
+   background: var(--bs-body-bg);
+   color: var(--bs-secondary-color);
+   font-size: 0.82rem;
+}
+
+.session-entry-table th:last-child,
+.session-entry-table td:last-child {
+   white-space: nowrap;
+}
+
+@media (max-width: 767.98px) {
+   .expense-month {
+      width: 100%;
+   }
+
+   .session-detail-summary {
+      padding: 1rem;
+   }
+
+   .session-summary-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+   }
+
+   .session-summary-item--result {
+      grid-column: 1 / -1;
+   }
+}
+
+@media (max-width: 400px) {
+   .history-metric-grid {
+      grid-template-columns: 1fr;
+   }
+}
+</style>

@@ -218,6 +218,45 @@ class CashDrawerTest extends TestCase
             ->assertJsonPath('suggested_float', 100);
     }
 
+    public function test_management_can_review_closed_drawer_history_in_latest_first_order(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+
+        $olderSession = CashDrawerSession::factory()->closed()->create([
+            'opened_by' => $manager->id,
+            'closed_by' => $manager->id,
+            'opened_at' => '2026-08-06 08:00:00',
+            'closed_at' => '2026-08-06 18:00:00',
+        ]);
+
+        $newerSession = CashDrawerSession::factory()->closed()->create([
+            'opened_by' => $manager->id,
+            'closed_by' => $manager->id,
+            'opened_at' => '2026-08-07 08:30:00',
+            'closed_at' => '2026-08-07 18:30:00',
+            'expected_cash' => 2750,
+            'counted_cash' => 2725,
+            'over_short' => -25,
+            'deposited_amount' => 2000,
+            'deposit_reference' => 'DEP-20260807',
+        ]);
+
+        CashDrawerSession::factory()->create([
+            'opened_by' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->getJson('/panel/cash-drawer/sessions')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('data.0.id', $newerSession->id)
+            ->assertJsonPath('data.0.closed_by_name', $manager->name)
+            ->assertJsonPath('data.0.over_short', -25)
+            ->assertJsonPath('data.0.deposit_reference', 'DEP-20260807')
+            ->assertJsonPath('data.1.id', $olderSession->id);
+    }
+
     public function test_expense_requires_valid_category_and_positive_amount(): void
     {
         $manager = $this->createUserWithRole('manager');
