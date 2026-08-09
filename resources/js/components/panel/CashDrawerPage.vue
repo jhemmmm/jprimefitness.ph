@@ -161,20 +161,37 @@
                <table class="table table-hover align-middle mb-0 panel-table history-table">
                   <thead>
                      <tr>
-                        <th scope="col">Session</th>
+                        <th scope="col">Session Period</th>
                         <th scope="col">Opening Float</th>
                         <th scope="col">Reconciliation</th>
                         <th scope="col">Result</th>
                         <th scope="col">Bank Deposit</th>
-                        <th scope="col">Closed By</th>
+                        <th scope="col">Handled By</th>
                         <th scope="col" class="col-actions"><span class="visually-hidden">Actions</span></th>
                      </tr>
                   </thead>
                   <tbody>
                      <tr v-for="row in sessions" :key="row.id">
                         <td>
-                           <div class="fw-semibold">{{ formatDate(row.closed_at) }}</div>
-                           <div class="small text-muted"><i class="bi bi-clock me-1"></i>{{ formatTime(row.opened_at) }}–{{ formatTime(row.closed_at) }}</div>
+                           <div class="session-period">
+                              <div class="session-period-event">
+                                 <span class="session-period-dot session-period-dot--open" aria-hidden="true"></span>
+                                 <div>
+                                    <span class="session-period-label">Opened</span>
+                                    <div class="fw-semibold">{{ formatDate(row.opened_at) }}</div>
+                                    <div class="small text-muted">{{ formatTime(row.opened_at) }}</div>
+                                 </div>
+                              </div>
+                              <div class="session-period-event">
+                                 <span class="session-period-dot session-period-dot--closed" aria-hidden="true"></span>
+                                 <div>
+                                    <span class="session-period-label">Closed</span>
+                                    <div class="fw-semibold">{{ formatDate(row.closed_at) }}</div>
+                                    <div class="small text-muted">{{ formatTime(row.closed_at) }}</div>
+                                 </div>
+                              </div>
+                           </div>
+                           <span v-if="spansMultipleDays(row)" class="m-badge m-badge--pending mt-2"><i class="bi bi-moon-stars" aria-hidden="true"></i>Carried overnight</span>
                         </td>
                         <td class="fw-semibold">₱{{ $filters.formatMoney(row.opening_float) }}</td>
                         <td>
@@ -196,11 +213,17 @@
                            <div class="small text-muted">{{ row.deposit_reference || "No reference" }}</div>
                         </td>
                         <td>
-                           <div class="fw-semibold">{{ row.closed_by_name || "-" }}</div>
-                           <div class="small text-muted">at {{ formatTime(row.closed_at) }}</div>
+                           <div class="session-actor">
+                              <span>Opened by</span>
+                              <strong>{{ row.opened_by_name || "-" }}</strong>
+                           </div>
+                           <div class="session-actor mt-2">
+                              <span>Closed by</span>
+                              <strong>{{ row.closed_by_name || "-" }}</strong>
+                           </div>
                         </td>
                         <td class="text-end">
-                           <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" :aria-label="'Review cash drawer session from ' + formatDate(row.closed_at)" @click="viewSession(row)">
+                           <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" :aria-label="'Review cash drawer session opened on ' + formatDate(row.opened_at)" @click="viewSession(row)">
                               Review <i class="bi bi-chevron-right ms-1" aria-hidden="true"></i>
                            </button>
                         </td>
@@ -213,10 +236,23 @@
                <article v-for="row in sessions" :key="'mobile-history-' + row.id" class="drawer-history-card">
                   <div class="d-flex align-items-start justify-content-between gap-3">
                      <div>
-                        <div class="fw-bold">{{ formatDate(row.closed_at) }}</div>
-                        <div class="small text-muted"><i class="bi bi-clock me-1"></i>{{ formatTime(row.opened_at) }}–{{ formatTime(row.closed_at) }}</div>
+                        <div class="fw-bold">{{ sessionPeriodLabel(row) }}</div>
+                        <span v-if="spansMultipleDays(row)" class="m-badge m-badge--pending mt-2"><i class="bi bi-moon-stars" aria-hidden="true"></i>Carried overnight</span>
                      </div>
                      <span :class="['m-badge', overShortBadge(row.over_short)]">{{ overShortLabel(row.over_short) }}</span>
+                  </div>
+                  <div class="mobile-session-events">
+                     <div>
+                        <span>Opened</span>
+                        <strong>{{ formatTime(row.opened_at) }}</strong>
+                        <small>by {{ row.opened_by_name || "-" }}</small>
+                     </div>
+                     <i class="bi bi-arrow-right text-muted" aria-hidden="true"></i>
+                     <div>
+                        <span>Closed</span>
+                        <strong>{{ formatTime(row.closed_at) }}</strong>
+                        <small>by {{ row.closed_by_name || "-" }}</small>
+                     </div>
                   </div>
                   <div class="history-metric-grid">
                      <div class="history-metric">
@@ -235,7 +271,7 @@
                   <div class="d-flex align-items-center justify-content-between gap-3 pt-3 border-top">
                      <div class="small text-muted">
                         <div>Expected ₱{{ $filters.formatMoney(row.expected_cash) }}</div>
-                        <div>Closed by {{ row.closed_by_name || "-" }}</div>
+                        <div>{{ row.deposit_reference || "No deposit reference" }}</div>
                      </div>
                      <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" @click="viewSession(row)">Review <i class="bi bi-chevron-right ms-1"></i></button>
                   </div>
@@ -406,8 +442,11 @@
                <div class="modal-header">
                   <div>
                      <h5 id="sessionDetailTitle" class="modal-title fw-bold">Cash Drawer Reconciliation</h5>
-                     <div v-if="selectedSession" class="small text-muted mt-1">
-                        {{ formatDate(selectedSession.closed_at) }} · {{ formatTime(selectedSession.opened_at) }}–{{ formatTime(selectedSession.closed_at) }}
+                     <div v-if="selectedSession" class="modal-session-period mt-1">
+                        <span><strong>Opened</strong> {{ formatDate(selectedSession.opened_at) }} at {{ formatTime(selectedSession.opened_at) }}</span>
+                        <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                        <span><strong>Closed</strong> {{ formatDate(selectedSession.closed_at) }} at {{ formatTime(selectedSession.closed_at) }}</span>
+                        <span v-if="spansMultipleDays(selectedSession)" class="m-badge m-badge--pending"><i class="bi bi-moon-stars" aria-hidden="true"></i>Carried overnight</span>
                      </div>
                   </div>
                   <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -544,7 +583,7 @@
 
 <script>
 import { Modal } from "bootstrap";
-import { formatDate, formatTime } from "../../dates";
+import { daysBetween, formatDate, formatTime } from "../../dates";
 
 export default {
    data: function () {
@@ -559,7 +598,7 @@ export default {
          sessions: [],
          loadingSessions: true,
          sessionsError: "",
-         historyHeadings: ["Session", "Opening Float", "Reconciliation", "Result", "Bank Deposit", "Closed By", ""],
+         historyHeadings: ["Session Period", "Opening Float", "Reconciliation", "Result", "Bank Deposit", "Handled By", ""],
          sessionsPagination: { lastPage: 1, links: [], total: 0, from: 0, to: 0 },
          selectedSession: null,
          selectedSessionEntries: [],
@@ -665,6 +704,14 @@ export default {
          const amount = Number(value || 0);
          if (amount === 0) return "m-badge--active";
          return amount > 0 ? "m-badge--pending" : "m-badge--suspended";
+      },
+      spansMultipleDays: function (session) {
+         return (daysBetween(session.opened_at, session.closed_at) || 0) > 0;
+      },
+      sessionPeriodLabel: function (session) {
+         const openedDate = formatDate(session.opened_at);
+         const closedDate = formatDate(session.closed_at);
+         return openedDate === closedDate ? openedDate : `${openedDate} – ${closedDate}`;
       },
       fetchData: function () {
          this.loading = true;
@@ -864,6 +911,104 @@ export default {
    line-height: 1.2;
    text-transform: uppercase;
    letter-spacing: 0.04em;
+}
+
+.session-period {
+   position: relative;
+   display: grid;
+   gap: 0.65rem;
+   min-width: 10.5rem;
+}
+
+.session-period::before {
+   content: "";
+   position: absolute;
+   top: 0.55rem;
+   bottom: 0.55rem;
+   left: 0.25rem;
+   width: 1px;
+   background: var(--bs-border-color);
+}
+
+.session-period-event {
+   position: relative;
+   display: flex;
+   align-items: flex-start;
+   gap: 0.65rem;
+}
+
+.session-period-dot {
+   width: 0.55rem;
+   height: 0.55rem;
+   margin-top: 0.25rem;
+   border: 2px solid var(--bs-body-bg);
+   border-radius: 999px;
+   flex-shrink: 0;
+   box-shadow: 0 0 0 1px var(--bs-border-color);
+   z-index: 1;
+}
+
+.session-period-dot--open {
+   background: #198754;
+}
+
+.session-period-dot--closed {
+   background: #6c757d;
+}
+
+.session-period-label,
+.session-actor > span,
+.mobile-session-events span {
+   display: block;
+   color: var(--bs-secondary-color);
+   font-size: 0.65rem;
+   line-height: 1.2;
+   text-transform: uppercase;
+   letter-spacing: 0.04em;
+}
+
+.session-actor > strong {
+   display: block;
+   margin-top: 0.1rem;
+   font-size: 0.82rem;
+}
+
+.mobile-session-events {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+   align-items: center;
+   gap: 0.75rem;
+   margin: 1rem 0;
+   padding: 0.75rem;
+   border-radius: 0.5rem;
+   background: var(--bs-tertiary-bg);
+}
+
+.mobile-session-events > div {
+   min-width: 0;
+}
+
+.mobile-session-events strong,
+.mobile-session-events small {
+   display: block;
+   overflow-wrap: anywhere;
+}
+
+.mobile-session-events strong {
+   margin-top: 0.2rem;
+}
+
+.mobile-session-events small {
+   color: var(--bs-secondary-color);
+}
+
+.modal-session-period {
+   display: flex;
+   flex-wrap: wrap;
+   align-items: center;
+   gap: 0.35rem 0.6rem;
+   color: var(--bs-secondary-color);
+   font-size: 0.75rem;
 }
 
 .drawer-history-card,

@@ -218,9 +218,10 @@ class CashDrawerTest extends TestCase
             ->assertJsonPath('suggested_float', 100);
     }
 
-    public function test_management_can_review_closed_drawer_history_in_latest_first_order(): void
+    public function test_management_can_review_closed_drawer_history_with_open_and_close_details(): void
     {
         $manager = $this->createUserWithRole('manager');
+        $openingEmployee = $this->createUserWithRole('staff');
 
         $olderSession = CashDrawerSession::factory()->closed()->create([
             'opened_by' => $manager->id,
@@ -230,10 +231,10 @@ class CashDrawerTest extends TestCase
         ]);
 
         $newerSession = CashDrawerSession::factory()->closed()->create([
-            'opened_by' => $manager->id,
+            'opened_by' => $openingEmployee->id,
             'closed_by' => $manager->id,
-            'opened_at' => '2026-08-07 08:30:00',
-            'closed_at' => '2026-08-07 18:30:00',
+            'opened_at' => '2026-08-08 20:30:00',
+            'closed_at' => '2026-08-09 08:30:00',
             'expected_cash' => 2750,
             'counted_cash' => 2725,
             'over_short' => -25,
@@ -251,6 +252,9 @@ class CashDrawerTest extends TestCase
             ->assertJsonCount(2, 'data')
             ->assertJsonPath('total', 2)
             ->assertJsonPath('data.0.id', $newerSession->id)
+            ->assertJsonPath('data.0.opened_at', $newerSession->opened_at->toIso8601String())
+            ->assertJsonPath('data.0.closed_at', $newerSession->closed_at->toIso8601String())
+            ->assertJsonPath('data.0.opened_by_name', $openingEmployee->name)
             ->assertJsonPath('data.0.closed_by_name', $manager->name)
             ->assertJsonPath('data.0.over_short', -25)
             ->assertJsonPath('data.0.deposit_reference', 'DEP-20260807')
