@@ -21,6 +21,7 @@ class MemberPtPackage extends Model
 
     protected $fillable = [
         'user_id',
+        'sale_transaction_id',
         'pt_product_id',
         'sold_price',
         'coach_id',
@@ -30,6 +31,9 @@ class MemberPtPackage extends Model
         'expires_at',
         'status',
         'notes',
+        'cancellation_reason',
+        'cancelled_by',
+        'cancelled_at',
         'created_by',
     ];
 
@@ -37,7 +41,25 @@ class MemberPtPackage extends Model
         'assigned_at' => 'date',
         'expires_at' => 'date',
         'sold_price' => 'decimal:2',
+        'cancelled_at' => 'datetime',
     ];
+
+    /**
+     * Serialize the sale relationship with a cross-node stable identifier.
+     *
+     * @return array<string, mixed>
+     */
+    public function syncableAttributes(): array
+    {
+        $attributes = $this->decodeJsonCastAttributes($this->getAttributes());
+        $attributes['sale_transaction_uuid'] = $this->sale_transaction_id
+            ? $this->saleTransaction()->value('uuid')
+            : null;
+
+        unset($attributes['sale_transaction_id']);
+
+        return $attributes;
+    }
 
     public function member(): BelongsTo
     {
@@ -49,6 +71,11 @@ class MemberPtPackage extends Model
         return $this->belongsTo(PTProduct::class);
     }
 
+    public function saleTransaction(): BelongsTo
+    {
+        return $this->belongsTo(SaleTransaction::class);
+    }
+
     public function coach(): BelongsTo
     {
         return $this->belongsTo(User::class, 'coach_id');
@@ -57,6 +84,11 @@ class MemberPtPackage extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public function usages(): HasMany

@@ -336,6 +336,7 @@ class SalesPageTest extends TestCase
 
         $transaction = SaleTransaction::where('type', SaleTransaction::TYPE_PT_PACKAGE)->firstOrFail();
 
+        $this->assertSame($transaction->id, $package->sale_transaction_id);
         $this->assertSame($coach->id, $transaction->details['coach_id']);
         $this->assertSame('Coach Rey', $transaction->details['coach_name']);
     }
@@ -690,8 +691,13 @@ class SalesPageTest extends TestCase
             ])
             ->assertOk();
 
-        $this->assertSame(MemberPtPackage::STATUS_CANCELLED, $package->fresh()->status);
-        $this->assertSame(12, (int) $package->fresh()->remaining_sessions);
+        $package->refresh();
+
+        $this->assertSame(MemberPtPackage::STATUS_CANCELLED, $package->status);
+        $this->assertSame(12, (int) $package->remaining_sessions);
+        $this->assertSame('PT package sale was cancelled.', $package->cancellation_reason);
+        $this->assertSame($manager->id, $package->cancelled_by);
+        $this->assertNotNull($package->cancelled_at);
     }
 
     public function test_pt_package_sale_with_used_sessions_cannot_be_voided(): void

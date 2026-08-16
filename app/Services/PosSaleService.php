@@ -23,6 +23,7 @@ class PosSaleService
 {
     public function __construct(
         private InventoryStockAlertService $inventoryStockAlertService,
+        private MemberPtPackageService $memberPtPackageService,
         private MembershipQrService $membershipQrService,
         private SystemActivityService $systemActivityService,
     ) {}
@@ -158,7 +159,7 @@ class PosSaleService
             match ($transaction->type) {
                 SaleTransaction::TYPE_INVENTORY => $this->reverseInventorySale($transaction),
                 SaleTransaction::TYPE_MEMBERSHIP => $this->reverseMembershipSale($transaction),
-                SaleTransaction::TYPE_PT_PACKAGE => $this->reversePtPackageSale($transaction),
+                SaleTransaction::TYPE_PT_PACKAGE => $this->reversePtPackageSale($transaction, $voidedBy, $reason),
                 SaleTransaction::TYPE_WALK_IN => null,
                 default => abort(409, 'This sale type cannot be voided.'),
             };
@@ -414,6 +415,10 @@ class PosSaleService
                 ],
             ]);
 
+            $package->forceFill([
+                'sale_transaction_id' => $saleTransaction->id,
+            ])->save();
+
             $saleCause = $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
 
             $this->recordPtPackageSystemActivity(
@@ -573,31 +578,36 @@ class PosSaleService
      *
      * @return void
      */
-    private function reversePtPackageSale(SaleTransaction $saleTransaction): void
+    private function reversePtPackageSale(
+        SaleTransaction $saleTransaction,
+        User $voidedBy,
+        string $reason,
+    ): void
     {
-        $packageId = (int) data_get($saleTransaction->details, 'member_pt_package_id');
-
-        if ($packageId < 1) {
-            abort(409, 'This PT package sale cannot be voided because it is not linked to a PT package.');
-        }
-
         $package = MemberPtPackage::query()
-            ->withCount('usages')
-            ->lockForUpdate()
-            ->find($packageId);
+            ->where('sale_transaction_id', $saleTransaction->id)
+            ->first();
 
         if (! $package) {
-            abort(409, 'This PT package sale cannot be voided because the linked PT package no longer exists.');
+            abort(409, 'This PT package sale cannot be voided because it is not linked to an existing PT package.');
         }
 
-        if ($package->usages_count > 0) {
-            abort(409, 'This PT package sale cannot be voided because sessions have already been used.');
-        }
+        $saleVoidCause = $this->systemActivityService->causedBy(
+            SystemActivity::SUBJECT_SALE_TRANSACTION,
+            $saleTransaction->id,
+            'voided',
+            $this->saleTransactionSystemActivitySnapshot($saleTransaction),
+            [
+                'member_id' => $saleTransaction->member_id,
+            ],
+        );
 
-        $package->forceFill([
-            'status' => MemberPtPackage::STATUS_CANCELLED,
-            'remaining_sessions' => $package->total_sessions,
-        ])->save();
+        $this->memberPtPackageService->cancelUnused(
+            $package,
+            $voidedBy,
+            $reason,
+            $saleVoidCause,
+        );
     }
 
     /**
@@ -768,6 +778,8 @@ class PosSaleService
             'total_sessions' => $package->total_sessions,
             'remaining_sessions' => $package->remaining_sessions,
             'assigned_at' => $package->assigned_at?->toDateString(),
+            'sale_transaction_id' => $package->sale_transaction_id,
+            'status' => $package->status,
         ];
     }
 

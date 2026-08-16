@@ -635,6 +635,7 @@ class EmployeeController extends Controller
             $locked = Payroll::whereKey($payroll->getKey())->lockForUpdate()->firstOrFail();
             abort_if($locked->status !== Payroll::STATUS_DRAFT, 422, 'Only draft payrolls can be approved.');
 
+            $this->payrollService->assertPtCommissionSalesRemainEligible($locked);
             $this->applyCashAdvanceRepayments($locked);
 
             $locked->status = Payroll::STATUS_APPROVED;

@@ -1,6 +1,6 @@
 <template>
    <div class="p-3">
-      <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>PT sessions updated successfully.</div>
+      <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>PT package changes saved successfully.</div>
       <div class="alert alert-danger py-2 small" v-if="generalError">{{ generalError }}</div>
 
       <div class="row g-3 mb-4">
@@ -16,7 +16,7 @@
       </div>
 
       <div class="d-flex flex-wrap justify-content-end gap-2 mb-4" v-if="canAllocatePackages || canLogUsage">
-         <button v-if="canAllocatePackages" class="btn btn-danger btn-sm" @click="openPackageModal"><i class="bi bi-plus-circle me-1"></i>Add PT Package</button>
+         <button v-if="canAllocatePackages" class="btn btn-danger btn-sm" @click="openPackageModal"><i class="bi bi-plus-circle me-1"></i>Sell PT Package</button>
          <button v-if="canLogUsage" class="btn btn-outline-success btn-sm" @click="openUsageModal" :disabled="activePackages.length === 0"><i class="bi bi-check2-square me-1"></i>Log PT Session Use</button>
       </div>
 
@@ -36,6 +36,7 @@
                      <th>Status</th>
                      <th>Assigned</th>
                      <th>Created By</th>
+                     <th class="text-end">Actions</th>
                   </tr>
                </thead>
                <tbody>
@@ -43,6 +44,7 @@
                      <td>
                         <div class="fw-semibold">{{ pkg.pt_product?.name || "-" }}</div>
                         <div class="small text-muted" v-if="pkg.notes">{{ pkg.notes }}</div>
+                        <div class="small text-danger" v-if="pkg.cancellation_reason">Cancelled: {{ pkg.cancellation_reason }}</div>
                      </td>
                      <td class="small">{{ pkg.coach?.name || "-" }}</td>
                      <td class="small">
@@ -55,8 +57,20 @@
                      <td class="small">
                         <div>{{ formatDate(pkg.assigned_at) }}</div>
                         <div class="text-muted" v-if="pkg.expires_at">Expires {{ formatDate(pkg.expires_at) }}</div>
+                        <a class="small" v-if="pkg.sale_transaction" :href="pkg.sale_transaction.receipt_url">{{ pkg.sale_transaction.receipt_number }}</a>
                      </td>
                      <td class="small text-muted">{{ pkg.created_by?.name || "-" }}</td>
+                     <td class="text-end">
+                        <button
+                           v-if="canAllocatePackages && pkg.action_state?.can_cancel"
+                           type="button"
+                           class="btn btn-outline-danger btn-sm"
+                           @click="openCancelModal(pkg)"
+                        >
+                           {{ pkg.action_state.label }}
+                        </button>
+                        <span v-else-if="canAllocatePackages && pkg.action_state?.reason" class="small text-muted" :title="pkg.action_state.reason">Unavailable</span>
+                     </td>
                   </tr>
                </tbody>
             </table>
@@ -75,6 +89,18 @@
                   <span>{{ pkg.remaining_sessions }}/{{ pkg.total_sessions }} left</span>
                   <span class="text-muted small">{{ formatDate(pkg.assigned_at) }}</span>
                </div>
+               <div class="mt-2" v-if="pkg.sale_transaction">
+                  <a class="small" :href="pkg.sale_transaction.receipt_url">{{ pkg.sale_transaction.receipt_number }}</a>
+               </div>
+               <div class="small text-danger mt-1" v-if="pkg.cancellation_reason">Cancelled: {{ pkg.cancellation_reason }}</div>
+               <button
+                  v-if="canAllocatePackages && pkg.action_state?.can_cancel"
+                  type="button"
+                  class="btn btn-outline-danger btn-sm mt-2 w-100"
+                  @click="openCancelModal(pkg)"
+               >
+                  {{ pkg.action_state.label }}
+               </button>
             </div>
          </div>
 
@@ -132,7 +158,7 @@
          <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                <div class="modal-header">
-                  <h5 class="modal-title fw-bold">Add PT Package</h5>
+                  <h5 class="modal-title fw-bold">Sell PT Package</h5>
                   <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                </div>
                <div class="modal-body">
@@ -149,9 +175,9 @@
                         </div>
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm fw-semibold">Coach</label>
+                        <label class="form-label form-label-sm fw-semibold">Coach <span class="text-danger">*</span></label>
                         <select class="form-select" v-model="packageForm.coach_id" :class="{ 'is-invalid': packageErrors.coach_id }">
-                           <option value="">Assign later...</option>
+                           <option value="">Select a coach...</option>
                            <option v-for="coach in availablePackageCoaches" :key="coach.id" :value="coach.id">{{ coach.name }}</option>
                         </select>
                         <div class="invalid-feedback" v-if="packageErrors.coach_id">{{ packageErrors.coach_id }}</div>
@@ -166,6 +192,28 @@
                         <input type="date" class="form-control" v-model="packageForm.expires_at" :class="{ 'is-invalid': packageErrors.expires_at }" />
                         <div class="invalid-feedback" v-if="packageErrors.expires_at">{{ packageErrors.expires_at }}</div>
                      </div>
+                     <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Payment Method <span class="text-danger">*</span></label>
+                        <select class="form-select" v-model="packageForm.payment_method" :class="{ 'is-invalid': packageErrors.payment_method }">
+                           <option v-for="method in paymentMethods" :key="method.value" :value="method.value">{{ method.label }}</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="packageErrors.payment_method">{{ packageErrors.payment_method }}</div>
+                     </div>
+                     <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Amount Received <span class="text-danger">*</span></label>
+                        <input type="number" min="0" step="0.01" class="form-control" v-model="packageForm.amount_received" :class="{ 'is-invalid': packageErrors.amount_received }" />
+                        <div class="invalid-feedback" v-if="packageErrors.amount_received">{{ packageErrors.amount_received }}</div>
+                     </div>
+                     <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Sold At <span class="text-danger">*</span></label>
+                        <input type="datetime-local" class="form-control" v-model="packageForm.sold_at" :class="{ 'is-invalid': packageErrors.sold_at }" />
+                        <div class="invalid-feedback" v-if="packageErrors.sold_at">{{ packageErrors.sold_at }}</div>
+                     </div>
+                     <div class="col-12" v-if="requiresPaymentReference">
+                        <label class="form-label form-label-sm fw-semibold">Payment Reference</label>
+                        <input type="text" class="form-control" v-model="packageForm.payment_reference" :class="{ 'is-invalid': packageErrors.payment_reference }" placeholder="Enter the payment reference" />
+                        <div class="invalid-feedback" v-if="packageErrors.payment_reference">{{ packageErrors.payment_reference }}</div>
+                     </div>
                      <div class="col-12">
                         <label class="form-label form-label-sm fw-semibold">Notes</label>
                         <textarea class="form-control" rows="2" v-model="packageForm.notes" :class="{ 'is-invalid': packageErrors.notes }" placeholder="Optional sales or package notes"></textarea>
@@ -175,9 +223,9 @@
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-danger btn-sm" @click="submitPackage" :disabled="savingPackage || !packageForm.pt_product_id">
+                  <button type="button" class="btn btn-danger btn-sm" @click="submitPackage" :disabled="savingPackage || !packageForm.pt_product_id || !packageForm.coach_id">
                      <span class="spinner-border spinner-border-sm me-1" v-if="savingPackage"></span>
-                     Add Package
+                     Record Sale
                   </button>
                </div>
             </div>
@@ -241,6 +289,32 @@
             </div>
          </div>
       </div>
+
+      <div class="modal fade" tabindex="-1" ref="cancelPackageModal">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">{{ cancelPackageTarget?.action_state?.label || "Cancel PT Package" }}</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+               </div>
+               <div class="modal-body">
+                  <p class="small text-muted">
+                     {{ cancelPackageTarget?.sale_transaction ? "This voids the sale and cancels the unused package." : "This cancels the unused package while preserving its history." }}
+                  </p>
+                  <label class="form-label form-label-sm fw-semibold">Reason <span class="text-danger">*</span></label>
+                  <textarea class="form-control" rows="3" v-model="cancelReason" :class="{ 'is-invalid': cancelErrors.reason }" placeholder="Explain why this package is being cancelled"></textarea>
+                  <div class="invalid-feedback" v-if="cancelErrors.reason">{{ cancelErrors.reason }}</div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Keep Package</button>
+                  <button type="button" class="btn btn-danger btn-sm" @click="submitCancellation" :disabled="cancellingPackage || !cancelReason.trim()">
+                     <span class="spinner-border spinner-border-sm me-1" v-if="cancellingPackage"></span>
+                     Confirm
+                  </button>
+               </div>
+            </div>
+         </div>
+      </div>
    </div>
 </template>
 
@@ -259,15 +333,23 @@ export default {
       return {
          savingPackage: false,
          savingUsage: false,
-        saved: false,
-        generalError: "",
-        packageErrors: {},
-        usageErrors: {},
-        packageForm: {
+         cancellingPackage: false,
+         saved: false,
+         generalError: "",
+         packageErrors: {},
+         usageErrors: {},
+         cancelErrors: {},
+         cancelPackageTarget: null,
+         cancelReason: "",
+         packageForm: {
             pt_product_id: "",
             coach_id: "",
             assigned_at: toDateInputValue(),
             expires_at: "",
+            payment_method: "cash",
+            amount_received: "",
+            payment_reference: "",
+            sold_at: toDateTimeInputValue(),
             notes: "",
          },
          usageForm: {
@@ -280,12 +362,20 @@ export default {
          },
          packageModalInst: null,
          usageModalInst: null,
+         cancelPackageModalInst: null,
+         paymentMethods: [
+            { value: "cash", label: "Cash" },
+            { value: "gcash", label: "GCash" },
+            { value: "card", label: "Card" },
+            { value: "bank_transfer", label: "Bank Transfer" },
+         ],
       };
    },
 
    mounted: function () {
       this.packageModalInst = new Modal(this.$refs.packageModal);
       this.usageModalInst = new Modal(this.$refs.usageModal);
+      this.cancelPackageModalInst = new Modal(this.$refs.cancelPackageModal);
    },
 
    watch: {
@@ -300,6 +390,8 @@ export default {
          if (!this.availablePackageCoaches.some((coach) => coach.id === this.packageForm.coach_id)) {
             this.packageForm.coach_id = "";
          }
+
+         this.packageForm.amount_received = this.selectedPackageProduct ? Number(this.selectedPackageProduct.pivot?.price || 0).toFixed(2) : "";
       },
       "usageForm.member_pt_package_id"() {
          if (this.selectedUsagePackage?.coach_id) {
@@ -350,6 +442,10 @@ export default {
          return this.availableCoaches;
       },
 
+      requiresPaymentReference: function () {
+         return this.packageForm.payment_method !== "cash";
+      },
+
       usageEntries: function () {
          return this.packages.flatMap((pkg) => (pkg.usages || []).map((usage) => ({ ...usage, package: pkg }))).sort((left, right) => String(right.used_at || right.created_at || "").localeCompare(String(left.used_at || left.created_at || "")));
       },
@@ -359,7 +455,7 @@ export default {
             { label: "Active Packages", value: this.activePackages.length, icon: "bi-box-seam", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             {
                label: "Remaining Sessions",
-               value: this.packages.reduce((total, pkg) => total + Number(pkg.remaining_sessions || 0), 0),
+               value: this.activePackages.reduce((total, pkg) => total + Number(pkg.remaining_sessions || 0), 0),
                icon: "bi-lightning-charge",
                iconBg: "bg-success-soft",
                iconColor: "text-success",
@@ -392,6 +488,10 @@ export default {
             coach_id: "",
             assigned_at: toDateInputValue(),
             expires_at: "",
+            payment_method: "cash",
+            amount_received: "",
+            payment_reference: "",
+            sold_at: toDateTimeInputValue(),
             notes: "",
          };
 
@@ -424,6 +524,14 @@ export default {
          this.usageModalInst.show();
       },
 
+      openCancelModal: function (pkg) {
+         this.generalError = "";
+         this.cancelErrors = {};
+         this.cancelReason = "";
+         this.cancelPackageTarget = pkg;
+         this.cancelPackageModalInst.show();
+      },
+
       normalizeErrors: function (errors) {
          return Object.fromEntries(Object.entries(errors || {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
       },
@@ -447,7 +555,7 @@ export default {
                if (err.response?.status === 422) {
                   this.packageErrors = this.normalizeErrors(err.response.data.errors);
                } else {
-                  this.generalError = err.response?.data?.message || "Failed to add PT package.";
+                  this.generalError = err.response?.data?.message || "Failed to sell PT package.";
                }
             })
             .finally(() => (this.savingPackage = false));
@@ -478,6 +586,38 @@ export default {
             .finally(() => (this.savingUsage = false));
       },
 
+      submitCancellation: function () {
+         if (!this.cancelPackageTarget) return;
+
+         this.cancellingPackage = true;
+         this.saved = false;
+         this.generalError = "";
+         this.cancelErrors = {};
+
+         axios
+            .post(`/panel/members/${this.member.id}/pt-packages/${this.cancelPackageTarget.id}/cancel`, {
+               reason: this.cancelReason,
+            })
+            .then((res) => {
+               this.saved = true;
+               this.$emit("updated", res.data);
+               this.cancelPackageModalInst.hide();
+               this.cancelPackageTarget = null;
+               this.cancelReason = "";
+               setTimeout(() => (this.saved = false), 3000);
+            })
+            .catch((err) => {
+               if (err.response?.status === 422) {
+                  this.cancelErrors = this.normalizeErrors(err.response.data.errors);
+               } else {
+                  this.cancelErrors = {
+                     reason: err.response?.data?.message || "Failed to cancel PT package.",
+                  };
+               }
+            })
+            .finally(() => (this.cancellingPackage = false));
+      },
+
       packageStatusClass: function (status) {
          return (
             {
@@ -487,7 +627,6 @@ export default {
             }[status] || "m-badge--plan-expired"
          );
       },
-
    },
 };
 </script>

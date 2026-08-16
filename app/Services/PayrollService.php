@@ -7,11 +7,13 @@ use App\Models\BusinessProfile;
 use App\Models\EmployeeProfile;
 use App\Models\MemberPtPackage;
 use App\Models\Payroll;
+use App\Models\SaleTransaction;
 use App\Models\User;
 use App\Services\Payroll\Contracts\PayrollTaxProfile;
 use App\Services\Payroll\Profiles\NullPayrollTaxProfile;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 
 class PayrollService
 {
@@ -297,7 +299,6 @@ class PayrollService
      * A late check-in slides the whole scheduled window forward ("shift refill"):
      * scheduled 06:00-14:00 with a 08:00 check-in is payable until 16:00. Time
      * before the scheduled start is never paid as regular hours.
-     *
      * @return array{
      *     daily_rate: float,
      *     days: list<array{date: string, time_in: ?string, time_out: ?string, scheduled_hours: float, worked_hours: float, paid_hours: float, day_pay_amount: float, deduction_amount: float, status: string, late_minutes: int}>,
@@ -568,12 +569,12 @@ class PayrollService
 
     /**
      * PT plan commissions earned by a coach within a payroll period. One line
-     * per plan sold (member_pt_packages with this coach), rate read from the
-     * employee profile at computation time; the caller freezes the result.
+     * per completed PT package sale, with the rate read from the employee
+     * profile at computation time; the caller freezes the result.
      *
      * @return array{
      *     amount: float,
-     *     sales: list<array{date: ?string, member_name: ?string, plan_name: ?string, sold_price: float, rate: float, amount: float}>
+     *     sales: list<array{sale_transaction_id: int, member_pt_package_id: int, date: ?string, member_name: ?string, plan_name: ?string, sold_price: float, rate: float, amount: float}>
      * }
      */
     public function suggestPtCommissions(User $employee, string $periodStart, string $periodEnd): array
@@ -585,16 +586,25 @@ class PayrollService
         }
 
         $sales = MemberPtPackage::query()
-            ->with(['member:id,name', 'ptProduct:id,name'])
+            ->with([
+                'member:id,name',
+                'ptProduct:id,name',
+                'saleTransaction:id,status,sold_at',
+            ])
             ->where('coach_id', $employee->id)
             ->where('status', '!=', MemberPtPackage::STATUS_CANCELLED)
             ->where('sold_price', '>', 0)
-            ->whereDate('assigned_at', '>=', $periodStart)
-            ->whereDate('assigned_at', '<=', $periodEnd)
-            ->orderBy('assigned_at')
+            ->whereHas('saleTransaction', fn ($query) => $query
+                ->where('type', SaleTransaction::TYPE_PT_PACKAGE)
+                ->where('status', SaleTransaction::STATUS_COMPLETED)
+                ->whereDate('sold_at', '>=', $periodStart)
+                ->whereDate('sold_at', '<=', $periodEnd))
             ->get()
+            ->sortBy(fn (MemberPtPackage $package): ?string => $package->saleTransaction?->sold_at?->toDateTimeString())
             ->map(fn (MemberPtPackage $package): array => [
-                'date' => $package->assigned_at?->toDateString(),
+                'sale_transaction_id' => $package->sale_transaction_id,
+                'member_pt_package_id' => $package->id,
+                'date' => $package->saleTransaction?->sold_at?->toDateString(),
                 'member_name' => $package->member?->name,
                 'plan_name' => $package->ptProduct?->name,
                 'sold_price' => round((float) $package->sold_price, 2),
@@ -608,6 +618,138 @@ class PayrollService
             'amount' => round(array_sum(array_column($sales, 'amount')), 2),
             'sales' => $sales,
         ];
+    }
+
+    /**
+     * Find a non-cancelled payroll that already snapshots this package's commission.
+     *
+     * The caller must run inside a database transaction so the selected payroll
+     * rows remain locked through the cancellation decision.
+     *
+     * @return ?\App\Models\Payroll
+     */
+    public function commissionPayrollBlockingCancellation(MemberPtPackage $package): ?Payroll
+    {
+        if ($package->coach_id === null) {
+            return null;
+        }
+
+        $package->loadMissing(['saleTransaction:id,sold_at', 'member:id,name', 'ptProduct:id,name']);
+
+        return Payroll::query()
+            ->where('employee_id', $package->coach_id)
+            ->where('status', '!=', Payroll::STATUS_CANCELED)
+            ->where('commission_amount', '>', 0)
+            ->lockForUpdate()
+            ->get()
+            ->first(fn (Payroll $payroll): bool => $this->payrollContainsPtPackage($payroll, $package));
+    }
+
+    /**
+     * Prevent a stale draft payroll from being approved after a PT sale was voided.
+     *
+     * @return void
+     * @throws \Illuminate\Validation\ValidationException
+     */
+    public function assertPtCommissionSalesRemainEligible(Payroll $payroll): void
+    {
+        $references = collect($payroll->commission_details ?? [])
+            ->filter(fn (mixed $detail): bool => is_array($detail)
+                && ((int) ($detail['member_pt_package_id'] ?? 0) > 0
+                    || (int) ($detail['sale_transaction_id'] ?? 0) > 0))
+            ->values();
+
+        if ($references->isEmpty()) {
+            return;
+        }
+
+        $packageIds = $references
+            ->pluck('member_pt_package_id')
+            ->filter()
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values();
+        $saleTransactionIds = $references
+            ->pluck('sale_transaction_id')
+            ->filter()
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->unique()
+            ->values();
+        $packages = MemberPtPackage::query()
+            ->with('saleTransaction:id,type,status')
+            ->where(function ($query) use ($packageIds, $saleTransactionIds): void {
+                if ($packageIds->isNotEmpty()) {
+                    $query->whereIn('id', $packageIds);
+                }
+
+                if ($saleTransactionIds->isNotEmpty()) {
+                    $method = $packageIds->isNotEmpty() ? 'orWhereIn' : 'whereIn';
+                    $query->{$method}('sale_transaction_id', $saleTransactionIds);
+                }
+            })
+            ->get();
+
+        foreach ($references as $reference) {
+            $packageId = (int) ($reference['member_pt_package_id'] ?? 0);
+            $saleTransactionId = (int) ($reference['sale_transaction_id'] ?? 0);
+            $package = $packages->first(fn (MemberPtPackage $candidate): bool => (
+                $packageId > 0 && $candidate->id === $packageId
+            ) || (
+                $saleTransactionId > 0 && $candidate->sale_transaction_id === $saleTransactionId
+            ));
+            $saleTransaction = $package?->saleTransaction;
+
+            if (! $package
+                || $package->status === MemberPtPackage::STATUS_CANCELLED
+                || ! $saleTransaction
+                || ($saleTransactionId > 0 && $saleTransaction->id !== $saleTransactionId)
+                || $saleTransaction->type !== SaleTransaction::TYPE_PT_PACKAGE
+                || $saleTransaction->status !== SaleTransaction::STATUS_COMPLETED) {
+                throw ValidationException::withMessages([
+                    'payroll' => ['This payroll contains a PT commission whose sale is no longer completed. Update or cancel the draft payroll before approval.'],
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Determine whether a payroll commission snapshot references a PT package.
+     *
+     * @return bool
+     */
+    private function payrollContainsPtPackage(Payroll $payroll, MemberPtPackage $package): bool
+    {
+        foreach ($payroll->commission_details ?? [] as $detail) {
+            if (! is_array($detail)) {
+                continue;
+            }
+
+            $packageId = (int) ($detail['member_pt_package_id'] ?? 0);
+            $saleTransactionId = (int) ($detail['sale_transaction_id'] ?? 0);
+
+            if ($packageId > 0 || $saleTransactionId > 0) {
+                if (($packageId > 0 && $packageId === $package->id)
+                    || ($saleTransactionId > 0 && $saleTransactionId === $package->sale_transaction_id)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            $commissionDate = $detail['date'] ?? null;
+            $candidateDates = array_filter([
+                $package->assigned_at?->toDateString(),
+                $package->saleTransaction?->sold_at?->toDateString(),
+            ]);
+            $soldPrice = round((float) ($detail['sold_price'] ?? 0), 2);
+
+            if (in_array($commissionDate, $candidateDates, true)
+                && abs($soldPrice - round((float) $package->sold_price, 2)) < 0.01) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

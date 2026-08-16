@@ -111,6 +111,7 @@ class PanelSystemActivityFormatter
             },
             SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => match ($event) {
                 'assigned' => 'PT package assigned',
+                'cancelled' => 'PT package cancelled',
                 default => 'PT package created',
             },
             SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => 'PT session usage recorded',
@@ -431,6 +432,7 @@ class PanelSystemActivityFormatter
 
         return match ($event) {
             'assigned' => sprintf('%s was assigned the %s package with %d sessions.', $memberName, $productName, $sessions),
+            'cancelled' => sprintf('%s\'s %s package was cancelled.', $memberName, $productName),
             default => sprintf('A %s package with %d sessions was created for %s.', $productName, $sessions, $memberName),
         };
     }

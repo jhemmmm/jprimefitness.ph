@@ -408,6 +408,9 @@ class SystemActivityExpansionTest extends TestCase
                 'pt_product_id' => $ptProduct->id,
                 'coach_id' => $coach->id,
                 'assigned_at' => '2026-04-20',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 6000,
+                'sold_at' => '2026-04-20 09:00:00',
                 'notes' => 'System activity package',
             ])
             ->assertCreated();
@@ -445,7 +448,7 @@ class SystemActivityExpansionTest extends TestCase
         $this->assertSame(['created', 'plan_changed', 'status_updated'], $membershipEvents);
 
         $this->assertSame(
-            ['assigned'],
+            ['created'],
             SystemActivity::query()
                 ->where('subject_type', SystemActivity::SUBJECT_MEMBER_PT_PACKAGE)
                 ->where('subject_id', $package->id)
@@ -453,14 +456,14 @@ class SystemActivityExpansionTest extends TestCase
                 ->all()
         );
 
-        $packageAssignedEvent = SystemActivity::query()
+        $packageCreatedEvent = SystemActivity::query()
             ->where('subject_type', SystemActivity::SUBJECT_MEMBER_PT_PACKAGE)
             ->where('subject_id', $package->id)
-            ->where('event', 'assigned')
+            ->where('event', 'created')
             ->first();
 
-        $this->assertNotNull($packageAssignedEvent);
-        $this->assertSame('2026-04-20 00:00:00', $packageAssignedEvent->occurred_at?->toDateTimeString());
+        $this->assertNotNull($packageCreatedEvent);
+        $this->assertSame('2026-04-20 09:00:00', $packageCreatedEvent->occurred_at?->toDateTimeString());
 
         $this->assertSame(
             ['recorded'],

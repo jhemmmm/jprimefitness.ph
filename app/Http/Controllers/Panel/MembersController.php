@@ -10,10 +10,13 @@ use App\Models\MemberPtPackage;
 use App\Models\MemberPtSessionUsage;
 use App\Models\MemberSubscription;
 use App\Models\PTProduct;
+use App\Models\SaleTransaction;
 use App\Models\User;
 use App\Services\SystemActivityService;
 use App\Services\MembershipQrService;
 use App\Services\MemberPtPackageAlertService;
+use App\Services\MemberPtPackageService;
+use App\Services\PosSaleService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,7 +32,9 @@ class MembersController extends Controller
      */
     public function __construct(
         private MemberPtPackageAlertService $memberPtPackageAlertService,
+        private MemberPtPackageService $memberPtPackageService,
         private MembershipQrService $membershipQrService,
+        private PosSaleService $posSaleService,
         private SystemActivityService $systemActivityService,
     ) {}
 
@@ -64,6 +69,8 @@ class MembersController extends Controller
                         'ptProduct:id,name,session_count,category',
                         'coach:id,name',
                         'createdBy:id,name',
+                        'cancelledBy:id,name',
+                        'saleTransaction:id,status,payment_method,sold_at,void_reason,voided_at',
                         'usages.coach:id,name',
                         'usages.recordedBy:id,name',
                     ])
@@ -328,7 +335,7 @@ class MembersController extends Controller
     }
 
     /**
-     * Create a member PT package.
+     * Sell a PT package to a member.
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -339,62 +346,64 @@ class MembersController extends Controller
 
         $data = $request->validate([
             'pt_product_id' => ['required', 'integer', 'exists:pt_products,id'],
-            'coach_id' => ['nullable', 'integer', 'exists:users,id'],
+            'coach_id' => ['required', 'integer', 'exists:users,id'],
             'assigned_at' => ['required', 'date'],
             'expires_at' => ['nullable', 'date', 'after_or_equal:assigned_at'],
-            'notes' => ['nullable', 'string'],
+            'payment_method' => ['required', Rule::in(SaleTransaction::supportedPaymentMethods())],
+            'amount_received' => ['nullable', 'numeric', 'min:0'],
+            'payment_reference' => ['nullable', 'string', 'max:255'],
+            'sold_at' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $ptProduct = PTProduct::query()
-            ->whereKey($data['pt_product_id'])
-            ->where('is_active', true)
-            ->whereNotNull('price')
-            ->first();
-
-        if (! $ptProduct) {
-            return response()->json([
-                'message' => 'The given data was invalid.',
-                'errors' => [
-                    'pt_product_id' => ['The selected PT product is not available.'],
-                ],
-            ], 422);
-        }
-
-        if (! empty($data['coach_id']) && ! $this->coachIsAssignable((int) $data['coach_id'])) {
-            return response()->json([
-                'message' => 'The given data was invalid.',
-                'errors' => [
-                    'coach_id' => ['The selected coach is not available.'],
-                ],
-            ], 422);
-        }
-
-        $soldPrice = round((float) ($ptProduct->price ?? 0), 2);
-
-        $package = $member->memberPtPackages()->create([
-            'pt_product_id' => $ptProduct->id,
-            'sold_price' => $soldPrice,
-            'coach_id' => $data['coach_id'] ?? null,
-            'total_sessions' => $ptProduct->session_count,
-            'remaining_sessions' => $ptProduct->session_count,
-            'assigned_at' => $data['assigned_at'],
-            'expires_at' => $data['expires_at'] ?? null,
-            'notes' => $data['notes'] ?? null,
-            'created_by' => auth()->id(),
-        ]);
-
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE,
-            $package->id,
-            'assigned',
-            $this->ptPackageSystemActivitySnapshot($package->fresh(['ptProduct', 'coach', 'member'])),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            $package->assigned_at ?? now(),
-        );
+        $this->posSaleService->processSale([
+            ...$data,
+            'type' => SaleTransaction::TYPE_PT_PACKAGE,
+            'member_id' => $member->id,
+            'sold_at' => $data['sold_at'] ?? now()->toDateTimeString(),
+        ], auth()->user());
 
         return response()->json($this->memberPayload($member->fresh(), detailed: true), 201);
+    }
+
+    /**
+     * Cancel an unused member PT package or void its linked sale.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function cancelPtPackage(
+        Request $request,
+        User $member,
+        MemberPtPackage $memberPtPackage,
+    ): JsonResponse {
+        abort_unless($member->hasRole('member'), 404);
+        abort_unless(auth()->user()->isManagement(), 403);
+        abort_unless((int) $memberPtPackage->user_id === (int) $member->id, 404);
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $saleTransaction = $memberPtPackage->saleTransaction()->first();
+
+        if ($saleTransaction) {
+            abort_unless(
+                $saleTransaction->type === SaleTransaction::TYPE_PT_PACKAGE
+                    && (int) $saleTransaction->member_id === (int) $member->id,
+                409,
+                'This PT package has an invalid sale link.',
+            );
+
+            $this->posSaleService->voidSale($saleTransaction, auth()->user(), $data['reason']);
+        } else {
+            $this->memberPtPackageService->cancelUnused(
+                $memberPtPackage,
+                auth()->user(),
+                $data['reason'],
+            );
+        }
+
+        return response()->json($this->memberPayload($member->fresh(), detailed: true));
     }
 
     /**
@@ -565,6 +574,8 @@ class MembersController extends Controller
                     'ptProduct:id,name,session_count,category',
                     'coach:id,name',
                     'createdBy:id,name',
+                    'cancelledBy:id,name',
+                    'saleTransaction:id,status,payment_method,sold_at,void_reason,voided_at',
                     'usages.coach:id,name',
                     'usages.recordedBy:id,name',
                 ])
@@ -656,7 +667,27 @@ class MembersController extends Controller
             'expires_at' => $package->expires_at?->toDateString(),
             'status' => $package->status,
             'notes' => $package->notes,
-            'created_by_name' => $package->createdBy?->name,
+            'created_by' => $package->createdBy ? [
+                'id' => $package->createdBy->id,
+                'name' => $package->createdBy->name,
+            ] : null,
+            'sale_transaction' => $package->saleTransaction ? [
+                'id' => $package->saleTransaction->id,
+                'receipt_number' => $package->saleTransaction->receiptNumber(),
+                'receipt_url' => route('panel.sales.receipt', $package->saleTransaction),
+                'status' => $package->saleTransaction->status,
+                'payment_method' => $package->saleTransaction->payment_method,
+                'sold_at' => $package->saleTransaction->sold_at?->toISOString(),
+                'void_reason' => $package->saleTransaction->void_reason,
+                'voided_at' => $package->saleTransaction->voided_at?->toISOString(),
+            ] : null,
+            'cancellation_reason' => $package->cancellation_reason,
+            'cancelled_by' => $package->cancelledBy ? [
+                'id' => $package->cancelledBy->id,
+                'name' => $package->cancelledBy->name,
+            ] : null,
+            'cancelled_at' => $package->cancelled_at?->toISOString(),
+            'action_state' => $this->ptPackageActionState($package),
             'usages' => $package->usages
                 ->map(fn (MemberPtSessionUsage $usage) => [
                     'id' => $usage->id,
@@ -675,6 +706,25 @@ class MembersController extends Controller
                 ])
                 ->values()
                 ->all(),
+        ];
+    }
+
+    /**
+     * @return array{can_cancel: bool, label: string, reason: ?string}
+     */
+    private function ptPackageActionState(MemberPtPackage $package): array
+    {
+        $reason = match (true) {
+            $package->status === MemberPtPackage::STATUS_CANCELLED => 'This PT package has already been cancelled.',
+            $package->usages->isNotEmpty() => 'PT packages with recorded session usage cannot be cancelled.',
+            $package->status !== MemberPtPackage::STATUS_ACTIVE => 'Only active PT packages can be cancelled.',
+            default => null,
+        };
+
+        return [
+            'can_cancel' => $reason === null,
+            'label' => $package->saleTransaction ? 'Void sale' : 'Cancel package',
+            'reason' => $reason,
         ];
     }
 
@@ -705,25 +755,6 @@ class MembersController extends Controller
             'status' => $subscription->status,
             'start_date' => $subscription->start_date?->toDateString(),
             'end_date' => $subscription->end_date?->toDateString(),
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function ptPackageSystemActivitySnapshot(MemberPtPackage $package): array
-    {
-        return [
-            'id' => $package->id,
-            'member_id' => $package->user_id,
-            'member_name' => $package->member?->name ?? 'Unknown Member',
-            'pt_product_id' => $package->pt_product_id,
-            'product_name' => $package->ptProduct?->name,
-            'coach_id' => $package->coach_id,
-            'coach_name' => $package->coach?->name,
-            'total_sessions' => $package->total_sessions,
-            'remaining_sessions' => $package->remaining_sessions,
-            'assigned_at' => $package->assigned_at?->toDateString(),
         ];
     }
 

@@ -86,6 +86,10 @@ class FreshInstallSchemaTest extends TestCase
         $this->assertTableHasColumns('member_pt_packages', [
             'sold_price',
             'coach_id',
+            'sale_transaction_id',
+            'cancellation_reason',
+            'cancelled_by',
+            'cancelled_at',
         ]);
 
         $this->assertTableHasColumns('member_pt_session_usages', [

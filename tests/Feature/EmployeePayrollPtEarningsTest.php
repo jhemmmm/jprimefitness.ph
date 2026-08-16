@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\BusinessProfile;
 use App\Models\EmployeeProfile;
 use App\Models\MemberPtPackage;
+use App\Models\Payroll;
 use App\Models\PTProduct;
+use App\Models\SaleTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -122,6 +124,37 @@ class EmployeePayrollPtEarningsTest extends TestCase
             ->assertJsonCount(0, 'pt_commission_sales');
     }
 
+    public function test_unlinked_pt_package_is_not_commissionable(): void
+    {
+        $manager = $this->createManager();
+        $coach = $this->createCoach(40);
+        $member = User::factory()->create();
+        $member->assignRole('member');
+        $ptProduct = PTProduct::create([
+            'name' => 'Legacy Package',
+            'session_count' => 12,
+            'category' => PTProduct::CATEGORY_PACKAGE,
+            'price' => 3600,
+            'is_active' => true,
+        ]);
+
+        MemberPtPackage::create([
+            'user_id' => $member->id,
+            'pt_product_id' => $ptProduct->id,
+            'sold_price' => 3600,
+            'coach_id' => $coach->id,
+            'total_sessions' => 12,
+            'remaining_sessions' => 12,
+            'assigned_at' => '2026-03-05',
+        ]);
+
+        $this->actingAs($manager)
+            ->getJson("/panel/employees/{$coach->id}/payrolls/suggest?period_start=2026-03-01&period_end=2026-03-15")
+            ->assertOk()
+            ->assertJsonPath('pt_commission_amount', 0)
+            ->assertJsonCount(0, 'pt_commission_sales');
+    }
+
     public function test_saved_commission_snapshot_does_not_shift_when_rate_or_package_changes(): void
     {
         $manager = $this->createManager();
@@ -157,6 +190,58 @@ class EmployeePayrollPtEarningsTest extends TestCase
         $this->assertCount(1, $frozen);
         $this->assertSame(40.0, (float) $frozen[0]['rate']);
         $this->assertSame(1440.0, (float) $frozen[0]['amount']);
+    }
+
+    public function test_stale_pt_commission_snapshot_cannot_be_approved_after_sale_is_voided(): void
+    {
+        $manager = $this->createManager();
+        $coach = $this->createCoach(40);
+        $package = $this->createPtPackageSale($coach, 3600, '2026-03-05');
+        $payrollId = $this->actingAs($manager)
+            ->postJson("/panel/employees/{$coach->id}/payrolls", [
+                'period_start' => '2026-03-01',
+                'period_end' => '2026-03-15',
+                'gross_amount' => 1440,
+                'manual_deductions' => 0,
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $package->saleTransaction()->update([
+            'status' => SaleTransaction::STATUS_VOIDED,
+            'void_reason' => 'Concurrent refund.',
+            'voided_by' => $manager->id,
+            'voided_at' => now(),
+        ]);
+        $package->update(['status' => MemberPtPackage::STATUS_CANCELLED]);
+
+        $this->actingAs($manager)
+            ->postJson("/panel/employees/{$coach->id}/payrolls/{$payrollId}/approve")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['payroll']);
+
+        $this->assertSame(Payroll::STATUS_DRAFT, Payroll::findOrFail($payrollId)->status);
+    }
+
+    public function test_completed_pt_sale_commission_snapshot_can_be_approved(): void
+    {
+        $manager = $this->createManager();
+        $coach = $this->createCoach(40);
+        $this->createPtPackageSale($coach, 3600, '2026-03-05');
+        $payrollId = $this->actingAs($manager)
+            ->postJson("/panel/employees/{$coach->id}/payrolls", [
+                'period_start' => '2026-03-01',
+                'period_end' => '2026-03-15',
+                'gross_amount' => 1440,
+                'manual_deductions' => 0,
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $this->actingAs($manager)
+            ->postJson("/panel/employees/{$coach->id}/payrolls/{$payrollId}/approve")
+            ->assertOk()
+            ->assertJsonPath('status', Payroll::STATUS_APPROVED);
     }
 
     private function createManager(): User
@@ -198,7 +283,7 @@ class EmployeePayrollPtEarningsTest extends TestCase
             'is_active' => true,
         ]);
 
-        return MemberPtPackage::create([
+        $package = MemberPtPackage::create([
             'user_id' => $member->id,
             'pt_product_id' => $ptProduct->id,
             'sold_price' => $soldPrice,
@@ -208,5 +293,25 @@ class EmployeePayrollPtEarningsTest extends TestCase
             'assigned_at' => $assignedAt,
             'status' => $status,
         ]);
+
+        $saleTransaction = SaleTransaction::create([
+            'member_id' => $member->id,
+            'type' => SaleTransaction::TYPE_PT_PACKAGE,
+            'status' => SaleTransaction::STATUS_COMPLETED,
+            'total' => $soldPrice,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'sold_at' => $assignedAt.' 09:00:00',
+            'customer_name' => $member->name,
+            'item_name' => $ptProduct->name,
+            'details' => [
+                'member_pt_package_id' => $package->id,
+            ],
+        ]);
+
+        $package->update([
+            'sale_transaction_id' => $saleTransaction->id,
+        ]);
+
+        return $package;
     }
 }
