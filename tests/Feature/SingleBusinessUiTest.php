@@ -290,6 +290,21 @@ class SingleBusinessUiTest extends TestCase
         $this->assertStringNotContainsString("&:nth-child(even) {\n        color: #000;", $panelStyles);
     }
 
+    public function test_employee_payroll_summary_excludes_canceled_payrolls_without_hiding_history(): void
+    {
+        $contents = file_get_contents(resource_path('js/components/panel/vendor/EmployeePayrollPage.vue'));
+
+        $this->assertNotFalse($contents);
+        $this->assertStringContainsString('return this.payrolls.filter((payroll) => payroll.status !== "canceled");', $contents);
+        $this->assertSame(4, substr_count($contents, 'this.summaryPayrolls.reduce('));
+        $this->assertStringContainsString('const totalGross = this.summaryPayrolls.reduce(', $contents);
+        $this->assertStringContainsString('const totalNet = this.summaryPayrolls.reduce(', $contents);
+        $this->assertStringContainsString('const totalPaid = this.summaryPayrolls.reduce(', $contents);
+        $this->assertStringContainsString('const outstanding = this.summaryPayrolls.reduce(', $contents);
+        $this->assertStringContainsString('<tr v-for="p in payrolls" :key="p.id">', $contents);
+        $this->assertStringContainsString('<div class="member-card" v-for="p in payrolls" :key="\'pm\' + p.id">', $contents);
+    }
+
     public function test_employee_settings_page_splits_information_and_payroll_controls(): void
     {
         $contents = file_get_contents(resource_path('js/components/panel/vendor/EmployeeSettingsPage.vue'));

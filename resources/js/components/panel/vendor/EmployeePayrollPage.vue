@@ -304,11 +304,14 @@ export default {
          const isAdmin = roles.includes("admin") || roles.includes("super admin");
          return !(isSelf && isManager && !isAdmin);
       },
+      summaryPayrolls: function () {
+         return this.payrolls.filter((payroll) => payroll.status !== "canceled");
+      },
       summaryCards: function () {
-         const totalGross = this.payrolls.reduce((s, p) => s + p.gross_amount, 0);
-         const totalNet = this.payrolls.reduce((s, p) => s + p.net_amount, 0);
-         const totalPaid = this.payrolls.reduce((s, p) => s + p.total_paid, 0);
-         const outstanding = this.payrolls.reduce((s, p) => s + p.remaining_balance, 0);
+         const totalGross = this.summaryPayrolls.reduce((sum, payroll) => sum + payroll.gross_amount, 0);
+         const totalNet = this.summaryPayrolls.reduce((sum, payroll) => sum + payroll.net_amount, 0);
+         const totalPaid = this.summaryPayrolls.reduce((sum, payroll) => sum + payroll.total_paid, 0);
+         const outstanding = this.summaryPayrolls.reduce((sum, payroll) => sum + payroll.remaining_balance, 0);
          return [
             { label: "Total Gross", value: totalGross, icon: "bi-receipt", iconBg: "bg-primary-soft", iconColor: "text-primary" },
             { label: "Total Net", value: totalNet, icon: "bi-calculator", iconBg: "bg-success-soft", iconColor: "text-success" },
