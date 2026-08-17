@@ -1664,12 +1664,30 @@ body.auth-body {
     }
 
     &:nth-child(even) {
-        color: #000;
-        background-color: rgba(0, 0, 0, 0.03);
+        background-color: rgba(var(--bs-emphasis-color-rgb), 0.03);
     }
 
     &:hover {
-        background-color: rgba(0, 0, 0, 0.075);
+        background-color: rgba(var(--bs-emphasis-color-rgb), 0.075);
+    }
+}
+
+.panel-pagination-mobile {
+    max-width: 100%;
+
+    .page-link {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+
+    .panel-pagination-status {
+        min-width: 96px;
+        color: var(--bs-body-color);
+        background-color: var(--bs-tertiary-bg);
+        opacity: 1;
     }
 }
 

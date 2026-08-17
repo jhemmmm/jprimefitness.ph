@@ -393,13 +393,7 @@
                   </div>
                </div>
                <div v-if="!loading && detailPagination.last_page > 1" class="d-flex justify-content-center py-3 border-top">
-                  <nav>
-                     <ul class="pagination pagination-sm mb-0">
-                        <li v-for="link in detailPagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
-                           <a class="page-link" href="#" @click.prevent="goToPage(link)" v-html="link.label"></a>
-                        </li>
-                     </ul>
-                  </nav>
+                  <panel-pagination :links="detailPagination.links" :current-page="detailPagination.current_page" :last-page="detailPagination.last_page" aria-label="Attendance report pagination" @page-change="fetchReport" />
                </div>
             </div>
          </div>
@@ -646,14 +640,6 @@ export default {
             .finally(() => {
                this.loading = false;
             });
-      },
-      goToPage: function (link) {
-         if (!link.url) {
-            return;
-         }
-
-         const page = parseInt(new URL(link.url).searchParams.get("page") || "1", 10);
-         this.fetchReport(page);
       },
       formatDuration: function (minutes) {
          if (!minutes && minutes !== 0) {

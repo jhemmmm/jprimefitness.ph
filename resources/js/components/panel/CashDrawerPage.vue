@@ -284,13 +284,7 @@
          </template>
 
          <div v-if="!loadingSessions && !sessionsError && sessionsPagination.lastPage > 1" class="d-flex justify-content-center py-3 border-top">
-            <nav aria-label="Cash drawer history pages">
-               <ul class="pagination pagination-sm mb-0">
-                  <li v-for="link in sessionsPagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
-                     <a class="page-link" href="#" @click.prevent="goToSessionsPage(link)" v-html="link.label"></a>
-                  </li>
-               </ul>
-            </nav>
+            <panel-pagination :links="sessionsPagination.links" :current-page="sessionsPagination.currentPage" :last-page="sessionsPagination.lastPage" aria-label="Cash drawer history pagination" @page-change="fetchSessions" />
          </div>
       </div>
 
@@ -583,13 +577,7 @@
                   </template>
 
                   <div v-if="!selectedSessionLoading && !selectedSessionError && selectedEntriesPagination.lastPage > 1" class="d-flex justify-content-center py-3 border-top">
-                     <nav aria-label="Cash movement pages">
-                        <ul class="pagination pagination-sm mb-0">
-                           <li v-for="link in selectedEntriesPagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
-                              <a class="page-link" href="#" @click.prevent="goToSelectedSessionPage(link)" v-html="link.label"></a>
-                           </li>
-                        </ul>
-                     </nav>
+                     <panel-pagination :links="selectedEntriesPagination.links" :current-page="selectedEntriesPagination.currentPage" :last-page="selectedEntriesPagination.lastPage" aria-label="Cash movement pagination" @page-change="fetchSessionEntries" />
                   </div>
                </div>
                <div class="modal-footer">
@@ -619,12 +607,12 @@ export default {
          loadingSessions: true,
          sessionsError: "",
          historyHeadings: ["Session Period", "Opening Float", "Reconciliation", "Result", "Bank Deposit", "Handled By", ""],
-         sessionsPagination: { lastPage: 1, links: [], total: 0, from: 0, to: 0 },
+         sessionsPagination: { currentPage: 1, lastPage: 1, links: [], total: 0, from: 0, to: 0 },
          selectedSession: null,
          selectedSessionEntries: [],
          selectedSessionLoading: false,
          selectedSessionError: "",
-         selectedEntriesPagination: { lastPage: 1, links: [], total: 0 },
+         selectedEntriesPagination: { currentPage: 1, lastPage: 1, links: [], total: 0 },
          expenseMonth: new Date().toISOString().slice(0, 7),
          expenseSummary: { categories: [], total: 0 },
          openForm: { opening_float: "", notes: "" },
@@ -755,6 +743,7 @@ export default {
             .then((res) => {
                this.sessions = res.data.data;
                this.sessionsPagination = {
+                  currentPage: res.data.current_page,
                   lastPage: res.data.last_page,
                   links: res.data.links,
                   total: res.data.total,
@@ -770,7 +759,7 @@ export default {
       viewSession: function (row) {
          this.selectedSession = row;
          this.selectedSessionEntries = [];
-         this.selectedEntriesPagination = { lastPage: 1, links: [], total: 0 };
+         this.selectedEntriesPagination = { currentPage: 1, lastPage: 1, links: [], total: 0 };
          this.sessionModalInst.show();
          this.fetchSessionEntries();
       },
@@ -783,6 +772,7 @@ export default {
             .then((res) => {
                this.selectedSessionEntries = res.data.data;
                this.selectedEntriesPagination = {
+                  currentPage: res.data.current_page,
                   lastPage: res.data.last_page,
                   links: res.data.links,
                   total: res.data.total,
@@ -792,16 +782,6 @@ export default {
                this.selectedSessionError = err.response?.data?.message || "Please check your connection and try again.";
             })
             .finally(() => (this.selectedSessionLoading = false));
-      },
-      goToSessionsPage: function (link) {
-         if (!link.url) return;
-         const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
-         this.fetchSessions(page);
-      },
-      goToSelectedSessionPage: function (link) {
-         if (!link.url) return;
-         const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
-         this.fetchSessionEntries(page);
       },
       fetchExpenseSummary: function () {
          axios.get("/panel/cash-drawer/expense-summary", { params: { month: this.expenseMonth } }).then((res) => {

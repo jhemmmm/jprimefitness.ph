@@ -99,13 +99,7 @@
       </div>
 
       <div v-if="!loading && pagination.lastPage > 1" class="d-flex justify-content-center pt-3 border-top">
-         <nav>
-            <ul class="pagination pagination-sm mb-0">
-               <li v-for="link in pagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
-                  <a class="page-link" href="#" @click.prevent="goToPage(link)" v-html="link.label"></a>
-               </li>
-            </ul>
-         </nav>
+         <panel-pagination :links="pagination.links" :current-page="currentPage" :last-page="pagination.lastPage" aria-label="Member attendance pagination" @page-change="fetchRecords" />
       </div>
 
       <div class="modal fade" tabindex="-1" ref="logModal">
@@ -233,13 +227,6 @@ export default {
             })
             .catch((err) => (this.pageError = err.response?.data?.message || "Failed to load attendance records."))
             .finally(() => (this.loading = false));
-      },
-
-      goToPage: function (link) {
-         if (!link.url) return;
-         const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
-         this.currentPage = page;
-         this.fetchRecords(page);
       },
 
       openLogModal: function () {

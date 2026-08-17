@@ -337,13 +337,7 @@
          </div>
 
          <div v-if="!loading && pagination.lastPage > 1" class="d-flex justify-content-center py-3 border-top">
-            <nav>
-               <ul class="pagination pagination-sm mb-0">
-                  <li v-for="link in pagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
-                     <a class="page-link" href="#" @click.prevent="goToPage(link)" v-html="link.label"></a>
-                  </li>
-               </ul>
-            </nav>
+            <panel-pagination :links="pagination.links" :current-page="pagination.currentPage" :last-page="pagination.lastPage" aria-label="Inventory pagination" @page-change="fetchItems" />
          </div>
       </div>
 
@@ -650,14 +644,6 @@ export default {
       onSearchInput: function () {
          clearTimeout(this.searchTimer);
          this.searchTimer = setTimeout(() => this.fetchItems(1), 400);
-      },
-      goToPage: function (link) {
-         if (!link.url) {
-            return;
-         }
-
-         var page = parseInt(new URL(link.url).searchParams.get("page") || "1", 10);
-         this.fetchItems(page);
       },
       clearFilter: function (chip) {
          if (typeof chip === "string") {

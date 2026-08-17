@@ -256,13 +256,7 @@
 
          <!-- Pagination -->
          <div v-if="!loading && pagination.lastPage > 1" class="d-flex justify-content-center py-3 border-top">
-            <nav>
-               <ul class="pagination pagination-sm mb-0">
-                  <li v-for="link in pagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
-                     <a class="page-link" href="#" @click.prevent="goToPage(link)" v-html="link.label"></a>
-                  </li>
-               </ul>
-            </nav>
+            <panel-pagination :links="pagination.links" :current-page="pagination.currentPage" :last-page="pagination.lastPage" aria-label="Attendance pagination" @page-change="fetchRecords" />
          </div>
       </div>
 
@@ -468,12 +462,6 @@ export default {
       onSearchInput: function () {
          clearTimeout(this.searchTimer);
          this.searchTimer = setTimeout(() => this.fetchRecords(), 500);
-      },
-
-      goToPage: function (link) {
-         if (!link.url) return;
-         const page = parseInt(new URL(link.url).searchParams.get("page") || "1");
-         this.fetchRecords(page);
       },
 
       getAttendanceDetailUrl: function (record) {

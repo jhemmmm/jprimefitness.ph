@@ -12,6 +12,9 @@ app.component("global-search", GlobalSearch);
 import PanelNotifications from "./components/panel/vendor/PanelNotifications.vue";
 app.component("panel-notifications", PanelNotifications);
 
+import PanelPagination from "./components/panel/vendor/PanelPagination.vue";
+app.component("panel-pagination", PanelPagination);
+
 import AsyncSearchSelect from "./components/panel/vendor/AsyncSearchSelect.vue";
 app.component("async-search-select", AsyncSearchSelect);
 

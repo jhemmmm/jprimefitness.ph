@@ -235,6 +235,61 @@ class SingleBusinessUiTest extends TestCase
         $this->assertStringContainsString('max-height: calc(100dvh - #{$topbar-height} - 24px - env(safe-area-inset-bottom));', $panelStyles);
     }
 
+    public function test_panel_pagination_is_shared_responsive_and_theme_safe(): void
+    {
+        $appContents = file_get_contents(resource_path('js/app.js'));
+        $paginationContents = file_get_contents(resource_path('js/components/panel/vendor/PanelPagination.vue'));
+        $panelStyles = file_get_contents(resource_path('sass/panel.scss'));
+
+        $paginationConsumers = [
+            'js/components/panel/AttendancePage.vue',
+            'js/components/panel/AttendanceReportsPage.vue',
+            'js/components/panel/CashDrawerPage.vue',
+            'js/components/panel/InventoryPage.vue',
+            'js/components/panel/MembersPage.vue',
+            'js/components/panel/NotificationsPage.vue',
+            'js/components/panel/PayrollReportsPage.vue',
+            'js/components/panel/SalesPage.vue',
+            'js/components/panel/SalesReportsPage.vue',
+            'js/components/panel/SystemActivityPage.vue',
+            'js/components/panel/vendor/EmployeeAttendancePage.vue',
+            'js/components/panel/vendor/MemberAttendancePage.vue',
+        ];
+
+        $this->assertNotFalse($appContents);
+        $this->assertStringContainsString('import PanelPagination from "./components/panel/vendor/PanelPagination.vue";', $appContents);
+        $this->assertStringContainsString('app.component("panel-pagination", PanelPagination);', $appContents);
+
+        $this->assertNotFalse($paginationContents);
+        $this->assertStringContainsString('class="pagination pagination-sm mb-0 d-none d-md-flex"', $paginationContents);
+        $this->assertStringContainsString('class="pagination pagination-sm panel-pagination-mobile mb-0 d-flex d-md-none"', $paginationContents);
+        $this->assertStringContainsString('Page {{ currentPage }} of {{ lastPage }}', $paginationContents);
+        $this->assertStringContainsString(':disabled="currentPage <= 1"', $paginationContents);
+        $this->assertStringContainsString(':disabled="currentPage >= lastPage"', $paginationContents);
+        $this->assertStringContainsString('@click="emitPage(currentPage - 1)"', $paginationContents);
+        $this->assertStringContainsString('@click="emitPage(currentPage + 1)"', $paginationContents);
+        $this->assertStringContainsString('this.$emit("page-change", targetPage);', $paginationContents);
+
+        $paginationUsageCount = 0;
+
+        foreach ($paginationConsumers as $consumer) {
+            $consumerContents = file_get_contents(resource_path($consumer));
+
+            $this->assertNotFalse($consumerContents);
+            $this->assertStringContainsString('<panel-pagination', $consumerContents, $consumer);
+            $this->assertStringNotContainsString('<ul class="pagination', $consumerContents, $consumer);
+
+            $paginationUsageCount += substr_count($consumerContents, '<panel-pagination');
+        }
+
+        $this->assertSame(13, $paginationUsageCount);
+
+        $this->assertNotFalse($panelStyles);
+        $this->assertStringContainsString("&:nth-child(even) {\n        background-color: rgba(var(--bs-emphasis-color-rgb), 0.03);\n    }", $panelStyles);
+        $this->assertStringContainsString('.panel-pagination-mobile {', $panelStyles);
+        $this->assertStringNotContainsString("&:nth-child(even) {\n        color: #000;", $panelStyles);
+    }
+
     public function test_employee_settings_page_splits_information_and_payroll_controls(): void
     {
         $contents = file_get_contents(resource_path('js/components/panel/vendor/EmployeeSettingsPage.vue'));

@@ -641,13 +641,7 @@
             </div>
 
             <div v-if="!loadingHistory && historyPagination.lastPage > 1" class="d-flex justify-content-center py-3 border-top">
-               <nav>
-                  <ul class="pagination pagination-sm mb-0">
-                     <li v-for="link in historyPagination.links" :key="link.label" class="page-item" :class="{ active: link.active, disabled: !link.url }">
-                        <a class="page-link" href="#" @click.prevent="goToHistoryPage(link)" v-html="link.label"></a>
-                     </li>
-                  </ul>
-               </nav>
+               <panel-pagination :links="historyPagination.links" :current-page="historyPagination.currentPage" :last-page="historyPagination.lastPage" aria-label="Sales history pagination" @page-change="fetchHistory" />
             </div>
          </div>
       </template>
@@ -1384,14 +1378,6 @@ export default {
             .finally(() => {
                this.processingSale = false;
             });
-      },
-      goToHistoryPage: function (link) {
-         if (!link.url) {
-            return;
-         }
-
-         var page = parseInt(new URL(link.url).searchParams.get("page") || "1", 10);
-         this.fetchHistory(page);
       },
       openMembershipQr: function (transaction) {
          if (!transaction.membership_qr_url) {
