@@ -213,6 +213,28 @@ class SingleBusinessUiTest extends TestCase
         $this->assertStringNotContainsString('Auto-fill', $contents);
     }
 
+    public function test_mobile_notifications_and_payroll_document_have_responsive_layout_contracts(): void
+    {
+        $payrollContents = file_get_contents(resource_path('js/components/panel/PayrollDocumentPage.vue'));
+        $panelStyles = file_get_contents(resource_path('sass/panel.scss'));
+
+        $this->assertNotFalse($payrollContents);
+        $this->assertStringContainsString('class="table-responsive d-none d-md-block mb-3"', $payrollContents);
+        $this->assertStringContainsString('class="doc-mobile-card" v-for="day in suggestionDays"', $payrollContents);
+        $this->assertStringContainsString('class="doc-mobile-card" v-for="(sale, index) in commissionSales"', $payrollContents);
+        $this->assertStringContainsString('class="doc-breakdown doc-breakdown--compensation d-none d-md-table"', $payrollContents);
+        $this->assertStringContainsString('class="d-md-none doc-compensation-mobile"', $payrollContents);
+        $this->assertStringContainsString('for="payroll-mobile-gross"', $payrollContents);
+        $this->assertStringContainsString('class="d-flex justify-content-end gap-2 border-top pt-3 doc-actions"', $payrollContents);
+
+        $this->assertNotFalse($panelStyles);
+        $this->assertStringContainsString(".notifications-dropdown {\n        position: fixed;\n        top: calc(#{\$topbar-height} + 8px);", $panelStyles);
+        $this->assertStringContainsString('top: calc(#{$topbar-height} + 8px);', $panelStyles);
+        $this->assertStringContainsString('right: max(12px, env(safe-area-inset-right));', $panelStyles);
+        $this->assertStringContainsString('left: max(12px, env(safe-area-inset-left));', $panelStyles);
+        $this->assertStringContainsString('max-height: calc(100dvh - #{$topbar-height} - 24px - env(safe-area-inset-bottom));', $panelStyles);
+    }
+
     public function test_employee_settings_page_splits_information_and_payroll_controls(): void
     {
         $contents = file_get_contents(resource_path('js/components/panel/vendor/EmployeeSettingsPage.vue'));

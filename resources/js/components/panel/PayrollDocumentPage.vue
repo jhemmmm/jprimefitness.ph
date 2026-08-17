@@ -1,11 +1,11 @@
 <template>
    <div>
-      <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-         <div>
+      <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2 payroll-page-header">
+         <div class="payroll-page-heading">
             <h4 class="fw-bold mb-0">{{ isEdit ? "Edit Payroll Draft" : "Create Payroll" }}</h4>
             <div class="text-muted small">Review attendance, adjust amounts, and save the payroll draft</div>
          </div>
-         <a :href="employeeUrl" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back</a>
+         <a :href="employeeUrl" class="btn btn-outline-secondary payroll-back-button"><i class="bi bi-arrow-left me-1"></i> Back</a>
       </div>
 
       <div class="alert alert-danger py-2 small" v-if="formError">{{ formError }}</div>
@@ -95,7 +95,7 @@
 
             <!-- Attendance detail -->
             <div class="doc-section-title">Attendance Detail</div>
-            <div class="table-responsive mb-3">
+            <div class="table-responsive d-none d-md-block mb-3">
                <table class="doc-table">
                   <thead>
                      <tr>
@@ -148,10 +148,75 @@
                </table>
             </div>
 
+            <div class="d-md-none doc-mobile-list mb-3">
+               <article class="doc-mobile-card" v-for="day in suggestionDays" :key="'attendance-mobile-' + day.date">
+                  <div class="doc-mobile-card-header">
+                     <div class="doc-mobile-card-title">{{ formatDate(day.date) }}</div>
+                     <span :class="['m-badge', dayStatusBadge(day.status)]">{{ $filters.capitalize(day.status) }}</span>
+                  </div>
+                  <div v-if="day.late_minutes > 0" class="doc-mobile-note">{{ day.late_minutes }} minutes late</div>
+                  <dl class="doc-mobile-grid">
+                     <div class="doc-mobile-field">
+                        <dt>Time In</dt>
+                        <dd>{{ day.time_in ? formatTime(day.time_in) : "-" }}</dd>
+                     </div>
+                     <div class="doc-mobile-field">
+                        <dt>Time Out</dt>
+                        <dd>{{ day.time_out ? formatTime(day.time_out) : "-" }}</dd>
+                     </div>
+                     <div class="doc-mobile-field">
+                        <dt>Scheduled</dt>
+                        <dd>{{ day.scheduled_hours > 0 ? formatHours(day.scheduled_hours) + "h" : "-" }}</dd>
+                     </div>
+                     <div class="doc-mobile-field">
+                        <dt>Worked</dt>
+                        <dd>{{ formatHours(day.worked_hours) }}h</dd>
+                     </div>
+                     <div class="doc-mobile-field">
+                        <dt>Paid</dt>
+                        <dd>{{ formatHours(day.paid_hours) }}h</dd>
+                     </div>
+                     <div class="doc-mobile-field">
+                        <dt>Day Pay</dt>
+                        <dd>₱{{ $filters.formatMoney(day.day_pay_amount) }}</dd>
+                     </div>
+                     <div class="doc-mobile-field doc-mobile-field--wide">
+                        <dt>Deduction</dt>
+                        <dd :class="{ 'doc-negative': day.deduction_amount > 0 }">{{ day.deduction_amount > 0 ? "-₱" + $filters.formatMoney(day.deduction_amount) : "-" }}</dd>
+                     </div>
+                  </dl>
+               </article>
+
+               <div v-if="loadingSuggestion && !suggestionDays.length" class="doc-mobile-empty"><span class="spinner-border spinner-border-sm me-1"></span>Computing attendance…</div>
+               <div v-else-if="!suggestionDays.length" class="doc-mobile-empty">No attendance records found for this period.</div>
+
+               <div v-if="suggestionDays.length" class="doc-mobile-summary">
+                  <div class="doc-mobile-summary-title">Attendance Totals</div>
+                  <dl class="doc-mobile-grid mb-0">
+                     <div class="doc-mobile-field">
+                        <dt>Worked</dt>
+                        <dd>{{ formatHours(dayTotals.worked) }}h</dd>
+                     </div>
+                     <div class="doc-mobile-field">
+                        <dt>Paid</dt>
+                        <dd>{{ formatHours(dayTotals.paid) }}h</dd>
+                     </div>
+                     <div class="doc-mobile-field">
+                        <dt>Day Pay</dt>
+                        <dd>₱{{ $filters.formatMoney(dayTotals.pay) }}</dd>
+                     </div>
+                     <div class="doc-mobile-field">
+                        <dt>Deduction</dt>
+                        <dd :class="{ 'doc-negative': dayTotals.deduction > 0 }">{{ dayTotals.deduction > 0 ? "-₱" + $filters.formatMoney(dayTotals.deduction) : "-" }}</dd>
+                     </div>
+                  </dl>
+               </div>
+            </div>
+
             <!-- PT commission detail -->
             <template v-if="commissionSales.length">
                <div class="doc-section-title">PT Commission Detail</div>
-               <div class="table-responsive mb-3">
+               <div class="table-responsive d-none d-md-block mb-3">
                   <table class="doc-table">
                      <thead>
                         <tr>
@@ -181,13 +246,42 @@
                      </tfoot>
                   </table>
                </div>
+
+               <div class="d-md-none doc-mobile-list mb-3">
+                  <article class="doc-mobile-card" v-for="(sale, index) in commissionSales" :key="'commission-mobile-' + index">
+                     <div class="doc-mobile-card-header">
+                        <div class="doc-mobile-card-title">{{ sale.member_name || "-" }}</div>
+                        <div class="doc-mobile-card-date">{{ formatDate(sale.date) }}</div>
+                     </div>
+                     <div class="doc-mobile-card-subtitle">{{ sale.plan_name || "-" }}</div>
+                     <dl class="doc-mobile-grid">
+                        <div class="doc-mobile-field">
+                           <dt>Sold Price</dt>
+                           <dd>₱{{ $filters.formatMoney(sale.sold_price) }}</dd>
+                        </div>
+                        <div class="doc-mobile-field">
+                           <dt>Rate</dt>
+                           <dd>{{ sale.rate }}%</dd>
+                        </div>
+                        <div class="doc-mobile-field doc-mobile-field--wide">
+                           <dt>Commission</dt>
+                           <dd class="doc-positive">+₱{{ $filters.formatMoney(sale.amount) }}</dd>
+                        </div>
+                     </dl>
+                  </article>
+
+                  <div class="doc-mobile-summary doc-mobile-summary--commission">
+                     <span>Total PT commission</span>
+                     <strong class="doc-positive">+₱{{ $filters.formatMoney(commissionAmount) }}</strong>
+                  </div>
+               </div>
             </template>
 
             <!-- Compensation -->
             <div class="doc-section-title">Compensation Breakdown</div>
             <div class="row g-3 mb-3">
                <div class="col-lg-7">
-                  <table class="doc-breakdown">
+                  <table class="doc-breakdown doc-breakdown--compensation d-none d-md-table">
                      <tbody>
                         <tr>
                            <td>Regular pay ({{ formatHours(form.regular_hours) }} hrs)</td>
@@ -245,6 +339,57 @@
                         </tr>
                      </tbody>
                   </table>
+
+                  <div class="d-md-none doc-compensation-mobile">
+                     <div class="doc-compensation-row">
+                        <span>Regular pay ({{ formatHours(form.regular_hours) }} hrs)</span>
+                        <strong>₱{{ $filters.formatMoney(form.regular_pay_amount) }}</strong>
+                     </div>
+                     <div class="doc-compensation-row" v-if="payOverworkHours || form.overwork_pay_amount > 0">
+                        <span>Overwork pay ({{ formatHours(form.overwork_hours) }} hrs)</span>
+                        <strong class="doc-positive">+ ₱{{ $filters.formatMoney(form.overwork_pay_amount) }}</strong>
+                     </div>
+                     <div class="doc-compensation-row" v-if="commissionAmount > 0">
+                        <span>PT commissions ({{ commissionSales.length }} {{ commissionSales.length === 1 ? "sale" : "sales" }})</span>
+                        <strong class="doc-positive">+ ₱{{ $filters.formatMoney(commissionAmount) }}</strong>
+                     </div>
+                     <div class="doc-compensation-row" v-if="Math.abs(manualGrossAdjustment) >= 0.01">
+                        <span>Manual gross adjustment</span>
+                        <strong :class="manualGrossAdjustment > 0 ? 'doc-positive' : 'doc-negative'">{{ manualGrossAdjustment > 0 ? "+" : "-" }} ₱{{ $filters.formatMoney(Math.abs(manualGrossAdjustment)) }}</strong>
+                     </div>
+                     <div class="doc-compensation-field">
+                        <label for="payroll-mobile-gross">Gross amount</label>
+                        <input id="payroll-mobile-gross" type="number" min="0" step="0.01" class="form-control text-start doc-amount-input" v-model="form.gross_amount" :class="{ 'is-invalid': formErrors.gross_amount }" />
+                        <div class="invalid-feedback" v-if="formErrors.gross_amount">{{ formErrors.gross_amount }}</div>
+                     </div>
+                     <div class="doc-compensation-row" v-if="payrollWithholdingTaxEnabled || form.withholding_tax > 0">
+                        <span>Withholding tax</span>
+                        <strong :class="{ 'doc-negative': form.withholding_tax > 0 }">{{ form.withholding_tax > 0 ? "- ₱" + $filters.formatMoney(form.withholding_tax) : "-" }}</strong>
+                     </div>
+                     <template v-for="program in contributionPrograms(form.employee_contributions)" :key="'mobile-' + program.key">
+                        <div class="doc-compensation-row" v-for="line in program.lines" :key="'mobile-' + program.key + '-' + line.key">
+                           <span>{{ program.label }} - {{ line.label }}</span>
+                           <strong class="doc-negative">- ₱{{ $filters.formatMoney(line.amount) }}</strong>
+                        </div>
+                     </template>
+                     <div class="doc-compensation-field">
+                        <label for="payroll-mobile-deductions">Other deductions</label>
+                        <input id="payroll-mobile-deductions" type="number" min="0" step="0.01" class="form-control text-start doc-amount-input" v-model="form.manual_deductions" :class="{ 'is-invalid': formErrors.manual_deductions }" />
+                        <div class="invalid-feedback" v-if="formErrors.manual_deductions">{{ formErrors.manual_deductions }}</div>
+                     </div>
+                     <div class="doc-compensation-field" v-if="cashAdvanceOutstanding > 0 || form.cash_advance_deductions > 0">
+                        <label for="payroll-mobile-cash-advance">
+                           Cash advance repayment
+                           <span class="d-block text-muted small">Outstanding: ₱{{ $filters.formatMoney(cashAdvanceOutstanding) }}</span>
+                        </label>
+                        <input id="payroll-mobile-cash-advance" type="number" min="0" step="0.01" class="form-control text-start doc-amount-input" v-model="form.cash_advance_deductions" :class="{ 'is-invalid': formErrors.cash_advance_deductions }" />
+                        <div class="invalid-feedback" v-if="formErrors.cash_advance_deductions">{{ formErrors.cash_advance_deductions }}</div>
+                     </div>
+                     <div class="doc-compensation-row doc-compensation-net">
+                        <span>Net pay</span>
+                        <strong>₱{{ $filters.formatMoney(netPreview) }}</strong>
+                     </div>
+                  </div>
                </div>
                <div class="col-lg-5">
                   <div class="doc-box mb-3">
@@ -267,7 +412,7 @@
             </div>
 
             <!-- Actions -->
-            <div class="d-flex justify-content-end gap-2 border-top pt-3">
+            <div class="d-flex justify-content-end gap-2 border-top pt-3 doc-actions">
                <a :href="employeeUrl" class="btn btn-outline-secondary btn-sm">Cancel</a>
                <button class="btn btn-danger btn-sm" :disabled="submitting || !form.period_start || !form.period_end" @click="submitPayroll">
                   <span v-if="submitting" class="spinner-border spinner-border-sm me-1"></span>
@@ -701,6 +846,159 @@ export default {
    font-weight: 700;
 }
 
+.doc-mobile-list {
+   min-width: 0;
+}
+
+.doc-mobile-card,
+.doc-mobile-summary,
+.doc-mobile-empty {
+   border: 1px solid #e5e7eb;
+   border-radius: 8px;
+   background: #ffffff;
+}
+
+.doc-mobile-card {
+   padding: 12px;
+   margin-bottom: 10px;
+}
+
+.doc-mobile-card-header {
+   display: flex;
+   align-items: flex-start;
+   justify-content: space-between;
+   gap: 10px;
+   min-width: 0;
+}
+
+.doc-mobile-card-title {
+   min-width: 0;
+   font-size: 0.85rem;
+   font-weight: 800;
+   overflow-wrap: anywhere;
+}
+
+.doc-mobile-card-date,
+.doc-mobile-card-subtitle,
+.doc-mobile-note {
+   color: #6b7280;
+   font-size: 0.72rem;
+}
+
+.doc-mobile-card-date {
+   flex-shrink: 0;
+}
+
+.doc-mobile-card-subtitle,
+.doc-mobile-note {
+   margin-top: 3px;
+}
+
+.doc-mobile-grid {
+   display: grid;
+   grid-template-columns: repeat(2, minmax(0, 1fr));
+   gap: 10px 14px;
+   margin: 12px 0 0;
+}
+
+.doc-mobile-field {
+   min-width: 0;
+}
+
+.doc-mobile-field--wide {
+   grid-column: 1 / -1;
+}
+
+.doc-mobile-field dt {
+   color: #6b7280;
+   font-size: 0.62rem;
+   font-weight: 700;
+   letter-spacing: 0.6px;
+   text-transform: uppercase;
+}
+
+.doc-mobile-field dd {
+   margin: 2px 0 0;
+   font-size: 0.8rem;
+   font-weight: 700;
+   overflow-wrap: anywhere;
+}
+
+.doc-mobile-summary {
+   padding: 12px;
+   background: #f9fafb;
+}
+
+.doc-mobile-summary-title {
+   font-size: 0.72rem;
+   font-weight: 800;
+   letter-spacing: 0.6px;
+   text-transform: uppercase;
+}
+
+.doc-mobile-summary--commission {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   gap: 12px;
+   font-size: 0.82rem;
+}
+
+.doc-mobile-empty {
+   padding: 16px 12px;
+   color: #6b7280;
+   font-size: 0.8rem;
+   text-align: center;
+}
+
+.doc-compensation-mobile {
+   width: 100%;
+}
+
+.doc-compensation-row {
+   display: grid;
+   grid-template-columns: minmax(0, 1fr) auto;
+   align-items: start;
+   gap: 12px;
+   padding: 9px 0;
+   border-bottom: 1px solid #e5e7eb;
+   color: #4b5563;
+   font-size: 0.82rem;
+}
+
+.doc-compensation-row strong {
+   text-align: right;
+   overflow-wrap: anywhere;
+}
+
+.doc-compensation-field {
+   padding: 10px 0;
+   border-bottom: 1px solid #e5e7eb;
+}
+
+.doc-compensation-field label {
+   display: block;
+   margin-bottom: 6px;
+   color: #4b5563;
+   font-size: 0.82rem;
+}
+
+.doc-compensation-field .doc-amount-input {
+   width: 100%;
+   max-width: none;
+   min-height: 44px;
+   margin-left: 0;
+}
+
+.doc-compensation-net {
+   margin-top: 2px;
+   border-top: 2px solid #111827;
+   border-bottom: 0;
+   color: #15803d;
+   font-size: 1rem;
+   font-weight: 800;
+}
+
 .doc-breakdown {
    width: 100%;
    border-collapse: collapse;
@@ -761,5 +1059,127 @@ export default {
 
 .doc-sheet .text-muted {
    color: #6b7280 !important;
+}
+
+@media (max-width: 767.98px) {
+   .payroll-page-header {
+      align-items: flex-start !important;
+   }
+
+   .payroll-page-heading {
+      flex: 1 1 180px;
+      min-width: 0;
+   }
+
+   .payroll-back-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      flex-shrink: 0;
+   }
+
+   .doc-sheet {
+      width: 100%;
+      max-width: 100%;
+      border-radius: 0;
+      box-shadow: none;
+   }
+
+   .doc-band {
+      display: block;
+      padding: 16px;
+      border-bottom-width: 4px;
+   }
+
+   .doc-band-left,
+   .doc-band-right {
+      min-width: 0;
+   }
+
+   .doc-band-right {
+      margin-top: 16px;
+   }
+
+   .doc-title {
+      font-size: 1.25rem;
+      text-align: left;
+   }
+
+   .doc-meta {
+      width: 100%;
+      margin-left: 0;
+      table-layout: fixed;
+   }
+
+   .doc-meta td {
+      padding: 3px 0;
+      text-align: left;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+   }
+
+   .doc-meta td:first-child {
+      width: 104px;
+   }
+
+   .doc-meta td + td {
+      padding-left: 10px;
+   }
+
+   .doc-content {
+      padding: 14px;
+   }
+
+   .doc-info-grid {
+      grid-template-columns: 1fr;
+   }
+
+   .doc-field-value {
+      display: block;
+      overflow-wrap: anywhere;
+   }
+
+   .doc-sheet input.form-control {
+      min-height: 44px;
+   }
+
+   .doc-actions {
+      position: sticky;
+      bottom: 0;
+      z-index: 5;
+      margin: 0 -14px -14px;
+      padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+      background: rgba(255, 255, 255, 0.98);
+      box-shadow: 0 -8px 18px rgba(17, 24, 39, 0.08);
+   }
+
+   .doc-actions .btn {
+      flex: 1 1 0;
+      min-height: 44px;
+   }
+}
+
+@media (max-width: 575.98px) {
+   .payroll-page-header {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px !important;
+      margin-bottom: 16px !important;
+   }
+
+   .doc-band,
+   .doc-content {
+      padding-right: 12px;
+      padding-left: 12px;
+   }
+
+   .doc-actions {
+      margin-right: -12px;
+      margin-bottom: -12px;
+      margin-left: -12px;
+      padding-right: 12px;
+      padding-left: 12px;
+   }
 }
 </style>
