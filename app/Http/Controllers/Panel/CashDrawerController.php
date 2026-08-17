@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Throwable;
 
 class CashDrawerController extends Controller
 {
@@ -46,12 +47,14 @@ class CashDrawerController extends Controller
             'categories' => CashLedgerEntry::CATEGORIES,
             'unassigned_today_total' => (float) CashLedgerEntry::query()
                 ->whereNull('session_id')
+                ->where('payment_method', CashLedgerEntry::PAYMENT_METHOD_CASH)
                 ->whereDate('occurred_at', now()->toDateString())
                 ->sum('amount'),
         ];
 
         if ($session) {
-            $entries = $session->entries()->get();
+            $entries = $session->entries()->with('recordedBy:id,name')->get();
+            $cashEntries = $entries->filter(fn (CashLedgerEntry $entry): bool => $entry->affectsCash());
 
             $payload['session'] = [
                 'id' => $session->id,
@@ -59,8 +62,8 @@ class CashDrawerController extends Controller
                 'opened_by_name' => $session->openedBy?->name,
                 'opening_float' => (float) $session->opening_float,
                 'notes' => $session->notes,
-                'cash_in' => (float) $entries->where('amount', '>', 0)->sum('amount'),
-                'cash_out' => (float) abs($entries->where('amount', '<', 0)->sum('amount')),
+                'cash_in' => (float) $cashEntries->where('amount', '>', 0)->sum('amount'),
+                'cash_out' => (float) abs($cashEntries->where('amount', '<', 0)->sum('amount')),
                 'expected_cash' => $this->cashDrawerService->expectedCash($session),
                 'entries' => $entries
                     ->sortByDesc('occurred_at')
@@ -70,6 +73,23 @@ class CashDrawerController extends Controller
         }
 
         return response()->json($payload);
+    }
+
+    /**
+     * Return non-sensitive drawer availability for panel sales screens.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function status(): JsonResponse
+    {
+        $enabled = (bool) config('jprime.cash_drawer');
+        $session = $enabled ? $this->cashDrawerService->currentSession() : null;
+
+        return response()->json([
+            'enabled' => $enabled,
+            'is_open' => $session !== null,
+            'opened_at' => $session?->opened_at?->toIso8601String(),
+        ]);
     }
 
     /**
@@ -96,7 +116,7 @@ class CashDrawerController extends Controller
     }
 
     /**
-     * Record a cash expense.
+     * Record an expense.
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -106,15 +126,25 @@ class CashDrawerController extends Controller
 
         $data = $request->validate([
             'category' => ['required', Rule::in(CashLedgerEntry::CATEGORIES)],
+            'payment_method' => ['sometimes', 'required', Rule::in(CashLedgerEntry::supportedPaymentMethods())],
             'description' => ['required', 'string', 'max:255'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'notes' => ['nullable', 'string', 'max:500'],
             'receipt' => ['nullable', 'image', 'mimes:jpeg,png,webp', 'max:5120'],
         ]);
 
+        $data['payment_method'] ??= CashLedgerEntry::PAYMENT_METHOD_CASH;
         $data['receipt_path'] = $request->file('receipt')?->store('cash-receipts');
 
-        $entry = $this->cashDrawerService->recordExpense($data, $request->user());
+        try {
+            $entry = $this->cashDrawerService->recordExpense($data, $request->user());
+        } catch (Throwable $exception) {
+            if ($data['receipt_path']) {
+                Storage::delete($data['receipt_path']);
+            }
+
+            throw $exception;
+        }
 
         return response()->json($this->serializeEntry($entry), 201);
     }
@@ -287,6 +317,9 @@ class CashDrawerController extends Controller
             'id' => $entry->id,
             'type' => $entry->type,
             'category' => $entry->category,
+            'payment_method' => $entry->payment_method,
+            'payment_method_label' => $entry->paymentMethodLabel(),
+            'affects_cash' => $entry->affectsCash(),
             'amount' => (float) $entry->amount,
             'description' => $entry->description,
             'notes' => $entry->notes,

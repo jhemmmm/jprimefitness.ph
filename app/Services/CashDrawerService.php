@@ -24,7 +24,37 @@ class CashDrawerService
 
     public function expectedCash(CashDrawerSession $session): float
     {
-        return round((float) $session->opening_float + (float) $session->entries()->sum('amount'), 2);
+        return round(
+            (float) $session->opening_float
+                + (float) $session->entries()
+                    ->where('payment_method', CashLedgerEntry::PAYMENT_METHOD_CASH)
+                    ->sum('amount'),
+            2,
+        );
+    }
+
+    /**
+     * Lock and return the open drawer session for a financial operation.
+     *
+     * Call this method from inside the transaction that performs the operation.
+     * A disabled cash-drawer feature does not restrict sales.
+     *
+     * @return \App\Models\CashDrawerSession|null
+     */
+    public function requireOpenSession(string $message): ?CashDrawerSession
+    {
+        if (! config('jprime.cash_drawer')) {
+            return null;
+        }
+
+        $session = CashDrawerSession::query()
+            ->where('is_open', true)
+            ->lockForUpdate()
+            ->first();
+
+        abort_unless($session, 409, $message);
+
+        return $session;
     }
 
     /**
@@ -122,39 +152,45 @@ class CashDrawerService
     }
 
     /**
-     * @param  array{category: string, description: string, amount: float|int|string, notes?: ?string, receipt_path?: ?string}  $data
+     * @param  array{category: string, payment_method: string, description: string, amount: float|int|string, notes?: ?string, receipt_path?: ?string}  $data
      */
     public function recordExpense(array $data, User $recordedBy): CashLedgerEntry
     {
-        $entry = CashLedgerEntry::create([
-            'session_id' => $this->currentSession()?->id,
-            'type' => CashLedgerEntry::TYPE_EXPENSE,
-            'category' => $data['category'],
-            'amount' => -round(abs((float) $data['amount']), 2),
-            'description' => $data['description'],
-            'notes' => $data['notes'] ?? null,
-            'receipt_path' => $data['receipt_path'] ?? null,
-            'recorded_by' => $recordedBy->id,
-            'occurred_at' => now(),
-        ]);
+        return DB::transaction(function () use ($data, $recordedBy): CashLedgerEntry {
+            $session = $this->requireOpenSession('Open the cash drawer before recording an expense.');
 
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_CASH_LEDGER_ENTRY,
-            $entry->id,
-            'created',
-            [
-                'type' => $entry->type,
-                'category' => $entry->category,
-                'amount' => (float) $entry->amount,
-                'description' => $entry->description,
-            ],
-            [],
-            $recordedBy->id,
-            $recordedBy->name,
-            now(),
-        );
+            $entry = CashLedgerEntry::create([
+                'session_id' => $session?->id,
+                'type' => CashLedgerEntry::TYPE_EXPENSE,
+                'category' => $data['category'],
+                'payment_method' => $data['payment_method'],
+                'amount' => -round(abs((float) $data['amount']), 2),
+                'description' => $data['description'],
+                'notes' => $data['notes'] ?? null,
+                'receipt_path' => $data['receipt_path'] ?? null,
+                'recorded_by' => $recordedBy->id,
+                'occurred_at' => now(),
+            ]);
 
-        return $entry;
+            $this->systemActivityService->recordSubjectEvent(
+                SystemActivity::SUBJECT_CASH_LEDGER_ENTRY,
+                $entry->id,
+                'created',
+                [
+                    'type' => $entry->type,
+                    'category' => $entry->category,
+                    'payment_method' => $entry->payment_method,
+                    'amount' => (float) $entry->amount,
+                    'description' => $entry->description,
+                ],
+                [],
+                $recordedBy->id,
+                $recordedBy->name,
+                now(),
+            );
+
+            return $entry;
+        });
     }
 
     /**
@@ -213,6 +249,7 @@ class CashDrawerService
             ],
             [
                 'session_id' => $this->currentSession()?->id,
+                'payment_method' => CashLedgerEntry::PAYMENT_METHOD_CASH,
                 'amount' => round($signedAmount, 2),
                 'description' => $description,
                 'recorded_by' => $recordedById,

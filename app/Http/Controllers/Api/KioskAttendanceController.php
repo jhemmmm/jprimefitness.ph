@@ -81,7 +81,7 @@ class KioskAttendanceController extends Controller
             ]);
 
             if ($payment) {
-                $this->posSaleService->recordKioskWalkInSale($payment);
+                $this->posSaleService->recordAutomatedKioskWalkInSale($payment);
             }
 
             return $attendance;

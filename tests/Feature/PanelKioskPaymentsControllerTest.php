@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BusinessProfile;
+use App\Models\CashDrawerSession;
 use App\Models\KioskPayment;
 use App\Models\MemberSubscription;
 use App\Models\RatePlan;
@@ -10,6 +11,7 @@ use App\Models\SaleTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -17,6 +19,8 @@ use Tests\TestCase;
 class PanelKioskPaymentsControllerTest extends TestCase
 {
     use LazilyRefreshDatabase;
+
+    private CashDrawerSession $drawerSession;
 
     protected function setUp(): void
     {
@@ -39,6 +43,8 @@ class PanelKioskPaymentsControllerTest extends TestCase
             'is_active' => true,
             'is_walk_in_only' => true,
         ]);
+
+        $this->drawerSession = CashDrawerSession::factory()->create();
     }
 
     public function test_pending_endpoint_lists_only_pending_cash_payments(): void
@@ -155,6 +161,73 @@ class PanelKioskPaymentsControllerTest extends TestCase
         $this->assertNull($response->json('discount'));
         $this->assertSame(150.0, (float) $response->json('total'));
         $this->assertSame(150.0, (float) $response->json('subtotal'));
+    }
+
+    public function test_cash_confirmation_rolls_back_when_drawer_is_closed(): void
+    {
+        $payment = $this->makePayment('kio_closed_drawer', [
+            'status' => KioskPayment::STATUS_PENDING,
+            'paymongo_payment_intent_id' => null,
+            'expires_at' => Carbon::now()->addMinutes(30),
+        ]);
+
+        $this->drawerSession->forceFill([
+            'is_open' => null,
+            'closed_at' => now(),
+        ])->save();
+
+        $this->actingAs($this->staff())
+            ->postJson('/panel/kiosk-payments/'.$payment->reference.'/confirm')
+            ->assertConflict()
+            ->assertJsonPath('message', 'Open the cash drawer before recording a sale.');
+
+        $payment->refresh();
+
+        $this->assertSame(KioskPayment::STATUS_PENDING, $payment->status);
+        $this->assertNull($payment->paid_at);
+        $this->assertNull($payment->consumed_at);
+        $this->assertDatabaseCount('sale_transactions', 0);
+        $this->assertDatabaseCount('cash_ledger_entries', 0);
+    }
+
+    public function test_pending_membership_confirmation_rolls_back_when_drawer_is_closed(): void
+    {
+        Mail::fake();
+
+        $plan = RatePlan::create([
+            'name' => 'Monthly',
+            'duration_days' => 30,
+            'price' => 1500,
+            'is_active' => true,
+            'is_walk_in_only' => false,
+        ]);
+        $member = User::factory()->create(['status' => User::STATUS_INACTIVE]);
+        $member->assignRole('member');
+        $subscription = $member->memberSubscriptions()->create([
+            'rate_plan_id' => $plan->id,
+            'sold_price' => 1500,
+            'start_date' => now()->toDateString(),
+            'status' => MemberSubscription::STATUS_PAUSED,
+            'pending_payment_method' => MemberSubscription::PENDING_PAYMENT_ON_SITE,
+        ]);
+
+        $this->drawerSession->forceFill([
+            'is_open' => null,
+            'closed_at' => now(),
+        ])->save();
+
+        $this->actingAs($this->staff())
+            ->postJson("/panel/sales/pending-memberships/{$subscription->id}/confirm", [
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'payment_reference' => 'GCASH-MEM-001',
+            ])
+            ->assertConflict()
+            ->assertJsonPath('message', 'Open the cash drawer before recording a sale.');
+
+        $this->assertSame(User::STATUS_INACTIVE, $member->fresh()->status);
+        $this->assertSame(MemberSubscription::STATUS_PAUSED, $subscription->fresh()->status);
+        $this->assertSame(MemberSubscription::PENDING_PAYMENT_ON_SITE, $subscription->fresh()->pending_payment_method);
+        $this->assertDatabaseCount('sale_transactions', 0);
     }
 
     public function test_confirm_rejects_online_payment(): void

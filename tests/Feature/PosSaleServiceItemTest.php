@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\BusinessProfile;
+use App\Models\CashDrawerSession;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\SaleTransaction;
@@ -31,6 +32,8 @@ class PosSaleServiceItemTest extends TestCase
         BusinessProfile::factory()->create([
             'name' => 'JPrime Fitness Naga',
         ]);
+
+        CashDrawerSession::factory()->create(['opened_at' => '2026-01-01 08:00:00']);
     }
 
     public function test_service_item_appears_in_pos_context_even_when_quantity_is_zero(): void

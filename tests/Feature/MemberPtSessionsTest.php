@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CashDrawerSession;
 use App\Models\MemberPtPackage;
 use App\Models\Payroll;
 use App\Models\PTProduct;
@@ -17,6 +18,8 @@ class MemberPtSessionsTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    private CashDrawerSession $drawerSession;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -26,6 +29,10 @@ class MemberPtSessionsTest extends TestCase
         Role::findOrCreate('staff');
         Role::findOrCreate('coach');
         Role::findOrCreate('member');
+
+        $this->drawerSession = CashDrawerSession::factory()->create([
+            'opened_at' => '2026-01-01 08:00:00',
+        ]);
     }
 
     public function test_manager_can_add_pt_package_for_member(): void
@@ -71,6 +78,35 @@ class MemberPtSessionsTest extends TestCase
             'status' => SaleTransaction::STATUS_COMPLETED,
             'total' => 500,
         ]);
+    }
+
+    public function test_member_details_pt_sale_is_rejected_while_drawer_is_closed(): void
+    {
+        $product = $this->createPtProduct('12 Sessions', 12);
+        $manager = $this->createUserWithRole('manager');
+        $coach = $this->createUserWithRole('coach');
+        $member = $this->createMember();
+
+        $this->drawerSession->forceFill([
+            'is_open' => null,
+            'closed_at' => now(),
+        ])->save();
+
+        $this->actingAs($manager)
+            ->postJson("/panel/members/{$member->id}/pt-packages", [
+                'pt_product_id' => $product->id,
+                'coach_id' => $coach->id,
+                'assigned_at' => now()->toDateString(),
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 500,
+                'payment_reference' => 'GCASH-PT-001',
+                'sold_at' => now()->subMinute()->toDateTimeString(),
+            ])
+            ->assertConflict()
+            ->assertJsonPath('message', 'Open the cash drawer before recording a sale.');
+
+        $this->assertDatabaseCount('member_pt_packages', 0);
+        $this->assertDatabaseCount('sale_transactions', 0);
     }
 
     public function test_manager_cannot_sell_pt_package_without_a_coach(): void

@@ -25,6 +25,10 @@ class CashLedgerEntry extends Model
 
     public const TYPE_ADJUSTMENT = 'adjustment';
 
+    public const PAYMENT_METHOD_CASH = 'cash';
+
+    public const PAYMENT_METHOD_ONLINE_PAYMENT = 'online_payment';
+
     public const CATEGORIES = [
         'rent',
         'utilities',
@@ -40,6 +44,7 @@ class CashLedgerEntry extends Model
         'session_id',
         'type',
         'category',
+        'payment_method',
         'amount',
         'description',
         'notes',
@@ -54,6 +59,46 @@ class CashLedgerEntry extends Model
         'amount' => 'decimal:2',
         'occurred_at' => 'datetime',
     ];
+
+    protected $attributes = [
+        'payment_method' => self::PAYMENT_METHOD_CASH,
+    ];
+
+    /**
+     * Return the payment methods supported for recorded expenses.
+     *
+     * @return array<int, string>
+     */
+    public static function supportedPaymentMethods(): array
+    {
+        return [
+            self::PAYMENT_METHOD_CASH,
+            self::PAYMENT_METHOD_ONLINE_PAYMENT,
+        ];
+    }
+
+    /**
+     * Return the user-facing payment method label.
+     *
+     * @return string
+     */
+    public function paymentMethodLabel(): string
+    {
+        return match ($this->payment_method) {
+            self::PAYMENT_METHOD_ONLINE_PAYMENT => 'Online Payment',
+            default => 'Cash',
+        };
+    }
+
+    /**
+     * Determine whether the entry changes the physical drawer balance.
+     *
+     * @return bool
+     */
+    public function affectsCash(): bool
+    {
+        return $this->payment_method === self::PAYMENT_METHOD_CASH;
+    }
 
     public function session(): BelongsTo
     {

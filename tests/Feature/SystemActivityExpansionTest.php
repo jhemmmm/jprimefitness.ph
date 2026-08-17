@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
-use App\Models\SystemActivity;
 use App\Models\BusinessProfile;
+use App\Models\CashDrawerSession;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\MemberPtPackage;
@@ -14,6 +14,7 @@ use App\Models\Payroll;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
+use App\Models\SystemActivity;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Permission;
@@ -44,6 +45,8 @@ class SystemActivityExpansionTest extends TestCase
         BusinessProfile::factory()->create([
             'name' => 'JPrime Fitness Naga',
         ]);
+
+        CashDrawerSession::factory()->create(['opened_at' => '2026-01-01 08:00:00']);
     }
 
     public function test_super_admin_admin_and_manager_can_access_system_activity_with_registry_metadata(): void

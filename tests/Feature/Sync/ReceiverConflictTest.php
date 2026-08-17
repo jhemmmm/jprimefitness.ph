@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\Sync;
 
 use App\Models\Attendance;
+use App\Models\CashDrawerSession;
+use App\Models\CashLedgerEntry;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\KioskPayment;
@@ -234,5 +236,38 @@ class ReceiverConflictTest extends TestCase
 
         $this->assertSame('ok', $status);
         $this->assertSame(0, DB::table('sync_outbox')->where('entity_type', 'attendance')->count());
+    }
+
+    public function test_cash_ledger_entry_receiver_preserves_payment_method(): void
+    {
+        $user = User::factory()->create();
+        $session = CashDrawerSession::factory()->create([
+            'opened_by' => $user->id,
+        ]);
+        $uuid = (string) Str::uuid();
+
+        DB::table('sync_outbox')->truncate();
+
+        $receiver = app(DefaultReceiver::class);
+        $status = $receiver->apply($this->event('cash_ledger_entry', 'create', [
+            'uuid' => $uuid,
+            'session_id' => $session->id,
+            'type' => CashLedgerEntry::TYPE_EXPENSE,
+            'category' => 'utilities',
+            'payment_method' => CashLedgerEntry::PAYMENT_METHOD_ONLINE_PAYMENT,
+            'amount' => -250,
+            'description' => 'Internet bill',
+            'recorded_by' => $user->id,
+            'occurred_at' => now()->toIso8601String(),
+            'created_at' => now()->toIso8601String(),
+            'updated_at' => now()->toIso8601String(),
+        ]));
+
+        $this->assertSame('ok', $status);
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'uuid' => $uuid,
+            'payment_method' => CashLedgerEntry::PAYMENT_METHOD_ONLINE_PAYMENT,
+        ]);
+        $this->assertSame(0, DB::table('sync_outbox')->where('entity_type', 'cash_ledger_entry')->count());
     }
 }

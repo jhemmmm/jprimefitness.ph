@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\CashDrawerSession;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\MemberPtPackage;
@@ -49,6 +50,8 @@ class NotificationsCenterTest extends TestCase
         Role::findByName('admin')->givePermissionTo($permission);
         Role::findByName('manager')->givePermissionTo($permission);
         Role::findByName('staff')->givePermissionTo($permission);
+
+        CashDrawerSession::factory()->create(['opened_at' => '2026-01-01 08:00:00']);
     }
 
     public function test_panel_users_can_fetch_and_mark_notifications_as_read(): void

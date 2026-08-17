@@ -10,6 +10,7 @@ use App\Models\SaleTransaction;
 use App\Models\SystemActivity;
 use App\Models\User;
 use App\Services\MembershipQrService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -27,6 +28,14 @@ class KioskAttendanceTest extends TestCase
         Role::findOrCreate('member');
 
         config(['services.kiosk.token' => 'test-kiosk-token']);
+        Carbon::setTestNow('2026-05-03 08:30:00');
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     public function test_walk_in_success_creates_attendance_with_kiosk_source(): void
@@ -90,6 +99,9 @@ class KioskAttendanceTest extends TestCase
         ]);
 
         $response->assertCreated()->assertJsonPath('ok', true);
+
+        $this->assertDatabaseCount('cash_drawer_sessions', 0);
+        $this->assertDatabaseCount('cash_ledger_entries', 0);
 
         $payment->refresh();
         $this->assertSame(KioskPayment::STATUS_PAID, $payment->status);

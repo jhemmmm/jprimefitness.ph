@@ -8,6 +8,10 @@
       </div>
 
       <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
+      <div v-if="drawerStatusError" class="alert alert-danger py-2 small mb-3">{{ drawerStatusError }}</div>
+      <div v-if="!drawerStatusLoading && !canRecordSales" class="alert alert-warning py-2 small mb-3">
+         <i class="bi bi-lock me-1"></i>The cash drawer is closed. Open it before recording or confirming a sale.
+      </div>
 
       <div v-if="successMessage" class="alert alert-success py-2 small mb-3">
          <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
@@ -378,7 +382,7 @@
                         <div class="fs-3 fw-bold">₱{{ $filters.formatMoney(summaryTotal) }}</div>
                      </div>
 
-                     <button class="btn btn-danger w-100" :disabled="processingSale || loadingContext" @click="submitSale">
+                     <button class="btn btn-danger w-100" :disabled="processingSale || loadingContext || drawerStatusLoading || !canRecordSales" @click="submitSale">
                         <span v-if="processingSale" class="spinner-border spinner-border-sm me-2"></span>
                         Confirm Sale
                      </button>
@@ -439,7 +443,7 @@
                            </td>
                            <td class="small text-muted">{{ formatDateTime(row.created_at) }}</td>
                            <td class="text-end">
-                              <button type="button" class="btn btn-sm btn-danger me-1" @click="openPendingAction(row, 'confirm')" :disabled="busyPendingKey === row.key">
+                              <button type="button" class="btn btn-sm btn-danger me-1" @click="openPendingAction(row, 'confirm')" :disabled="busyPendingKey === row.key || drawerStatusLoading || !canRecordSales" :title="canRecordSales ? '' : 'Open the cash drawer before confirming a sale'">
                                  {{ row.requires_payment_method ? "Confirm Payment" : "Confirm Cash" }}
                               </button>
                               <button type="button" class="btn btn-sm btn-outline-secondary" @click="openPendingAction(row, 'cancel')" :disabled="busyPendingKey === row.key">Cancel</button>
@@ -589,7 +593,7 @@
                                  <a class="btn btn-sm btn-outline-dark" :href="transaction.source_url" v-if="transaction.source_url" title="Open source record">
                                     <i class="bi bi-box-arrow-up-right tbl-icon"></i>
                                  </a>
-                                 <button type="button" class="btn btn-sm btn-outline-danger" v-if="transaction.void_url" title="Void sale" @click="openVoidSale(transaction)" :disabled="voidingSaleId === transaction.id">
+                                 <button type="button" class="btn btn-sm btn-outline-danger" v-if="transaction.void_url" :title="canVoidTransactionNow(transaction) ? 'Void sale' : 'Open the cash drawer before refunding a cash sale'" @click="openVoidSale(transaction)" :disabled="voidingSaleId === transaction.id || !canVoidTransactionNow(transaction)">
                                     <span v-if="voidingSaleId === transaction.id" class="spinner-border spinner-border-sm"></span>
                                     <i v-else class="bi bi-x-circle tbl-icon"></i>
                                  </button>
@@ -627,7 +631,7 @@
                         <a class="btn btn-sm btn-outline-info" :href="transaction.receipt_url" target="_blank" rel="noopener">Download Receipt</a>
                         <button type="button" class="btn btn-sm btn-outline-secondary" v-if="transaction.membership_qr_url" @click="openMembershipQr(transaction)">QR</button>
                         <a class="btn btn-sm btn-outline-primary" :href="transaction.source_url" v-if="transaction.source_url">Open Record</a>
-                        <button type="button" class="btn btn-sm btn-outline-danger" v-if="transaction.void_url" @click="openVoidSale(transaction)" :disabled="voidingSaleId === transaction.id">
+                        <button type="button" class="btn btn-sm btn-outline-danger" v-if="transaction.void_url" @click="openVoidSale(transaction)" :disabled="voidingSaleId === transaction.id || !canVoidTransactionNow(transaction)" :title="canVoidTransactionNow(transaction) ? 'Void sale' : 'Open the cash drawer before refunding a cash sale'">
                            <span v-if="voidingSaleId === transaction.id" class="spinner-border spinner-border-sm me-1"></span>
                            Void
                         </button>
@@ -791,6 +795,13 @@ export default {
          loadingHistory: false,
          processingSale: false,
          pageError: "",
+         drawerStatusError: "",
+         drawerStatusLoading: true,
+         drawerStatus: {
+            enabled: true,
+            is_open: false,
+            opened_at: null,
+         },
          successMessage: "",
          lastCompletedSale: null,
          historySearchTimer: null,
@@ -874,10 +885,14 @@ export default {
       this.voidSaleModal = new Modal(this.$refs.voidSaleModal);
       this.pendingPaymentModal = new Modal(this.$refs.pendingPaymentModal);
       this.form = this.defaultForm();
+      this.fetchDrawerStatus();
       this.fetchContext();
       this.fetchHistory();
       this.fetchPendingPayments();
-      this.pendingPaymentsTimer = setInterval(() => this.fetchPendingPayments(), 15000);
+      this.pendingPaymentsTimer = setInterval(() => {
+         this.fetchPendingPayments();
+         this.fetchDrawerStatus();
+      }, 15000);
    },
    watch: {
       summaryTotal: function (value, oldValue) {
@@ -911,6 +926,9 @@ export default {
    computed: {
       hasProfile: function () {
          return Boolean(this.profile?.id || window.JPrime?.profile?.id);
+      },
+      canRecordSales: function () {
+         return !this.drawerStatus.enabled || this.drawerStatus.is_open;
       },
       historyTypeOptions: function () {
          return [
@@ -1139,6 +1157,33 @@ export default {
                this.loadingContext = false;
             });
       },
+      fetchDrawerStatus: function () {
+         this.drawerStatusError = "";
+
+         return axios
+            .get("/panel/cash-drawer/status")
+            .then((response) => {
+               this.drawerStatus = response.data;
+            })
+            .catch((error) => {
+               this.drawerStatus = { enabled: true, is_open: false, opened_at: null };
+               this.drawerStatusError = error.response?.data?.message || "Unable to verify whether the cash drawer is open.";
+            })
+            .finally(() => {
+               this.drawerStatusLoading = false;
+            });
+      },
+      markDrawerClosed: function (error) {
+         if (error.response?.status !== 409 || !String(error.response?.data?.message || "").includes("cash drawer")) {
+            return;
+         }
+
+         this.drawerStatus = { ...this.drawerStatus, enabled: true, is_open: false, opened_at: null };
+         this.fetchDrawerStatus();
+      },
+      canVoidTransactionNow: function (transaction) {
+         return transaction.payment_method !== "cash" || this.canRecordSales;
+      },
       fetchHistory: function (page = 1) {
          this.loadingHistory = true;
 
@@ -1308,6 +1353,7 @@ export default {
          return payload;
       },
       submitSale: function () {
+         if (!this.canRecordSales) return;
          this.processingSale = true;
          this.pageError = "";
          this.successMessage = "";
@@ -1323,6 +1369,7 @@ export default {
                this.fetchHistory(1);
             })
             .catch((error) => {
+               this.markDrawerClosed(error);
                if (error.response?.status === 422) {
                   this.formErrors = Object.fromEntries(
                      Object.entries(error.response.data.errors || {}).map(function ([field, messages]) {
@@ -1379,7 +1426,7 @@ export default {
          }
       },
       openVoidSale: function (transaction) {
-         if (!transaction.void_url) {
+         if (!transaction.void_url || !this.canVoidTransactionNow(transaction)) {
             return;
          }
 
@@ -1413,6 +1460,7 @@ export default {
                this.fetchHistory(this.historyPagination.currentPage || 1);
             })
             .catch((error) => {
+               this.markDrawerClosed(error);
                if (error.response?.status === 422) {
                   this.voidErrors = Object.fromEntries(
                      Object.entries(error.response.data.errors || {}).map(function ([field, messages]) {
@@ -1450,6 +1498,7 @@ export default {
             });
       },
       openPendingAction: function (row, action) {
+         if (action === "confirm" && !this.canRecordSales) return;
          this.pendingAction = action;
          this.pendingTarget = row;
          if (action === "confirm" && row.requires_payment_method) {
@@ -1462,6 +1511,7 @@ export default {
          var row = this.pendingTarget;
          var action = this.pendingAction;
          if (!row || !action) return;
+         if (action === "confirm" && !this.canRecordSales) return;
 
          this.busyPendingKey = row.key;
          var url = action === "confirm" ? row.confirm_url : row.cancel_url;
@@ -1485,6 +1535,7 @@ export default {
                }
             })
             .catch((error) => {
+               this.markDrawerClosed(error);
                this.pageError = error.response?.data?.message || (action === "confirm" ? "Failed to confirm payment." : "Failed to cancel payment.");
                this.pendingPaymentModal?.hide();
             })

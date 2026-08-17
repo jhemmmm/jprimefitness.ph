@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\BusinessProfile;
+use App\Models\CashDrawerSession;
+use App\Models\CashLedgerEntry;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\MemberPtPackage;
@@ -22,6 +24,8 @@ class SalesPageTest extends TestCase
 {
     use LazilyRefreshDatabase;
 
+    private CashDrawerSession $drawerSession;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -37,6 +41,10 @@ class SalesPageTest extends TestCase
 
         BusinessProfile::factory()->create([
             'name' => 'JPrime Fitness Naga',
+        ]);
+
+        $this->drawerSession = CashDrawerSession::factory()->create([
+            'opened_at' => '2026-01-01 08:00:00',
         ]);
     }
 
@@ -159,6 +167,155 @@ class SalesPageTest extends TestCase
         ]);
 
         $this->assertSame(route('panel.sales.receipt', $transactionId), $response->json('receipt_url'));
+    }
+
+    public function test_closed_drawer_rejects_every_staff_pos_sale_type_without_side_effects(): void
+    {
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $member = $this->createUserWithRole('member', 'Member Bea');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
+        $item = InventoryItem::factory()->create([
+            'name' => 'Sports Drink',
+            'quantity' => 10,
+            'selling_price' => 55,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+        $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1500]);
+        $ptProduct = $this->createPtProduct('8 Sessions', 8, ['price' => 2400]);
+
+        $this->drawerSession->forceFill([
+            'is_open' => null,
+            'closed_at' => now(),
+        ])->save();
+
+        $payloads = [
+            [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 2,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 110,
+                'payment_reference' => 'GCASH-001',
+                'sold_at' => now()->subMinute()->toDateTimeString(),
+            ],
+            [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => now()->toDateString(),
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 1500,
+                'sold_at' => now()->subMinute()->toDateTimeString(),
+            ],
+            [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
+                'assigned_at' => now()->toDateString(),
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 2400,
+                'sold_at' => now()->subMinute()->toDateTimeString(),
+            ],
+            [
+                'type' => SaleTransaction::TYPE_WALK_IN,
+                'customer_name' => 'Walk-in Guest',
+                'amount_paid' => 175,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 175,
+                'sold_at' => now()->subMinute()->toDateTimeString(),
+            ],
+        ];
+
+        foreach ($payloads as $payload) {
+            $this->actingAs($staff)
+                ->postJson('/panel/sales', $payload)
+                ->assertConflict()
+                ->assertJsonPath('message', 'Open the cash drawer before recording a sale.');
+        }
+
+        $this->assertDatabaseCount('sale_transactions', 0);
+        $this->assertDatabaseCount('member_subscriptions', 0);
+        $this->assertDatabaseCount('member_pt_packages', 0);
+        $this->assertSame(10.0, (float) $item->fresh()->quantity);
+    }
+
+    public function test_sale_time_must_fall_within_the_current_drawer_session(): void
+    {
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $item = InventoryItem::factory()->create([
+            'name' => 'Sports Drink',
+            'quantity' => 10,
+            'selling_price' => 55,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($staff)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 1,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 55,
+                'sold_at' => '2025-12-31 23:59:59',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['sold_at']);
+
+        $this->actingAs($staff)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 1,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 55,
+                'sold_at' => now()->addMinute()->toDateTimeString(),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['sold_at']);
+
+        $this->assertDatabaseCount('sale_transactions', 0);
+        $this->assertSame(10.0, (float) $item->fresh()->quantity);
+    }
+
+    public function test_disabled_cash_drawer_feature_allows_staff_sales_without_an_open_session(): void
+    {
+        config(['jprime.cash_drawer' => false]);
+
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $item = InventoryItem::factory()->create([
+            'name' => 'Sports Drink',
+            'quantity' => 10,
+            'selling_price' => 55,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $this->drawerSession->forceFill([
+            'is_open' => null,
+            'closed_at' => now(),
+        ])->save();
+
+        $this->actingAs($staff)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 1,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 55,
+                'sold_at' => now()->toDateTimeString(),
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseCount('sale_transactions', 1);
+        $this->assertDatabaseCount('cash_ledger_entries', 0);
     }
 
     public function test_inventory_sale_requires_whole_number_quantities(): void
@@ -626,6 +783,59 @@ class SalesPageTest extends TestCase
                 'reason' => 'Trying again.',
             ])
             ->assertStatus(409);
+    }
+
+    public function test_cash_void_requires_an_open_drawer_while_non_cash_void_remains_available(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $item = InventoryItem::factory()->create([
+            'name' => 'Protein Shake',
+            'quantity' => 7,
+            'selling_price' => 120,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+        $cashSale = SaleTransaction::factory()->create([
+            'type' => SaleTransaction::TYPE_INVENTORY,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'processed_by' => $manager->id,
+            'details' => [
+                'line_items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 3,
+                ]],
+            ],
+        ]);
+        $nonCashSale = SaleTransaction::factory()->create([
+            'type' => SaleTransaction::TYPE_WALK_IN,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+            'processed_by' => $manager->id,
+        ]);
+
+        $this->drawerSession->forceFill([
+            'is_open' => null,
+            'closed_at' => now(),
+        ])->save();
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $cashSale), [
+                'reason' => 'Cash refund requested.',
+            ])
+            ->assertConflict()
+            ->assertJsonPath('message', 'Open the cash drawer before refunding a cash sale.');
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $nonCashSale), [
+                'reason' => 'Online payment reversed.',
+            ])
+            ->assertOk();
+
+        $this->assertSame(SaleTransaction::STATUS_COMPLETED, $cashSale->fresh()->status);
+        $this->assertSame(SaleTransaction::STATUS_VOIDED, $nonCashSale->fresh()->status);
+        $this->assertSame(7.0, (float) $item->fresh()->quantity);
+        $this->assertDatabaseMissing('cash_ledger_entries', [
+            'type' => CashLedgerEntry::TYPE_SALE_VOID,
+            'source_id' => $cashSale->id,
+        ]);
     }
 
     public function test_voiding_membership_sale_cancels_linked_subscription(): void

@@ -96,6 +96,7 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
 
     // Cash drawer
     Route::get('/cash-drawer', [CashDrawerController::class, 'index'])->name('cash-drawer.index');
+    Route::get('/cash-drawer/status', [CashDrawerController::class, 'status'])->name('cash-drawer.status');
     Route::get('/cash-drawer/data', [CashDrawerController::class, 'data'])->name('cash-drawer.data');
     Route::post('/cash-drawer/open', [CashDrawerController::class, 'open'])->name('cash-drawer.open');
     Route::post('/cash-drawer/expenses', [CashDrawerController::class, 'storeExpense'])->name('cash-drawer.expenses.store');

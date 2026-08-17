@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Sync;
 
+use App\Models\CashDrawerSession;
+use App\Models\CashLedgerEntry;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
 use App\Models\RatePlan;
+use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -139,5 +142,30 @@ class OutboxEmissionTest extends TestCase
         }
 
         $this->assertSame($plan->uuid, $payload['uuid']);
+    }
+
+    public function test_cash_ledger_entry_outbox_payload_includes_payment_method(): void
+    {
+        $user = User::factory()->create();
+        $session = CashDrawerSession::factory()->create([
+            'opened_by' => $user->id,
+        ]);
+
+        DB::table('sync_outbox')->truncate();
+
+        CashLedgerEntry::factory()->create([
+            'session_id' => $session->id,
+            'recorded_by' => $user->id,
+            'payment_method' => CashLedgerEntry::PAYMENT_METHOD_ONLINE_PAYMENT,
+        ]);
+
+        $row = DB::table('sync_outbox')
+            ->where('entity_type', 'cash_ledger_entry')
+            ->first();
+
+        $this->assertNotNull($row);
+
+        $payload = json_decode($row->payload, true);
+        $this->assertSame(CashLedgerEntry::PAYMENT_METHOD_ONLINE_PAYMENT, $payload['payment_method']);
     }
 }

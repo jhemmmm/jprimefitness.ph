@@ -3,12 +3,12 @@
       <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
          <div>
             <h4 class="fw-bold mb-0">Cash Drawer</h4>
-            <div class="text-muted small">Track the cash in the gym: open the day, record expenses, count at close, deposit to bank</div>
+            <div class="text-muted small">Track drawer cash, record cash or online expenses, reconcile at close, and deposit to bank</div>
          </div>
          <div class="d-flex align-items-center gap-2">
             <span v-if="session" :class="['m-badge', 'm-badge--active']">Open since {{ formatTime(session.opened_at) }}</span>
             <span v-else class="m-badge m-badge--inactive">Closed</span>
-            <button class="btn btn-outline-secondary btn-sm" @click="openExpenseModal"><i class="bi bi-receipt me-1"></i>Record Expense</button>
+            <button class="btn btn-outline-secondary btn-sm" @click="openExpenseModal" :disabled="!session" :title="session ? 'Record an expense' : 'Open the cash drawer before recording an expense'"><i class="bi bi-receipt me-1"></i>Record Expense</button>
             <button v-if="!session" class="btn btn-danger btn-sm" @click="openOpenModal"><i class="bi bi-unlock me-1"></i>Open Day</button>
             <button v-else class="btn btn-danger btn-sm" @click="openCloseModal"><i class="bi bi-lock me-1"></i>Close Day</button>
          </div>
@@ -53,8 +53,8 @@
       <div class="panel-card mb-4" v-if="session">
          <div class="panel-card-header">
             <div>
-               <div class="panel-card-title">Today's Cash Movements</div>
-               <div class="panel-card-sub">Everything in and out of the drawer this session</div>
+               <div class="panel-card-title">Drawer Session Activity</div>
+               <div class="panel-card-sub">Cash movements and online expenses recorded during this session</div>
             </div>
          </div>
          <div class="panel-card-body">
@@ -76,6 +76,7 @@
                         <td>
                            <span :class="['m-badge', typeBadge(entry.type)]">{{ typeLabel(entry.type) }}</span>
                            <span v-if="entry.category" class="text-muted small ms-1">{{ categoryLabel(entry.category) }}</span>
+                           <div class="text-muted small mt-1">{{ entry.payment_method_label || "Cash" }}</div>
                         </td>
                         <td class="small">
                            {{ entry.description }}
@@ -83,7 +84,10 @@
                            <div v-if="entry.notes" class="text-muted" style="font-size: 0.75rem">{{ entry.notes }}</div>
                         </td>
                         <td class="small text-muted">{{ entry.recorded_by_name || "-" }}</td>
-                        <td class="text-end small fw-bold" :class="entry.amount < 0 ? 'text-danger' : 'text-success'">{{ entry.amount < 0 ? "-" : "+" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}</td>
+                        <td class="text-end small fw-bold" :class="entry.affects_cash ? (entry.amount < 0 ? 'text-danger' : 'text-success') : 'text-body'">
+                           {{ entry.affects_cash ? (entry.amount < 0 ? "-" : "+") : "" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}
+                           <div v-if="!entry.affects_cash" class="text-muted fw-normal" style="font-size: 0.72rem">No cash effect</div>
+                        </td>
                      </tr>
                   </tbody>
                </table>
@@ -295,7 +299,7 @@
          <div class="panel-card-header flex-column flex-sm-row align-items-sm-center">
             <div>
                <div class="panel-card-title">Expenses by Category</div>
-               <div class="panel-card-sub">Monthly cash expenses recorded from the drawer</div>
+               <div class="panel-card-sub">Monthly expenses across cash and online payments</div>
             </div>
             <input type="month" class="form-control form-control-sm expense-month" v-model="expenseMonth" aria-label="Expense summary month" @change="fetchExpenseSummary" />
          </div>
@@ -351,7 +355,6 @@
                </div>
                <div class="modal-body">
                   <div class="alert alert-danger py-2 small" v-if="expenseError">{{ expenseError }}</div>
-                  <div v-if="!session" class="alert alert-warning py-2 small">The drawer is closed. The expense will be saved, but it will not count toward any day's expected cash.</div>
                   <div class="row g-3">
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Category <span class="text-danger">*</span></label>
@@ -359,6 +362,15 @@
                            <option v-for="cat in categories" :key="cat" :value="cat">{{ categoryLabel(cat) }}</option>
                         </select>
                         <div class="invalid-feedback" v-if="expenseErrors.category">{{ expenseErrors.category }}</div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm">Payment Method <span class="text-danger">*</span></label>
+                        <select class="form-select" v-model="expenseForm.payment_method" :class="{ 'is-invalid': expenseErrors.payment_method }">
+                           <option value="cash">Cash</option>
+                           <option value="online_payment">Online Payment</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="expenseErrors.payment_method">{{ expenseErrors.payment_method }}</div>
+                        <div class="form-text" v-if="expenseForm.payment_method === 'online_payment'">This expense will not reduce expected physical cash.</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Amount (₱) <span class="text-danger">*</span></label>
@@ -531,6 +543,7 @@
                                  <td>
                                     <span :class="['m-badge', typeBadge(entry.type)]">{{ typeLabel(entry.type) }}</span>
                                     <div v-if="entry.category" class="small text-muted mt-1">{{ categoryLabel(entry.category) }}</div>
+                                    <div class="small text-muted mt-1">{{ entry.payment_method_label || "Cash" }}</div>
                                  </td>
                                  <td class="small">
                                     <div class="fw-semibold">{{ entry.description }}</div>
@@ -538,7 +551,10 @@
                                     <a v-if="entry.receipt_url" :href="entry.receipt_url" target="_blank" rel="noopener" class="d-inline-block mt-1 text-decoration-none"><i class="bi bi-paperclip me-1"></i>View receipt</a>
                                  </td>
                                  <td class="small text-muted">{{ entry.recorded_by_name || "-" }}</td>
-                                 <td class="text-end fw-bold" :class="entry.amount < 0 ? 'text-danger' : 'text-success'">{{ entry.amount < 0 ? "−" : "+" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}</td>
+                                 <td class="text-end fw-bold" :class="entry.affects_cash ? (entry.amount < 0 ? 'text-danger' : 'text-success') : 'text-body'">
+                                    {{ entry.affects_cash ? (entry.amount < 0 ? "−" : "+") : "" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}
+                                    <div v-if="!entry.affects_cash" class="small text-muted fw-normal">No cash effect</div>
+                                 </td>
                               </tr>
                            </tbody>
                         </table>
@@ -549,8 +565,12 @@
                               <div>
                                  <span :class="['m-badge', typeBadge(entry.type)]">{{ typeLabel(entry.type) }}</span>
                                  <span v-if="entry.category" class="small text-muted ms-1">{{ categoryLabel(entry.category) }}</span>
+                                 <div class="small text-muted mt-1">{{ entry.payment_method_label || "Cash" }}</div>
                               </div>
-                              <div class="fw-bold text-nowrap" :class="entry.amount < 0 ? 'text-danger' : 'text-success'">{{ entry.amount < 0 ? "−" : "+" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}</div>
+                              <div class="fw-bold text-nowrap" :class="entry.affects_cash ? (entry.amount < 0 ? 'text-danger' : 'text-success') : 'text-body'">
+                                 {{ entry.affects_cash ? (entry.amount < 0 ? "−" : "+") : "" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}
+                                 <div v-if="!entry.affects_cash" class="small text-muted fw-normal">No cash effect</div>
+                              </div>
                            </div>
                            <div class="fw-semibold mt-3">{{ entry.description }}</div>
                            <div v-if="entry.notes" class="small text-muted mt-1">{{ entry.notes }}</div>
@@ -663,7 +683,7 @@ export default {
       formatDate,
       formatTime,
       emptyExpenseForm: function () {
-         return { category: "supplies", amount: "", description: "", notes: "" };
+         return { category: "supplies", payment_method: "cash", amount: "", description: "", notes: "" };
       },
       typeLabel: function (type) {
          return (
@@ -808,6 +828,7 @@ export default {
             .finally(() => (this.submitting = false));
       },
       openExpenseModal: function () {
+         if (!this.session) return;
          this.expenseForm = this.emptyExpenseForm();
          this.receiptFile = null;
          if (this.$refs.receiptInput) this.$refs.receiptInput.value = "";
@@ -824,6 +845,7 @@ export default {
          this.expenseErrors = {};
          const payload = new FormData();
          payload.append("category", this.expenseForm.category);
+         payload.append("payment_method", this.expenseForm.payment_method);
          payload.append("description", this.expenseForm.description);
          payload.append("amount", this.expenseForm.amount);
          if (this.expenseForm.notes) payload.append("notes", this.expenseForm.notes);

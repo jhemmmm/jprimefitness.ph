@@ -2,6 +2,10 @@
    <div class="p-3">
       <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>PT package changes saved successfully.</div>
       <div class="alert alert-danger py-2 small" v-if="generalError">{{ generalError }}</div>
+      <div class="alert alert-danger py-2 small" v-if="drawerStatusError">{{ drawerStatusError }}</div>
+      <div class="alert alert-warning py-2 small" v-if="!drawerStatusLoading && !canRecordSales">
+         <i class="bi bi-lock me-1"></i>The cash drawer is closed. Open it before selling a PT package or refunding a cash package sale.
+      </div>
 
       <div class="row g-3 mb-4">
          <div class="col-md-4" v-for="stat in statCards" :key="stat.label">
@@ -16,7 +20,7 @@
       </div>
 
       <div class="d-flex flex-wrap justify-content-end gap-2 mb-4" v-if="canAllocatePackages || canLogUsage">
-         <button v-if="canAllocatePackages" class="btn btn-danger btn-sm" @click="openPackageModal"><i class="bi bi-plus-circle me-1"></i>Sell PT Package</button>
+         <button v-if="canAllocatePackages" class="btn btn-danger btn-sm" @click="openPackageModal" :disabled="drawerStatusLoading || !canRecordSales" :title="canRecordSales ? '' : 'Open the cash drawer before recording a sale'"><i class="bi bi-plus-circle me-1"></i>Sell PT Package</button>
          <button v-if="canLogUsage" class="btn btn-outline-success btn-sm" @click="openUsageModal" :disabled="activePackages.length === 0"><i class="bi bi-check2-square me-1"></i>Log PT Session Use</button>
       </div>
 
@@ -66,6 +70,8 @@
                            type="button"
                            class="btn btn-outline-danger btn-sm"
                            @click="openCancelModal(pkg)"
+                           :disabled="!canCancelPackageNow(pkg)"
+                           :title="canCancelPackageNow(pkg) ? '' : 'Open the cash drawer before refunding a cash sale'"
                         >
                            {{ pkg.action_state.label }}
                         </button>
@@ -98,6 +104,8 @@
                   type="button"
                   class="btn btn-outline-danger btn-sm mt-2 w-100"
                   @click="openCancelModal(pkg)"
+                  :disabled="!canCancelPackageNow(pkg)"
+                  :title="canCancelPackageNow(pkg) ? '' : 'Open the cash drawer before refunding a cash sale'"
                >
                   {{ pkg.action_state.label }}
                </button>
@@ -223,7 +231,7 @@
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-danger btn-sm" @click="submitPackage" :disabled="savingPackage || !packageForm.pt_product_id || !packageForm.coach_id">
+                  <button type="button" class="btn btn-danger btn-sm" @click="submitPackage" :disabled="savingPackage || !packageForm.pt_product_id || !packageForm.coach_id || !canRecordSales">
                      <span class="spinner-border spinner-border-sm me-1" v-if="savingPackage"></span>
                      Record Sale
                   </button>
@@ -307,7 +315,7 @@
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Keep Package</button>
-                  <button type="button" class="btn btn-danger btn-sm" @click="submitCancellation" :disabled="cancellingPackage || !cancelReason.trim()">
+                  <button type="button" class="btn btn-danger btn-sm" @click="submitCancellation" :disabled="cancellingPackage || !cancelReason.trim() || !canCancelPackageNow(cancelPackageTarget)">
                      <span class="spinner-border spinner-border-sm me-1" v-if="cancellingPackage"></span>
                      Confirm
                   </button>
@@ -336,6 +344,14 @@ export default {
          cancellingPackage: false,
          saved: false,
          generalError: "",
+         drawerStatusError: "",
+         drawerStatusLoading: true,
+         drawerStatus: {
+            enabled: true,
+            is_open: false,
+            opened_at: null,
+         },
+         drawerStatusTimer: null,
          packageErrors: {},
          usageErrors: {},
          cancelErrors: {},
@@ -376,6 +392,8 @@ export default {
       this.packageModalInst = new Modal(this.$refs.packageModal);
       this.usageModalInst = new Modal(this.$refs.usageModal);
       this.cancelPackageModalInst = new Modal(this.$refs.cancelPackageModal);
+      this.fetchDrawerStatus();
+      this.drawerStatusTimer = setInterval(() => this.fetchDrawerStatus(), 15000);
    },
 
    watch: {
@@ -474,6 +492,10 @@ export default {
          return this.is("super admin") || this.is("admin") || this.is("manager");
       },
 
+      canRecordSales: function () {
+         return !this.drawerStatus.enabled || this.drawerStatus.is_open;
+      },
+
       canLogUsage: function () {
          return this.canAllocatePackages || this.is("staff");
       },
@@ -482,6 +504,33 @@ export default {
    methods: {
       formatDate,
       formatDateTime,
+      fetchDrawerStatus: function () {
+         this.drawerStatusError = "";
+
+         return axios
+            .get("/panel/cash-drawer/status")
+            .then((response) => {
+               this.drawerStatus = response.data;
+            })
+            .catch((error) => {
+               this.drawerStatus = { enabled: true, is_open: false, opened_at: null };
+               this.drawerStatusError = error.response?.data?.message || "Unable to verify whether the cash drawer is open.";
+            })
+            .finally(() => {
+               this.drawerStatusLoading = false;
+            });
+      },
+
+      markDrawerClosed: function (error) {
+         if (error.response?.status === 409 && String(error.response?.data?.message || "").includes("cash drawer")) {
+            this.drawerStatus = { ...this.drawerStatus, enabled: true, is_open: false, opened_at: null };
+            this.fetchDrawerStatus();
+         }
+      },
+
+      canCancelPackageNow: function (pkg) {
+         return !pkg?.sale_transaction || pkg.sale_transaction.payment_method !== "cash" || this.canRecordSales;
+      },
       resetPackageForm: function () {
          this.packageForm = {
             pt_product_id: "",
@@ -511,6 +560,7 @@ export default {
       },
 
       openPackageModal: function () {
+         if (!this.canRecordSales) return;
          this.generalError = "";
          this.packageErrors = {};
          this.resetPackageForm();
@@ -525,6 +575,7 @@ export default {
       },
 
       openCancelModal: function (pkg) {
+         if (!this.canCancelPackageNow(pkg)) return;
          this.generalError = "";
          this.cancelErrors = {};
          this.cancelReason = "";
@@ -537,6 +588,7 @@ export default {
       },
 
       submitPackage: function () {
+         if (!this.canRecordSales) return;
          this.savingPackage = true;
          this.saved = false;
          this.generalError = "";
@@ -552,6 +604,7 @@ export default {
                setTimeout(() => (this.saved = false), 3000);
             })
             .catch((err) => {
+               this.markDrawerClosed(err);
                if (err.response?.status === 422) {
                   this.packageErrors = this.normalizeErrors(err.response.data.errors);
                } else {
@@ -588,6 +641,7 @@ export default {
 
       submitCancellation: function () {
          if (!this.cancelPackageTarget) return;
+         if (!this.canCancelPackageNow(this.cancelPackageTarget)) return;
 
          this.cancellingPackage = true;
          this.saved = false;
@@ -607,6 +661,7 @@ export default {
                setTimeout(() => (this.saved = false), 3000);
             })
             .catch((err) => {
+               this.markDrawerClosed(err);
                if (err.response?.status === 422) {
                   this.cancelErrors = this.normalizeErrors(err.response.data.errors);
                } else {
@@ -627,6 +682,13 @@ export default {
             }[status] || "m-badge--plan-expired"
          );
       },
+   },
+
+   beforeUnmount: function () {
+      clearInterval(this.drawerStatusTimer);
+      this.packageModalInst?.dispose();
+      this.usageModalInst?.dispose();
+      this.cancelPackageModalInst?.dispose();
    },
 };
 </script>

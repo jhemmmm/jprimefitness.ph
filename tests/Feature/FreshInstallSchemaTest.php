@@ -20,6 +20,9 @@ class FreshInstallSchemaTest extends TestCase
 
         $this->assertTrue(Schema::hasTable('cash_drawer_sessions'));
         $this->assertTrue(Schema::hasTable('cash_ledger_entries'));
+        $this->assertTableHasColumns('cash_ledger_entries', [
+            'payment_method',
+        ]);
         $this->assertFalse(Schema::hasTable('walk_ins'));
 
         $this->assertTableHasColumns('rate_plans', [

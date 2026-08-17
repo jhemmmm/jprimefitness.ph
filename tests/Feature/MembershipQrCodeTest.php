@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Mail\MembershipQrCodeMail;
 use App\Models\BusinessProfile;
+use App\Models\CashDrawerSession;
 use App\Models\MemberSubscription;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
@@ -35,6 +36,8 @@ class MembershipQrCodeTest extends TestCase
         BusinessProfile::factory()->create([
             'name' => 'JPrime Fitness Naga',
         ]);
+
+        CashDrawerSession::factory()->create(['opened_at' => '2026-01-01 08:00:00']);
     }
 
     public function test_pos_membership_sale_generates_qr_and_emails_member(): void

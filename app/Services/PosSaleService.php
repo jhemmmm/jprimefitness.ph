@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Models\SystemActivity;
+use App\Models\CashDrawerSession;
 use App\Models\InventoryItem;
 use App\Models\KioskPayment;
 use App\Models\MemberProfile;
@@ -11,6 +11,7 @@ use App\Models\MemberSubscription;
 use App\Models\PTProduct;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
+use App\Models\SystemActivity;
 use App\Models\User;
 use Carbon\Carbon;
 use DateTimeInterface;
@@ -22,6 +23,7 @@ use Illuminate\Validation\ValidationException;
 class PosSaleService
 {
     public function __construct(
+        private CashDrawerService $cashDrawerService,
         private InventoryStockAlertService $inventoryStockAlertService,
         private MemberPtPackageService $memberPtPackageService,
         private MembershipQrService $membershipQrService,
@@ -129,15 +131,20 @@ class PosSaleService
      */
     public function processSale(array $data, User $processedBy): SaleTransaction
     {
-        return match ($data['type']) {
-            SaleTransaction::TYPE_INVENTORY => $this->sellInventory($data, $processedBy),
-            SaleTransaction::TYPE_MEMBERSHIP => $this->sellMembership($data, $processedBy),
-            SaleTransaction::TYPE_PT_PACKAGE => $this->sellPtPackage($data, $processedBy),
-            SaleTransaction::TYPE_WALK_IN => $this->sellWalkIn($data, $processedBy),
-            default => throw ValidationException::withMessages([
-                'type' => ['The selected sale type is invalid.'],
-            ]),
-        };
+        return DB::transaction(function () use ($data, $processedBy): SaleTransaction {
+            $session = $this->cashDrawerService->requireOpenSession('Open the cash drawer before recording a sale.');
+            $this->validateSaleTime($data['sold_at'] ?? now(), $session);
+
+            return match ($data['type']) {
+                SaleTransaction::TYPE_INVENTORY => $this->sellInventory($data, $processedBy),
+                SaleTransaction::TYPE_MEMBERSHIP => $this->sellMembership($data, $processedBy),
+                SaleTransaction::TYPE_PT_PACKAGE => $this->sellPtPackage($data, $processedBy),
+                SaleTransaction::TYPE_WALK_IN => $this->sellWalkIn($data, $processedBy),
+                default => throw ValidationException::withMessages([
+                    'type' => ['The selected sale type is invalid.'],
+                ]),
+            };
+        });
     }
 
     /**
@@ -154,6 +161,10 @@ class PosSaleService
 
             if ($transaction->isVoided()) {
                 abort(409, 'This sale has already been voided.');
+            }
+
+            if ($transaction->payment_method === SaleTransaction::PAYMENT_METHOD_CASH) {
+                $this->cashDrawerService->requireOpenSession('Open the cash drawer before refunding a cash sale.');
             }
 
             match ($transaction->type) {
@@ -865,6 +876,7 @@ class PosSaleService
         ?string $paymentReference = null,
     ): SaleTransaction {
         return DB::transaction(function () use ($subscription, $processedBy, $paymentMethod, $paymentReference) {
+            $this->cashDrawerService->requireOpenSession('Open the cash drawer before recording a sale.');
             $subscription->loadMissing(['member.profile', 'ratePlan']);
 
             $member = $subscription->member;
@@ -962,6 +974,30 @@ class PosSaleService
 
     public function recordKioskWalkInSale(KioskPayment $payment, ?User $processedBy = null): SaleTransaction
     {
+        return DB::transaction(function () use ($payment, $processedBy): SaleTransaction {
+            $this->cashDrawerService->requireOpenSession('Open the cash drawer before recording a sale.');
+
+            return $this->createKioskWalkInSale($payment, $processedBy);
+        });
+    }
+
+    /**
+     * Record a verified automated online kiosk sale without requiring a drawer.
+     *
+     * @return \App\Models\SaleTransaction
+     */
+    public function recordAutomatedKioskWalkInSale(KioskPayment $payment): SaleTransaction
+    {
+        return DB::transaction(fn (): SaleTransaction => $this->createKioskWalkInSale($payment, null));
+    }
+
+    /**
+     * Create the shared kiosk walk-in sale record.
+     *
+     * @return \App\Models\SaleTransaction
+     */
+    private function createKioskWalkInSale(KioskPayment $payment, ?User $processedBy): SaleTransaction
+    {
         $occurredAt = $payment->paid_at ?? Carbon::now();
         $amount = round((float) $payment->amount, 2);
         $baseAmount = $payment->base_amount !== null
@@ -1016,5 +1052,25 @@ class PosSaleService
         }
 
         return $saleTransaction;
+    }
+
+    /**
+     * Ensure a staff-entered sale belongs to the currently open drawer period.
+     *
+     * @return void
+     */
+    private function validateSaleTime(DateTimeInterface|string $soldAt, ?CashDrawerSession $session): void
+    {
+        if (! $session) {
+            return;
+        }
+
+        $saleTime = Carbon::parse($soldAt);
+
+        if ($saleTime->lt($session->opened_at) || $saleTime->gt(now())) {
+            throw ValidationException::withMessages([
+                'sold_at' => ['The sale date and time must be within the current cash drawer session.'],
+            ]);
+        }
     }
 }

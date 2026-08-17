@@ -22,6 +22,7 @@ class CashLedgerEntryFactory extends Factory
             'session_id' => null,
             'type' => CashLedgerEntry::TYPE_EXPENSE,
             'category' => 'supplies',
+            'payment_method' => CashLedgerEntry::PAYMENT_METHOD_CASH,
             'amount' => -150,
             'description' => fake()->sentence(3),
             'recorded_by' => User::factory(),
