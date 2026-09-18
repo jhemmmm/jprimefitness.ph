@@ -59,39 +59,7 @@
          </div>
          <div class="panel-card-body">
             <div v-if="session.entries.length === 0" class="text-center py-4 text-muted">No cash movements yet.</div>
-            <div v-else class="table-responsive">
-               <table class="table table-striped table-hover align-middle mb-0">
-                  <thead class="table-light">
-                     <tr>
-                        <th>Time</th>
-                        <th>Type</th>
-                        <th>Description</th>
-                        <th>By</th>
-                        <th class="text-end">Amount</th>
-                     </tr>
-                  </thead>
-                  <tbody>
-                     <tr v-for="entry in session.entries" :key="entry.id">
-                        <td class="small">{{ formatTime(entry.occurred_at) }}</td>
-                        <td>
-                           <span :class="['m-badge', typeBadge(entry.type)]">{{ typeLabel(entry.type) }}</span>
-                           <span v-if="entry.category" class="text-muted small ms-1">{{ categoryLabel(entry.category) }}</span>
-                           <div class="text-muted small mt-1">{{ entry.payment_method_label || "Cash" }}</div>
-                        </td>
-                        <td class="small">
-                           {{ entry.description }}
-                           <a v-if="entry.receipt_url" :href="entry.receipt_url" target="_blank" class="ms-1 text-decoration-none"><i class="bi bi-paperclip"></i>Receipt</a>
-                           <div v-if="entry.notes" class="text-muted" style="font-size: 0.75rem">{{ entry.notes }}</div>
-                        </td>
-                        <td class="small text-muted">{{ entry.recorded_by_name || "-" }}</td>
-                        <td class="text-end small fw-bold" :class="entry.affects_cash ? (entry.amount < 0 ? 'text-danger' : 'text-success') : 'text-body'">
-                           {{ entry.affects_cash ? (entry.amount < 0 ? "-" : "+") : "" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}
-                           <div v-if="!entry.affects_cash" class="text-muted fw-normal" style="font-size: 0.72rem">No cash effect</div>
-                        </td>
-                     </tr>
-                  </tbody>
-               </table>
-            </div>
+            <cash-ledger-entries-table v-else :entries="session.entries" />
          </div>
       </div>
 
@@ -295,20 +263,27 @@
                <div class="panel-card-title">Expenses by Category</div>
                <div class="panel-card-sub">Monthly expenses across cash and online payments</div>
             </div>
-            <input type="month" class="form-control form-control-sm expense-month" v-model="expenseMonth" aria-label="Expense summary month" @change="fetchExpenseSummary" />
+            <input type="month" class="form-control form-control-sm expense-month" v-model="expenseMonth" aria-label="Expense summary month" @change="fetchExpenseSummary(1)" />
          </div>
          <div class="panel-card-body">
             <div v-if="expenseSummary.categories.length === 0" class="text-center py-4 text-muted small">No expenses recorded this month.</div>
             <template v-else>
                <div class="expense-summary-grid">
                   <div v-for="row in expenseSummary.categories" :key="row.category" class="expense-summary-item">
-                     <span class="text-muted small">{{ categoryLabel(row.category) }}</span>
+                     <span class="text-muted small">{{ $filters.capitalize(row.category) }}</span>
                      <span class="fw-bold text-danger">₱{{ $filters.formatMoney(row.total) }}</span>
                   </div>
                </div>
                <div class="d-flex justify-content-between align-items-center pt-3 mt-3 border-top fw-bold">
                   <span>Monthly Total</span>
                   <span class="text-danger fs-5">₱{{ $filters.formatMoney(expenseSummary.total) }}</span>
+               </div>
+
+               <div class="mt-3 border-top pt-3">
+                  <cash-ledger-entries-table :entries="expenseSummary.entries.data" datetime />
+               </div>
+               <div v-if="expenseSummary.entries.last_page > 1" class="d-flex justify-content-center pt-3">
+                  <panel-pagination :links="expenseSummary.entries.links" :current-page="expenseSummary.entries.current_page" :last-page="expenseSummary.entries.last_page" aria-label="Expense entries pagination" @page-change="fetchExpenseSummary" />
                </div>
             </template>
          </div>
@@ -353,7 +328,7 @@
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Category <span class="text-danger">*</span></label>
                         <select class="form-select" v-model="expenseForm.category" :class="{ 'is-invalid': expenseErrors.category }">
-                           <option v-for="cat in categories" :key="cat" :value="cat">{{ categoryLabel(cat) }}</option>
+                           <option v-for="cat in categories" :key="cat" :value="cat">{{ $filters.capitalize(cat) }}</option>
                         </select>
                         <div class="invalid-feedback" v-if="expenseErrors.category">{{ expenseErrors.category }}</div>
                      </div>
@@ -520,45 +495,15 @@
                      <div>No cash movements were recorded for this session.</div>
                   </div>
                   <template v-else>
-                     <div class="table-responsive d-none d-md-block">
-                        <table class="table table-hover align-middle mb-0 panel-table session-entry-table">
-                           <thead>
-                              <tr>
-                                 <th scope="col">Time</th>
-                                 <th scope="col">Type</th>
-                                 <th scope="col">Description</th>
-                                 <th scope="col">Recorded By</th>
-                                 <th scope="col" class="text-end">Amount</th>
-                              </tr>
-                           </thead>
-                           <tbody>
-                              <tr v-for="entry in selectedSessionEntries" :key="entry.id">
-                                 <td class="small text-muted">{{ formatTime(entry.occurred_at) }}</td>
-                                 <td>
-                                    <span :class="['m-badge', typeBadge(entry.type)]">{{ typeLabel(entry.type) }}</span>
-                                    <div v-if="entry.category" class="small text-muted mt-1">{{ categoryLabel(entry.category) }}</div>
-                                    <div class="small text-muted mt-1">{{ entry.payment_method_label || "Cash" }}</div>
-                                 </td>
-                                 <td class="small">
-                                    <div class="fw-semibold">{{ entry.description }}</div>
-                                    <div v-if="entry.notes" class="text-muted">{{ entry.notes }}</div>
-                                    <a v-if="entry.receipt_url" :href="entry.receipt_url" target="_blank" rel="noopener" class="d-inline-block mt-1 text-decoration-none"><i class="bi bi-paperclip me-1"></i>View receipt</a>
-                                 </td>
-                                 <td class="small text-muted">{{ entry.recorded_by_name || "-" }}</td>
-                                 <td class="text-end fw-bold" :class="entry.affects_cash ? (entry.amount < 0 ? 'text-danger' : 'text-success') : 'text-body'">
-                                    {{ entry.affects_cash ? (entry.amount < 0 ? "−" : "+") : "" }}₱{{ $filters.formatMoney(Math.abs(entry.amount)) }}
-                                    <div v-if="!entry.affects_cash" class="small text-muted fw-normal">No cash effect</div>
-                                 </td>
-                              </tr>
-                           </tbody>
-                        </table>
+                     <div class="d-none d-md-block">
+                        <cash-ledger-entries-table :entries="selectedSessionEntries" />
                      </div>
                      <div class="d-md-none">
                         <article v-for="entry in selectedSessionEntries" :key="'mobile-entry-' + entry.id" class="session-entry-card">
                            <div class="d-flex align-items-start justify-content-between gap-3">
                               <div>
-                                 <span :class="['m-badge', typeBadge(entry.type)]">{{ typeLabel(entry.type) }}</span>
-                                 <span v-if="entry.category" class="small text-muted ms-1">{{ categoryLabel(entry.category) }}</span>
+                                 <span :class="['m-badge', $filters.ledgerTypeBadge(entry.type)]">{{ $filters.ledgerTypeLabel(entry.type) }}</span>
+                                 <span v-if="entry.category" class="small text-muted ms-1">{{ $filters.capitalize(entry.category) }}</span>
                                  <div class="small text-muted mt-1">{{ entry.payment_method_label || "Cash" }}</div>
                               </div>
                               <div class="fw-bold text-nowrap" :class="entry.affects_cash ? (entry.amount < 0 ? 'text-danger' : 'text-success') : 'text-body'">
@@ -592,8 +537,10 @@
 <script>
 import { Modal } from "bootstrap";
 import { daysBetween, formatDate, formatTime } from "../../dates";
+import CashLedgerEntriesTable from "./vendor/CashLedgerEntriesTable.vue";
 
 export default {
+   components: { CashLedgerEntriesTable },
    data: function () {
       return {
          loading: true,
@@ -614,7 +561,7 @@ export default {
          selectedSessionError: "",
          selectedEntriesPagination: { currentPage: 1, lastPage: 1, links: [], total: 0 },
          expenseMonth: new Date().toISOString().slice(0, 7),
-         expenseSummary: { categories: [], total: 0 },
+         expenseSummary: { categories: [], total: 0, entries: { data: [], current_page: 1, last_page: 1, links: [] } },
          openForm: { opening_float: "", notes: "" },
          openError: "",
          openErrors: {},
@@ -672,36 +619,6 @@ export default {
       formatTime,
       emptyExpenseForm: function () {
          return { category: "supplies", payment_method: "cash", amount: "", description: "", notes: "" };
-      },
-      typeLabel: function (type) {
-         return (
-            {
-               sale: "Sale",
-               sale_void: "Void Refund",
-               expense: "Expense",
-               payout: "Payroll Payout",
-               cash_advance: "Cash Advance",
-               adjustment: "Adjustment",
-            }[type] || this.$filters.capitalize(type)
-         );
-      },
-      typeBadge: function (type) {
-         return (
-            {
-               sale: "m-badge--active",
-               sale_void: "m-badge--suspended",
-               expense: "m-badge--pending",
-               payout: "m-badge--partial",
-               cash_advance: "m-badge--partial",
-               adjustment: "m-badge--draft",
-            }[type] || "m-badge--draft"
-         );
-      },
-      categoryLabel: function (category) {
-         return String(category || "")
-            .split("_")
-            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(" ");
       },
       overShortLabel: function (value) {
          const amount = Number(value || 0);
@@ -783,8 +700,8 @@ export default {
             })
             .finally(() => (this.selectedSessionLoading = false));
       },
-      fetchExpenseSummary: function () {
-         axios.get("/panel/cash-drawer/expense-summary", { params: { month: this.expenseMonth } }).then((res) => {
+      fetchExpenseSummary: function (page = 1) {
+         axios.get("/panel/cash-drawer/expense-summary", { params: { month: this.expenseMonth, page } }).then((res) => {
             this.expenseSummary = res.data;
          });
       },
@@ -1178,11 +1095,6 @@ export default {
    background: var(--bs-body-bg);
    color: var(--bs-secondary-color);
    font-size: 0.82rem;
-}
-
-.session-entry-table th:last-child,
-.session-entry-table td:last-child {
-   white-space: nowrap;
 }
 
 @media (max-width: 767.98px) {

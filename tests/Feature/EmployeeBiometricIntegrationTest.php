@@ -58,13 +58,16 @@ class EmployeeBiometricIntegrationTest extends TestCase
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 650,
                     'pay_frequency' => 'semi_monthly',
                     'sss_covered' => false,
                     'philhealth_covered' => false,
                     'pagibig_covered' => false,
                 ],
-                'password' => 'password123',
+                'password' => 'Password123!',
             ])
             ->assertCreated()
             ->assertJsonPath('employee_profile.biometric_status', EmployeeProfile::STATUS_NOT_ENROLLED)
@@ -104,6 +107,9 @@ class EmployeeBiometricIntegrationTest extends TestCase
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 700,
                     'pay_frequency' => 'monthly',
                     'sss_covered' => false,

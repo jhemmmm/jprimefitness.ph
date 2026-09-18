@@ -216,7 +216,7 @@ class CashDrawerController extends Controller
     }
 
     /**
-     * Monthly expense totals per category.
+     * Monthly expense totals per category plus the month's expense entries.
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -230,10 +230,12 @@ class CashDrawerController extends Controller
         $start = $month.'-01';
         $end = date('Y-m-t', strtotime($start));
 
-        $rows = CashLedgerEntry::query()
+        $expenses = CashLedgerEntry::query()
             ->where('type', CashLedgerEntry::TYPE_EXPENSE)
             ->whereDate('occurred_at', '>=', $start)
-            ->whereDate('occurred_at', '<=', $end)
+            ->whereDate('occurred_at', '<=', $end);
+
+        $rows = (clone $expenses)
             ->selectRaw('category, SUM(amount) as total')
             ->groupBy('category')
             ->orderBy('category')
@@ -244,10 +246,14 @@ class CashDrawerController extends Controller
             ])
             ->values();
 
+        $entries = $expenses->with('recordedBy:id,name')->orderByDesc('occurred_at')->paginate(20);
+        $entries->getCollection()->transform(fn (CashLedgerEntry $entry) => $this->serializeEntry($entry));
+
         return response()->json([
             'month' => $month,
             'categories' => $rows,
             'total' => round($rows->sum('total'), 2),
+            'entries' => $entries,
         ]);
     }
 

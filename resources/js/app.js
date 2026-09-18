@@ -125,6 +125,12 @@ app.config.globalProperties.$filters = {
          .filter((program) => program.total > 0);
    },
    formatTime: formatClockTime,
+   discountLabels: function () {
+      return window.JPrime?.discountLabels || {};
+   },
+   discountLabel(type) {
+      return window.JPrime?.discountLabels?.[type] || "";
+   },
    capitalize: function (str) {
       return String(str ?? "")
          .trim()
@@ -133,6 +139,30 @@ app.config.globalProperties.$filters = {
          .filter(Boolean)
          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
          .join(" ");
+   },
+   ledgerTypeLabel(type) {
+      return (
+         {
+            sale: "Sale",
+            sale_void: "Void Refund",
+            expense: "Expense",
+            payout: "Payroll Payout",
+            cash_advance: "Cash Advance",
+            adjustment: "Adjustment",
+         }[type] || this.capitalize(type)
+      );
+   },
+   ledgerTypeBadge(type) {
+      return (
+         {
+            sale: "m-badge--active",
+            sale_void: "m-badge--suspended",
+            expense: "m-badge--pending",
+            payout: "m-badge--partial",
+            cash_advance: "m-badge--partial",
+            adjustment: "m-badge--draft",
+         }[type] || "m-badge--draft"
+      );
    },
    roleBadge(role) {
       return (

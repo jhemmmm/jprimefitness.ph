@@ -37,6 +37,7 @@
                     <div class="invalid-feedback">{{ $message }}</div>
                 @enderror
             </div>
+            <div class="form-text">At least 8 characters with upper and lower case letters and a symbol.</div>
         </div>
 
         <div class="mb-4">

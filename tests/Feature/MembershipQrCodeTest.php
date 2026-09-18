@@ -116,8 +116,11 @@ class MembershipQrCodeTest extends TestCase
             ->postJson('/panel/members', [
                 'name' => 'Member Lina',
                 'email' => 'lina@example.com',
+                'date_of_birth' => '1990-01-01',
+                'emergency_contact_name' => 'Next of Kin',
+                'emergency_contact_phone' => '09170000001',
                 'phone' => '09171234567',
-                'password' => 'password123',
+                'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
                 'rate_plan_id' => $ratePlan->id,
                 'start_date' => '2026-05-01',

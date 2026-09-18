@@ -31,7 +31,7 @@
                         <input type="email" class="form-control" :value="user.email" disabled />
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm fw-semibold">Phone</label>
+                        <label class="form-label form-label-sm fw-semibold">Phone <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" :class="{ 'is-invalid': errors.phone }" v-model="form.phone" />
                         <div class="invalid-feedback" v-if="errors.phone">{{ errors.phone[0] }}</div>
                      </div>
@@ -51,6 +51,7 @@
                         <label class="form-label form-label-sm fw-semibold">New Password</label>
                         <input type="password" class="form-control" :class="{ 'is-invalid': errors.password }" v-model="form.password" autocomplete="new-password" />
                         <div class="invalid-feedback" v-if="errors.password">{{ errors.password[0] }}</div>
+                        <div class="form-text" v-else>At least 8 characters with upper and lower case letters and a symbol.</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm fw-semibold">Confirm New Password</label>

@@ -21,6 +21,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class MembersController extends Controller
 {
@@ -35,6 +36,27 @@ class MembersController extends Controller
         private PosSaleService $posSaleService,
         private SystemActivityService $systemActivityService,
     ) {}
+
+    /**
+     * Contact-detail rules shared by store() and update(). Required for new members;
+     * an existing member may leave a still-blank field empty but can't clear one that is set.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function personRules(?User $member = null): array
+    {
+        $presence = fn (mixed $current) => $member && $current === null ? 'nullable' : 'required';
+
+        return [
+            'phone' => [$presence($member?->phone), 'string', 'max:50'],
+            'date_of_birth' => [$presence($member?->profile?->date_of_birth), 'date', 'before:today'],
+            'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
+            'emergency_contact_name' => [$presence($member?->profile?->emergency_contact_name), 'string', 'max:255'],
+            'emergency_contact_phone' => [$presence($member?->profile?->emergency_contact_phone), 'string', 'max:50'],
+            'notes' => ['nullable', 'string'],
+            'discount_type' => ['nullable', Rule::in(MemberProfile::discountTypes())],
+        ];
+    }
 
     /**
      * Display the members page.
@@ -115,8 +137,7 @@ class MembersController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
-            'phone' => ['nullable', 'string', 'max:50'],
-            'password' => ['required', 'string', 'min:8'],
+            'password' => ['required', 'string', Password::defaults()],
             'status' => [
                 'required',
                 Rule::in([
@@ -125,12 +146,7 @@ class MembersController extends Controller
                     User::STATUS_SUSPENDED,
                 ]),
             ],
-            'date_of_birth' => ['nullable', 'date'],
-            'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
-            'emergency_contact_name' => ['nullable', 'string', 'max:255'],
-            'emergency_contact_phone' => ['nullable', 'string', 'max:50'],
-            'notes' => ['nullable', 'string'],
-            'discount_type' => ['nullable', Rule::in([MemberProfile::DISCOUNT_STUDENT, MemberProfile::DISCOUNT_SENIOR])],
+            ...$this->personRules(),
             'rate_plan_id' => ['required', 'exists:rate_plans,id'],
             'start_date' => ['nullable', 'date'],
         ]);
@@ -138,7 +154,7 @@ class MembersController extends Controller
         $member = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
+            'phone' => $data['phone'],
             'password' => Hash::make($data['password']),
             'status' => $data['status'],
         ]);
@@ -146,10 +162,10 @@ class MembersController extends Controller
         $member->assignRole('member');
 
         $member->profile()->create([
-            'date_of_birth' => $data['date_of_birth'] ?? null,
+            'date_of_birth' => $data['date_of_birth'],
             'gender' => $data['gender'] ?? null,
-            'emergency_contact_name' => $data['emergency_contact_name'] ?? null,
-            'emergency_contact_phone' => $data['emergency_contact_phone'] ?? null,
+            'emergency_contact_name' => $data['emergency_contact_name'],
+            'emergency_contact_phone' => $data['emergency_contact_phone'],
             'notes' => $data['notes'] ?? null,
             'discount_type' => $data['discount_type'] ?? null,
         ]);
@@ -457,7 +473,6 @@ class MembersController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($member->id)->withoutTrashed()],
-            'phone' => ['nullable', 'string', 'max:50'],
             'status' => [
                 'nullable',
                 Rule::in([
@@ -466,12 +481,7 @@ class MembersController extends Controller
                     User::STATUS_SUSPENDED,
                 ]),
             ],
-            'date_of_birth' => ['nullable', 'date'],
-            'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
-            'emergency_contact_name' => ['nullable', 'string', 'max:255'],
-            'emergency_contact_phone' => ['nullable', 'string', 'max:50'],
-            'notes' => ['nullable', 'string'],
-            'discount_type' => ['nullable', Rule::in([MemberProfile::DISCOUNT_STUDENT, MemberProfile::DISCOUNT_SENIOR])],
+            ...$this->personRules($member),
             'rate_plan_id' => ['nullable', 'exists:rate_plans,id'],
             'start_date' => ['nullable', 'date'],
         ]);

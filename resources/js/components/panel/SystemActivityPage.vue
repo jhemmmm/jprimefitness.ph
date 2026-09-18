@@ -69,10 +69,10 @@
                   />
                </div>
                <div class="col-6 col-md-3 col-lg-1">
-                  <input type="date" class="form-control" v-model="filters.date_from" @change="fetchSystemActivity(1)" />
+                  <input type="date" class="form-control" v-model="filters.date_from" @change="onDateChange" />
                </div>
                <div class="col-6 col-md-3 col-lg-1">
-                  <input type="date" class="form-control" v-model="filters.date_to" @change="fetchSystemActivity(1)" />
+                  <input type="date" class="form-control" v-model="filters.date_to" @change="onDateChange" />
                </div>
             </div>
 
@@ -338,6 +338,7 @@ import { Modal } from "bootstrap";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import dateRangePresets from "../../mixins/dateRangePresets";
 import { formatDateTime } from "../../dates";
+import { debounce } from "../../debounce";
 
 export default {
    components: {
@@ -350,7 +351,6 @@ export default {
          restoring: false,
          pageError: "",
          restoreError: "",
-         searchTimer: null,
          restoreModal: null,
          restoreTarget: null,
          successMessage: "",
@@ -420,10 +420,6 @@ export default {
       this.hydrateFiltersFromUrl();
       this.restoreModal = new Modal(this.$refs.restoreModal);
       this.fetchSystemActivity();
-   },
-
-   beforeUnmount: function () {
-      clearTimeout(this.searchTimer);
    },
 
    methods: {
@@ -568,10 +564,17 @@ export default {
          return event.event === "deleted" && !this.canRestoreEvent(event) && Boolean(event.restore && event.restore.reason);
       },
 
-      onSearchInput: function () {
-         clearTimeout(this.searchTimer);
-         this.searchTimer = setTimeout(() => this.fetchSystemActivity(1), 350);
-      },
+      onSearchInput: debounce(function () {
+         this.fetchSystemActivity(1);
+      }),
+
+      onDateChange: debounce(function () {
+         if (this.filters.date_from && this.filters.date_to && this.filters.date_from > this.filters.date_to) {
+            this.pageError = 'The "to" date must be on or after the "from" date.';
+            return;
+         }
+         this.fetchSystemActivity(1);
+      }),
 
       openRestoreModal: function (event) {
          this.restoreTarget = event;

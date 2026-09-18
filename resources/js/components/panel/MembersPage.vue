@@ -289,13 +289,15 @@
                         <div class="invalid-feedback" v-if="formErrors.email">{{ formErrors.email }}</div>
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Phone</label>
-                        <input type="text" class="form-control" v-model="form.phone" placeholder="09XX XXX XXXX" />
+                        <label class="form-label form-label-sm">Phone <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" v-model="form.phone" :class="{ 'is-invalid': formErrors.phone }" placeholder="09XX XXX XXXX" />
+                        <div class="invalid-feedback" v-if="formErrors.phone">{{ formErrors.phone }}</div>
                      </div>
                      <div class="col-md-6" v-if="modalMode === 'add'">
                         <label class="form-label form-label-sm">Password <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" v-model="form.password" :class="{ 'is-invalid': formErrors.password }" placeholder="Min. 8 characters" />
+                        <input type="password" class="form-control" v-model="form.password" :class="{ 'is-invalid': formErrors.password }" />
                         <div class="invalid-feedback" v-if="formErrors.password">{{ formErrors.password }}</div>
+                        <div class="form-text" v-else>At least 8 characters with upper and lower case letters and a symbol.</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Status</label>
@@ -313,8 +315,9 @@
                   </div>
                   <div class="row g-3 mb-4">
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Date of Birth</label>
-                        <input type="date" class="form-control" v-model="form.date_of_birth" />
+                        <label class="form-label form-label-sm">Date of Birth <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" v-model="form.date_of_birth" :class="{ 'is-invalid': formErrors.date_of_birth }" />
+                        <div class="invalid-feedback" v-if="formErrors.date_of_birth">{{ formErrors.date_of_birth }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Gender</label>
@@ -326,21 +329,22 @@
                         </select>
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Emergency Contact Name</label>
-                        <input type="text" class="form-control" v-model="form.emergency_contact_name" placeholder="Full name" />
+                        <label class="form-label form-label-sm">Emergency Contact Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" v-model="form.emergency_contact_name" :class="{ 'is-invalid': formErrors.emergency_contact_name }" placeholder="Full name" />
+                        <div class="invalid-feedback" v-if="formErrors.emergency_contact_name">{{ formErrors.emergency_contact_name }}</div>
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label form-label-sm">Emergency Contact Phone</label>
-                        <input type="text" class="form-control" v-model="form.emergency_contact_phone" placeholder="Phone number" />
+                        <label class="form-label form-label-sm">Emergency Contact Phone <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" v-model="form.emergency_contact_phone" :class="{ 'is-invalid': formErrors.emergency_contact_phone }" placeholder="Phone number" />
+                        <div class="invalid-feedback" v-if="formErrors.emergency_contact_phone">{{ formErrors.emergency_contact_phone }}</div>
                      </div>
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">ID Discount</label>
                         <select class="form-select" v-model="form.discount_type">
                            <option :value="''">None - regular rate</option>
-                           <option value="student">Student - 20% off</option>
-                           <option value="senior">Senior - 20% off</option>
+                                                      <option v-for="(label, value) in $filters.discountLabels()" :key="value" :value="value">{{ label }} - 20% off</option>
                         </select>
-                        <div class="form-text">Verify a valid student / senior ID before saving.</div>
+                        <div class="form-text">Verify a valid student / senior citizen / PWD ID before saving.</div>
                      </div>
                      <div class="col-12">
                         <label class="form-label form-label-sm">Notes</label>
@@ -386,6 +390,7 @@
 import { Modal } from "bootstrap";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import { formatDate, toDateInputValue } from "../../dates";
+import { debounce } from "../../debounce";
 
 export default {
    components: {
@@ -412,7 +417,6 @@ export default {
          selectedStatus: [],
          selectedPlan: [],
          currentPage: 1,
-         searchTimer: null,
          modalMode: "add",
          formError: "",
          formErrors: {},
@@ -475,10 +479,9 @@ export default {
             .finally(() => (this.loading = false));
       },
 
-      onSearchInput: function () {
-         clearTimeout(this.searchTimer);
-         this.searchTimer = setTimeout(() => this.fetchMembers(), 500);
-      },
+      onSearchInput: debounce(function () {
+         this.fetchMembers();
+      }),
 
       openAddModal: function () {
          this.modalMode = "add";

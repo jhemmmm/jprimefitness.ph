@@ -36,8 +36,25 @@ class EmployeeProfile extends Model
         'pagibig_employer_share' => 100,
     ];
 
+    /**
+     * Personal and PH government ID columns edited on the employee form.
+     *
+     * @var list<string>
+     */
+    public const DETAIL_COLUMNS = [
+        'date_of_birth',
+        'emergency_contact_name',
+        'emergency_contact_phone',
+        'hired_at',
+        'tin',
+        'sss_number',
+        'philhealth_number',
+        'pagibig_number',
+    ];
+
     protected $fillable = [
         'user_id',
+        ...self::DETAIL_COLUMNS,
         'hikvision_employee_no',
         'biometric_status',
         'biometric_fingerprint_id',
@@ -60,6 +77,8 @@ class EmployeeProfile extends Model
     protected function casts(): array
     {
         return [
+            'date_of_birth' => 'date',
+            'hired_at' => 'date',
             'biometric_enrolled_at' => 'datetime',
             'daily_rate' => 'decimal:2',
             'pay_frequency' => 'string',

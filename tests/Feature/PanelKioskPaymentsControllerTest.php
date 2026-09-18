@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BusinessProfile;
 use App\Models\CashDrawerSession;
 use App\Models\KioskPayment;
+use App\Models\MemberProfile;
 use App\Models\MemberSubscription;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
@@ -111,7 +112,7 @@ class PanelKioskPaymentsControllerTest extends TestCase
         $payment = $this->makePayment('kio_confirm_discount', [
             'amount' => 120,
             'base_amount' => 150,
-            'discount_type' => KioskPayment::DISCOUNT_STUDENT,
+            'discount_type' => MemberProfile::DISCOUNT_STUDENT,
             'status' => KioskPayment::STATUS_PENDING,
             'paymongo_payment_intent_id' => null,
             'expires_at' => Carbon::now()->addMinutes(30),
@@ -275,6 +276,23 @@ class PanelKioskPaymentsControllerTest extends TestCase
 
         $this->assertSame(KioskPayment::STATUS_CANCELLED, $payment->fresh()->status);
         $this->assertSame(0, SaleTransaction::query()->count());
+    }
+
+    public function test_pwd_discount_is_accepted_and_priced_like_senior(): void
+    {
+        config(['services.kiosk.token' => 'test-kiosk-token']);
+
+        $this->postJson('/api/kiosk/payments', [
+            'name' => 'PWD Pia',
+            'phone' => '+639170000011',
+            'method' => 'cash',
+            'discount_type' => 'pwd',
+        ], ['X-Kiosk-Token' => 'test-kiosk-token'])->assertCreated();
+
+        $payment = KioskPayment::query()->where('name', 'PWD Pia')->firstOrFail();
+        $this->assertSame('pwd', $payment->discount_type);
+        $this->assertSame(150.0, (float) $payment->base_amount);
+        $this->assertSame(120.0, (float) $payment->amount);
     }
 
     public function test_create_payment_persists_base_amount_and_uses_cash_timeout_for_cash(): void

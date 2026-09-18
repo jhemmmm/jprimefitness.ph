@@ -38,12 +38,16 @@ class EmployeePayFrequencyTest extends TestCase
             ->postJson('/panel/employees', [
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben@example.com',
+                'phone' => '09170000000',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 450,
                 ],
-                'password' => 'password123',
+                'password' => 'Password123!',
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['employee_profile.pay_frequency']);
@@ -59,6 +63,7 @@ class EmployeePayFrequencyTest extends TestCase
             ->postJson('/panel/employees', [
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben-root@example.com',
+                'phone' => '09170000000',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'daily_rate' => 450,
@@ -66,7 +71,7 @@ class EmployeePayFrequencyTest extends TestCase
                 'sss_covered' => false,
                 'philhealth_covered' => false,
                 'pagibig_covered' => false,
-                'password' => 'password123',
+                'password' => 'Password123!',
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['employee_profile']);
@@ -95,9 +100,13 @@ class EmployeePayFrequencyTest extends TestCase
             ->postJson('/panel/employees', [
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben@example.com',
+                'phone' => '09170000000',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 450,
                     'pay_frequency' => 'monthly',
                     'sss_covered' => true,
@@ -110,7 +119,7 @@ class EmployeePayFrequencyTest extends TestCase
                     'pagibig_employee_share' => 200,
                     'pagibig_employer_share' => 200,
                 ],
-                'password' => 'password123',
+                'password' => 'Password123!',
             ])
             ->assertCreated()
             ->assertJsonPath('employee_profile.pay_frequency', 'monthly')
@@ -142,9 +151,13 @@ class EmployeePayFrequencyTest extends TestCase
             ->putJson("/panel/employees/{$employeeId}", [
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben@example.com',
+                'phone' => '09170000000',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 450,
                     'pay_frequency' => 'semi_monthly',
                     'sss_covered' => true,
@@ -179,6 +192,92 @@ class EmployeePayFrequencyTest extends TestCase
         ]);
     }
 
+    public function test_employee_creation_stores_personal_details_and_requires_the_mandatory_ones(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $staffRole = Role::findByName('staff');
+
+        $payload = [
+            'name' => 'Coach Ben',
+            'email' => 'coach-ben-details@example.com',
+            'phone' => '09170000000',
+            'address' => '12 Rizal St, Naga City',
+            'status' => User::STATUS_ACTIVE,
+            'role_ids' => [$staffRole->id],
+            'employee_profile' => [
+                'date_of_birth' => '1990-01-01',
+                'emergency_contact_name' => 'Next of Kin',
+                'emergency_contact_phone' => '09170000001',
+                'hired_at' => '2026-01-15',
+                'tin' => '123-456-789-000',
+                'sss_number' => '34-1234567-8',
+                'philhealth_number' => '12-345678901-2',
+                'pagibig_number' => '1234-5678-9012',
+                'daily_rate' => 450,
+                'pay_frequency' => 'monthly',
+                'sss_covered' => true,
+                'philhealth_covered' => true,
+                'pagibig_covered' => true,
+            ],
+            'password' => 'Password123!',
+        ];
+
+        $this->actingAs($manager)
+            ->postJson('/panel/employees', $payload)
+            ->assertCreated()
+            ->assertJsonPath('address', '12 Rizal St, Naga City')
+            ->assertJsonPath('employee_profile.date_of_birth', '1990-01-01')
+            ->assertJsonPath('employee_profile.hired_at', '2026-01-15')
+            ->assertJsonPath('employee_profile.sss_number', '34-1234567-8');
+
+        $this->assertDatabaseHas('employee_profiles', [
+            'user_id' => User::where('email', 'coach-ben-details@example.com')->value('id'),
+            'emergency_contact_name' => 'Next of Kin',
+            'tin' => '123-456-789-000',
+            'pagibig_number' => '1234-5678-9012',
+        ]);
+
+        $incomplete = $payload;
+        $incomplete['email'] = 'coach-ben-incomplete@example.com';
+        unset($incomplete['phone'], $incomplete['employee_profile']['date_of_birth'], $incomplete['employee_profile']['emergency_contact_phone']);
+
+        $this->actingAs($manager)
+            ->postJson('/panel/employees', $incomplete)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone', 'employee_profile.date_of_birth', 'employee_profile.emergency_contact_phone']);
+
+        // once set, the details can't be cleared on update
+        $employeeId = User::where('email', 'coach-ben-details@example.com')->value('id');
+        $cleared = $payload;
+        $cleared['employee_profile']['date_of_birth'] = null;
+
+        $this->actingAs($manager)
+            ->putJson("/panel/employees/{$employeeId}", $cleared)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['employee_profile.date_of_birth']);
+    }
+
+    public function test_legacy_employee_without_details_can_still_be_updated(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $staffRole = Role::findByName('staff');
+        $legacy = User::factory()->withEmployeeProfile(['pay_frequency' => 'monthly'])->create(['phone' => null]);
+        $legacy->assignRole('staff');
+
+        $this->actingAs($manager)
+            ->putJson("/panel/employees/{$legacy->id}", [
+                'name' => $legacy->name,
+                'email' => $legacy->email,
+                'status' => User::STATUS_INACTIVE,
+                'role_ids' => [$staffRole->id],
+                'employee_profile' => ['daily_rate' => 500, 'pay_frequency' => 'monthly', 'sss_covered' => true, 'philhealth_covered' => true, 'pagibig_covered' => true],
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', User::STATUS_INACTIVE);
+    }
+
     public function test_philippines_employee_creation_defaults_contribution_amounts_to_the_legal_minimum(): void
     {
         $this->setBusinessProfile('Naga');
@@ -189,16 +288,20 @@ class EmployeePayFrequencyTest extends TestCase
             ->postJson('/panel/employees', [
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben-ph@example.com',
+                'phone' => '09170000000',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 450,
                     'pay_frequency' => 'monthly',
                     'sss_covered' => true,
                     'philhealth_covered' => true,
                     'pagibig_covered' => true,
                 ],
-                'password' => 'password123',
+                'password' => 'Password123!',
             ])
             ->assertCreated()
             ->assertJsonPath('employee_profile.sss_employee_share', 250)
@@ -225,16 +328,20 @@ class EmployeePayFrequencyTest extends TestCase
             ->postJson('/panel/employees', [
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben-sg@example.com',
+                'phone' => '09170000000',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 450,
                     'pay_frequency' => 'monthly',
                     'sss_covered' => true,
                     'philhealth_covered' => true,
                     'pagibig_covered' => true,
                 ],
-                'password' => 'password123',
+                'password' => 'Password123!',
             ])
             ->assertCreated()
             ->assertJsonPath('employee_profile.sss_covered', false)
@@ -263,16 +370,20 @@ class EmployeePayFrequencyTest extends TestCase
             ->postJson('/panel/employees', [
                 'name' => 'Coach Ben',
                 'email' => 'archived-coach@example.com',
+                'phone' => '09170000000',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 450,
                     'pay_frequency' => 'monthly',
                     'sss_covered' => false,
                     'philhealth_covered' => false,
                     'pagibig_covered' => false,
                 ],
-                'password' => 'password123',
+                'password' => 'Password123!',
             ])
             ->assertCreated()
             ->assertJsonPath('email', 'archived-coach@example.com');

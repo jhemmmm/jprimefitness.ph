@@ -55,6 +55,8 @@ class SettingsController extends Controller
             'timezone' => ['nullable', 'string', 'max:100'],
             'amenities' => ['nullable', 'array'],
             'amenities.*' => ['string', 'max:100'],
+            'social_links' => ['nullable', 'array:'.implode(',', array_keys(BusinessProfile::SOCIAL_NETWORKS))],
+            'social_links.*' => ['nullable', 'url', 'max:255'],
             'operating_hours' => ['required', 'array', 'size:7'],
             'operating_hours.*.day' => ['required', 'string', Rule::in(BusinessProfile::operatingDayNames())],
             'operating_hours.*.opening_time' => ['required', 'date_format:H:i'],
@@ -101,6 +103,9 @@ class SettingsController extends Controller
         $data['operating_hours'] = $this->normalizeOperatingHours($data['operating_hours']);
         $data['opening_time'] = $data['operating_hours'][0]['opening_time'];
         $data['closing_time'] = $data['operating_hours'][0]['closing_time'];
+        if (isset($data['social_links'])) {
+            $data['social_links'] = array_filter($data['social_links']);
+        }
 
         $profile = BusinessProfile::current();
         $profile->update($data);

@@ -30,6 +30,7 @@
         window.JPrime = window.JPrime || {};
         window.JPrime.timezone = @js(config('app.timezone'));
         window.JPrime.recaptchaSiteKey = @js(config('services.recaptcha.site_key'));
+        window.JPrime.discountLabels = @json(\App\Models\MemberProfile::DISCOUNT_LABELS);
     </script>
 
     @if (config('services.recaptcha.site_key'))
@@ -114,12 +115,13 @@
                     <p class="text-white-50 small mt-3 mb-3" style="max-width: 320px;">
                         {{ $bp->name }} is a community-driven gym committed to clean facilities, honest pricing, and real, measurable progress.
                     </p>
-                    <div class="d-flex gap-2">
-                        <a href="#" class="footer-social" aria-label="Facebook"><i class="bi bi-facebook"></i></a>
-                        <a href="#" class="footer-social" aria-label="Instagram"><i class="bi bi-instagram"></i></a>
-                        <a href="#" class="footer-social" aria-label="TikTok"><i class="bi bi-tiktok"></i></a>
-                        <a href="#" class="footer-social" aria-label="YouTube"><i class="bi bi-youtube"></i></a>
-                    </div>
+                    @if ($bp->social_links)
+                        <div class="d-flex gap-2">
+                            @foreach ($bp->social_links as $network => $url)
+                                <a href="{{ $url }}" target="_blank" rel="noopener" class="footer-social" aria-label="{{ \App\Models\BusinessProfile::SOCIAL_NETWORKS[$network] ?? $network }}"><i class="bi bi-{{ $network }}"></i></a>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
 
                 {{-- Quick Links --}}

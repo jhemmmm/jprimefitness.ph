@@ -166,6 +166,43 @@ class MembersAccessTest extends TestCase
             ->assertSee('"action_state":{"is_locked":false,"can_change_plan":true,"can_change_status":true,"reason":null}', false);
     }
 
+    public function test_member_creation_requires_contact_details(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+        $plan = $this->createRatePlan('Monthly', 30);
+
+        $this->actingAs($manager)
+            ->postJson('/panel/members', [
+                'name' => 'New Member',
+                'email' => 'new-member@example.com',
+                'password' => 'Password123!',
+                'status' => User::STATUS_ACTIVE,
+                'rate_plan_id' => $plan->id,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone', 'date_of_birth', 'emergency_contact_name', 'emergency_contact_phone']);
+    }
+
+    public function test_legacy_member_can_be_edited_without_contact_details_but_cannot_clear_them_once_set(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
+        $payload = ['name' => 'Legacy Member', 'email' => $member->email, 'status' => User::STATUS_ACTIVE];
+
+        $this->actingAs($manager)
+            ->putJson("/panel/members/{$member->id}", $payload)
+            ->assertOk();
+
+        $this->actingAs($manager)
+            ->putJson("/panel/members/{$member->id}", $payload + ['phone' => '09170000000', 'date_of_birth' => '1990-01-01'])
+            ->assertOk();
+
+        $this->actingAs($manager)
+            ->putJson("/panel/members/{$member->id}", $payload + ['phone' => '', 'date_of_birth' => ''])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone', 'date_of_birth']);
+    }
+
     public function test_manager_can_create_member(): void
     {
         $manager = $this->createUserWithRole('manager');
@@ -175,7 +212,11 @@ class MembersAccessTest extends TestCase
             ->postJson('/panel/members', [
                 'name' => 'New Member',
                 'email' => 'new-member@example.com',
-                'password' => 'password123',
+                'phone' => '09170000000',
+                'date_of_birth' => '1990-01-01',
+                'emergency_contact_name' => 'Next of Kin',
+                'emergency_contact_phone' => '09170000001',
+                'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
                 'rate_plan_id' => $plan->id,
                 'start_date' => '2026-04-01',
@@ -203,7 +244,11 @@ class MembersAccessTest extends TestCase
             ->postJson('/panel/members', [
                 'name' => 'New Member',
                 'email' => 'archived-member@example.com',
-                'password' => 'password123',
+                'phone' => '09170000000',
+                'date_of_birth' => '1990-01-01',
+                'emergency_contact_name' => 'Next of Kin',
+                'emergency_contact_phone' => '09170000001',
+                'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
                 'rate_plan_id' => $plan->id,
                 'start_date' => '2026-04-01',

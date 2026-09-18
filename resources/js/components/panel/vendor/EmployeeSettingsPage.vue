@@ -20,10 +20,11 @@
                      <div class="invalid-feedback" v-if="errors.email">{{ errors.email[0] }}</div>
                   </div>
                   <div class="col-md-6">
-                     <label class="form-label form-label-sm fw-semibold">Phone</label>
+                     <label class="form-label form-label-sm fw-semibold">Phone <span class="text-danger">*</span></label>
                      <input type="text" class="form-control" :class="{ 'is-invalid': errors.phone }" v-model="form.phone" />
                      <div class="invalid-feedback" v-if="errors.phone">{{ errors.phone[0] }}</div>
                   </div>
+                  <employee-details-fields :form="form" :errors="errors" label-class="form-label form-label-sm fw-semibold" />
                   <div class="col-md-6">
                      <label class="form-label form-label-sm fw-semibold">Role <span class="text-danger">*</span></label>
                      <div :class="{ 'is-invalid': errors.role_ids }">
@@ -86,6 +87,7 @@
                      </label>
                      <input type="password" class="form-control" :class="{ 'is-invalid': errors.password }" v-model="form.password" autocomplete="new-password" />
                      <div class="invalid-feedback" v-if="errors.password">{{ errors.password[0] }}</div>
+                     <div class="form-text" v-else>At least 8 characters with upper and lower case letters and a symbol.</div>
                   </div>
                </div>
             </section>
@@ -207,10 +209,12 @@ import { Modal } from "bootstrap";
 import { formatDateTime } from "../../../dates";
 import MultiSelect from "./MultiSelect.vue";
 import ContributionSettingsFields, { employeeProfileForm } from "./ContributionSettingsFields.vue";
+import EmployeeDetailsFields from "./EmployeeDetailsFields.vue";
 
 export default {
    components: {
       ContributionSettingsFields,
+      EmployeeDetailsFields,
       MultiSelect,
    },
    props: {
@@ -375,6 +379,7 @@ export default {
              name: employee.name || "",
              email: employee.email,
              phone: employee.phone || "",
+             address: employee.address || "",
              status: employee.status,
              role_ids: employee.roles ? employee.roles.map((r) => r.id) : [],
              employee_profile: this.employeeProfileForm(employee.employee_profile || null),

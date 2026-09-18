@@ -526,7 +526,7 @@
                                  <div class="invalid-feedback" v-if="registerErrors.phone">{{ registerErrors.phone[0] }}</div>
                               </div>
                               <div class="col-md-6">
-                                 <label class="form-label small fw-semibold">Date of birth</label>
+                                 <label class="form-label small fw-semibold">Date of birth <span class="text-danger">*</span></label>
                                  <input v-model="register.form.date_of_birth" type="date" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.date_of_birth }" />
                                  <div class="invalid-feedback" v-if="registerErrors.date_of_birth">{{ registerErrors.date_of_birth[0] }}</div>
                               </div>
@@ -545,12 +545,12 @@
                            <h6 class="text-uppercase text-muted fw-bold mt-4 mb-3" style="font-size: 0.72rem; letter-spacing: 1.2px">Emergency contact</h6>
                            <div class="row g-3 mb-3">
                               <div class="col-md-6">
-                                 <label class="form-label small fw-semibold">Contact name</label>
+                                 <label class="form-label small fw-semibold">Contact name <span class="text-danger">*</span></label>
                                  <input v-model="register.form.emergency_contact_name" type="text" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.emergency_contact_name }" />
                                  <div class="invalid-feedback" v-if="registerErrors.emergency_contact_name">{{ registerErrors.emergency_contact_name[0] }}</div>
                               </div>
                               <div class="col-md-6">
-                                 <label class="form-label small fw-semibold">Contact phone</label>
+                                 <label class="form-label small fw-semibold">Contact phone <span class="text-danger">*</span></label>
                                  <input v-model="register.form.emergency_contact_phone" type="tel" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.emergency_contact_phone }" />
                                  <div class="invalid-feedback" v-if="registerErrors.emergency_contact_phone">{{ registerErrors.emergency_contact_phone[0] }}</div>
                               </div>
@@ -581,30 +581,12 @@
                            <h6 class="text-uppercase text-muted fw-bold mt-4 mb-1" style="font-size: 0.72rem; letter-spacing: 1.2px">Discount</h6>
                            <p class="text-muted small mb-3">Saved to your profile and applied to renewals automatically.</p>
                            <div class="row g-3 mb-3">
-                              <div class="col-md-4">
-                                 <label class="payment-option h-100" :class="{ 'is-active': register.form.discount_type === '' }">
-                                    <input type="radio" v-model="register.form.discount_type" value="" @change="onDiscountChange" />
+                              <div class="col-6 col-md-3" v-for="option in discountOptions" :key="option.value">
+                                 <label class="payment-option h-100" :class="{ 'is-active': register.form.discount_type === option.value }">
+                                    <input type="radio" v-model="register.form.discount_type" :value="option.value" @change="onDiscountChange" />
                                     <div>
-                                       <div class="fw-semibold"><i class="bi bi-x-circle me-1"></i>None</div>
-                                       <div class="text-muted small">Regular rate</div>
-                                    </div>
-                                 </label>
-                              </div>
-                              <div class="col-md-4">
-                                 <label class="payment-option h-100" :class="{ 'is-active': register.form.discount_type === 'student' }">
-                                    <input type="radio" v-model="register.form.discount_type" value="student" @change="onDiscountChange" />
-                                    <div>
-                                       <div class="fw-semibold"><i class="bi bi-mortarboard me-1"></i>Student</div>
-                                       <div class="text-muted small">20% off - bring valid school ID</div>
-                                    </div>
-                                 </label>
-                              </div>
-                              <div class="col-md-4">
-                                 <label class="payment-option h-100" :class="{ 'is-active': register.form.discount_type === 'senior' }">
-                                    <input type="radio" v-model="register.form.discount_type" value="senior" @change="onDiscountChange" />
-                                    <div>
-                                       <div class="fw-semibold"><i class="bi bi-person-badge me-1"></i>Senior</div>
-                                       <div class="text-muted small">20% off - bring senior citizen ID</div>
+                                       <div class="fw-semibold"><i :class="`bi ${option.icon} me-1`"></i>{{ $filters.discountLabel(option.value) || "None" }}</div>
+                                       <div class="text-muted small">{{ option.hint }}</div>
                                     </div>
                                  </label>
                               </div>
@@ -943,9 +925,21 @@ export default {
       membershipPlans: function () {
          return this.ratePlans.filter((p) => !p.is_walk_in_only);
       },
+      discountOptions: function () {
+         // types come from the backend (window.JPrime.discountLabels); only the icon/ID hint is local copy
+         const extras = {
+            student: { icon: "bi-mortarboard", hint: "20% off - bring valid school ID" },
+            senior: { icon: "bi-person-badge", hint: "20% off - bring senior citizen ID" },
+            pwd: { icon: "bi-universal-access", hint: "20% off - bring PWD ID" },
+         };
+         return [
+            { value: "", icon: "bi-x-circle", hint: "Regular rate" },
+            ...Object.keys(this.$filters.discountLabels()).map((value) => ({ value, icon: "bi-percent", hint: "20% off - bring valid ID", ...extras[value] })),
+         ];
+      },
       hasDiscount: function () {
          const t = this.register.form.discount_type;
-         return t === "student" || t === "senior";
+         return Boolean(this.$filters.discountLabel(t));
       },
       selectedRegisterPlan: function () {
          const id = this.register.form.rate_plan_id;
@@ -954,7 +948,7 @@ export default {
       },
       discountSummary: function () {
          if (!this.hasDiscount) return "";
-         const label = this.register.form.discount_type === "student" ? "Student" : "Senior citizen";
+         const label = this.$filters.discountLabel(this.register.form.discount_type);
          const plan = this.selectedRegisterPlan;
          if (!plan) {
             return `${label} discount: 20% off. Payment must be on-site so staff can verify your ID.`;

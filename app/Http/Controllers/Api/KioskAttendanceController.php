@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
 use App\Models\KioskPayment;
+use App\Models\MemberProfile;
 use App\Models\User;
 use App\Services\MembershipQrAntiFraudService;
 use App\Services\PosSaleService;
@@ -51,7 +52,7 @@ class KioskAttendanceController extends Controller
             'payment_method' => ['required', Rule::in(['counter', 'online'])],
             'payment_status' => ['required', Rule::in(['pending', 'paid', 'timeout', 'cancelled'])],
             'payment_reference' => ['nullable', 'string', 'max:64'],
-            'discount_type' => ['nullable', Rule::in([KioskPayment::DISCOUNT_STUDENT, KioskPayment::DISCOUNT_SENIOR])],
+            'discount_type' => ['nullable', Rule::in(MemberProfile::discountTypes())],
         ]);
 
         $occurredAt = Carbon::now();

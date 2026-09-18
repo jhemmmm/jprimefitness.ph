@@ -83,10 +83,8 @@ export default {
 
    computed: {
       discountLabel: function () {
-         var t = this.member.profile?.discount_type;
-         if (t === "student") return "Student - 20% off";
-         if (t === "senior") return "Senior - 20% off";
-         return "None";
+         var label = this.$filters.discountLabel(this.member.profile?.discount_type);
+         return label ? `${label} - 20% off` : "None";
       },
       activeMembership: function () {
          if (!this.member.member_subscriptions || !this.member.member_subscriptions.length) {

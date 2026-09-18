@@ -174,6 +174,7 @@
 
 <script>
 import { formatDateTime } from "../../dates";
+import { debounce } from "../../debounce";
 
 export default {
    data: function () {
@@ -184,7 +185,6 @@ export default {
          stats: { total: 0, active: 0 },
          search: "",
          filter: "",
-         searchTimer: null,
          pagination: { currentPage: 1, lastPage: 1, total: 0, from: 0, to: 0, links: [] },
       };
    },
@@ -219,10 +219,9 @@ export default {
             .catch((err) => (this.pageError = err.response?.data?.message || "Failed to load clients."))
             .finally(() => (this.loading = false));
       },
-      onSearchInput: function () {
-         clearTimeout(this.searchTimer);
-         this.searchTimer = setTimeout(() => this.fetchClients(), 500);
-      },
+      onSearchInput: debounce(function () {
+         this.fetchClients();
+      }),
    },
 };
 </script>

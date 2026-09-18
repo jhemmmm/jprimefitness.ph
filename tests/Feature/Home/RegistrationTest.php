@@ -129,7 +129,7 @@ class RegistrationTest extends TestCase
         $response = $this->postJson('/register', []);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['name', 'email', 'phone', 'rate_plan_id', 'terms_accepted', 'payment_method']);
+            ->assertJsonValidationErrors(['name', 'email', 'phone', 'date_of_birth', 'emergency_contact_name', 'emergency_contact_phone', 'rate_plan_id', 'terms_accepted', 'payment_method']);
     }
 
     public function test_validation_rejects_duplicate_email(): void

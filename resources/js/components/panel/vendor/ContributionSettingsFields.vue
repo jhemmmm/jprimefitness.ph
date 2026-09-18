@@ -3,8 +3,19 @@
       <div class="fw-semibold mb-1">Philippine Government Contributions</div>
       <div class="text-muted small mb-3">Monthly amounts. Semi-monthly employees have each amount split equally across the two cutoffs.</div>
 
+      <div class="row g-3 mb-3">
+         <div class="col-md-4">
+            <label class="form-label form-label-sm fw-semibold mb-1">TIN</label>
+            <input type="text" class="form-control" :class="{ 'is-invalid': errorFor('tin') }" v-model="profile.tin" placeholder="123-456-789-000" />
+            <div class="invalid-feedback d-block" v-if="errorFor('tin')">{{ errorFor("tin") }}</div>
+         </div>
+      </div>
+
       <div class="row g-3">
          <div class="col-md-4" v-for="program in programs" :key="program.key">
+            <label class="form-label form-label-sm fw-semibold mb-1">{{ program.label }} No.</label>
+            <input type="text" class="form-control mb-2" :class="{ 'is-invalid': errorFor(`${program.key}_number`) }" v-model="profile[`${program.key}_number`]" :placeholder="program.numberPlaceholder" />
+            <div class="invalid-feedback d-block" v-if="errorFor(`${program.key}_number`)">{{ errorFor(`${program.key}_number`) }}</div>
             <div class="form-check form-switch mb-2">
                <input class="form-check-input" type="checkbox" :id="`${idPrefix}-${program.key}-covered`" v-model="profile[`${program.key}_covered`]" />
                <label class="form-check-label fw-semibold" :for="`${idPrefix}-${program.key}-covered`">{{ program.label }} Covered</label>
@@ -51,9 +62,9 @@
 
 <script>
 const PROGRAMS = [
-   { key: "sss", label: "SSS" },
-   { key: "philhealth", label: "PhilHealth" },
-   { key: "pagibig", label: "Pag-IBIG" },
+   { key: "sss", label: "SSS", numberPlaceholder: "34-1234567-8" },
+   { key: "philhealth", label: "PhilHealth", numberPlaceholder: "12-345678901-2" },
+   { key: "pagibig", label: "Pag-IBIG", numberPlaceholder: "1234-5678-9012" },
 ];
 
 // Form state for an employee profile: new PH employees start covered at the legal minimum.
@@ -62,6 +73,7 @@ export function employeeProfileForm(profile, isPhilippinesPayroll) {
       daily_rate: profile?.daily_rate ?? "",
       pt_commission_rate: profile?.pt_commission_rate ?? "",
       pay_frequency: profile?.pay_frequency || "semi_monthly",
+      ...Object.fromEntries((window.JPrime?.employeeDetailColumns || []).map((key) => [key, profile?.[key] ?? ""])),
       ...Object.fromEntries(PROGRAMS.map(({ key }) => [`${key}_covered`, profile ? Boolean(profile[`${key}_covered`]) : isPhilippinesPayroll])),
       ...Object.fromEntries(Object.entries(window.JPrime?.contributionMinimums || {}).map(([key, minimum]) => [key, profile?.[key] ?? minimum])),
    };
@@ -76,8 +88,12 @@ export default {
    },
 
    computed: {
-      programs: () => PROGRAMS,
-      minimums: () => window.JPrime?.contributionMinimums || {},
+      programs: function () {
+         return PROGRAMS;
+      },
+      minimums: function () {
+         return window.JPrime?.contributionMinimums || {};
+      },
       rows: function () {
          return PROGRAMS.filter((program) => this.profile[`${program.key}_covered`]).map((program) => ({
             ...program,

@@ -17,7 +17,7 @@
                   <div class="invalid-feedback" v-if="errors.email">{{ errors.email[0] }}</div>
                </div>
                <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Phone</label>
+                  <label class="form-label form-label-sm fw-semibold">Phone <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" :class="{ 'is-invalid': errors.phone }" v-model="form.phone" />
                   <div class="invalid-feedback" v-if="errors.phone">{{ errors.phone[0] }}</div>
                </div>
@@ -31,7 +31,7 @@
                <div class="col-12"><hr class="my-1" /></div>
 
                <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Date of Birth</label>
+                  <label class="form-label form-label-sm fw-semibold">Date of Birth <span class="text-danger">*</span></label>
                   <input type="date" class="form-control" :class="{ 'is-invalid': errors.date_of_birth }" v-model="form.date_of_birth" />
                   <div class="invalid-feedback" v-if="errors.date_of_birth">{{ errors.date_of_birth[0] }}</div>
                </div>
@@ -46,12 +46,12 @@
                   <div class="invalid-feedback" v-if="errors.gender">{{ errors.gender[0] }}</div>
                </div>
                <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Emergency Contact Name</label>
+                  <label class="form-label form-label-sm fw-semibold">Emergency Contact Name <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" :class="{ 'is-invalid': errors.emergency_contact_name }" v-model="form.emergency_contact_name" />
                   <div class="invalid-feedback" v-if="errors.emergency_contact_name">{{ errors.emergency_contact_name[0] }}</div>
                </div>
                <div class="col-md-6">
-                  <label class="form-label form-label-sm fw-semibold">Emergency Contact Phone</label>
+                  <label class="form-label form-label-sm fw-semibold">Emergency Contact Phone <span class="text-danger">*</span></label>
                   <input type="text" class="form-control" :class="{ 'is-invalid': errors.emergency_contact_phone }" v-model="form.emergency_contact_phone" />
                   <div class="invalid-feedback" v-if="errors.emergency_contact_phone">{{ errors.emergency_contact_phone[0] }}</div>
                </div>
@@ -59,10 +59,9 @@
                   <label class="form-label form-label-sm fw-semibold">ID Discount</label>
                   <select class="form-select" :class="{ 'is-invalid': errors.discount_type }" v-model="form.discount_type">
                      <option :value="''">None - regular rate</option>
-                     <option value="student">Student - 20% off</option>
-                     <option value="senior">Senior - 20% off</option>
+                                          <option v-for="(label, value) in $filters.discountLabels()" :key="value" :value="value">{{ label }} - 20% off</option>
                   </select>
-                  <div class="form-text">Verify a valid student / senior ID before saving.</div>
+                  <div class="form-text">Verify a valid student / senior citizen / PWD ID before saving.</div>
                   <div class="invalid-feedback" v-if="errors.discount_type">{{ errors.discount_type[0] }}</div>
                </div>
                <div class="col-12">

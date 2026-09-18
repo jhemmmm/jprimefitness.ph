@@ -36,6 +36,9 @@
         window.JPrime.timezone = @js(config('app.timezone'));
         window.JPrime.profile = @json($panelBusinessProfile);
         window.JPrime.contributionMinimums = @json(\App\Models\EmployeeProfile::LEGAL_MINIMUM_CONTRIBUTIONS);
+        window.JPrime.employeeDetailColumns = @json(\App\Models\EmployeeProfile::DETAIL_COLUMNS);
+        window.JPrime.discountLabels = @json(\App\Models\MemberProfile::DISCOUNT_LABELS);
+        window.JPrime.socialNetworks = @json(\App\Models\BusinessProfile::SOCIAL_NETWORKS);
 
         const storedTheme = localStorage.getItem('panel-theme');
         const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');

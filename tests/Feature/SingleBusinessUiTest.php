@@ -173,14 +173,14 @@ class SingleBusinessUiTest extends TestCase
         $this->assertStringNotContainsString('Manage Photos', $contents);
         $this->assertStringContainsString('Withholding tax', $contents);
         $this->assertStringContainsString('Government contributions', $contents);
-        $this->assertStringContainsString('business-settings-shortcut', $contents);
+        $this->assertStringContainsString('Social links', $contents);
+        $this->assertStringContainsString('list-group-item-action', $contents);
         $this->assertStringContainsString('payroll_withholding_tax_enabled', $contents);
         $this->assertStringContainsString('payroll_government_contributions_enabled', $contents);
         $this->assertStringNotContainsString('Current Gallery Size', $contents);
 
         $this->assertNotFalse($styles);
-        $this->assertStringContainsString('.business-settings-sidebar-sticky', $styles);
-        $this->assertStringContainsString('.business-settings-shortcut', $styles);
+        $this->assertStringContainsString('.business-settings-toggle-card', $styles);
     }
 
     public function test_panel_sidebar_groups_business_and_system_navigation_items(): void
@@ -282,7 +282,7 @@ class SingleBusinessUiTest extends TestCase
             $paginationUsageCount += substr_count($consumerContents, '<panel-pagination');
         }
 
-        $this->assertSame(13, $paginationUsageCount);
+        $this->assertSame(14, $paginationUsageCount);
 
         $this->assertNotFalse($panelStyles);
         $this->assertStringContainsString("&:nth-child(even) {\n        background-color: rgba(var(--bs-emphasis-color-rgb), 0.03);\n    }", $panelStyles);

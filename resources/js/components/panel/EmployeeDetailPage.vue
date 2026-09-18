@@ -23,6 +23,7 @@
                   <span v-if="localEmployee.email"><i class="bi bi-envelope me-1"></i>{{ localEmployee.email }}</span>
                   <span v-if="localEmployee.phone"><i class="bi bi-telephone me-1"></i>{{ localEmployee.phone }}</span>
                   <span v-if="localEmployee.address"><i class="bi bi-house me-1"></i>{{ localEmployee.address }}</span>
+                  <span v-if="localEmployee.employee_profile?.hired_at"><i class="bi bi-person-check me-1"></i>Hired {{ formatDate(localEmployee.employee_profile.hired_at) }}</span>
                   <span v-if="localEmployee.employee_profile?.daily_rate > 0">
                      <i class="bi bi-currency-exchange me-1"></i>₱{{ $filters.formatMoney(localEmployee.employee_profile.daily_rate) }}/day
                   </span>
@@ -46,6 +47,7 @@
 </template>
 
 <script>
+import { formatDate } from "../../dates";
 import EmployeeAttendancePage from "./vendor/EmployeeAttendancePage.vue";
 import EmployeePayrollPage from "./vendor/EmployeePayrollPage.vue";
 import EmployeePayoutPage from "./vendor/EmployeePayoutPage.vue";
@@ -115,6 +117,7 @@ export default {
    },
 
    methods: {
+      formatDate,
       onEmployeeUpdated: function (updated) {
          this.localEmployee = { ...this.localEmployee, ...updated };
       },

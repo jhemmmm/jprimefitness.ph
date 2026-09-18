@@ -42,10 +42,10 @@ class RegistrationController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:191', Rule::unique('users', 'email')->withoutTrashed()],
             'phone' => ['required', 'string', 'max:20'],
-            'date_of_birth' => ['nullable', 'date', 'before:today'],
+            'date_of_birth' => ['required', 'date', 'before:today'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
-            'emergency_contact_name' => ['nullable', 'string', 'max:120'],
-            'emergency_contact_phone' => ['nullable', 'string', 'max:20'],
+            'emergency_contact_name' => ['required', 'string', 'max:120'],
+            'emergency_contact_phone' => ['required', 'string', 'max:20'],
             'rate_plan_id' => [
                 'required',
                 Rule::exists('rate_plans', 'id')->where(
@@ -56,7 +56,7 @@ class RegistrationController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
             'terms_accepted' => ['accepted'],
             'payment_method' => ['required', Rule::in([MemberSubscription::PENDING_PAYMENT_ON_SITE, MemberSubscription::PENDING_PAYMENT_ONLINE])],
-            'discount_type' => ['nullable', Rule::in([MemberProfile::DISCOUNT_STUDENT, MemberProfile::DISCOUNT_SENIOR])],
+            'discount_type' => ['nullable', Rule::in(MemberProfile::discountTypes())],
             'recaptcha_token' => [$captchaConfigured ? 'required' : 'nullable', 'string'],
         ]);
 
@@ -70,7 +70,7 @@ class RegistrationController extends Controller
 
         if ($discountType !== null && $data['payment_method'] !== MemberSubscription::PENDING_PAYMENT_ON_SITE) {
             throw ValidationException::withMessages([
-                'payment_method' => ['Student and senior discounts must be paid on-site so staff can verify your ID.'],
+                'payment_method' => ['Discounted rates must be paid on-site so staff can verify your ID.'],
             ]);
         }
 

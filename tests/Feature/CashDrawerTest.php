@@ -437,7 +437,10 @@ class CashDrawerTest extends TestCase
             ->assertJsonPath('categories.0.category', 'rent')
             ->assertJsonPath('categories.0.total', 5000)
             ->assertJsonPath('categories.1.category', 'supplies')
-            ->assertJsonPath('categories.1.total', 300);
+            ->assertJsonPath('categories.1.total', 300)
+            ->assertJsonCount(3, 'entries.data')
+            ->assertJsonPath('entries.data.0.recorded_by_name', $manager->name)
+            ->assertJsonPath('entries.total', 3);
     }
 
     public function test_expense_receipt_image_is_stored_and_served_to_management_only(): void

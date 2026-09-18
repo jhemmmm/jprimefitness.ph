@@ -25,6 +25,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 use Spatie\LaravelPdf\Facades\Pdf;
 
@@ -115,7 +116,6 @@ class EmployeeController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
-            'phone' => ['nullable', 'string', 'max:20'],
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'role_ids' => ['required', 'array', 'min:1'],
             'role_ids.*' => ['integer', Rule::in(auth()->user()->allowedEmployeesRoles())],
@@ -127,7 +127,8 @@ class EmployeeController extends Controller
             'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             'employee_profile.pagibig_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             ...$this->contributionShareRules(),
-            'password' => ['required', 'string', 'min:8'],
+            ...$this->personRules(),
+            'password' => ['required', 'string', Password::defaults()],
         ]);
         $data['employee_profile'] = $this->normalizeEmployeeProfileAttributes(
             $data['employee_profile'] ?? [],
@@ -137,7 +138,8 @@ class EmployeeController extends Controller
         $employee = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
+            'phone' => $data['phone'],
+            'address' => $data['address'] ?? null,
             'status' => $data['status'],
             'password' => Hash::make($data['password']),
         ]);
@@ -174,7 +176,6 @@ class EmployeeController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($employee->id)->withoutTrashed()],
-            'phone' => ['nullable', 'string', 'max:20'],
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'role_ids' => ['required', 'array', 'min:1'],
             'role_ids.*' => ['integer', Rule::in(auth()->user()->allowedEmployeesRoles())],
@@ -186,7 +187,8 @@ class EmployeeController extends Controller
             'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             'employee_profile.pagibig_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             ...$this->contributionShareRules(),
-            'password' => ['nullable', 'string', 'min:8'],
+            ...$this->personRules($employee),
+            'password' => ['nullable', 'string', Password::defaults()],
         ]);
         $data['employee_profile'] = $this->normalizeEmployeeProfileAttributes(
             $data['employee_profile'] ?? [],
@@ -197,6 +199,7 @@ class EmployeeController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
+            'address' => $data['address'] ?? null,
             'status' => $data['status'],
             'password' => isset($data['password']) && $data['password'] !== ''
                 ? Hash::make($data['password'])
@@ -1015,6 +1018,7 @@ class EmployeeController extends Controller
             'name' => $employee->name,
             'email' => $employee->email,
             'phone' => $employee->phone,
+            'address' => $employee->address,
             'status' => $employee->status,
             'roles' => $employee->roles
                 ->map(fn ($role) => [
@@ -1075,6 +1079,9 @@ class EmployeeController extends Controller
             'philhealth_covered' => (bool) $employeeProfile->philhealth_covered,
             'pagibig_covered' => (bool) $employeeProfile->pagibig_covered,
             ...$this->contributionShares($employeeProfile),
+            ...$employeeProfile->only(EmployeeProfile::DETAIL_COLUMNS),
+            'date_of_birth' => $employeeProfile->date_of_birth?->toDateString(),
+            'hired_at' => $employeeProfile->hired_at?->toDateString(),
             'hikvision_employee_no' => $employeeProfile->hikvision_employee_no,
             'biometric_status' => $employeeProfile->biometric_status,
             'biometric_fingerprint_id' => $employeeProfile->biometric_fingerprint_id,
@@ -1160,7 +1167,37 @@ class EmployeeController extends Controller
             $normalized[$key] = round((float) ($value === null || $value === '' ? $minimum : $value), 2);
         }
 
+        foreach (EmployeeProfile::DETAIL_COLUMNS as $key) {
+            $normalized[$key] = $attributes[$key] ?? null;
+        }
+
         return $normalized;
+    }
+
+    /**
+     * Contact and EmployeeProfile::DETAIL_COLUMNS rules shared by store() and update().
+     * Phone, DOB and emergency contact are required for new employees; an existing employee
+     * may leave a still-blank one empty but can't clear one that is set.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function personRules(?User $employee = null): array
+    {
+        $profile = $employee?->employeeProfile;
+        $presence = fn (mixed $current) => $employee && $current === null ? 'nullable' : 'required';
+
+        return [
+            'phone' => [$presence($employee?->phone), 'string', 'max:20'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'employee_profile.date_of_birth' => [$presence($profile?->date_of_birth), 'date', 'before:today'],
+            'employee_profile.emergency_contact_name' => [$presence($profile?->emergency_contact_name), 'string', 'max:255'],
+            'employee_profile.emergency_contact_phone' => [$presence($profile?->emergency_contact_phone), 'string', 'max:50'],
+            'employee_profile.hired_at' => ['nullable', 'date'],
+            'employee_profile.tin' => ['nullable', 'string', 'max:20'],
+            'employee_profile.sss_number' => ['nullable', 'string', 'max:20'],
+            'employee_profile.philhealth_number' => ['nullable', 'string', 'max:20'],
+            'employee_profile.pagibig_number' => ['nullable', 'string', 'max:20'],
+        ];
     }
 
     /**

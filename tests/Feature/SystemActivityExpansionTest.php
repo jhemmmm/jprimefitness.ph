@@ -170,13 +170,16 @@ class SystemActivityExpansionTest extends TestCase
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$coachRoleId],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 800,
                     'pay_frequency' => 'semi_monthly',
                     'sss_covered' => true,
                     'philhealth_covered' => true,
                     'pagibig_covered' => true,
                 ],
-                'password' => 'password123',
+                'password' => 'Password123!',
             ])
             ->assertCreated()
             ->json('id');
@@ -191,6 +194,9 @@ class SystemActivityExpansionTest extends TestCase
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$coachRoleId],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 850,
                     'pay_frequency' => 'monthly',
                     'sss_covered' => true,
@@ -209,13 +215,16 @@ class SystemActivityExpansionTest extends TestCase
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRoleId],
                 'employee_profile' => [
+                    'date_of_birth' => '1990-01-01',
+                    'emergency_contact_name' => 'Next of Kin',
+                    'emergency_contact_phone' => '09170000001',
                     'daily_rate' => 500,
                     'pay_frequency' => 'semi_monthly',
                     'sss_covered' => false,
                     'philhealth_covered' => false,
                     'pagibig_covered' => false,
                 ],
-                'password' => 'password123',
+                'password' => 'Password123!',
             ])
             ->assertCreated()
             ->json('id');
@@ -360,7 +369,11 @@ class SystemActivityExpansionTest extends TestCase
             ->postJson('/panel/members', [
                 'name' => 'Member Cara',
                 'email' => 'member.cara@example.com',
-                'password' => 'password123',
+                'phone' => '09170000000',
+                'date_of_birth' => '1990-01-01',
+                'emergency_contact_name' => 'Next of Kin',
+                'emergency_contact_phone' => '09170000001',
+                'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
                 'rate_plan_id' => $planA->id,
                 'start_date' => '2026-04-01',
@@ -373,6 +386,9 @@ class SystemActivityExpansionTest extends TestCase
             ->putJson("/panel/members/{$member->id}", [
                 'name' => 'Member Cara Updated',
                 'email' => 'member.cara@example.com',
+                'date_of_birth' => '1990-01-01',
+                'emergency_contact_name' => 'Next of Kin',
+                'emergency_contact_phone' => '09170000001',
                 'phone' => '09170000100',
                 'status' => User::STATUS_ACTIVE,
                 'rate_plan_id' => $planA->id,

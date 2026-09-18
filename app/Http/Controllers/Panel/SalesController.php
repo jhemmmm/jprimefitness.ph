@@ -395,6 +395,10 @@ class SalesController extends Controller
                 $errors['customer_name'][] = 'Enter the walk-in customer name.';
             }
 
+            if (empty($validated['customer_phone'])) {
+                $errors['customer_phone'][] = 'Enter the walk-in customer phone.';
+            }
+
             if (! array_key_exists('amount_paid', $validated) || $validated['amount_paid'] === null || $validated['amount_paid'] === '') {
                 $errors['amount_paid'][] = 'Enter the walk-in payment amount.';
             }
@@ -509,7 +513,7 @@ class SalesController extends Controller
             'base_amount' => $base,
             'amount' => round((float) $payment->amount, 2),
             'discount_type' => $payment->discount_type,
-            'discount_percent' => $payment->discount_type !== null ? KioskPayment::DISCOUNT_PERCENT : 0,
+            'discount_percent' => $payment->discount_type !== null ? MemberProfile::DISCOUNT_PERCENT : 0,
             'created_at' => $payment->created_at?->toISOString(),
             'confirm_url' => route('panel.kiosk-payments.confirm', $payment->reference),
             'cancel_url' => route('panel.kiosk-payments.cancel', $payment->reference),

@@ -54,6 +54,36 @@ class SettingsControllerTest extends TestCase
         $this->assertSame('23:00', $profile->closing_time);
     }
 
+    public function test_admin_can_update_social_links_and_the_public_footer_shows_them(): void
+    {
+        $admin = $this->createUserWithRole('admin');
+
+        $this->actingAs($admin)
+            ->putJson('/panel/business/settings', $this->businessSettingsPayload([
+                'social_links' => ['facebook' => 'https://facebook.com/jprime', 'instagram' => '', 'tiktok' => null, 'youtube' => ''],
+            ]))
+            ->assertOk()
+            ->assertJsonPath('social_links', ['facebook' => 'https://facebook.com/jprime']);
+
+        $this->actingAs($admin)
+            ->putJson('/panel/business/settings', $this->businessSettingsPayload([
+                'social_links' => ['facebook' => 'not-a-url'],
+            ]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['social_links.facebook']);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('href="https://facebook.com/jprime"', false)
+            ->assertDontSee('bi-instagram');
+
+        // a payload that never mentions social_links leaves them alone
+        $this->actingAs($admin)
+            ->putJson('/panel/business/settings', array_diff_key($this->businessSettingsPayload(), ['social_links' => null]))
+            ->assertOk()
+            ->assertJsonPath('social_links.facebook', 'https://facebook.com/jprime');
+    }
+
     public function test_weekly_operating_hours_must_cover_each_day_and_close_after_opening(): void
     {
         $admin = $this->createUserWithRole('admin');
@@ -93,6 +123,7 @@ class SettingsControllerTest extends TestCase
             'address' => $profile->address,
             'timezone' => $profile->timezone,
             'amenities' => $profile->amenities ?? [],
+            'social_links' => $profile->social_links ?? [],
             'operating_hours' => $profile->operating_hours ?? BusinessProfile::defaultOperatingHours(),
         ], $overrides);
     }

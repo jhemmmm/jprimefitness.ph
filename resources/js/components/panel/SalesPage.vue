@@ -213,7 +213,7 @@
                               <div class="invalid-feedback">{{ formErrors.customer_name }}</div>
                            </div>
                            <div class="col-12 col-md-6">
-                              <label class="form-label">Phone</label>
+                              <label class="form-label">Phone <span class="text-danger">*</span></label>
                               <input type="text" class="form-control" v-model="form.customer_phone" :class="{ 'is-invalid': formErrors.customer_phone }" />
                               <div class="invalid-feedback">{{ formErrors.customer_phone }}</div>
                            </div>
@@ -438,7 +438,7 @@
                               <div class="fw-semibold">₱{{ $filters.formatMoney(row.amount) }}</div>
                               <div v-if="row.discount_type" class="small text-danger">
                                  <s class="text-muted me-1">₱{{ $filters.formatMoney(row.base_amount) }}</s>
-                                 {{ $filters.capitalize(row.discount_type) }} −{{ row.discount_percent }}%
+                                 {{ $filters.discountLabel(row.discount_type) }} −{{ row.discount_percent }}%
                               </div>
                            </td>
                            <td class="small text-muted">{{ formatDateTime(row.created_at) }}</td>
@@ -483,10 +483,10 @@
                      />
                   </div>
                   <div class="col-6 col-md-2">
-                     <input type="date" class="form-control" v-model="historyFilters.date_from" @change="fetchHistory(1)" />
+                     <input type="date" class="form-control" v-model="historyFilters.date_from" @change="onDateChange" />
                   </div>
                   <div class="col-6 col-md-2">
-                     <input type="date" class="form-control" v-model="historyFilters.date_to" @change="fetchHistory(1)" />
+                     <input type="date" class="form-control" v-model="historyFilters.date_to" @change="onDateChange" />
                   </div>
                </div>
             </div>
@@ -578,7 +578,7 @@
                               ₱{{ $filters.formatMoney(transaction.total) }}
                               <div v-if="transaction.discount" class="small text-danger fw-normal">
                                  <s class="text-muted me-1">₱{{ $filters.formatMoney(transaction.subtotal) }}</s>
-                                 {{ $filters.capitalize(transaction.discount.type) }} −{{ transaction.discount.percent }}%
+                                 {{ $filters.discountLabel(transaction.discount.type) }} −{{ transaction.discount.percent }}%
                               </div>
                            </td>
                            <td class="small text-muted">{{ formatDateTime(transaction.sold_at) }}</td>
@@ -619,7 +619,7 @@
                         <span class="m-badge m-badge--open">{{ $filters.capitalize(transaction.type) }}</span>
                         <span class="m-badge m-badge--plan-cancelled" v-if="transaction.is_voided">Voided</span>
                         <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(transaction.total) }}</span>
-                        <span v-if="transaction.discount" class="m-badge m-badge--cancelled"> {{ $filters.capitalize(transaction.discount.type) }} −{{ transaction.discount.percent }}% </span>
+                        <span v-if="transaction.discount" class="m-badge m-badge--cancelled"> {{ $filters.discountLabel(transaction.discount.type) }} −{{ transaction.discount.percent }}% </span>
                      </div>
                      <div class="small text-muted mt-2">
                         <div>{{ transaction.item_name || "-" }}</div>
@@ -673,7 +673,7 @@
                      </p>
                      <div v-if="pendingTarget.discount_type" class="small text-danger mb-2">
                         <s class="text-muted me-1">₱{{ $filters.formatMoney(pendingTarget.base_amount) }}</s>
-                        {{ $filters.capitalize(pendingTarget.discount_type) }} −{{ pendingTarget.discount_percent }}% applied
+                        {{ $filters.discountLabel(pendingTarget.discount_type) }} −{{ pendingTarget.discount_percent }}% applied
                      </div>
                      <template v-if="pendingTarget.requires_payment_method">
                         <div class="mb-2">
@@ -769,6 +769,7 @@ import { Modal } from "bootstrap";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import { formatDate, formatDateTime, nowTimestamp, todayDate, toDateTimeInputValue } from "../../dates";
 import { printMembershipCard } from "../../print-membership-card";
+import { debounce } from "../../debounce";
 
 export default {
    components: {
@@ -798,7 +799,6 @@ export default {
          },
          successMessage: "",
          lastCompletedSale: null,
-         historySearchTimer: null,
          membershipQrModal: null,
          voidSaleModal: null,
          loadingQr: false,
@@ -1034,14 +1034,10 @@ export default {
          return this.selectedWalkInPlan?.name || "Walk-in";
       },
       memberDiscountActive: function () {
-         if (this.saleType !== "membership") return false;
-         var t = this.form.member_discount_type;
-         return t === "student" || t === "senior";
+         return this.saleType === "membership" && this.memberDiscountLabel !== "";
       },
       memberDiscountLabel: function () {
-         if (this.form.member_discount_type === "student") return "Student";
-         if (this.form.member_discount_type === "senior") return "Senior";
-         return "";
+         return this.$filters.discountLabel(this.form.member_discount_type);
       },
       summarySubtotal: function () {
          if (this.saleType === "inventory") {
@@ -1180,6 +1176,7 @@ export default {
       },
       fetchHistory: function (page = 1) {
          this.loadingHistory = true;
+         this.pageError = "";
 
          axios
             .get("/panel/sales/history", {
@@ -1296,10 +1293,16 @@ export default {
 
          this.form.amount_paid = this.selectedWalkInPlan.price;
       },
-      onHistorySearchInput: function () {
-         clearTimeout(this.historySearchTimer);
-         this.historySearchTimer = setTimeout(() => this.fetchHistory(1), 350);
-      },
+      onHistorySearchInput: debounce(function () {
+         this.fetchHistory(1);
+      }),
+      onDateChange: debounce(function () {
+         if (this.historyFilters.date_from && this.historyFilters.date_to && this.historyFilters.date_from > this.historyFilters.date_to) {
+            this.pageError = 'The "to" date must be on or after the "from" date.';
+            return;
+         }
+         this.fetchHistory(1);
+      }),
       buildPayload: function () {
          var payload = {
             type: this.saleType,
@@ -1531,7 +1534,6 @@ export default {
       },
    },
    beforeUnmount: function () {
-      clearTimeout(this.historySearchTimer);
       clearInterval(this.pendingPaymentsTimer);
       this.pendingPaymentModal?.dispose();
       this.voidSaleModal?.dispose();

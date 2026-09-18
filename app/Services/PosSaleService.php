@@ -521,7 +521,7 @@ class PosSaleService
 
     private function applyMemberDiscount(float $price, ?string $discountType): float
     {
-        if (! in_array($discountType, [MemberProfile::DISCOUNT_STUDENT, MemberProfile::DISCOUNT_SENIOR], true)) {
+        if (! in_array($discountType, MemberProfile::discountTypes(), true)) {
             return round($price, 2);
         }
 
@@ -1034,7 +1034,7 @@ class PosSaleService
                 'subtotal' => $baseAmount,
                 'discount' => $hasDiscount ? [
                     'type' => $payment->discount_type,
-                    'percent' => KioskPayment::DISCOUNT_PERCENT,
+                    'percent' => MemberProfile::DISCOUNT_PERCENT,
                     'amount' => $discountAmount,
                 ] : null,
                 'payment' => [

@@ -28,7 +28,7 @@ class KioskPaymentController extends Controller
             'method' => ['nullable', 'string', 'in:online,cash'],
             'discount_type' => [
                 'nullable',
-                Rule::in([KioskPayment::DISCOUNT_STUDENT, KioskPayment::DISCOUNT_SENIOR]),
+                Rule::in(MemberProfile::discountTypes()),
             ],
         ]);
 
@@ -37,7 +37,7 @@ class KioskPaymentController extends Controller
 
         if ($discountType !== null && $method === 'online') {
             throw ValidationException::withMessages([
-                'method' => ['Student and senior discounts must be paid in cash so staff can verify the ID.'],
+                'method' => ['Discounted rates must be paid in cash so staff can verify the ID.'],
             ]);
         }
 
@@ -78,7 +78,7 @@ class KioskPaymentController extends Controller
             'amount' => $payment->amount,
             'base_amount' => $baseAmount,
             'discount_type' => $payment->discount_type,
-            'discount_percent' => $discountType !== null ? KioskPayment::DISCOUNT_PERCENT : 0,
+            'discount_percent' => $discountType !== null ? MemberProfile::DISCOUNT_PERCENT : 0,
             'expires_at' => $payment->expires_at?->toIso8601String(),
         ], 201);
     }

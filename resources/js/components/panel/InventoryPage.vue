@@ -544,6 +544,7 @@
 import { Modal } from "bootstrap";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import { formatDate, formatDateTime, toDateTimeInputValue } from "../../dates";
+import { debounce } from "../../debounce";
 
 export default {
    components: {
@@ -571,7 +572,6 @@ export default {
          selectedStatus: [],
          selectedStockState: [],
          currentPage: 1,
-         searchTimer: null,
          modalMode: "add",
          formError: "",
          formErrors: {},
@@ -641,10 +641,9 @@ export default {
                this.loading = false;
             });
       },
-      onSearchInput: function () {
-         clearTimeout(this.searchTimer);
-         this.searchTimer = setTimeout(() => this.fetchItems(1), 400);
-      },
+      onSearchInput: debounce(function () {
+         this.fetchItems(1);
+      }),
       clearFilter: function (chip) {
          if (typeof chip === "string") {
             if (chip === "search") this.search = "";

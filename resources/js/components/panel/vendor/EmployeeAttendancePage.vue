@@ -31,10 +31,10 @@
       <!-- Filters -->
       <div class="row g-2 mb-3">
          <div class="col-md-3">
-            <input type="date" class="form-control" v-model="dateFrom" @change="fetchRecords(1)" placeholder="From" />
+            <input type="date" class="form-control" v-model="dateFrom" @change="onDateChange" placeholder="From" />
          </div>
          <div class="col-md-3">
-            <input type="date" class="form-control" v-model="dateTo" @change="fetchRecords(1)" placeholder="To" />
+            <input type="date" class="form-control" v-model="dateTo" @change="onDateChange" placeholder="To" />
          </div>
          <div class="col-md-6 text-end">
             <button v-if="canManage" class="btn btn-danger btn-sm" @click="openLogModal"><i class="bi bi-plus-lg me-1"></i>Log Attendance</button>
@@ -185,6 +185,7 @@
 <script>
 import { Modal } from "bootstrap";
 import { formatDateTime, toDateTimeInputValue } from "../../../dates";
+import { debounce } from "../../../debounce";
 
 export default {
    props: {
@@ -234,6 +235,14 @@ export default {
    },
 
    methods: {
+      onDateChange: debounce(function () {
+         if (this.dateFrom && this.dateTo && this.dateFrom > this.dateTo) {
+            this.pageError = 'The "to" date must be on or after the "from" date.';
+            return;
+         }
+         this.fetchRecords(1);
+      }),
+
       formatDateTime,
       fetchRecords: function (page = 1) {
          this.loading = true;

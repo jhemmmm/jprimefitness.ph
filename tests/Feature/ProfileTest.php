@@ -90,12 +90,27 @@ class ProfileTest extends TestCase
         $this->actingAs($this->user)
             ->putJson('/panel/profile', [
                 'name' => 'Staff Ana',
+                'phone' => '09171234567',
                 'current_password' => 'old-secret',
-                'password' => 'new-secret-1',
-                'password_confirmation' => 'new-secret-1',
+                'password' => 'New-secret-1',
+                'password_confirmation' => 'New-secret-1',
             ])
             ->assertOk();
 
-        $this->assertTrue(Hash::check('new-secret-1', $this->user->fresh()->password));
+        $this->assertTrue(Hash::check('New-secret-1', $this->user->fresh()->password));
+    }
+
+    public function test_new_password_needs_an_uppercase_letter_and_a_symbol(): void
+    {
+        $this->actingAs($this->user)
+            ->putJson('/panel/profile', [
+                'name' => 'Staff Ana',
+                'phone' => '09171234567',
+                'current_password' => 'old-secret',
+                'password' => 'newsecret1',
+                'password_confirmation' => 'newsecret1',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['password']);
     }
 }

@@ -52,10 +52,10 @@
                />
             </div>
             <div class="col-6 col-md-2 col-lg-2">
-               <input type="date" class="form-control" v-model="dateFrom" @change="fetchRecords(1)" title="From date" />
+               <input type="date" class="form-control" v-model="dateFrom" @change="onDateChange" title="From date" />
             </div>
             <div class="col-6 col-md-2 col-lg-2">
-               <input type="date" class="form-control" v-model="dateTo" @change="fetchRecords(1)" title="To date" />
+               <input type="date" class="form-control" v-model="dateTo" @change="onDateChange" title="To date" />
             </div>
          </div>
       </div>
@@ -378,6 +378,7 @@ import { Modal } from "bootstrap";
 import AsyncSearchSelect from "./vendor/AsyncSearchSelect.vue";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import { formatDateTime, toDateTimeInputValue } from "../../dates";
+import { debounce } from "../../debounce";
 
 export default {
    components: {
@@ -398,7 +399,6 @@ export default {
          dateFrom: "",
          dateTo: "",
          currentPage: 1,
-         searchTimer: null,
          modalMode: "add",
          formError: "",
          formErrors: {},
@@ -459,10 +459,17 @@ export default {
             .finally(() => (this.loading = false));
       },
 
-      onSearchInput: function () {
-         clearTimeout(this.searchTimer);
-         this.searchTimer = setTimeout(() => this.fetchRecords(), 500);
-      },
+      onSearchInput: debounce(function () {
+         this.fetchRecords();
+      }),
+
+      onDateChange: debounce(function () {
+         if (this.dateFrom && this.dateTo && this.dateFrom > this.dateTo) {
+            this.pageError = 'The "to" date must be on or after the "from" date.';
+            return;
+         }
+         this.fetchRecords(1);
+      }),
 
       getAttendanceDetailUrl: function (record) {
          if (!record.user_id) {

@@ -7,6 +7,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 
 /**
  * The signed-in user's own account: name, phone, password.
@@ -37,9 +38,10 @@ class ProfileController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'phone' => ['nullable', 'string', 'max:20'],
+            // required going forward; a legacy account with no phone yet may still change its password
+            'phone' => [$user->phone === null ? 'nullable' : 'required', 'string', 'max:20'],
             'current_password' => ['nullable', 'required_with:password', 'current_password'],
-            'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            'password' => ['nullable', 'string', Password::defaults(), 'confirmed'],
         ]);
 
         $user->fill([

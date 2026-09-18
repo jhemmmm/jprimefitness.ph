@@ -124,10 +124,11 @@
                         <div class="invalid-feedback" v-if="formErrors.email">{{ formErrors.email[0] }}</div>
                      </div>
                      <div class="col-md-6">
-                        <label class="form-label fw-semibold">Phone</label>
+                        <label class="form-label fw-semibold">Phone <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" :class="{ 'is-invalid': formErrors.phone }" v-model="form.phone" />
                         <div class="invalid-feedback" v-if="formErrors.phone">{{ formErrors.phone[0] }}</div>
                      </div>
+                     <employee-details-fields :form="form" :errors="formErrors" />
                      <div class="col-md-6">
                         <label class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
                         <div :class="{ 'is-invalid': formErrors.role_ids }">
@@ -198,6 +199,7 @@
                         </label>
                         <input type="password" class="form-control" :class="{ 'is-invalid': formErrors.password }" v-model="form.password" autocomplete="new-password" />
                         <div class="invalid-feedback" v-if="formErrors.password">{{ formErrors.password[0] }}</div>
+                        <div class="form-text" v-else>At least 8 characters with upper and lower case letters and a symbol.</div>
                      </div>
                      <div class="col-12">
                         <label class="form-label fw-semibold d-block">Biometric</label>
@@ -314,12 +316,15 @@
 <script>
 import { Modal } from "bootstrap";
 import { formatDateTime } from "../../dates";
+import { debounce } from "../../debounce";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import ContributionSettingsFields, { employeeProfileForm } from "./vendor/ContributionSettingsFields.vue";
+import EmployeeDetailsFields from "./vendor/EmployeeDetailsFields.vue";
 
 export default {
    components: {
       ContributionSettingsFields,
+      EmployeeDetailsFields,
       MultiSelect,
    },
    props: {
@@ -334,7 +339,6 @@ export default {
          search: new URLSearchParams(window.location.search).get("search") || "",
          selectedRole: [],
          selectedStatus: [],
-         searchTimer: null,
          employeeModal: null,
          deleteModal: null,
          biometricModal: null,
@@ -360,7 +364,6 @@ export default {
       this.fetchEmployees();
    },
    beforeUnmount: function () {
-      clearTimeout(this.searchTimer);
       this.clearBiometricPolling();
       this.$refs.employeeBiometricModal?.removeEventListener("hide.bs.modal", this.onBiometricModalHide);
       this.employeeModal?.dispose();
@@ -493,6 +496,7 @@ export default {
             name: "",
             email: "",
             phone: "",
+            address: "",
             status: "active",
             role_ids: [],
             employee_profile: this.employeeProfileForm(null),
@@ -522,10 +526,9 @@ export default {
                this.loading = false;
             });
       },
-      onSearchInput: function () {
-         clearTimeout(this.searchTimer);
-         this.searchTimer = setTimeout(() => this.fetchEmployees(), 500);
-      },
+      onSearchInput: debounce(function () {
+         this.fetchEmployees();
+      }),
       openAdd: function () {
          this.form = this.emptyForm();
          this.formErrors = {};
@@ -539,6 +542,7 @@ export default {
             name: emp.name,
             email: emp.email,
             phone: emp.phone || "",
+            address: emp.address || "",
             role_ids: emp.roles ? emp.roles.map((r) => r.id) : [],
             status: emp.status,
             employee_profile: this.employeeProfileForm(emp.employee_profile || null),

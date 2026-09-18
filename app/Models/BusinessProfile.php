@@ -25,6 +25,18 @@ class BusinessProfile extends Model
         ['key' => 'sunday', 'day' => 'Sunday'],
     ];
 
+    /**
+     * Footer social links: key => label. Keys double as Bootstrap Icon names (bi-{key}).
+     *
+     * @var array<string, string>
+     */
+    public const SOCIAL_NETWORKS = [
+        'facebook' => 'Facebook',
+        'instagram' => 'Instagram',
+        'tiktok' => 'TikTok',
+        'youtube' => 'YouTube',
+    ];
+
     protected $fillable = [
         'name',
         'country_code',
@@ -37,6 +49,7 @@ class BusinessProfile extends Model
         'opening_time',
         'closing_time',
         'amenities',
+        'social_links',
         'operating_hours',
         'timezone',
     ];
@@ -46,6 +59,7 @@ class BusinessProfile extends Model
         'payroll_withholding_tax_enabled' => 'boolean',
         'payroll_government_contributions_enabled' => 'boolean',
         'amenities' => 'array',
+        'social_links' => 'array',
         'operating_hours' => 'array',
     ];
 
@@ -68,6 +82,7 @@ class BusinessProfile extends Model
             'opening_time' => '06:00',
             'closing_time' => '23:00',
             'amenities' => [],
+            'social_links' => [],
             'operating_hours' => self::defaultOperatingHours(),
             'timezone' => 'Asia/Manila',
         ];

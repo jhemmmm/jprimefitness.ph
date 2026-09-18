@@ -372,7 +372,7 @@
                     </tr>
                     @if (! empty($discount))
                         <tr>
-                            <td class="summary-label">{{ ucfirst($discount['type']) }} discount ({{ $discount['percent'] }}%)</td>
+                            <td class="summary-label">{{ \App\Models\MemberProfile::DISCOUNT_LABELS[$discount['type']] ?? ucfirst($discount['type']) }} discount ({{ $discount['percent'] }}%)</td>
                             <td class="summary-value" style="color: #d72638;">−₱{{ number_format((float) $discount['amount'], 2) }}</td>
                         </tr>
                     @endif

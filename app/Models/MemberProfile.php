@@ -14,6 +14,15 @@ class MemberProfile extends Model
 
     public const DISCOUNT_SENIOR = 'senior';
 
+    public const DISCOUNT_PWD = 'pwd';
+
+    /** Accepted discount types and their display labels (also exposed to Vue as window.JPrime.discountLabels). */
+    public const DISCOUNT_LABELS = [
+        self::DISCOUNT_STUDENT => 'Student',
+        self::DISCOUNT_SENIOR => 'Senior citizen',
+        self::DISCOUNT_PWD => 'PWD',
+    ];
+
     public const DISCOUNT_PERCENT = 20;
 
     protected $fillable = [
@@ -28,12 +37,19 @@ class MemberProfile extends Model
 
     public function hasDiscount(): bool
     {
-        return $this->discount_type === self::DISCOUNT_STUDENT
-            || $this->discount_type === self::DISCOUNT_SENIOR;
+        return in_array($this->discount_type, self::discountTypes(), true);
     }
 
     /**
-     * Apply the student/senior discount to a base price.
+     * @return list<string>
+     */
+    public static function discountTypes(): array
+    {
+        return array_keys(self::DISCOUNT_LABELS);
+    }
+
+    /**
+     * Apply the student/senior/PWD discount to a base price.
      */
     public static function discountedPrice(float $basePrice): float
     {

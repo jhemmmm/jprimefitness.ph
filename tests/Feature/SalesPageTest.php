@@ -222,6 +222,7 @@ class SalesPageTest extends TestCase
             [
                 'type' => SaleTransaction::TYPE_WALK_IN,
                 'customer_name' => 'Walk-in Guest',
+                'customer_phone' => '09170000000',
                 'amount_paid' => 175,
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
                 'amount_received' => 175,
@@ -596,6 +597,17 @@ class SalesPageTest extends TestCase
     {
         $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
         $otherCashier = $this->createUserWithRole('manager', 'Cashier Bea');
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_WALK_IN,
+                'customer_name' => 'Walk-in Carla',
+                'amount_paid' => 350,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 500,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['customer_phone']);
 
         $this->actingAs($cashier)
             ->postJson('/panel/sales', [

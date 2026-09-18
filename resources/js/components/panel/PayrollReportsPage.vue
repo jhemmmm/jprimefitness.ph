@@ -33,11 +33,11 @@
             <div class="row g-3 align-items-end">
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Date From</label>
-                  <input type="date" class="form-control" v-model="filters.date_from" @change="fetchReport(1)" />
+                  <input type="date" class="form-control" v-model="filters.date_from" @change="onDateChange" />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Date To</label>
-                  <input type="date" class="form-control" v-model="filters.date_to" @change="fetchReport(1)" />
+                  <input type="date" class="form-control" v-model="filters.date_to" @change="onDateChange" />
                </div>
                <div class="col-12 col-md-6 col-xl-3">
                   <label class="form-label">Status</label>
@@ -427,6 +427,7 @@ import PayrollTrendChart from "./charts/PayrollTrendChart.vue";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import dateRangePresets from "../../mixins/dateRangePresets";
 import { formatDate } from "../../dates";
+import { debounce } from "../../debounce";
 
 export default {
    components: {
@@ -622,6 +623,14 @@ export default {
       this.fetchReport();
    },
    methods: {
+      onDateChange: debounce(function () {
+         if (this.filters.date_from && this.filters.date_to && this.filters.date_from > this.filters.date_to) {
+            this.pageError = 'The "to" date must be on or after the "from" date.';
+            return;
+         }
+         this.fetchReport(1);
+      }),
+
       formatDate,
       emptyReport: function () {
          return {
