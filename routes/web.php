@@ -31,7 +31,10 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [HomeController::class, 'index'])->name('home');
 Route::get('/terms', [HomeController::class, 'terms'])->name('terms');
 
-Route::post('/register', [RegistrationController::class, 'store'])->name('register');
+Route::post('/register', [RegistrationController::class, 'store'])->middleware('throttle:10,1')->name('register');
+// Unlisted: reached only through the signed link mailed to the member.
+Route::get('/renew', [RegistrationController::class, 'renewForm'])->middleware('signed')->name('renew');
+Route::post('/renew', [RegistrationController::class, 'renew'])->middleware(['signed', 'throttle:10,1'])->name('renew.store');
 Route::get('/register/success', [RegistrationController::class, 'success'])->name('register.success');
 Route::get('/register/cancelled', [RegistrationController::class, 'cancelled'])->name('register.cancelled');
 

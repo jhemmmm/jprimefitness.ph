@@ -50,16 +50,16 @@ class MembershipQrAntiFraudService
             return $this->reject('member_inactive', 'Member account is not active.', $action, $deviceSerial, $membershipId, $membership, $member);
         }
 
+        if ($membership->isExpired($occurredAt)) {
+            return $this->reject('membership_expired', 'Membership has expired.', $action, $deviceSerial, $membershipId, $membership, $member);
+        }
+
         if ($membership->status !== MemberSubscription::STATUS_ACTIVE) {
             return $this->reject('membership_inactive', 'Membership is not active.', $action, $deviceSerial, $membershipId, $membership, $member);
         }
 
         if ($membership->start_date && $membership->start_date->copy()->startOfDay()->greaterThan($occurredAt->copy()->startOfDay())) {
             return $this->reject('membership_not_started', 'Membership has not started yet.', $action, $deviceSerial, $membershipId, $membership, $member);
-        }
-
-        if ($membership->end_date && $membership->end_date->copy()->endOfDay()->lessThan($occurredAt)) {
-            return $this->reject('membership_expired', 'Membership has expired.', $action, $deviceSerial, $membershipId, $membership, $member);
         }
 
         $openAttendance = Attendance::query()

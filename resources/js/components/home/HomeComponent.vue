@@ -503,145 +503,7 @@
             <div class="row g-4">
                <!-- Form -->
                <div class="col-lg-7">
-                  <div class="card border-0 shadow-sm">
-                     <div class="card-body p-4">
-                        <form method="POST" action="/register" @submit.prevent="submitRegistration" novalidate>
-                           <div v-if="register.bannerError" class="alert alert-danger small">{{ register.bannerError }}</div>
-
-                           <h6 class="text-uppercase text-muted fw-bold mb-3" style="font-size: 0.72rem; letter-spacing: 1.2px">Personal info</h6>
-                           <div class="row g-3 mb-3">
-                              <div class="col-md-6">
-                                 <label class="form-label small fw-semibold">Full name <span class="text-danger">*</span></label>
-                                 <input v-model="register.form.name" type="text" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.name }" placeholder="Your full name" />
-                                 <div class="invalid-feedback" v-if="registerErrors.name">{{ registerErrors.name[0] }}</div>
-                              </div>
-                              <div class="col-md-6">
-                                 <label class="form-label small fw-semibold">Email <span class="text-danger">*</span></label>
-                                 <input v-model="register.form.email" type="email" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.email }" placeholder="you@example.com" />
-                                 <div class="invalid-feedback" v-if="registerErrors.email">{{ registerErrors.email[0] }}</div>
-                              </div>
-                              <div class="col-md-6">
-                                 <label class="form-label small fw-semibold">Phone <span class="text-danger">*</span></label>
-                                 <input v-model="register.form.phone" type="tel" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.phone }" placeholder="0917..." />
-                                 <div class="invalid-feedback" v-if="registerErrors.phone">{{ registerErrors.phone[0] }}</div>
-                              </div>
-                              <div class="col-md-6">
-                                 <label class="form-label small fw-semibold">Date of birth <span class="text-danger">*</span></label>
-                                 <input v-model="register.form.date_of_birth" type="date" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.date_of_birth }" />
-                                 <div class="invalid-feedback" v-if="registerErrors.date_of_birth">{{ registerErrors.date_of_birth[0] }}</div>
-                              </div>
-                              <div class="col-md-6">
-                                 <label class="form-label small fw-semibold">Gender</label>
-                                 <select v-model="register.form.gender" class="form-select rounded-1" :class="{ 'is-invalid': registerErrors.gender }">
-                                    <option value="">Prefer not to say</option>
-                                    <option value="male">Male</option>
-                                    <option value="female">Female</option>
-                                    <option value="other">Other</option>
-                                 </select>
-                                 <div class="invalid-feedback" v-if="registerErrors.gender">{{ registerErrors.gender[0] }}</div>
-                              </div>
-                           </div>
-
-                           <h6 class="text-uppercase text-muted fw-bold mt-4 mb-3" style="font-size: 0.72rem; letter-spacing: 1.2px">Emergency contact</h6>
-                           <div class="row g-3 mb-3">
-                              <div class="col-md-6">
-                                 <label class="form-label small fw-semibold">Contact name <span class="text-danger">*</span></label>
-                                 <input v-model="register.form.emergency_contact_name" type="text" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.emergency_contact_name }" />
-                                 <div class="invalid-feedback" v-if="registerErrors.emergency_contact_name">{{ registerErrors.emergency_contact_name[0] }}</div>
-                              </div>
-                              <div class="col-md-6">
-                                 <label class="form-label small fw-semibold">Contact phone <span class="text-danger">*</span></label>
-                                 <input v-model="register.form.emergency_contact_phone" type="tel" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.emergency_contact_phone }" />
-                                 <div class="invalid-feedback" v-if="registerErrors.emergency_contact_phone">{{ registerErrors.emergency_contact_phone[0] }}</div>
-                              </div>
-                           </div>
-
-                           <h6 class="text-uppercase text-muted fw-bold mt-4 mb-3" style="font-size: 0.72rem; letter-spacing: 1.2px">Membership</h6>
-                           <div class="row g-3 mb-3">
-                              <div class="col-md-7">
-                                 <label class="form-label small fw-semibold">Plan <span class="text-danger">*</span></label>
-                                 <select v-model="register.form.rate_plan_id" class="form-select rounded-1" :class="{ 'is-invalid': registerErrors.rate_plan_id }">
-                                    <option value="">Choose a plan</option>
-                                    <option v-for="plan in membershipPlans" :key="'reg-rp-' + plan.id" :value="plan.id">{{ plan.name }} - &#8369;{{ $filters.formatMoney(plan.price) }} / {{ plan.duration_days }}d</option>
-                                 </select>
-                                 <div class="invalid-feedback" v-if="registerErrors.rate_plan_id">{{ registerErrors.rate_plan_id[0] }}</div>
-                              </div>
-                              <div class="col-md-5">
-                                 <label class="form-label small fw-semibold">Preferred start date</label>
-                                 <input v-model="register.form.preferred_start_date" type="date" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.preferred_start_date }" />
-                                 <div class="invalid-feedback" v-if="registerErrors.preferred_start_date">{{ registerErrors.preferred_start_date[0] }}</div>
-                              </div>
-                              <div class="col-12">
-                                 <label class="form-label small fw-semibold">Notes (optional)</label>
-                                 <textarea v-model="register.form.notes" rows="3" class="form-control rounded-1" :class="{ 'is-invalid': registerErrors.notes }" placeholder="Anything we should know? (injuries, training goals, etc.)"></textarea>
-                                 <div class="invalid-feedback" v-if="registerErrors.notes">{{ registerErrors.notes[0] }}</div>
-                              </div>
-                           </div>
-
-                           <h6 class="text-uppercase text-muted fw-bold mt-4 mb-1" style="font-size: 0.72rem; letter-spacing: 1.2px">Discount</h6>
-                           <p class="text-muted small mb-3">Saved to your profile and applied to renewals automatically.</p>
-                           <div class="row g-3 mb-3">
-                              <div class="col-6 col-md-3" v-for="option in discountOptions" :key="option.value">
-                                 <label class="payment-option h-100" :class="{ 'is-active': register.form.discount_type === option.value }">
-                                    <input type="radio" v-model="register.form.discount_type" :value="option.value" @change="onDiscountChange" />
-                                    <div>
-                                       <div class="fw-semibold"><i :class="`bi ${option.icon} me-1`"></i>{{ $filters.discountLabel(option.value) || "None" }}</div>
-                                       <div class="text-muted small">{{ option.hint }}</div>
-                                    </div>
-                                 </label>
-                              </div>
-                              <div class="col-12 invalid-feedback d-block" v-if="registerErrors.discount_type">{{ registerErrors.discount_type[0] }}</div>
-                           </div>
-
-                           <div v-if="hasDiscount && discountSummary" class="alert alert-info small mb-3 py-2">
-                              <i class="bi bi-info-circle me-1"></i>
-                              {{ discountSummary }}
-                           </div>
-
-                           <h6 class="text-uppercase text-muted fw-bold mt-4 mb-3" style="font-size: 0.72rem; letter-spacing: 1.2px">Payment</h6>
-                           <div class="row g-3 mb-3">
-                              <div class="col-md-6">
-                                 <label class="payment-option" :class="{ 'is-active': register.form.payment_method === 'online', 'opacity-50': hasDiscount }" :style="hasDiscount ? 'cursor: not-allowed;' : ''">
-                                    <input type="radio" v-model="register.form.payment_method" value="online" :disabled="hasDiscount" />
-                                    <div>
-                                       <div class="fw-semibold"><i class="bi bi-credit-card-2-front me-1"></i>Pay online now</div>
-                                       <div class="text-muted small" v-if="hasDiscount">Unavailable - staff must verify your ID on-site</div>
-                                       <div class="text-muted small" v-else>GCash, Maya, card via PayMongo</div>
-                                    </div>
-                                 </label>
-                              </div>
-                              <div class="col-md-6">
-                                 <label class="payment-option" :class="{ 'is-active': register.form.payment_method === 'on_site' }">
-                                    <input type="radio" v-model="register.form.payment_method" value="on_site" />
-                                    <div>
-                                       <div class="fw-semibold"><i class="bi bi-shop me-1"></i>Pay at the gym</div>
-                                       <div class="text-muted small">Activate when you arrive</div>
-                                    </div>
-                                 </label>
-                              </div>
-                              <div class="col-12 invalid-feedback d-block" v-if="registerErrors.payment_method">{{ registerErrors.payment_method[0] }}</div>
-                           </div>
-
-                           <div class="form-check mt-3 mb-3">
-                              <input v-model="register.form.terms_accepted" class="form-check-input" :class="{ 'is-invalid': registerErrors.terms_accepted }" type="checkbox" id="terms_accepted" />
-                              <label class="form-check-label small" for="terms_accepted">
-                                 I agree to the <a href="/terms" target="_blank" class="text-danger">Terms and Conditions</a>
-                                 and confirm my membership activates only after payment is confirmed.
-                              </label>
-                              <div class="invalid-feedback d-block" v-if="registerErrors.terms_accepted">{{ registerErrors.terms_accepted[0] }}</div>
-                           </div>
-
-                           <div class="invalid-feedback d-block" v-if="registerErrors.recaptcha">{{ registerErrors.recaptcha[0] }}</div>
-
-                           <div class="d-grid mt-4">
-                              <button type="submit" class="btn btn-danger fw-semibold rounded-1 py-2" :disabled="register.submitting">
-                                 <span v-if="register.submitting"><i class="bi bi-hourglass-split me-1"></i>Submitting…</span>
-                                 <span v-else><i class="bi bi-person-plus-fill me-1"></i>Submit Registration</span>
-                              </button>
-                           </div>
-                        </form>
-                     </div>
-                  </div>
+                  <registration-form ref="registrationForm" :business="business" :rate-plans="ratePlans" />
                </div>
 
                <!-- Helper cards -->
@@ -778,31 +640,11 @@
             </div>
          </div>
       </section>
-
-      <!-- Registration Success Modal -->
-      <div class="modal fade" id="registerSuccessModal" tabindex="-1" ref="registerSuccessModal" aria-hidden="true">
-         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-               <div class="modal-header border-0 pb-0">
-                  <h5 class="modal-title fw-bold">Registration received</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @click="resetRegister"></button>
-               </div>
-               <div class="modal-body text-center py-4">
-                  <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem"></i>
-                  <p class="text-muted mt-3 mb-3">{{ register.success }}</p>
-                  <p class="text-muted small mb-0" v-if="addressLine"><i class="bi bi-geo-alt-fill text-danger me-1"></i>{{ addressLine }}</p>
-               </div>
-               <div class="modal-footer border-0">
-                  <button type="button" class="btn btn-outline-secondary rounded-1 fw-semibold" data-bs-dismiss="modal" @click="resetRegister">Submit another</button>
-               </div>
-            </div>
-         </div>
-      </div>
    </div>
 </template>
 
 <script>
-import { Modal } from "bootstrap";
+import { getRecaptchaToken } from "../../recaptcha";
 
 export default {
    props: {
@@ -815,14 +657,6 @@ export default {
          form: { name: "", email: "", contact: "", topic: "Membership", message: "" },
          contact: { submitting: false, success: null, bannerError: null },
          contactErrors: {},
-         register: {
-            form: this.emptyRegisterForm(),
-            submitting: false,
-            success: null,
-            bannerError: null,
-         },
-         registerErrors: {},
-         registerSuccessModal: null,
          images: {
             about: "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?auto=format&fit=crop&w=1200&q=80",
             programs: {
@@ -836,8 +670,7 @@ export default {
    },
    computed: {
       addressLine: function () {
-         const parts = [this.business.address, this.business.city, this.business.province].filter(Boolean);
-         return parts.join(", ");
+         return this.$filters.addressLine(this.business);
       },
       amenities: function () {
          return Array.isArray(this.business.amenities) ? this.business.amenities.filter(Boolean) : [];
@@ -922,71 +755,8 @@ export default {
       indexedRatePlans: function () {
          return this.ratePlans.map((p, idx) => ({ ...p, _idx: idx }));
       },
-      membershipPlans: function () {
-         return this.ratePlans.filter((p) => !p.is_walk_in_only);
-      },
-      discountOptions: function () {
-         // types come from the backend (window.JPrime.discountLabels); only the icon/ID hint is local copy
-         const extras = {
-            student: { icon: "bi-mortarboard", hint: "20% off - bring valid school ID" },
-            senior: { icon: "bi-person-badge", hint: "20% off - bring senior citizen ID" },
-            pwd: { icon: "bi-universal-access", hint: "20% off - bring PWD ID" },
-         };
-         return [
-            { value: "", icon: "bi-x-circle", hint: "Regular rate" },
-            ...Object.keys(this.$filters.discountLabels()).map((value) => ({ value, icon: "bi-percent", hint: "20% off - bring valid ID", ...extras[value] })),
-         ];
-      },
-      hasDiscount: function () {
-         const t = this.register.form.discount_type;
-         return Boolean(this.$filters.discountLabel(t));
-      },
-      selectedRegisterPlan: function () {
-         const id = this.register.form.rate_plan_id;
-         if (!id) return null;
-         return this.membershipPlans.find((p) => String(p.id) === String(id)) || null;
-      },
-      discountSummary: function () {
-         if (!this.hasDiscount) return "";
-         const label = this.$filters.discountLabel(this.register.form.discount_type);
-         const plan = this.selectedRegisterPlan;
-         if (!plan) {
-            return `${label} discount: 20% off. Payment must be on-site so staff can verify your ID.`;
-         }
-         const base = parseFloat(plan.price || 0);
-         const discounted = Math.round(base * 80) / 100;
-         return `${label} discount: ₱${this.$filters.formatMoney(base)} → ₱${this.$filters.formatMoney(discounted)} (20% off). Payment must be on-site so staff can verify your ID.`;
-      },
-   },
-   mounted: function () {
-      this.registerSuccessModal = new Modal(this.$refs.registerSuccessModal);
-   },
-   beforeUnmount: function () {
-      this.registerSuccessModal?.dispose();
    },
    methods: {
-      emptyRegisterForm: function () {
-         return {
-            name: "",
-            email: "",
-            phone: "",
-            date_of_birth: "",
-            gender: "",
-            emergency_contact_name: "",
-            emergency_contact_phone: "",
-            rate_plan_id: "",
-            preferred_start_date: "",
-            notes: "",
-            payment_method: "online",
-            discount_type: "",
-            terms_accepted: false,
-         };
-      },
-      onDiscountChange: function () {
-         if (this.hasDiscount) {
-            this.register.form.payment_method = "on_site";
-         }
-      },
       perDay: function (plan) {
          const price = parseFloat(plan.price || 0);
          const days = parseInt(plan.duration_days || 0, 10);
@@ -1019,149 +789,41 @@ export default {
          this.contact.success = null;
          this.contactErrors = {};
 
-         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-
-         this.getRecaptchaToken()
-            .then((recaptchaToken) => {
-               const payload = {
+         getRecaptchaToken("register")
+            .then((recaptchaToken) =>
+               axios.post("/contact", {
                   name: this.form.name,
                   email: this.form.email,
                   contact: this.form.contact || null,
                   topic: this.form.topic,
                   message: this.form.message,
                   recaptcha_token: recaptchaToken,
-               };
-
-               return fetch("/contact", {
-                  method: "POST",
-                  headers: {
-                     "Content-Type": "application/json",
-                     Accept: "application/json",
-                     "X-CSRF-TOKEN": csrf,
-                     "X-Requested-With": "XMLHttpRequest",
-                  },
-                  body: JSON.stringify(payload),
-               });
-            })
-            .then((res) =>
-               res
-                  .json()
-                  .catch(() => ({}))
-                  .then((body) => ({ res, body })),
+               }),
             )
-            .then(({ res, body }) => {
-               if (res.status === 422) {
-                  this.contactErrors = body.errors || {};
-                  this.contact.bannerError = body.message || "Please correct the highlighted fields.";
-                  return;
-               }
-               if (!res.ok) {
-                  this.contact.bannerError = body.message || "Something went wrong. Please try again.";
-                  return;
-               }
-               this.contact.success = body.message || "Thanks! We received your message and will reply as soon as we can.";
+            .then((res) => {
+               this.contact.success = res.data?.message || "Thanks! We received your message and will reply as soon as we can.";
                this.form.name = "";
                this.form.email = "";
                this.form.contact = "";
                this.form.topic = "Membership";
                this.form.message = "";
             })
-            .catch(() => {
-               this.contact.bannerError = "Network error. Please check your connection and try again.";
+            .catch((err) => {
+               if (err.response?.status === 422) {
+                  this.contactErrors = err.response.data.errors || {};
+                  this.contact.bannerError = err.response.data.message || "Please correct the highlighted fields.";
+               } else {
+                  this.contact.bannerError = err.response?.data?.message || "Network error. Please check your connection and try again.";
+               }
             })
             .finally(() => {
                this.contact.submitting = false;
             });
       },
       selectPlanForRegister: function (planId) {
-         this.register.form.rate_plan_id = planId;
-         this.register.success = null;
+         this.$refs.registrationForm.selectPlan(planId);
          const target = document.getElementById("register");
          if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
-      },
-      resetRegister: function () {
-         this.register.form = this.emptyRegisterForm();
-         this.register.success = null;
-         this.register.bannerError = null;
-         this.registerErrors = {};
-         this.registerSuccessModal?.hide();
-      },
-      getRecaptchaToken: function () {
-         const siteKey = window.JPrime && window.JPrime.recaptchaSiteKey;
-         if (!siteKey || !window.grecaptcha) return Promise.resolve("");
-         return new Promise((resolve) => {
-            window.grecaptcha.ready(function () {
-               window.grecaptcha
-                  .execute(siteKey, { action: "register" })
-                  .then((token) => resolve(token || ""))
-                  .catch(() => resolve(""));
-            });
-         });
-      },
-      submitRegistration: function () {
-         this.register.submitting = true;
-         this.register.bannerError = null;
-         this.registerErrors = {};
-
-         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-
-         this.getRecaptchaToken()
-            .then((recaptchaToken) => {
-               const payload = {
-                  ...this.register.form,
-                  date_of_birth: this.register.form.date_of_birth || null,
-                  gender: this.register.form.gender || null,
-                  emergency_contact_name: this.register.form.emergency_contact_name || null,
-                  emergency_contact_phone: this.register.form.emergency_contact_phone || null,
-                  preferred_start_date: this.register.form.preferred_start_date || null,
-                  notes: this.register.form.notes || null,
-                  discount_type: this.register.form.discount_type || null,
-                  recaptcha_token: recaptchaToken,
-               };
-
-               return fetch("/register", {
-                  method: "POST",
-                  headers: {
-                     "Content-Type": "application/json",
-                     Accept: "application/json",
-                     "X-CSRF-TOKEN": csrf,
-                     "X-Requested-With": "XMLHttpRequest",
-                  },
-                  body: JSON.stringify(payload),
-               });
-            })
-            .then((res) =>
-               res
-                  .json()
-                  .catch(() => ({}))
-                  .then((body) => ({ res, body })),
-            )
-            .then(({ res, body }) => {
-               if (res.status === 422) {
-                  this.registerErrors = body.errors || {};
-                  this.register.bannerError = body.message || "Please correct the highlighted fields.";
-                  return;
-               }
-
-               if (!res.ok) {
-                  this.register.bannerError = body.message || "Something went wrong. Please try again.";
-                  return;
-               }
-
-               if (body.payment && body.payment.checkout_url) {
-                  window.location.assign(body.payment.checkout_url);
-                  return;
-               }
-
-               this.register.success = body.message || "We received your registration.";
-               this.registerSuccessModal?.show();
-            })
-            .catch(() => {
-               this.register.bannerError = "Network error - please check your connection and try again.";
-            })
-            .finally(() => {
-               this.register.submitting = false;
-            });
       },
    },
 };

@@ -15,7 +15,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use LaravelAndVueJS\Traits\LaravelPermissionToVueJS;
-use App\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
@@ -40,10 +39,10 @@ class User extends Authenticatable
     public const STATUS_SUSPENDED = 'suspended';
 
     /**
-     * Roles listed on the Employees page / global search.
-     * `super admin` and `member` are intentionally excluded (matches existing behaviour).
+     * Roles listed on (and assignable from) the Employees page / global search.
+     * `super admin` and `admin` are administrators, not employees; `member` never is.
      */
-    public const EMPLOYEE_ROLES = ['admin', 'manager', 'cashier', 'staff', 'coach'];
+    public const EMPLOYEE_ROLES = ['manager', 'cashier', 'staff', 'coach'];
 
     /**
      * Whether the user holds a management role (super admin, admin, or manager).
@@ -138,10 +137,19 @@ class User extends Authenticatable
 
     public function currentMembership(): ?MemberSubscription
     {
-        return $this->memberSubscriptions()
-            ->whereIn('status', [MemberSubscription::STATUS_ACTIVE, MemberSubscription::STATUS_PAUSED])
-            ->orderByDesc('start_date')
-            ->first();
+        return MemberSubscription::currentOf($this->memberSubscriptions()->orderByDesc('start_date')->get());
+    }
+
+    /**
+     * Day after the latest active membership ends, so a renewal loses no paid days;
+     * today when nothing is running.
+     */
+    public function nextMembershipStartDate(): string
+    {
+        $currentEnd = $this->memberSubscriptions()->where('status', MemberSubscription::STATUS_ACTIVE)->max('end_date');
+        $dayAfter = $currentEnd ? Carbon::parse($currentEnd)->addDay() : Carbon::today();
+
+        return $dayAfter->max(Carbon::today())->toDateString();
     }
 
     public function changeMembershipPlan(int $ratePlanId, string $startDate, array $attributes = []): MemberSubscription
@@ -193,25 +201,6 @@ class User extends Authenticatable
         $currentPlan->update([
             'status' => $status,
         ]);
-    }
-
-    public function allowedEmployeesRoles(): array
-    {
-        $roles = Role::query()->pluck('id', 'name');
-
-        if ($this->hasRole('super admin')) {
-            return $roles->values()->all();
-        }
-
-        $excluded = ['super admin'];
-        if (! $this->hasRole('admin')) {
-            $excluded[] = 'admin';
-        }
-
-        return $roles
-            ->except($excluded)
-            ->values()
-            ->all();
     }
 
     /**

@@ -1,13 +1,17 @@
 @extends('emails.layouts.branded')
 
-@section('title', 'Registration received')
-@section('preheader', 'Your details are in and your plan is reserved.')
-@section('eyebrow', 'Registration Received')
-@section('heading', 'Thanks for registering, ' . $member->name . '!')
+@section('title', $renewal ? 'Renewal received' : 'Registration received')
+@section('preheader', $renewal ? 'Your renewal is in and your plan is reserved.' : 'Your details are in and your plan is reserved.')
+@section('eyebrow', $renewal ? 'Renewal Received' : 'Registration Received')
+@section('heading', ($renewal ? 'Thanks for renewing, ' : 'Thanks for registering, ') . $member->name . '!')
 
 @section('content')
     <p style="margin:0 0 16px 0;">
-        Thanks for registering with <strong>{{ $business->name }}</strong>! We received your details and your chosen plan is reserved.
+        @if ($renewal)
+            Welcome back to <strong>{{ $business->name }}</strong>! We matched your renewal to your existing membership record and your chosen plan is reserved.
+        @else
+            Thanks for registering with <strong>{{ $business->name }}</strong>! We received your details and your chosen plan is reserved.
+        @endif
     </p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;margin:20px 0;">

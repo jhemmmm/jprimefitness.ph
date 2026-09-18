@@ -81,6 +81,8 @@ app.component("notifications-page", NotificationsPage);
 
 import HomeComponent from "./components/home/HomeComponent.vue";
 app.component("home-component", HomeComponent);
+import RegistrationForm from "./components/home/RegistrationForm.vue";
+app.component("registration-form", RegistrationForm);
 
 const normalizeKey = (value) =>
    String(value ?? "")
@@ -102,6 +104,9 @@ app.config.globalProperties.$filters = {
          minimumFractionDigits: 0,
          maximumFractionDigits: 2,
       });
+   },
+   addressLine(business) {
+      return [business?.address, business?.city, business?.province].filter(Boolean).join(", ");
    },
    formatMoney(value) {
       if (!value && value !== 0) return "0.00";

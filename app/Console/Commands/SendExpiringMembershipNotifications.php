@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Mail\MembershipExpiryMail;
 use App\Models\MemberSubscription;
 use App\Notifications\MembershipExpiringNotification;
 use App\Services\NotificationRecipientResolver;
@@ -9,9 +10,10 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 
 #[Signature('panel:send-expiring-membership-notifications')]
-#[Description('Send in-app notifications for memberships expiring within seven days')]
+#[Description('Notify staff in-app and email the member for memberships expiring within seven days')]
 class SendExpiringMembershipNotifications extends Command
 {
     private const WINDOW_DAYS = 7;
@@ -52,7 +54,8 @@ class SendExpiringMembershipNotifications extends Command
                     ->orWhereColumn('expiration_notification_sent_for_date', '!=', 'end_date');
             })
             ->with([
-                'member:id,name',
+                'member:id,name,email',
+                'member.memberSubscriptions:id,user_id,status,start_date',
                 'ratePlan:id,name',
             ])
             ->orderBy('end_date')
@@ -77,6 +80,11 @@ class SendExpiringMembershipNotifications extends Command
                             $referenceTime->toISOString(),
                         ),
                     );
+
+                    // paused rows still get the staff notice, but an unpaid sign-up is not a membership to renew
+                    if ($member->email && $subscription->pending_payment_method === null && ! $subscription->hasRenewal()) {
+                        Mail::to($member->email)->queue(new MembershipExpiryMail($member, $subscription, $daysRemaining));
+                    }
 
                     $subscription->forceFill([
                         'expiration_notification_sent_for_date' => $subscription->end_date,

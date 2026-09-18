@@ -247,8 +247,15 @@ class EmployeePayFrequencyTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['phone', 'employee_profile.date_of_birth', 'employee_profile.emergency_contact_phone']);
 
-        // once set, the details can't be cleared on update
+        // the detail page carries them for the read-only Information tab
         $employeeId = User::where('email', 'coach-ben-details@example.com')->value('id');
+        $this->actingAs($manager)
+            ->get("/panel/employees/{$employeeId}")
+            ->assertOk()
+            ->assertSee('123-456-789-000', false)
+            ->assertSee('12 Rizal St, Naga City', false);
+
+        // once set, the details can't be cleared on update
         $cleared = $payload;
         $cleared['employee_profile']['date_of_birth'] = null;
 

@@ -11,6 +11,7 @@ class MemberRegistrationReceivedNotification extends PanelDatabaseNotification
         private readonly User $member,
         private readonly MemberSubscription $subscription,
         private readonly string $paymentMethod,
+        private readonly bool $renewal = false,
     ) {}
 
     protected function typeSlug(): string
@@ -26,9 +27,9 @@ class MemberRegistrationReceivedNotification extends PanelDatabaseNotification
         $this->subscription->loadMissing(['ratePlan:id,name']);
 
         return [
-            'title' => 'New member registration',
+            'title' => $this->renewal ? 'Membership renewal' : 'New member registration',
             'message' => sprintf(
-                '%s signed up online for the %s plan (%s).',
+                $this->renewal ? '%s renewed online with the %s plan (%s).' : '%s signed up online for the %s plan (%s).',
                 $this->member->name,
                 $this->subscription->ratePlan?->name ?? 'membership',
                 $this->paymentMethod === 'online' ? 'paying online' : 'paying on-site',

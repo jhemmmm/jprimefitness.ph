@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\MembershipExpiryMail;
 use App\Models\CashDrawerSession;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
@@ -15,6 +16,7 @@ use App\Notifications\InventoryStockAlertNotification;
 use App\Services\InventoryStockAlertService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -262,6 +264,7 @@ class NotificationsCenterTest extends TestCase
 
     public function test_expiring_membership_command_notifies_once_per_end_date(): void
     {
+        Mail::fake();
         $this->travelTo(Carbon::parse('2026-04-03 08:00:00'));
 
         $ratePlan = $this->createRatePlan('Monthly', 30);
@@ -291,22 +294,37 @@ class NotificationsCenterTest extends TestCase
             'status' => MemberSubscription::STATUS_ACTIVE,
         ]);
 
+        MemberSubscription::create([
+            'user_id' => $member->id,
+            'rate_plan_id' => $ratePlan->id,
+            'sold_price' => 1500,
+            'start_date' => '2026-04-03',
+            'end_date' => '2026-04-05',
+            'status' => MemberSubscription::STATUS_PAUSED,
+            'pending_payment_method' => 'on_site', // unpaid sign-up: staff notice only, no "renew now" mail
+        ]);
+
         $this->artisan('panel:send-expiring-membership-notifications')
             ->assertExitCode(0);
 
-        $this->assertSame(['membership-expiring'], $this->notificationTypesFor($superAdmin));
-        $this->assertSame(['membership-expiring'], $this->notificationTypesFor($admin));
-        $this->assertSame(['membership-expiring'], $this->notificationTypesFor($managerA));
-        $this->assertSame(['membership-expiring'], $this->notificationTypesFor($managerB));
+        $this->assertSame(['membership-expiring', 'membership-expiring'], $this->notificationTypesFor($superAdmin));
+        $this->assertSame(['membership-expiring', 'membership-expiring'], $this->notificationTypesFor($admin));
+        $this->assertSame(['membership-expiring', 'membership-expiring'], $this->notificationTypesFor($managerA));
+        $this->assertSame(['membership-expiring', 'membership-expiring'], $this->notificationTypesFor($managerB));
         $this->assertSame([], $this->notificationTypesFor($staff));
 
         $subscription->refresh();
         $this->assertSame('2026-04-08', $subscription->expiration_notification_sent_for_date?->toDateString());
 
+        // the member gets an email alongside the staff notice
+        Mail::assertQueued(MembershipExpiryMail::class, fn (MembershipExpiryMail $mail) => $mail->hasTo($member->email) && $mail->daysRemaining === 5);
+        Mail::assertQueuedCount(1);
+
         $this->artisan('panel:send-expiring-membership-notifications')
             ->assertExitCode(0);
 
-        $this->assertCount(1, $superAdmin->fresh()->notifications);
+        $this->assertCount(2, $superAdmin->fresh()->notifications);
+        Mail::assertQueuedCount(1);
 
         $subscription->update([
             'end_date' => '2026-04-09',
@@ -315,7 +333,8 @@ class NotificationsCenterTest extends TestCase
         $this->artisan('panel:send-expiring-membership-notifications')
             ->assertExitCode(0);
 
-        $this->assertCount(2, $superAdmin->fresh()->notifications);
+        $this->assertCount(3, $superAdmin->fresh()->notifications);
+        Mail::assertQueuedCount(2);
 
         $this->travelBack();
     }

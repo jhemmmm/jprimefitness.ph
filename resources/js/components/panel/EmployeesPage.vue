@@ -372,19 +372,7 @@ export default {
    },
    computed: {
       allowedRoles: function () {
-         const roleRestrictions = {
-            "super admin": [],
-            admin: ["super admin"],
-            default: ["super admin", "admin"],
-         };
-         const currentRole = this.is("super admin") ? "super admin" : this.is("admin") ? "admin" : "default";
-
-         return this.rolesData
-            .filter((r) => !roleRestrictions[currentRole].includes(r.name))
-            .map((r) => ({
-               id: r.id,
-               name: this.$filters.capitalize(r.name),
-            }));
+         return this.rolesData.map((r) => ({ id: r.id, name: this.$filters.capitalize(r.name) }));
       },
       statusOptions: function () {
          return [

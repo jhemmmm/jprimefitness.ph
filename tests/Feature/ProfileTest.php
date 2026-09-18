@@ -22,9 +22,14 @@ class ProfileTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         BusinessProfile::factory()->create(['name' => 'JPrime Fitness Naga']);
 
-        $this->user = User::factory()->withEmployeeProfile()->create([
+        $this->user = User::factory()->withEmployeeProfile([
+            'tin' => '123-456-789-000',
+            'emergency_contact_name' => 'Next of Kin',
+            'hired_at' => '2026-01-15',
+        ])->create([
             'name' => 'Staff Ana',
             'email' => 'ana@example.com',
+            'address' => '12 Rizal St, Naga City',
             'password' => Hash::make('old-secret'),
             'status' => User::STATUS_ACTIVE,
         ]);
@@ -37,7 +42,12 @@ class ProfileTest extends TestCase
             ->get('/panel/profile')
             ->assertOk()
             ->assertSee('<profile-page', false)
-            ->assertSee('ana@example.com', false);
+            ->assertSee('ana@example.com', false)
+            // employee details are shown read-only on the profile page
+            ->assertSee('12 Rizal St, Naga City', false)
+            ->assertSee('123-456-789-000', false)
+            ->assertSee('Next of Kin', false)
+            ->assertSee('2026-01-15', false);
     }
 
     public function test_name_and_phone_update_but_email_is_ignored(): void

@@ -253,19 +253,7 @@ export default {
    },
    computed: {
       allowedRoles: function () {
-         const roleRestrictions = {
-            "super admin": [],
-            admin: ["super admin"],
-            default: ["super admin", "admin"],
-         };
-         const currentRole = this.is("super admin") ? "super admin" : this.is("admin") ? "admin" : "default";
-
-         return this.rolesData
-            .filter((r) => !roleRestrictions[currentRole].includes(r.name))
-            .map((r) => ({
-               id: r.id,
-               name: this.$filters.capitalize(r.name),
-            }));
+         return this.rolesData.map((r) => ({ id: r.id, name: this.$filters.capitalize(r.name) }));
       },
       statusOptions: function () {
          return ["active", "inactive", "suspended"];
@@ -381,7 +369,7 @@ export default {
              phone: employee.phone || "",
              address: employee.address || "",
              status: employee.status,
-             role_ids: employee.roles ? employee.roles.map((r) => r.id) : [],
+             role_ids: (employee.roles || []).map((r) => r.id).filter((id) => this.rolesData.some((r) => r.id === id)),
              employee_profile: this.employeeProfileForm(employee.employee_profile || null),
              password: "",
           };

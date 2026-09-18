@@ -335,6 +335,20 @@ class KioskAttendanceTest extends TestCase
             ->assertJsonPath('reason', 'membership_expired');
 
         $this->assertDatabaseCount('attendances', 0);
+
+        // once panel:expire-memberships has flipped the status, the kiosk still says "expired"
+        $flipped = $this->createActiveMembership('Flipped Member', ['status' => MemberSubscription::STATUS_EXPIRED]);
+
+        $this->postJson('/api/kiosk/attendance', [
+            'type' => 'member',
+            'status' => 'success',
+            'action' => 'time_in',
+            'qr_payload' => $flipped->qr_payload,
+            'occurred_at' => '2026-05-03T08:00:00+08:00',
+        ], ['X-Kiosk-Token' => 'test-kiosk-token'])
+            ->assertOk()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('reason', 'membership_expired');
     }
 
     public function test_member_time_in_rejects_inactive_membership_status(): void

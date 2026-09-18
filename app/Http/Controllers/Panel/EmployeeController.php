@@ -118,7 +118,7 @@ class EmployeeController extends Controller
             'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'role_ids' => ['required', 'array', 'min:1'],
-            'role_ids.*' => ['integer', Rule::in(auth()->user()->allowedEmployeesRoles())],
+            'role_ids.*' => ['integer', Rule::exists('roles', 'id')->whereIn('name', User::EMPLOYEE_ROLES)],
             'employee_profile' => ['required', 'array'],
             'employee_profile.daily_rate' => ['required', 'numeric', 'min:0'],
             'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
@@ -178,7 +178,7 @@ class EmployeeController extends Controller
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($employee->id)->withoutTrashed()],
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'role_ids' => ['required', 'array', 'min:1'],
-            'role_ids.*' => ['integer', Rule::in(auth()->user()->allowedEmployeesRoles())],
+            'role_ids.*' => ['integer', Rule::exists('roles', 'id')->whereIn('name', User::EMPLOYEE_ROLES)],
             'employee_profile' => ['required', 'array'],
             'employee_profile.daily_rate' => ['required', 'numeric', 'min:0'],
             'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
@@ -206,7 +206,8 @@ class EmployeeController extends Controller
                 : $employee->password,
         ]);
 
-        $employee->roles()->sync($data['role_ids']);
+        // the form only offers employee roles; an administrator role the user also holds is kept
+        $employee->roles()->sync([...$data['role_ids'], ...$employee->roles->whereNotIn('name', User::EMPLOYEE_ROLES)->pluck('id')]);
         $this->ensureEmployeeProfile($employee, $data['employee_profile']);
         $employee = $employee->fresh()->load(['roles', 'employeeProfile']);
 
@@ -1079,9 +1080,7 @@ class EmployeeController extends Controller
             'philhealth_covered' => (bool) $employeeProfile->philhealth_covered,
             'pagibig_covered' => (bool) $employeeProfile->pagibig_covered,
             ...$this->contributionShares($employeeProfile),
-            ...$employeeProfile->only(EmployeeProfile::DETAIL_COLUMNS),
-            'date_of_birth' => $employeeProfile->date_of_birth?->toDateString(),
-            'hired_at' => $employeeProfile->hired_at?->toDateString(),
+            ...$employeeProfile->details(),
             'hikvision_employee_no' => $employeeProfile->hikvision_employee_no,
             'biometric_status' => $employeeProfile->biometric_status,
             'biometric_fingerprint_id' => $employeeProfile->biometric_fingerprint_id,

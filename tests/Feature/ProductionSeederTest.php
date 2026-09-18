@@ -60,7 +60,7 @@ class ProductionSeederTest extends TestCase
         $this->assertSame(1, User::query()->where('email', 'owner@example.com')->count());
         $this->assertSame(1, BusinessProfile::query()->count());
         $this->assertSame(count(RoleSeeder::MATRIX), Role::query()->count());
-        $this->assertSame(count(RoleSeeder::PERMISSIONS), Permission::query()->count());
+        $this->assertSame(count(RoleSeeder::permissions()), Permission::query()->count());
 
         $this->assertDatabaseHas('permissions', ['name' => 'access panel']);
         $this->assertDatabaseHas('permissions', ['name' => 'manage employees']);

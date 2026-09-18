@@ -13,6 +13,7 @@ use App\Models\Payroll;
 use App\Models\RatePlan;
 use App\Models\Role;
 use App\Models\SaleTransaction;
+use App\Models\User;
 use App\Observers\AttendanceObserver;
 use App\Observers\BusinessProfileObserver;
 use App\Observers\CashAdvanceObserver;
@@ -72,8 +73,8 @@ class AppServiceProvider extends ServiceProvider
             $businessProfile = BusinessProfile::current();
             $ratePlans = RatePlan::where('is_active', true)->get();
             $ptProducts = PTProduct::where('is_active', true)->get();
-            // Assignable panel roles; `member` is never assigned from the employees UI.
-            $roles = Role::query()->where('name', '!=', 'member')->get();
+            // Roles assignable from the employees UI.
+            $roles = Role::query()->whereIn('name', User::EMPLOYEE_ROLES)->get();
 
             $view->with(compact('businessProfile', 'ratePlans', 'ptProducts', 'roles'));
         });

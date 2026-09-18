@@ -389,11 +389,7 @@ class DashboardController extends Controller
             return $user->currentMembership();
         }
 
-        return $user->memberSubscriptions
-            ->first(fn (MemberSubscription $subscription) => in_array($subscription->status, [
-                MemberSubscription::STATUS_ACTIVE,
-                MemberSubscription::STATUS_PAUSED,
-            ], true));
+        return MemberSubscription::currentOf($user->memberSubscriptions);
     }
 
     /**

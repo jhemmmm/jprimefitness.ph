@@ -11,7 +11,8 @@ use Illuminate\Validation\Rules\Password;
 
 /**
  * The signed-in user's own account: name, phone, password.
- * Email stays manager-managed (it is the login identity).
+ * Email stays manager-managed (it is the login identity); employee
+ * details are shown read-only and edited by managers under Employees.
  */
 class ProfileController extends Controller
 {
@@ -22,8 +23,13 @@ class ProfileController extends Controller
      */
     public function edit(): View
     {
+        $user = auth()->user();
+
         return view('panel.profile', [
-            'user' => auth()->user()->only(['name', 'email', 'phone']),
+            'user' => [
+                ...$user->only(['name', 'email', 'phone', 'address']),
+                'employee_profile' => $user->employeeProfile?->details(),
+            ],
         ]);
     }
 

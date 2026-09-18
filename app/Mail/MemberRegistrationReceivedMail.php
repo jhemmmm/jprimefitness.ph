@@ -21,6 +21,7 @@ class MemberRegistrationReceivedMail extends Mailable
         public User $member,
         public MemberSubscription $subscription,
         public string $paymentMethod,
+        public bool $renewal = false,
     ) {
         $this->business = BusinessProfile::current();
     }
@@ -28,7 +29,7 @@ class MemberRegistrationReceivedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'We received your JPrime Fitness registration',
+            subject: $this->renewal ? 'We received your JPrime Fitness renewal' : 'We received your JPrime Fitness registration',
         );
     }
 

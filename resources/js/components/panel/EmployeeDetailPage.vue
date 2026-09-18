@@ -48,6 +48,7 @@
 
 <script>
 import { formatDate } from "../../dates";
+import EmployeeInformationPage from "./vendor/EmployeeInformationPage.vue";
 import EmployeeAttendancePage from "./vendor/EmployeeAttendancePage.vue";
 import EmployeePayrollPage from "./vendor/EmployeePayrollPage.vue";
 import EmployeePayoutPage from "./vendor/EmployeePayoutPage.vue";
@@ -57,6 +58,7 @@ import EmployeeSettingsPage from "./vendor/EmployeeSettingsPage.vue";
 
 export default {
    components: {
+      EmployeeInformationPage,
       EmployeeAttendancePage,
       EmployeePayrollPage,
       EmployeePayoutPage,
@@ -73,8 +75,9 @@ export default {
    data: function () {
       return {
          localEmployee: { ...this.employee },
-         activeTab: new URLSearchParams(window.location.search).get("tab") || "attendance",
+         activeTab: new URLSearchParams(window.location.search).get("tab") || "information",
          tabs: [
+            { key: "information", label: "Information", icon: "bi-person-vcard" },
             { key: "attendance", label: "Attendance", icon: "bi-calendar-check" },
             { key: "schedule", label: "Schedule", icon: "bi-calendar-week" },
             { key: "payroll", label: "Payrolls", icon: "bi-receipt" },
@@ -87,7 +90,7 @@ export default {
 
    mounted: function () {
       if (!this.visibleTabs.some((tab) => tab.key === this.activeTab)) {
-         this.activeTab = "attendance";
+         this.activeTab = "information";
       }
    },
 
@@ -106,6 +109,7 @@ export default {
       },
       activeComponent: function () {
          return {
+            information: "EmployeeInformationPage",
             attendance: "EmployeeAttendancePage",
             schedule: "EmployeeSchedulePage",
             payroll: "EmployeePayrollPage",

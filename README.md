@@ -155,7 +155,7 @@ Run on the public cloud server.
 
     Expect `{"ok":true,...}`.
 
-> Live does not run any sync schedules. It's purely the receiver. The default `panel:send-expiring-membership-notifications` cron still runs as before.
+> Live does not run any sync schedules. It's purely the receiver. The default `panel:expire-memberships` (00:05) and `panel:send-expiring-membership-notifications` (08:00) crons still run as before; in a two-node setup only the node with mail configured emails members.
 
 ---
 

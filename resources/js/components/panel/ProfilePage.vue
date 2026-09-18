@@ -67,13 +67,20 @@
                   </div>
                </div>
             </div>
+
+            <div class="panel-card mt-3" v-if="user.employee_profile">
+               <employee-information-page :employee="user" />
+            </div>
          </div>
       </div>
    </div>
 </template>
 
 <script>
+import EmployeeInformationPage from "./vendor/EmployeeInformationPage.vue";
+
 export default {
+   components: { EmployeeInformationPage },
    props: {
       user: { type: Object, required: true },
    },

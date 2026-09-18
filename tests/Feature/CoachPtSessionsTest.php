@@ -40,7 +40,7 @@ class CoachPtSessionsTest extends TestCase
             ->assertSee('Trainee Tess', false)
             ->assertDontSee($member->email, false);
 
-        foreach (['staff', 'manager'] as $role) {
+        foreach (['super admin', 'admin', 'staff', 'manager'] as $role) {
             $user = $this->createUserWithRole($role);
             $this->actingAs($user)->get('/panel/pt-sessions')->assertForbidden();
             $this->actingAs($user)->getJson('/panel/pt-sessions/list')->assertForbidden();

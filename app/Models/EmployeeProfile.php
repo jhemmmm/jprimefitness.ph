@@ -74,6 +74,20 @@ class EmployeeProfile extends Model
         'pagibig_employer_share',
     ];
 
+    /**
+     * DETAIL_COLUMNS as sent to the panel (dates as Y-m-d).
+     *
+     * @return array<string, mixed>
+     */
+    public function details(): array
+    {
+        return [
+            ...$this->only(self::DETAIL_COLUMNS),
+            'date_of_birth' => $this->date_of_birth?->toDateString(),
+            'hired_at' => $this->hired_at?->toDateString(),
+        ];
+    }
+
     protected function casts(): array
     {
         return [

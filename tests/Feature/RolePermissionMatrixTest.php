@@ -84,7 +84,7 @@ class RolePermissionMatrixTest extends TestCase
 
     public function test_every_matrix_permission_has_a_representative_route(): void
     {
-        $this->assertSame(RoleSeeder::PERMISSIONS, array_keys(self::ROUTES));
+        $this->assertEqualsCanonicalizing(RoleSeeder::permissions(), array_keys(self::ROUTES));
     }
 
     public function test_member_is_kept_out_of_the_panel(): void
