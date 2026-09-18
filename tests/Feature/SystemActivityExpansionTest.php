@@ -32,7 +32,7 @@ class SystemActivityExpansionTest extends TestCase
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach (['super admin', 'admin', 'manager', 'staff', 'member', 'employee', 'coach'] as $roleName) {
+        foreach (['super admin', 'admin', 'manager', 'staff', 'member', 'coach'] as $roleName) {
             Role::findOrCreate($roleName);
         }
 
@@ -49,7 +49,7 @@ class SystemActivityExpansionTest extends TestCase
         CashDrawerSession::factory()->create(['opened_at' => '2026-01-01 08:00:00']);
     }
 
-    public function test_super_admin_admin_and_manager_can_access_system_activity_with_registry_metadata(): void
+    public function test_super_admin_and_admin_can_access_system_activity_but_manager_and_staff_cannot(): void
     {
         $superAdmin = $this->createUserWithRole('super admin', 'Super Admin Sue');
         $admin = $this->createUserWithRole('admin', 'Admin Ava');
@@ -83,14 +83,14 @@ class SystemActivityExpansionTest extends TestCase
             'occurred_at' => '2026-04-09 10:00:00',
         ]);
 
-        foreach ([$superAdmin, $admin, $manager] as $allowedUser) {
+        foreach ([$superAdmin, $admin] as $allowedUser) {
             $this->actingAs($allowedUser)
                 ->get('/panel/system-activity')
                 ->assertOk()
                 ->assertSee('system-activity-page', false);
         }
 
-        $response = $this->actingAs($manager)
+        $response = $this->actingAs($admin)
             ->getJson('/panel/system-activity/list?subject_type=member_subscription&event=created&per_page=10')
             ->assertOk();
 
@@ -123,13 +123,15 @@ class SystemActivityExpansionTest extends TestCase
             ->assertJsonPath('events.data.0.caused_by.event_label', 'Created')
             ->assertJsonPath('events.data.0.caused_by.action_url', route('panel.sales.index'));
 
-        $this->actingAs($staff)
-            ->get('/panel/system-activity')
-            ->assertForbidden();
+        foreach ([$manager, $staff] as $deniedUser) {
+            $this->actingAs($deniedUser)
+                ->get('/panel/system-activity')
+                ->assertForbidden();
 
-        $this->actingAs($staff)
-            ->getJson('/panel/system-activity/list')
-            ->assertForbidden();
+            $this->actingAs($deniedUser)
+                ->getJson('/panel/system-activity/list')
+                ->assertForbidden();
+        }
     }
 
     public function test_business_profile_changes_record_system_activities(): void
@@ -156,7 +158,7 @@ class SystemActivityExpansionTest extends TestCase
 
     public function test_employee_payroll_payout_side_effects_record_system_activities(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Pia');
+        $manager = $this->createUserWithRole('admin', 'Admin Pia'); // reads system activity (admin-only)
         $coachRoleId = Role::findByName('coach')->id;
         $staffRoleId = Role::findByName('staff')->id;
 
@@ -171,11 +173,8 @@ class SystemActivityExpansionTest extends TestCase
                     'daily_rate' => 800,
                     'pay_frequency' => 'semi_monthly',
                     'sss_covered' => true,
-                    'sss_monthly_compensation' => 20250,
                     'philhealth_covered' => true,
-                    'philhealth_monthly_basic_salary' => 20000,
                     'pagibig_covered' => true,
-                    'pagibig_monthly_compensation' => 20000,
                 ],
                 'password' => 'password123',
             ])
@@ -195,11 +194,8 @@ class SystemActivityExpansionTest extends TestCase
                     'daily_rate' => 850,
                     'pay_frequency' => 'monthly',
                     'sss_covered' => true,
-                    'sss_monthly_compensation' => 20250,
                     'philhealth_covered' => true,
-                    'philhealth_monthly_basic_salary' => 20000,
                     'pagibig_covered' => true,
-                    'pagibig_monthly_compensation' => 20000,
                 ],
                 'password' => '',
             ])
@@ -216,11 +212,8 @@ class SystemActivityExpansionTest extends TestCase
                     'daily_rate' => 500,
                     'pay_frequency' => 'semi_monthly',
                     'sss_covered' => false,
-                    'sss_monthly_compensation' => null,
                     'philhealth_covered' => false,
-                    'philhealth_monthly_basic_salary' => null,
                     'pagibig_covered' => false,
-                    'pagibig_monthly_compensation' => null,
                 ],
                 'password' => 'password123',
             ])
@@ -319,10 +312,11 @@ class SystemActivityExpansionTest extends TestCase
             ->orderBy('id')
             ->get();
 
-        $this->assertSame(1725.0, (float) $payrollSystemActivities[0]->metadata['employee_contributions_total']);
-        $this->assertSame(2780.0, (float) $payrollSystemActivities[0]->metadata['employer_contributions_total']);
-        $this->assertSame(1000.0, (float) data_get($payrollSystemActivities[0]->metadata, 'employee_contributions.sss.lines.regular_ss.amount'));
-        $this->assertSame(30.0, (float) data_get($payrollSystemActivities[0]->metadata, 'employer_contributions.sss.lines.ec.amount'));
+        // Coach Lou was switched to monthly above, so the full monthly amounts apply.
+        $this->assertSame(600.0, (float) $payrollSystemActivities[0]->metadata['employee_contributions_total']);
+        $this->assertSame(850.0, (float) $payrollSystemActivities[0]->metadata['employer_contributions_total']);
+        $this->assertSame(250.0, (float) data_get($payrollSystemActivities[0]->metadata, 'employee_contributions.sss.total'));
+        $this->assertSame(500.0, (float) data_get($payrollSystemActivities[0]->metadata, 'employer_contributions.sss.total'));
         $this->assertArrayHasKey('employee_contributions', $payrollSystemActivities[1]->metadata);
         $this->assertArrayHasKey('employer_contributions', $payrollSystemActivities[2]->metadata);
 
@@ -350,7 +344,7 @@ class SystemActivityExpansionTest extends TestCase
 
     public function test_member_membership_pt_package_and_pt_session_mutations_record_system_activities(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Nia');
+        $manager = $this->createUserWithRole('admin', 'Admin Nia'); // reads system activity (admin-only)
         $coach = $this->createUserWithRole('coach', 'Coach Rey');
         $planA = $this->createRatePlan('Monthly', 30, [
             'price' => 1500,
@@ -641,7 +635,7 @@ class SystemActivityExpansionTest extends TestCase
 
     public function test_sales_record_primary_and_side_effect_system_activities_with_cause_chains(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $manager = $this->createUserWithRole('admin', 'Admin Sol'); // reads system activity (admin-only)
         $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
         $inventoryItem = InventoryItem::factory()->create([
             'inventory_category_id' => $category->id,
@@ -767,15 +761,15 @@ class SystemActivityExpansionTest extends TestCase
         $this->assertNotNull($voidedEvent);
         $this->assertSame('Sale voided', $voidedEvent->title);
         $this->assertSame('Customer requested cancellation.', $voidedEvent->metadata['void_reason'] ?? null);
-        $this->assertSame('Manager Sol', $voidedEvent->metadata['voided_by'] ?? null);
+        $this->assertSame('Admin Sol', $voidedEvent->metadata['voided_by'] ?? null);
 
     }
 
     public function test_read_only_and_failed_actions_do_not_create_extra_system_activities(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Dex');
+        $manager = $this->createUserWithRole('admin', 'Admin Dex'); // reads system activity (admin-only)
         $staff = $this->createUserWithRole('staff', 'Staff Lee');
-        $employee = $this->createUserWithRole('employee', 'Employee Kai');
+        $employee = $this->createUserWithRole('staff', 'Employee Kai');
         $category = InventoryCategory::factory()->create(['name' => 'Bars']);
 
         $this->actingAs($staff)

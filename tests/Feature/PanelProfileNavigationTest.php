@@ -26,11 +26,11 @@ class PanelProfileNavigationTest extends TestCase
     }
 
     /**
-     * Display the profile menu item for panel employees.
+     * Show Profile and My Record links to employees; My Record points at their own record.
      *
      * @return void
      */
-    public function test_panel_employee_profile_menu_links_to_their_employee_profile(): void
+    public function test_panel_employee_menu_links_to_profile_and_each_own_record_page(): void
     {
         $this->setBusinessProfile();
         $staff = $this->createUserWithRole('staff', 'Staff Ana');
@@ -39,23 +39,57 @@ class PanelProfileNavigationTest extends TestCase
             ->get('/panel/dashboard')
             ->assertOk()
             ->assertSee('<i class="bi bi-person me-2"></i>Profile', false)
-            ->assertSee(route('panel.employees.show', $staff), false);
+            ->assertSee(route('panel.profile.edit'), false)
+            ->assertSee('My Record', false)
+            ->assertSee(route('panel.my.show', 'attendance'), false)
+            ->assertSee(route('panel.my.show', 'schedule'), false)
+            ->assertSee(route('panel.my.show', 'payroll'), false)
+            ->assertSee(route('panel.my.show', 'payouts'), false)
+            ->assertSee(route('panel.my.show', 'cash-advances'), false)
+            ->assertSee('My Payroll', false);
     }
 
     /**
-     * Hide the profile menu item for super admins.
+     * Super admins have no employee record, so they get Profile but not My Record.
      *
      * @return void
      */
-    public function test_super_admin_panel_menu_does_not_show_profile_item(): void
+    public function test_super_admin_menu_shows_profile_but_not_my_record(): void
     {
         $this->setBusinessProfile();
-        $superAdmin = $this->createUserWithRole('super admin', 'Root Admin');
+        $superAdmin = User::factory()->create(['name' => 'Root Admin', 'status' => User::STATUS_ACTIVE]);
+        $superAdmin->assignRole('super admin');
 
         $this->actingAs($superAdmin)
             ->get('/panel/dashboard')
             ->assertOk()
-            ->assertDontSee('<i class="bi bi-person me-2"></i>Profile', false);
+            ->assertSee('<i class="bi bi-person me-2"></i>Profile', false)
+            ->assertDontSee('My Record', false);
+    }
+
+    /**
+     * Each My Record section is a full page for employees; super admins (no record) get 404.
+     *
+     * @return void
+     */
+    public function test_my_record_sections_render_as_pages(): void
+    {
+        $this->setBusinessProfile();
+        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+
+        foreach (['attendance', 'schedule', 'payroll', 'payouts', 'cash-advances'] as $section) {
+            $this->actingAs($staff)
+                ->get("/panel/my/{$section}")
+                ->assertOk()
+                ->assertSee('<my-record-page', false)
+                ->assertSee('section="'.$section.'"', false);
+        }
+
+        $this->actingAs($staff)->get('/panel/my/settings')->assertNotFound();
+
+        $superAdmin = User::factory()->create(['name' => 'Root Admin', 'status' => User::STATUS_ACTIVE]);
+        $superAdmin->assignRole('super admin');
+        $this->actingAs($superAdmin)->get('/panel/my/payroll')->assertNotFound();
     }
 
     /**

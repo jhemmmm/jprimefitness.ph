@@ -291,8 +291,6 @@
     ];
     $employeeContributionPrograms = collect($payroll->employee_contributions ?? [])
         ->filter(fn(array $program): bool => (float) ($program['total'] ?? 0) > 0);
-    $employerContributionPrograms = collect($payroll->employer_contributions ?? [])
-        ->filter(fn(array $program): bool => (float) ($program['total'] ?? 0) > 0);
     $logoData = '';
     $logoPath = public_path('logo.png');
 
@@ -455,36 +453,13 @@
                                     </td>
                                 </tr>
                                 @foreach ($employeeContributionPrograms as $programKey => $program)
-                                    @php
-                                        $programLabel = $program['label'] ?? str($programKey)->replace('_', ' ')->title()->toString();
-                                        $programLines = collect($program['lines'] ?? [])
-                                            ->filter(fn(array $line): bool => (float) ($line['amount'] ?? 0) > 0);
-                                    @endphp
-                                    @forelse ($programLines as $lineKey => $line)
-                                        <tr>
-                                            <td class="breakdown-label">
-                                                {{ $programLabel }} - {{ $line['label'] ?? str($lineKey)->replace('_', ' ')->title()->toString() }}
-                                            </td>
-                                            <td class="breakdown-amount amount-negative">
-                                                - PHP {{ number_format((float) ($line['amount'] ?? 0), 2) }}
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td class="breakdown-label">{{ $programLabel }}</td>
-                                            <td class="breakdown-amount amount-negative">
-                                                - PHP {{ number_format((float) ($program['total'] ?? 0), 2) }}
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                @endforeach
-                                @if ($employeeContributionPrograms->isNotEmpty())
                                     <tr>
-                                        <td class="breakdown-label"><strong>Employee government contributions</strong></td>
-                                        <td class="breakdown-amount amount-negative">- PHP
-                                            {{ number_format($payroll->employeeContributionsTotal(), 2) }}</td>
+                                        <td class="breakdown-label">{{ $program['label'] ?? str($programKey)->replace('_', ' ')->title()->toString() }} contribution</td>
+                                        <td class="breakdown-amount amount-negative">
+                                            - PHP {{ number_format((float) ($program['total'] ?? 0), 2) }}
+                                        </td>
                                     </tr>
-                                @endif
+                                @endforeach
                                 <tr>
                                     <td class="breakdown-label">Other deductions</td>
                                     <td
@@ -519,36 +494,6 @@
                                 {{ $payroll->approvedBy?->name ?: 'Pending approval' }}</div>
                             <div class="meta-note"><strong>Approved At:</strong>
                                 {{ $payroll->approved_at?->format('M d, Y h:i A') ?: 'Pending approval' }}</div>
-                        </div>
-                        <div class="spacer"></div>
-                        <div class="box">
-                            <div class="box-heading">Employer Contributions</div>
-                            <div class="notes-copy" style="margin-bottom: 5px;">Reference only. These employer-share statutory amounts do not reduce employee net pay.</div>
-                            <table class="breakdown-table">
-                                @forelse ($employerContributionPrograms as $programKey => $program)
-                                    @php
-                                        $programLabel = $program['label'] ?? str($programKey)->replace('_', ' ')->title()->toString();
-                                    @endphp
-                                    <tr>
-                                        <td class="breakdown-label">{{ $programLabel }}</td>
-                                        <td class="breakdown-amount">
-                                            PHP {{ number_format((float) ($program['total'] ?? 0), 2) }}
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td class="breakdown-label">No employer contribution snapshot was stored for this payroll.</td>
-                                        <td class="breakdown-amount">-</td>
-                                    </tr>
-                                @endforelse
-                                @if ($employerContributionPrograms->isNotEmpty())
-                                    <tr>
-                                        <td class="breakdown-label"><strong>Total employer contributions</strong></td>
-                                        <td class="breakdown-amount">PHP
-                                            {{ number_format($payroll->employerContributionsTotal(), 2) }}</td>
-                                    </tr>
-                                @endif
-                            </table>
                         </div>
                     </td>
                 </tr>

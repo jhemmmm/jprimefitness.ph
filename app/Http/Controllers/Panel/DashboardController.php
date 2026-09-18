@@ -16,13 +16,16 @@ use Illuminate\View\View;
 class DashboardController extends Controller
 {
     /**
-     * Display the dashboard page.
+     * Display the dashboard page: the ops dashboard for management,
+     * the self-scoped "My Dashboard" for staff and coaches.
      *
      * @return \Illuminate\Contracts\View\View
      */
     public function index(): View
     {
-        return view('panel.dashboard');
+        return auth()->user()->can('view dashboard')
+            ? view('panel.dashboard')
+            : view('panel.my-dashboard');
     }
 
     /**
@@ -111,7 +114,8 @@ class DashboardController extends Controller
      */
     private function activeEmployeeCount(): int
     {
-        return User::role(['employee', 'manager', 'admin', 'staff'])
+        // Coaches are counted separately as "Active Trainers".
+        return User::role(array_values(array_diff(User::EMPLOYEE_ROLES, ['coach'])))
             ->where('status', User::STATUS_ACTIVE)
             ->count();
     }

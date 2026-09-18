@@ -320,7 +320,7 @@ class PanelKioskPaymentsControllerTest extends TestCase
     private function staff(): User
     {
         $user = User::factory()->create(['name' => 'Staff Ana']);
-        $user->assignRole('staff');
+        $user->assignRole('manager');
 
         return $user;
     }

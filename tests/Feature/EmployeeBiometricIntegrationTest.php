@@ -33,7 +33,7 @@ class EmployeeBiometricIntegrationTest extends TestCase
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach (['manager', 'staff', 'employee', 'member', 'admin', 'coach'] as $roleName) {
+        foreach (['manager', 'staff', 'member', 'admin', 'coach'] as $roleName) {
             Role::findOrCreate($roleName);
         }
 
@@ -61,11 +61,8 @@ class EmployeeBiometricIntegrationTest extends TestCase
                     'daily_rate' => 650,
                     'pay_frequency' => 'semi_monthly',
                     'sss_covered' => false,
-                    'sss_monthly_compensation' => null,
                     'philhealth_covered' => false,
-                    'philhealth_monthly_basic_salary' => null,
                     'pagibig_covered' => false,
-                    'pagibig_monthly_compensation' => null,
                 ],
                 'password' => 'password123',
             ])
@@ -110,11 +107,8 @@ class EmployeeBiometricIntegrationTest extends TestCase
                     'daily_rate' => 700,
                     'pay_frequency' => 'monthly',
                     'sss_covered' => false,
-                    'sss_monthly_compensation' => null,
                     'philhealth_covered' => false,
-                    'philhealth_monthly_basic_salary' => null,
                     'pagibig_covered' => false,
-                    'pagibig_monthly_compensation' => null,
                 ],
                 'password' => '',
             ])

@@ -202,7 +202,7 @@
                         <td class="text-muted small">{{ formatDate(member.created_at) }}</td>
                         <td>
                            <div class="d-flex gap-1">
-                              <button class="btn btn-sm btn-outline-secondary" title="Edit" @click="openEditModal(member)">
+                              <button class="btn btn-sm btn-outline-secondary" title="Edit" v-if="can('edit members')" @click="openEditModal(member)">
                                  <i class="bi bi-pencil tbl-icon"></i>
                               </button>
                            </div>
@@ -223,7 +223,7 @@
                            <div class="small text-muted mt-1" v-if="member.profile && member.profile.notes">{{ getMemberNotes(member) }}</div>
                         </div>
                      </a>
-                     <div class="dropdown">
+                     <div class="dropdown" v-if="can('edit members')">
                         <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
                            <i class="bi bi-three-dots-vertical"></i>
                         </button>

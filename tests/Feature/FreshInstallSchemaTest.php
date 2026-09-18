@@ -54,11 +54,43 @@ class FreshInstallSchemaTest extends TestCase
             'pay_frequency',
             'pt_commission_rate',
             'sss_covered',
-            'sss_monthly_compensation',
+            'sss_employee_share',
+            'sss_employer_share',
             'philhealth_covered',
-            'philhealth_monthly_basic_salary',
+            'philhealth_employee_share',
+            'philhealth_employer_share',
             'pagibig_covered',
-            'pagibig_monthly_compensation',
+            'pagibig_employee_share',
+            'pagibig_employer_share',
+        ]);
+        $this->assertFalse(Schema::hasColumn('employee_profiles', 'sss_monthly_compensation'));
+        $this->assertFalse(Schema::hasColumn('employee_profiles', 'philhealth_monthly_basic_salary'));
+        $this->assertFalse(Schema::hasColumn('employee_profiles', 'pagibig_monthly_compensation'));
+
+        // Rows written without share amounts (pre-migration data) read as the legal minimum;
+        // the migration itself also enrols every existing employee.
+        $userId = DB::table('users')->insertGetId([
+            'name' => 'Legacy Employee',
+            'email' => 'legacy@example.com',
+            'password' => 'secret',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('employee_profiles')->insert([
+            'user_id' => $userId,
+            'hikvision_employee_no' => '00000001',
+            'biometric_status' => 'not_enrolled',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $this->assertDatabaseHas('employee_profiles', [
+            'user_id' => $userId,
+            'sss_employee_share' => 250,
+            'sss_employer_share' => 500,
+            'philhealth_employee_share' => 250,
+            'philhealth_employer_share' => 250,
+            'pagibig_employee_share' => 100,
+            'pagibig_employer_share' => 100,
         ]);
 
         $this->assertTableHasColumns('employee_biometric_sessions', [

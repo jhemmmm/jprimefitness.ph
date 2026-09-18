@@ -1636,8 +1636,8 @@ body.auth-body {
     .m-badge--coach {
         @include badge-variant(rgba(234, 88, 12, 0.22), #fdba74, rgba(234, 88, 12, 0.34), #fb923c);
     }
-    .m-badge--employee {
-        @include badge-variant(rgba(13, 148, 136, 0.22), #99f6e4, rgba(13, 148, 136, 0.34), #5eead4);
+    .m-badge--cashier {
+        @include badge-variant(rgba(202, 138, 4, 0.22), #fde68a, rgba(202, 138, 4, 0.34), #fcd34d);
     }
     .m-badge--plan {
         @include badge-variant(rgba(37, 99, 235, 0.18), #93c5fd, rgba(37, 99, 235, 0.28));

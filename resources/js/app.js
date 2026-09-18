@@ -20,6 +20,16 @@ app.component("async-search-select", AsyncSearchSelect);
 
 import DashboardPage from "./components/panel/DashboardPage.vue";
 app.component("dashboard-page", DashboardPage);
+import MyDashboardPage from "./components/panel/MyDashboardPage.vue";
+app.component("my-dashboard-page", MyDashboardPage);
+import CoachPtSessionsPage from "./components/panel/CoachPtSessionsPage.vue";
+app.component("coach-pt-sessions-page", CoachPtSessionsPage);
+import CoachPtSessionDetailPage from "./components/panel/CoachPtSessionDetailPage.vue";
+app.component("coach-pt-session-detail-page", CoachPtSessionDetailPage);
+import MyRecordPage from "./components/panel/MyRecordPage.vue";
+app.component("my-record-page", MyRecordPage);
+import ProfilePage from "./components/panel/ProfilePage.vue";
+app.component("profile-page", ProfilePage);
 
 import MembersPage from "./components/panel/MembersPage.vue";
 app.component("members-page", MembersPage);
@@ -100,6 +110,20 @@ app.config.globalProperties.$filters = {
    formatPeso(value) {
       return `₱${this.formatMoney(value || 0)}`;
    },
+   // PT package progress: % of sessions remaining and the bar colour when running low.
+   sessionPercent(pkg) {
+      if (!pkg?.total_sessions) return 0;
+      return Math.round((pkg.remaining_sessions / pkg.total_sessions) * 100);
+   },
+   sessionBarClass(pkg) {
+      return pkg?.remaining_sessions <= 2 ? "bg-danger" : "bg-success";
+   },
+   // Payroll snapshot {program: {label, total}} -> rows with a non-zero total.
+   contributionPrograms(contributions) {
+      return Object.entries(contributions || {})
+         .map(([key, program]) => ({ key, label: program?.label || key, total: Number(program?.total || 0) }))
+         .filter((program) => program.total > 0);
+   },
    formatTime: formatClockTime,
    capitalize: function (str) {
       return String(str ?? "")
@@ -119,7 +143,7 @@ app.config.globalProperties.$filters = {
             staff: "m-badge--staff",
             member: "m-badge--member",
             coach: "m-badge--coach",
-            employee: "m-badge--employee",
+            cashier: "m-badge--cashier",
             walk_in: "m-badge--plan",
          }[
             String(role ?? "")
@@ -138,6 +162,7 @@ app.config.globalProperties.$filters = {
             closed: "m-badge--closed",
             coming_soon: "m-badge--coming_soon",
             pending: "m-badge--pending",
+            withdrawn: "m-badge--closed",
             approved: "m-badge--approved",
             rejected: "m-badge--suspended",
             requested: "m-badge--pending",

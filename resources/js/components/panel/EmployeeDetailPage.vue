@@ -2,10 +2,10 @@
    <div>
       <div class="d-flex align-items-center justify-content-between mb-4">
          <div>
-            <h4 class="fw-bold mb-0">Employee Details</h4>
-            <div class="text-muted small">Overview, activity, payroll, payouts, and settings</div>
+            <h4 class="fw-bold mb-0">{{ canManage ? "Employee Details" : "My Record" }}</h4>
+            <div class="text-muted small">Overview, activity, payroll, payouts{{ canManage ? ", and settings" : "" }}</div>
          </div>
-         <a href="/panel/employees" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back</a>
+         <a href="/panel/employees" class="btn btn-outline-secondary" v-if="canManage"><i class="bi bi-arrow-left me-1"></i> Back</a>
       </div>
 
       <div class="panel-card p-4 mb-4">
@@ -90,8 +90,11 @@ export default {
    },
 
    computed: {
+      canManage: function () {
+         return this.can("manage employees");
+      },
       visibleTabs: function () {
-         if (this.can("manage employees")) {
+         if (this.canManage) {
             return this.tabs;
          }
 

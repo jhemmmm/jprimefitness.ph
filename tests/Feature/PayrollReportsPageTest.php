@@ -247,6 +247,8 @@ class PayrollReportsPageTest extends TestCase
         $response->assertJsonPath('payroll_trend.0.period_end', '2026-03-15');
         $response->assertJsonPath('payroll_trend.1.period_end', '2026-03-31');
         $response->assertJsonPath('payrolls.data.0.employee_name', 'Maria Santos');
+        $response->assertJsonPath('payrolls.data.0.employee_contributions_total', 300);
+        $response->assertJsonMissingPath('payrolls.data.0.employer_contributions_total');
         $response->assertJsonPath('payrolls.data.0.total_paid', 2000);
     }
 
@@ -376,6 +378,7 @@ class PayrollReportsPageTest extends TestCase
         $this->assertStringContainsString('Withholding Tax', $content);
         $this->assertStringContainsString("Employee Government Contributions", $content);
         $this->assertStringContainsString("Employer Government Contributions", $content);
+        $this->assertStringContainsString("Gov't Contributions", $content);
         $this->assertStringContainsString('Paid Out To Date', $content);
         $this->assertStringContainsString('Payroll Runs', $content);
         $this->assertStringContainsString('Juan Dela Cruz', $content);

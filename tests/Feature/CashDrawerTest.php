@@ -391,19 +391,13 @@ class CashDrawerTest extends TestCase
         ]);
     }
 
-    public function test_staff_can_read_status_but_is_forbidden_from_cash_drawer_management_routes(): void
+    public function test_staff_is_forbidden_from_all_cash_drawer_routes(): void
     {
         $staff = $this->createUserWithRole('staff');
-        $session = CashDrawerSession::factory()->create();
+        CashDrawerSession::factory()->create();
 
         $this->actingAs($staff)->get('/panel/cash-drawer')->assertForbidden();
-        $this->actingAs($staff)
-            ->getJson('/panel/cash-drawer/status')
-            ->assertOk()
-            ->assertJsonPath('enabled', true)
-            ->assertJsonPath('is_open', true)
-            ->assertJsonPath('opened_at', $session->opened_at?->toIso8601String())
-            ->assertJsonCount(3);
+        $this->actingAs($staff)->getJson('/panel/cash-drawer/status')->assertForbidden();
         $this->actingAs($staff)->getJson('/panel/cash-drawer/data')->assertForbidden();
         $this->actingAs($staff)->postJson('/panel/cash-drawer/open', ['opening_float' => 100])->assertForbidden();
         $this->actingAs($staff)->postJson('/panel/cash-drawer/expenses', [])->assertForbidden();

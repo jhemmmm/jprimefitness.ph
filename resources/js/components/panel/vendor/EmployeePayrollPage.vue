@@ -77,10 +77,7 @@
                            {{ p.manual_gross_adjustment_amount > 0 ? "+" : "-" }}₱{{ $filters.formatMoney(Math.abs(Number(p.manual_gross_adjustment_amount || 0))) }}
                         </div>
                         <div class="text-muted" style="font-size: 0.75rem" v-if="p.employee_contributions_total > 0">
-                           Employee contrib.: {{ formatContributionSummary(p.employee_contributions) }}
-                        </div>
-                        <div class="text-muted" style="font-size: 0.75rem" v-if="p.employer_contributions_total > 0">
-                           Employer share: {{ formatContributionSummary(p.employer_contributions) }}
+                           Gov't contributions (employee): ₱{{ $filters.formatMoney(p.employee_contributions_total) }} — {{ formatContributionSummary(p.employee_contributions) }}
                         </div>
                      </td>
                      <td class="text-end small">₱{{ $filters.formatMoney(p.gross_amount) }}</td>
@@ -160,8 +157,7 @@
                      · Adj:
                      {{ p.manual_gross_adjustment_amount > 0 ? "+" : "-" }}₱{{ $filters.formatMoney(Math.abs(Number(p.manual_gross_adjustment_amount || 0))) }}
                   </span>
-                  <span class="small text-danger" v-if="p.employee_contributions_total > 0"> · Gov't ded.: ₱{{ $filters.formatMoney(p.employee_contributions_total) }}</span>
-                  <span class="small text-muted" v-if="p.employer_contributions_total > 0"> · Employer share: ₱{{ $filters.formatMoney(p.employer_contributions_total) }}</span>
+                  <span class="small text-danger" v-if="p.employee_contributions_total > 0"> · Gov't contrib. (employee): ₱{{ $filters.formatMoney(p.employee_contributions_total) }}</span>
                   <span class="small text-danger" v-if="p.remaining_balance > 0"> · Balance: ₱{{ $filters.formatMoney(p.remaining_balance) }}</span>
                   <span class="small text-success" v-else> · Fully Paid</span>
                </div>
@@ -329,33 +325,10 @@ export default {
       hasManualGrossAdjustment: function (value) {
          return Math.abs(Number(value || 0)) >= 0.01;
       },
-      contributionPrograms: function (contributions) {
-         return Object.entries(contributions || {})
-            .map(([programKey, program]) => ({
-               key: programKey,
-               label: program?.label || this.humanizeContributionKey(programKey),
-               total: Number(program?.total || 0),
-               lines: Object.entries(program?.lines || {})
-                  .map(([lineKey, line]) => ({
-                     key: lineKey,
-                     label: line?.label || this.humanizeContributionKey(lineKey),
-                     amount: Number(line?.amount || 0),
-                  }))
-                  .filter((line) => line.amount > 0),
-            }))
-            .filter((program) => program.total > 0 || program.lines.length > 0);
-      },
       formatContributionSummary: function (contributions) {
-         return this.contributionPrograms(contributions)
+         return this.$filters.contributionPrograms(contributions)
             .map((program) => `${program.label} ₱${this.$filters.formatMoney(program.total)}`)
             .join(" · ");
-      },
-      humanizeContributionKey: function (value) {
-         return String(value || "")
-            .split("_")
-            .filter(Boolean)
-            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(" ");
       },
       fetchPayrolls: function () {
          this.loading = true;

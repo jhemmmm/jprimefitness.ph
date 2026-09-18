@@ -28,7 +28,6 @@ class PanelGlobalSearchTest extends TestCase
         $managerRole = Role::findOrCreate('manager');
         Role::findOrCreate('staff');
         Role::findOrCreate('member');
-        Role::findOrCreate('employee');
         Role::findOrCreate('coach');
 
         $managerRole->givePermissionTo(Permission::findOrCreate('manage employees'));
@@ -80,7 +79,8 @@ class PanelGlobalSearchTest extends TestCase
     public function test_global_search_hides_employee_results_without_permission(): void
     {
         $this->setBusinessProfile('Scoped Search');
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
+        Role::findByName('manager')->revokePermissionTo('manage employees'); // rolled back with the test transaction
 
         $this->createUserWithRole('member', 'Scoped Member');
         $this->createUserWithRole('coach', 'Scoped Coach');
@@ -93,7 +93,7 @@ class PanelGlobalSearchTest extends TestCase
             'sku' => 'SCOPED-1',
         ]);
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($manager)
             ->getJson('/panel/search?search=Scoped')
             ->assertOk();
 

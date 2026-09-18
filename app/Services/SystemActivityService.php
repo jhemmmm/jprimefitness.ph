@@ -146,11 +146,6 @@ class SystemActivityService
         return $this->systemActivitySubjectRegistry->normalizeCausedBy($metadata);
     }
 
-    public function canViewSystemActivity(mixed $user): bool
-    {
-        return $user instanceof User && $user->isManagement();
-    }
-
     /**
      * @return array{available: bool, label: ?string, reason: ?string}
      */

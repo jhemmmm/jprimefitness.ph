@@ -133,7 +133,7 @@ class MemberPtSessionsTest extends TestCase
         $product = $this->createPtProduct('12 Sessions', 12);
         $manager = $this->createUserWithRole('manager');
         $coach = $this->createUserWithRole('coach');
-        $staff = $this->createUserWithRole('staff');
+        $frontDesk = $this->createUserWithRole('manager');
         $member = $this->createMember();
 
         $package = $member->memberPtPackages()->create([
@@ -145,7 +145,7 @@ class MemberPtSessionsTest extends TestCase
             'created_by' => $manager->id,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($frontDesk)
             ->postJson("/panel/members/{$member->id}/pt-session-usages", [
                 'member_pt_package_id' => $package->id,
                 'sessions_used' => 2,
@@ -158,7 +158,7 @@ class MemberPtSessionsTest extends TestCase
 
         $this->assertDatabaseHas('member_pt_session_usages', [
             'member_pt_package_id' => $package->id,
-            'recorded_by' => $staff->id,
+            'recorded_by' => $frontDesk->id,
             'coach_id' => $coach->id,
             'sessions_used' => 2,
             'confirmed_by' => 'Maria Santos',
@@ -176,7 +176,7 @@ class MemberPtSessionsTest extends TestCase
         $product = $this->createPtProduct('Per Session', 1);
         $manager = $this->createUserWithRole('manager');
         $coach = $this->createUserWithRole('coach');
-        $staff = $this->createUserWithRole('staff');
+        $frontDesk = $this->createUserWithRole('manager');
         $member = $this->createMember();
 
         $package = $member->memberPtPackages()->create([
@@ -189,7 +189,7 @@ class MemberPtSessionsTest extends TestCase
             'created_by' => $manager->id,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($frontDesk)
             ->postJson("/panel/members/{$member->id}/pt-session-usages", [
                 'member_pt_package_id' => $package->id,
                 'sessions_used' => 1,
@@ -210,7 +210,7 @@ class MemberPtSessionsTest extends TestCase
         $product = $this->createPtProduct('Per Session', 1);
         $manager = $this->createUserWithRole('manager');
         $coach = $this->createUserWithRole('coach');
-        $staff = $this->createUserWithRole('staff');
+        $frontDesk = $this->createUserWithRole('manager');
         $member = $this->createMember();
 
         $package = $member->memberPtPackages()->create([
@@ -222,7 +222,7 @@ class MemberPtSessionsTest extends TestCase
             'created_by' => $manager->id,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($frontDesk)
             ->postJson("/panel/members/{$member->id}/pt-session-usages", [
                 'member_pt_package_id' => $package->id,
                 'coach_id' => $coach->id,
@@ -247,13 +247,13 @@ class MemberPtSessionsTest extends TestCase
     {
         $product = $this->createPtProduct('8 Sessions', 8);
         $manager = $this->createUserWithRole('manager');
-        $staff = $this->createUserWithRole('staff');
+        $frontDesk = $this->createUserWithRole('manager');
         $member = $this->createMember();
 
         $this->actingAs($manager)
             ->postJson("/panel/members/{$member->id}/pt-packages", [
                 'pt_product_id' => $product->id,
-                'coach_id' => $staff->id,
+                'coach_id' => $frontDesk->id,
                 'assigned_at' => '2026-04-01',
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
             ])
@@ -538,7 +538,7 @@ class MemberPtSessionsTest extends TestCase
     public function test_sessions_used_cannot_exceed_remaining_balance(): void
     {
         $product = $this->createPtProduct('Per Session', 1);
-        $staff = $this->createUserWithRole('staff');
+        $frontDesk = $this->createUserWithRole('manager');
         $member = $this->createMember();
 
         $package = $member->memberPtPackages()->create([
@@ -548,7 +548,7 @@ class MemberPtSessionsTest extends TestCase
             'assigned_at' => '2026-04-01',
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($frontDesk)
             ->postJson("/panel/members/{$member->id}/pt-session-usages", [
                 'member_pt_package_id' => $package->id,
                 'sessions_used' => 2,

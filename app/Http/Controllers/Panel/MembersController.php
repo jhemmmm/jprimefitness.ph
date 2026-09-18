@@ -14,7 +14,6 @@ use App\Models\SaleTransaction;
 use App\Models\User;
 use App\Services\SystemActivityService;
 use App\Services\MembershipQrService;
-use App\Services\MemberPtPackageAlertService;
 use App\Services\MemberPtPackageService;
 use App\Services\PosSaleService;
 use Illuminate\Contracts\View\View;
@@ -31,7 +30,6 @@ class MembersController extends Controller
      * @return void
      */
     public function __construct(
-        private MemberPtPackageAlertService $memberPtPackageAlertService,
         private MemberPtPackageService $memberPtPackageService,
         private MembershipQrService $membershipQrService,
         private PosSaleService $posSaleService,
@@ -249,7 +247,6 @@ class MembersController extends Controller
     public function updateMembership(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
-        abort_unless(auth()->user()->isManagement(), 403);
 
         $data = $request->validate([
             'rate_plan_id' => ['required', 'exists:rate_plans,id'],
@@ -285,7 +282,6 @@ class MembersController extends Controller
     public function updateMembershipStatus(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
-        abort_unless(auth()->user()->isManagement(), 403);
 
         $data = $request->validate([
             'status' => [
@@ -342,7 +338,6 @@ class MembersController extends Controller
     public function storePtPackage(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
-        abort_unless(auth()->user()->isManagement(), 403);
 
         $data = $request->validate([
             'pt_product_id' => ['required', 'integer', 'exists:pt_products,id'],
@@ -377,7 +372,6 @@ class MembersController extends Controller
         MemberPtPackage $memberPtPackage,
     ): JsonResponse {
         abort_unless($member->hasRole('member'), 404);
-        abort_unless(auth()->user()->isManagement(), 403);
         abort_unless((int) $memberPtPackage->user_id === (int) $member->id, 404);
 
         $data = $request->validate([
@@ -414,7 +408,6 @@ class MembersController extends Controller
     public function storePtSessionUsage(Request $request, User $member): JsonResponse
     {
         abort_unless($member->hasRole('member'), 404);
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin', 'manager', 'staff']), 403);
 
         $data = $request->validate([
             'member_pt_package_id' => ['required', 'integer'],
@@ -447,22 +440,7 @@ class MembersController extends Controller
             ], 422);
         }
 
-        $previousRemainingSessions = (int) $package->remaining_sessions;
-
-        $package->consumeSessions(
-            (int) $data['sessions_used'],
-            $data['used_at'],
-            auth()->id(),
-            isset($data['coach_id']) ? (int) $data['coach_id'] : null,
-            $data['confirmed_by'] ?? null,
-            $data['notes'] ?? null
-        );
-
-        $this->memberPtPackageAlertService->notifyIfRunningLow(
-            $package->fresh(),
-            $previousRemainingSessions,
-            $data['used_at']
-        );
+        $this->memberPtPackageService->logUsage($package, $data, auth()->id());
 
         return response()->json($this->memberPayload($member->fresh(), detailed: true), 201);
     }

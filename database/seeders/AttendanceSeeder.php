@@ -14,7 +14,7 @@ class AttendanceSeeder extends Seeder
         Attendance::query()->delete();
 
         $members = User::role('member')->get();
-        $employees = User::role(['employee', 'coach', 'manager', 'admin', 'staff'])->get();
+        $employees = User::role(User::EMPLOYEE_ROLES)->get();
         $recordedBy = User::role(['super admin', 'admin', 'manager', 'staff'])->first()?->id;
 
         foreach (range(1, 8) as $index) {

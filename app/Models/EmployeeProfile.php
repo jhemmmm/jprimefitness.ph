@@ -22,6 +22,20 @@ class EmployeeProfile extends Model
 
     public const STATUS_FAILED = 'failed';
 
+    /**
+     * Monthly statutory minimums (PHP). New employees and blank inputs default to these.
+     *
+     * @var array<string, int>
+     */
+    public const LEGAL_MINIMUM_CONTRIBUTIONS = [
+        'sss_employee_share' => 250,
+        'sss_employer_share' => 500,
+        'philhealth_employee_share' => 250,
+        'philhealth_employer_share' => 250,
+        'pagibig_employee_share' => 100,
+        'pagibig_employer_share' => 100,
+    ];
+
     protected $fillable = [
         'user_id',
         'hikvision_employee_no',
@@ -33,11 +47,14 @@ class EmployeeProfile extends Model
         'pay_frequency',
         'pt_commission_rate',
         'sss_covered',
-        'sss_monthly_compensation',
+        'sss_employee_share',
+        'sss_employer_share',
         'philhealth_covered',
-        'philhealth_monthly_basic_salary',
+        'philhealth_employee_share',
+        'philhealth_employer_share',
         'pagibig_covered',
-        'pagibig_monthly_compensation',
+        'pagibig_employee_share',
+        'pagibig_employer_share',
     ];
 
     protected function casts(): array
@@ -48,11 +65,14 @@ class EmployeeProfile extends Model
             'pay_frequency' => 'string',
             'pt_commission_rate' => 'decimal:2',
             'sss_covered' => 'boolean',
-            'sss_monthly_compensation' => 'decimal:2',
+            'sss_employee_share' => 'decimal:2',
+            'sss_employer_share' => 'decimal:2',
             'philhealth_covered' => 'boolean',
-            'philhealth_monthly_basic_salary' => 'decimal:2',
+            'philhealth_employee_share' => 'decimal:2',
+            'philhealth_employer_share' => 'decimal:2',
             'pagibig_covered' => 'boolean',
-            'pagibig_monthly_compensation' => 'decimal:2',
+            'pagibig_employee_share' => 'decimal:2',
+            'pagibig_employer_share' => 'decimal:2',
         ];
     }
 

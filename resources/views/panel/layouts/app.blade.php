@@ -35,6 +35,7 @@
         window.JPrime = window.JPrime || {};
         window.JPrime.timezone = @js(config('app.timezone'));
         window.JPrime.profile = @json($panelBusinessProfile);
+        window.JPrime.contributionMinimums = @json(\App\Models\EmployeeProfile::LEGAL_MINIMUM_CONTRIBUTIONS);
 
         const storedTheme = localStorage.getItem('panel-theme');
         const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -65,6 +66,7 @@
             </div>
             {{-- Navigation --}}
             <nav class="sidebar-nav">
+                {{-- Each block mirrors a permission from RoleSeeder::MATRIX; headings are wrapped with their items. --}}
                 {{-- Overview --}}
                 <div class="sidebar-menu-heading">Overview</div>
                 <div class="sidebar-nav-item">
@@ -73,15 +75,49 @@
                         <span class="sidebar-nav-label">Dashboard</span>
                     </a>
                 </div>
+                @can('log pt sessions')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.pt-sessions.index') }}" @class(['active' => request()->routeIs('panel.pt-session*')])>
+                            <i class="bi bi-lightning-charge-fill"></i>
+                            <span class="sidebar-nav-label">PT Sessions</span>
+                        </a>
+                    </div>
+                @endcan
 
-                {{-- People --}}
-                <div class="sidebar-menu-heading">People</div>
+                {{-- My Record: the user's own employee record, one page per section --}}
+                @if ($panelUser->employeeProfile)
+                    <div class="sidebar-menu-heading">My Record</div>
+                    @foreach (\App\Http\Controllers\Panel\MyRecordController::SECTIONS as $section => [$label, $icon])
+                        <div class="sidebar-nav-item">
+                            <a href="{{ route('panel.my.show', $section) }}" @class(['active' => request()->routeIs('panel.my.show') && request()->route('section') === $section])>
+                                <i class="bi {{ $icon }}"></i>
+                                <span class="sidebar-nav-label">{{ $label }}</span>
+                            </a>
+                        </div>
+                    @endforeach
+                @endif
+
+                {{-- Account --}}
+                <div class="sidebar-menu-heading">Account</div>
                 <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.members.index') }}" @class(['active' => request()->routeIs('panel.members.*')])>
-                        <i class="bi bi-people-fill"></i>
-                        <span class="sidebar-nav-label">Members</span>
+                    <a href="{{ route('panel.profile.edit') }}" @class(['active' => request()->routeIs('panel.profile.*')])>
+                        <i class="bi bi-person"></i>
+                        <span class="sidebar-nav-label">Profile</span>
                     </a>
                 </div>
+
+                {{-- People --}}
+                @canany(['manage members', 'manage employees'])
+                    <div class="sidebar-menu-heading">People</div>
+                @endcanany
+                @can('manage members')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.members.index') }}" @class(['active' => request()->routeIs('panel.members.*')])>
+                            <i class="bi bi-people-fill"></i>
+                            <span class="sidebar-nav-label">Members</span>
+                        </a>
+                    </div>
+                @endcan
                 @can('manage employees')
                     <div class="sidebar-nav-item">
                         <a href="{{ route('panel.employees.index') }}" @class(['active' => request()->routeIs('panel.employees.*')])>
@@ -92,29 +128,37 @@
                 @endcan
 
                 {{-- Access --}}
-                <div class="sidebar-menu-heading">Access</div>
-                <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.attendance.index') }}" @class(['active' => request()->routeIs('panel.attendance.*')])>
-                        <i class="bi bi-door-open-fill"></i>
-                        <span class="sidebar-nav-label">Check-ins / Attendance</span>
-                    </a>
-                </div>
+                @can('manage attendance')
+                    <div class="sidebar-menu-heading">Access</div>
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.attendance.index') }}" @class(['active' => request()->routeIs('panel.attendance.*')])>
+                            <i class="bi bi-door-open-fill"></i>
+                            <span class="sidebar-nav-label">Check-ins / Attendance</span>
+                        </a>
+                    </div>
+                @endcan
 
                 {{-- Sales --}}
-                <div class="sidebar-menu-heading">Sales</div>
-                <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.sales.index') }}" @class(['active' => request()->routeIs('panel.sales.*')])>
-                        <i class="bi bi-cash-coin"></i>
-                        <span class="sidebar-nav-label">Sales</span>
-                    </a>
-                </div>
-                <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.pricing.index') }}" @class(['active' => request()->routeIs('panel.pricing.*')])>
-                        <i class="bi bi-tag-fill"></i>
-                        <span class="sidebar-nav-label">Pricing & Rates</span>
-                    </a>
-                </div>
-                @if (config('jprime.cash_drawer') && auth()->user()->isManagement())
+                @canany(['manage sales', 'manage pricing', 'manage cash drawer'])
+                    <div class="sidebar-menu-heading">Sales</div>
+                @endcanany
+                @can('manage sales')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.sales.index') }}" @class(['active' => request()->routeIs('panel.sales.*')])>
+                            <i class="bi bi-cash-coin"></i>
+                            <span class="sidebar-nav-label">Sales</span>
+                        </a>
+                    </div>
+                @endcan
+                @can('manage pricing')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.pricing.index') }}" @class(['active' => request()->routeIs('panel.pricing.*')])>
+                            <i class="bi bi-tag-fill"></i>
+                            <span class="sidebar-nav-label">Pricing & Rates</span>
+                        </a>
+                    </div>
+                @endcan
+                @if (config('jprime.cash_drawer') && $panelUser->can('manage cash drawer'))
                     <div class="sidebar-nav-item">
                         <a href="{{ route('panel.cash-drawer.index') }}" @class(['active' => request()->routeIs('panel.cash-drawer.*')])>
                             <i class="bi bi-safe-fill"></i>
@@ -124,53 +168,59 @@
                 @endif
 
                 {{-- Operations --}}
-                <div class="sidebar-menu-heading">Operations</div>
-                <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.inventory.index') }}" @class(['active' => request()->routeIs('panel.inventory.*')])>
-                        <i class="bi bi-box-seam-fill"></i>
-                        <span class="sidebar-nav-label">Inventory</span>
-                    </a>
-                </div>
+                @can('manage inventory')
+                    <div class="sidebar-menu-heading">Operations</div>
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.inventory.index') }}" @class(['active' => request()->routeIs('panel.inventory.*')])>
+                            <i class="bi bi-box-seam-fill"></i>
+                            <span class="sidebar-nav-label">Inventory</span>
+                        </a>
+                    </div>
+                @endcan
 
                 {{-- Reports --}}
-                <div class="sidebar-menu-heading">Reports</div>
-                <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.reports.sales') }}" @class(['active' => request()->routeIs('panel.reports.sales*')])>
-                        <i class="bi bi-bar-chart-fill"></i>
-                        <span class="sidebar-nav-label">Sales Reports</span>
-                    </a>
-                </div>
-                <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.reports.attendance') }}" @class(['active' => request()->routeIs('panel.reports.attendance*')])>
-                        <i class="bi bi-clipboard2-data-fill"></i>
-                        <span class="sidebar-nav-label">Attendance Reports</span>
-                    </a>
-                </div>
-                @if (auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']))
+                @can('view reports')
+                    <div class="sidebar-menu-heading">Reports</div>
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.reports.sales') }}" @class(['active' => request()->routeIs('panel.reports.sales*')])>
+                            <i class="bi bi-bar-chart-fill"></i>
+                            <span class="sidebar-nav-label">Sales Reports</span>
+                        </a>
+                    </div>
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.reports.attendance') }}" @class(['active' => request()->routeIs('panel.reports.attendance*')])>
+                            <i class="bi bi-clipboard2-data-fill"></i>
+                            <span class="sidebar-nav-label">Attendance Reports</span>
+                        </a>
+                    </div>
                     <div class="sidebar-nav-item">
                         <a href="{{ route('panel.reports.payroll') }}" @class(['active' => request()->routeIs('panel.reports.payroll*')])>
                             <i class="bi bi-receipt"></i>
                             <span class="sidebar-nav-label">Payroll Reports</span>
                         </a>
                     </div>
-                @endif
+                @endcan
 
                 {{-- System --}}
-                <div class="sidebar-menu-heading">System</div>
-                <div class="sidebar-nav-item">
-                    <a href="{{ route('panel.business.settings') }}" @class(['active' => request()->routeIs('panel.business.settings*')])>
-                        <i class="bi bi-gear-fill"></i>
-                        <span class="sidebar-nav-label">Settings</span>
-                    </a>
-                </div>
-                @if (auth()->user()->hasAnyRole(['super admin', 'admin', 'manager']))
+                @canany(['manage settings', 'view system activity'])
+                    <div class="sidebar-menu-heading">System</div>
+                @endcanany
+                @can('manage settings')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.business.settings') }}" @class(['active' => request()->routeIs('panel.business.settings*')])>
+                            <i class="bi bi-gear-fill"></i>
+                            <span class="sidebar-nav-label">Settings</span>
+                        </a>
+                    </div>
+                @endcan
+                @can('view system activity')
                     <div class="sidebar-nav-item">
                         <a href="{{ route('panel.system-activity') }}" @class(['active' => request()->routeIs('panel.system-activity*')])>
                             <i class="bi bi-clock-history"></i>
                             <span class="sidebar-nav-label">System Activity</span>
                         </a>
                     </div>
-                @endif
+                @endcan
 
             </nav>
 
@@ -204,7 +254,9 @@
                 <div class="topbar-actions">
                     <panel-notifications></panel-notifications>
 
-                    <global-search></global-search>
+                    @can('manage members')
+                        <global-search></global-search>
+                    @endcan
 
                     <div class="dropdown">
                         <a class="topbar-user" href="#" data-bs-toggle="dropdown" aria-expanded="false">
@@ -223,7 +275,7 @@
                                     {{ $name }}
                                 </div>
                                 <div class="text-capitalize topbar-user-role">
-                                    {{ Str::replace('_', ' ', auth()->user()->role) }}
+                                    {{ $panelUser->roles->pluck('name')->implode(', ') }}
                                 </div>
                             </div>
                             <i class="bi bi-chevron-down ms-1 d-none d-md-inline"
@@ -231,12 +283,16 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0"
                             style="min-width: 180px; font-size: 0.85rem;">
-                            @unless ($panelUser->hasRole('super admin'))
-                                <li><a class="dropdown-item" href="{{ route('panel.employees.show', $panelUser) }}"><i class="bi bi-person me-2"></i>Profile</a>
-                                </li>
-                            @endunless
-                            <li><a class="dropdown-item" href="{{ route('panel.settings') }}"><i class="bi bi-gear me-2"></i>Settings</a>
+                            <li><a class="dropdown-item" href="{{ route('panel.profile.edit') }}"><i class="bi bi-person me-2"></i>Profile</a>
                             </li>
+                            @if ($panelUser->employeeProfile)
+                                <li><a class="dropdown-item" href="{{ route('panel.my.show', 'payroll') }}"><i class="bi bi-receipt me-2"></i>My Payroll</a>
+                                </li>
+                            @endif
+                            @can('manage settings')
+                                <li><a class="dropdown-item" href="{{ route('panel.settings') }}"><i class="bi bi-gear me-2"></i>Settings</a>
+                                </li>
+                            @endcan
                             <li>
                                 <hr class="dropdown-divider" />
                             </li>

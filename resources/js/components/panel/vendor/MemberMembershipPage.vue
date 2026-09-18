@@ -259,7 +259,7 @@ export default {
       },
 
       canManageMembership: function () {
-         return this.is("super admin") || this.is("admin") || this.is("manager");
+         return this.can("edit members");
       },
 
       memberships: function () {

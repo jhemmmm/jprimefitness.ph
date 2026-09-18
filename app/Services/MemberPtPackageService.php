@@ -12,9 +12,34 @@ use Illuminate\Support\Facades\DB;
 class MemberPtPackageService
 {
     public function __construct(
+        private MemberPtPackageAlertService $alertService,
         private PayrollService $payrollService,
         private SystemActivityService $systemActivityService,
     ) {}
+
+    /**
+     * Consume sessions from a package and alert when the balance runs low.
+     *
+     * @param  array{sessions_used: int|string, used_at: string, coach_id?: int|string|null, confirmed_by?: string|null, notes?: string|null}  $data
+     */
+    public function logUsage(MemberPtPackage $package, array $data, int $recordedBy): MemberPtPackage
+    {
+        $previousRemainingSessions = (int) $package->remaining_sessions;
+
+        $package->consumeSessions(
+            (int) $data['sessions_used'],
+            $data['used_at'],
+            $recordedBy,
+            isset($data['coach_id']) ? (int) $data['coach_id'] : null,
+            $data['confirmed_by'] ?? null,
+            $data['notes'] ?? null
+        );
+
+        $package = $package->fresh();
+        $this->alertService->notifyIfRunningLow($package, $previousRemainingSessions, $data['used_at']);
+
+        return $package;
+    }
 
     /**
      * Cancel an unused PT package while preserving its audit history.

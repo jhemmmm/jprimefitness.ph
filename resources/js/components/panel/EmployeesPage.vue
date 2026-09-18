@@ -315,7 +315,7 @@
 import { Modal } from "bootstrap";
 import { formatDateTime } from "../../dates";
 import MultiSelect from "./vendor/MultiSelect.vue";
-import ContributionSettingsFields, { MINIMUM_BASES } from "./vendor/ContributionSettingsFields.vue";
+import ContributionSettingsFields, { employeeProfileForm } from "./vendor/ContributionSettingsFields.vue";
 
 export default {
    components: {
@@ -369,7 +369,6 @@ export default {
    },
    computed: {
       allowedRoles: function () {
-         const allowed = ["super admin", "admin", "manager", "staff", "coach", "employee"];
          const roleRestrictions = {
             "super admin": [],
             admin: ["super admin"],
@@ -378,7 +377,7 @@ export default {
          const currentRole = this.is("super admin") ? "super admin" : this.is("admin") ? "admin" : "default";
 
          return this.rolesData
-            .filter((r) => allowed.includes(r.name) && !roleRestrictions[currentRole].includes(r.name))
+            .filter((r) => !roleRestrictions[currentRole].includes(r.name))
             .map((r) => ({
                id: r.id,
                name: this.$filters.capitalize(r.name),
@@ -487,17 +486,7 @@ export default {
    },
    methods: {
       employeeProfileForm: function (profile) {
-         return {
-            daily_rate: profile?.daily_rate ?? "",
-            pt_commission_rate: profile?.pt_commission_rate ?? "",
-            pay_frequency: profile?.pay_frequency || "semi_monthly",
-            sss_covered: profile ? Boolean(profile.sss_covered) : this.isPhilippinesPayroll,
-            sss_monthly_compensation: profile?.sss_monthly_compensation ?? (this.isPhilippinesPayroll ? MINIMUM_BASES.sss_monthly_compensation : ""),
-            philhealth_covered: profile ? Boolean(profile.philhealth_covered) : this.isPhilippinesPayroll,
-            philhealth_monthly_basic_salary: profile?.philhealth_monthly_basic_salary ?? (this.isPhilippinesPayroll ? MINIMUM_BASES.philhealth_monthly_basic_salary : ""),
-            pagibig_covered: profile ? Boolean(profile.pagibig_covered) : this.isPhilippinesPayroll,
-            pagibig_monthly_compensation: profile?.pagibig_monthly_compensation ?? (this.isPhilippinesPayroll ? MINIMUM_BASES.pagibig_monthly_compensation : ""),
-         };
+         return employeeProfileForm(profile, this.isPhilippinesPayroll);
       },
       emptyForm: function () {
          return {

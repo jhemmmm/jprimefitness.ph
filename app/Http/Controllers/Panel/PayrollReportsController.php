@@ -21,8 +21,6 @@ class PayrollReportsController extends Controller
      */
     public function index(): View
     {
-        abort_unless(auth()->user()->isManagement(), 403);
-
         return view('panel.reports.payroll');
     }
 
@@ -33,8 +31,6 @@ class PayrollReportsController extends Controller
      */
     public function data(Request $request): JsonResponse
     {
-        abort_unless(auth()->user()->isManagement(), 403);
-
         return response()->json($this->reportPayload($request));
     }
 
@@ -45,8 +41,6 @@ class PayrollReportsController extends Controller
      */
     public function export(Request $request): StreamedResponse
     {
-        abort_unless(auth()->user()->isManagement(), 403);
-
         $report = $this->reportPayload($request, false);
         $dateSuffix = now()->format('Ymd_His');
         $fileName = "payroll-report-{$dateSuffix}.csv";
@@ -108,7 +102,7 @@ class PayrollReportsController extends Controller
             fputcsv($handle, []);
 
             fputcsv($handle, ['Payroll Runs']);
-            fputcsv($handle, ['Employee', 'Period', 'Pay Frequency', 'Status', 'Gross', 'Net', 'Paid Out', 'Outstanding', 'Approved By']);
+            fputcsv($handle, ['Employee', 'Period', 'Pay Frequency', 'Status', 'Gross', "Gov't Contributions", 'Net', 'Paid Out', 'Outstanding', 'Approved By']);
             foreach ($report['payrolls'] as $row) {
                 fputcsv($handle, [
                     $row['employee_name'],
@@ -116,6 +110,7 @@ class PayrollReportsController extends Controller
                     $row['pay_frequency_label'],
                     $row['status_label'],
                     $row['gross_amount'],
+                    $row['employee_contributions_total'],
                     $row['net_amount'],
                     $row['total_paid'],
                     $row['outstanding_balance'],
@@ -441,6 +436,7 @@ class PayrollReportsController extends Controller
             'status' => $payroll->status,
             'status_label' => $this->statusLabel($payroll->status),
             'gross_amount' => round((float) $payroll->gross_amount, 2),
+            'employee_contributions_total' => $payroll->employeeContributionsTotal(),
             'total_deductions' => $payroll->employeeDeductionsTotal(),
             'net_amount' => round((float) $payroll->net_amount, 2),
             'total_paid' => $totalPaid,

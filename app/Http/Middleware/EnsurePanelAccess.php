@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Blocks members (ROLE_MEMBER) from accessing the panel.
- * Only super_admin, admin, and staff are allowed in.
+ * Gates the panel on the `access panel` permission (see RoleSeeder::MATRIX).
+ * Members never hold it; individual pages are further gated per route.
  *
  * Applied to the entire panel route group.
  */
@@ -26,7 +26,8 @@ class EnsurePanelAccess
                 ->with('error', 'Please log in to access the panel.');
         }
 
-        if (!Auth::user()->hasAnyRole(['super admin', 'admin', 'manager', 'staff'])) {
+        // can() (not hasPermissionTo) so a missing permission row yields 403, not an exception.
+        if (!Auth::user()->can('access panel')) {
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Forbidden. You do not have access to the panel.'], 403);
             }

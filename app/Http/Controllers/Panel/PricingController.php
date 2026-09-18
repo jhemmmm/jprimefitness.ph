@@ -29,9 +29,7 @@ class PricingController extends Controller
      */
     public function index(): View
     {
-        return view('panel.pricing', [
-            'canManagePricing' => auth()->user()->hasAnyRole(['super admin', 'admin']),
-        ]);
+        return view('panel.pricing');
     }
 
     /**
@@ -76,8 +74,6 @@ class PricingController extends Controller
      */
     public function createRatePlan(Request $request): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
-
         $data = $request->validate([
             'name'           => ['required', 'string', 'max:120'],
             'duration_days'  => ['required', 'integer', 'min:1'],
@@ -119,8 +115,6 @@ class PricingController extends Controller
      */
     public function createPtProduct(Request $request): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
-
         $data = $request->validate([
             'name'           => ['required', 'string', 'max:120'],
             'session_count'  => ['required', 'integer', 'min:1'],
@@ -160,8 +154,6 @@ class PricingController extends Controller
      */
     public function updateRatePlan(Request $request, RatePlan $ratePlan): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
-
         $ratePlan->update($this->validatedRatePlanPayload($request));
         $ratePlan = $ratePlan->fresh();
 
@@ -186,7 +178,6 @@ class PricingController extends Controller
      */
     public function destroyRatePlan(RatePlan $ratePlan): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
         $snapshot = $this->ratePlanSystemActivitySnapshot($ratePlan);
 
         $ratePlan->update([
@@ -215,8 +206,6 @@ class PricingController extends Controller
      */
     public function updatePtProduct(Request $request, PTProduct $ptProduct): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
-
         $ptProduct->update($this->validatedPtProductPayload($request));
         $ptProduct = $ptProduct->fresh();
 
@@ -241,7 +230,6 @@ class PricingController extends Controller
      */
     public function destroyPtProduct(PTProduct $ptProduct): JsonResponse
     {
-        abort_unless(auth()->user()->hasAnyRole(['super admin', 'admin']), 403);
         $snapshot = $this->ptProductSystemActivitySnapshot($ptProduct);
 
         $ptProduct->update([

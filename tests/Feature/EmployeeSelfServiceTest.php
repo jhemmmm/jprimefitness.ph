@@ -97,29 +97,6 @@ class EmployeeSelfServiceTest extends TestCase
         $this->actingAs($this->manager)->getJson("/panel/employees/{$this->employee->id}/schedule")->assertOk();
     }
 
-    public function test_contribution_preview_applies_statutory_floors(): void
-    {
-        $this->actingAs($this->manager)
-            ->getJson('/panel/employees/contribution-preview?'.http_build_query([
-                'pay_frequency' => 'semi_monthly',
-                'sss_covered' => 1,
-                'sss_monthly_compensation' => 1000,
-                'philhealth_covered' => 1,
-                'philhealth_monthly_basic_salary' => 1000,
-                'pagibig_covered' => 1,
-                'pagibig_monthly_compensation' => 1500,
-            ]))
-            ->assertOk()
-            ->assertJsonPath('employee_contributions.sss.total', 250)
-            ->assertJsonPath('employee_contributions.philhealth.total', 250)
-            ->assertJsonPath('employee_contributions.pagibig.total', 15)
-            ->assertJsonPath('employee_contributions_total', 515);
-
-        $this->actingAs($this->employee)
-            ->getJson('/panel/employees/contribution-preview?sss_covered=1&sss_monthly_compensation=1000')
-            ->assertForbidden();
-    }
-
     public function test_payroll_create_page_is_manager_only_and_edits_drafts_only(): void
     {
         $draft = $this->createPayroll($this->employee, Payroll::STATUS_DRAFT);

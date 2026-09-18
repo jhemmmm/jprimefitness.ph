@@ -27,149 +27,77 @@ class PhilippinesPayrollTaxProfileTest extends TestCase
         $this->assertSame(0.0, $profile->calculateWithholdingTax('weekly', 50000));
     }
 
-    public function test_it_calculates_sss_contributions_below_the_mpf_threshold(): void
+    public function test_it_uses_the_stored_monthly_amounts_for_monthly_payroll(): void
     {
-        $profile = new PhilippinesPayrollTaxProfile();
+        $result = (new PhilippinesPayrollTaxProfile())->calculateGovernmentContributions('monthly', self::LEGAL_MINIMUM_INPUTS);
 
-        $result = $profile->calculateGovernmentContributions('monthly', [
-            'apply' => true,
-            'sss_covered' => true,
-            'sss_monthly_compensation' => 20000,
+        $this->assertSame([
+            'sss' => ['label' => 'SSS', 'total' => 250.0],
+            'philhealth' => ['label' => 'PhilHealth', 'total' => 250.0],
+            'pagibig' => ['label' => 'Pag-IBIG', 'total' => 100.0],
+        ], $result['employee_contributions']);
+        $this->assertSame([
+            'sss' => ['label' => 'SSS', 'total' => 500.0],
+            'philhealth' => ['label' => 'PhilHealth', 'total' => 250.0],
+            'pagibig' => ['label' => 'Pag-IBIG', 'total' => 100.0],
+        ], $result['employer_contributions']);
+        $this->assertSame(600.0, $result['employee_contributions_total']);
+        $this->assertSame(850.0, $result['employer_contributions_total']);
+    }
+
+    public function test_it_halves_the_monthly_amounts_for_semi_monthly_payroll(): void
+    {
+        $result = (new PhilippinesPayrollTaxProfile())->calculateGovernmentContributions('semi_monthly', self::LEGAL_MINIMUM_INPUTS);
+
+        $this->assertSame(125.0, $result['employee_contributions']['sss']['total']);
+        $this->assertSame(125.0, $result['employee_contributions']['philhealth']['total']);
+        $this->assertSame(50.0, $result['employee_contributions']['pagibig']['total']);
+        $this->assertSame(250.0, $result['employer_contributions']['sss']['total']);
+        $this->assertSame(125.0, $result['employer_contributions']['philhealth']['total']);
+        $this->assertSame(50.0, $result['employer_contributions']['pagibig']['total']);
+        $this->assertSame(300.0, $result['employee_contributions_total']);
+        $this->assertSame(425.0, $result['employer_contributions_total']);
+    }
+
+    public function test_it_omits_uncovered_programs(): void
+    {
+        $result = (new PhilippinesPayrollTaxProfile())->calculateGovernmentContributions('monthly', [
+            ...self::LEGAL_MINIMUM_INPUTS,
             'philhealth_covered' => false,
             'pagibig_covered' => false,
         ]);
 
-        $this->assertSame(1000.0, $result['employee_contributions']['sss']['total']);
-        $this->assertSame(2030.0, $result['employer_contributions']['sss']['total']);
-        $this->assertSame(1000.0, $result['employee_contributions']['sss']['lines']['regular_ss']['amount']);
-        $this->assertSame(0.0, $result['employee_contributions']['sss']['lines']['mpf']['amount']);
-        $this->assertSame(2000.0, $result['employer_contributions']['sss']['lines']['regular_ss']['amount']);
-        $this->assertSame(0.0, $result['employer_contributions']['sss']['lines']['mpf']['amount']);
-        $this->assertSame(30.0, $result['employer_contributions']['sss']['lines']['ec']['amount']);
-        $this->assertSame(1000.0, $result['employee_contributions_total']);
-        $this->assertSame(2030.0, $result['employer_contributions_total']);
+        $this->assertSame(['sss'], array_keys($result['employee_contributions']));
+        $this->assertSame(250.0, $result['employee_contributions_total']);
+        $this->assertSame(500.0, $result['employer_contributions_total']);
+
+        $none = (new PhilippinesPayrollTaxProfile())->calculateGovernmentContributions('monthly', []);
+
+        $this->assertSame([], $none['employee_contributions']);
+        $this->assertSame(0.0, $none['employer_contributions_total']);
     }
 
-    public function test_it_calculates_sss_contributions_above_the_mpf_threshold(): void
+    public function test_null_profile_returns_no_contributions(): void
     {
-        $profile = new PhilippinesPayrollTaxProfile();
-
-        $result = $profile->calculateGovernmentContributions('monthly', [
-            'apply' => true,
-            'sss_covered' => true,
-            'sss_monthly_compensation' => 20250,
-            'philhealth_covered' => false,
-            'pagibig_covered' => false,
-        ]);
-
-        $this->assertSame(1025.0, $result['employee_contributions']['sss']['total']);
-        $this->assertSame(2080.0, $result['employer_contributions']['sss']['total']);
-        $this->assertSame(1000.0, $result['employee_contributions']['sss']['lines']['regular_ss']['amount']);
-        $this->assertSame(25.0, $result['employee_contributions']['sss']['lines']['mpf']['amount']);
-        $this->assertSame(2000.0, $result['employer_contributions']['sss']['lines']['regular_ss']['amount']);
-        $this->assertSame(50.0, $result['employer_contributions']['sss']['lines']['mpf']['amount']);
-        $this->assertSame(30.0, $result['employer_contributions']['sss']['lines']['ec']['amount']);
-    }
-
-    public function test_it_calculates_philhealth_floor_contributions(): void
-    {
-        $profile = new PhilippinesPayrollTaxProfile();
-
-        $result = $profile->calculateGovernmentContributions('monthly', [
-            'apply' => true,
-            'sss_covered' => false,
-            'philhealth_covered' => true,
-            'philhealth_monthly_basic_salary' => 9000,
-            'pagibig_covered' => false,
-        ]);
-
-        $this->assertSame(250.0, $result['employee_contributions']['philhealth']['total']);
-        $this->assertSame(250.0, $result['employer_contributions']['philhealth']['total']);
-    }
-
-    public function test_it_calculates_philhealth_ceiling_contributions(): void
-    {
-        $profile = new PhilippinesPayrollTaxProfile();
-
-        $result = $profile->calculateGovernmentContributions('monthly', [
-            'apply' => true,
-            'sss_covered' => false,
-            'philhealth_covered' => true,
-            'philhealth_monthly_basic_salary' => 120000,
-            'pagibig_covered' => false,
-        ]);
-
-        $this->assertSame(2500.0, $result['employee_contributions']['philhealth']['total']);
-        $this->assertSame(2500.0, $result['employer_contributions']['philhealth']['total']);
-    }
-
-    public function test_it_favors_the_employer_share_when_philhealth_split_has_an_odd_cent(): void
-    {
-        $profile = new PhilippinesPayrollTaxProfile();
-
-        $result = $profile->calculateGovernmentContributions('monthly', [
-            'apply' => true,
-            'sss_covered' => false,
-            'philhealth_covered' => true,
-            'philhealth_monthly_basic_salary' => 33333.33,
-            'pagibig_covered' => false,
-        ]);
-
-        $this->assertSame(833.33, $result['employee_contributions']['philhealth']['lines']['premium']['amount']);
-        $this->assertSame(833.34, $result['employer_contributions']['philhealth']['lines']['premium']['amount']);
-    }
-
-    public function test_it_calculates_pagibig_contributions_at_the_threshold_rate(): void
-    {
-        $profile = new PhilippinesPayrollTaxProfile();
-
-        $result = $profile->calculateGovernmentContributions('monthly', [
-            'apply' => true,
-            'sss_covered' => false,
-            'philhealth_covered' => false,
-            'pagibig_covered' => true,
-            'pagibig_monthly_compensation' => 1500,
-        ]);
-
-        $this->assertSame(15.0, $result['employee_contributions']['pagibig']['total']);
-        $this->assertSame(30.0, $result['employer_contributions']['pagibig']['total']);
-    }
-
-    public function test_it_caps_pagibig_contributions_at_the_statutory_base(): void
-    {
-        $profile = new PhilippinesPayrollTaxProfile();
-
-        $result = $profile->calculateGovernmentContributions('monthly', [
-            'apply' => true,
-            'sss_covered' => false,
-            'philhealth_covered' => false,
-            'pagibig_covered' => true,
-            'pagibig_monthly_compensation' => 10000,
-        ]);
-
-        $this->assertSame(200.0, $result['employee_contributions']['pagibig']['total']);
-        $this->assertSame(200.0, $result['employer_contributions']['pagibig']['total']);
-    }
-
-    public function test_null_profile_returns_zero_government_contributions(): void
-    {
-        $profile = new NullPayrollTaxProfile();
-
-        $result = $profile->calculateGovernmentContributions('monthly', [
-            'apply' => true,
-            'sss_covered' => true,
-            'sss_monthly_compensation' => 25000,
-            'philhealth_covered' => true,
-            'philhealth_monthly_basic_salary' => 25000,
-            'pagibig_covered' => true,
-            'pagibig_monthly_compensation' => 25000,
-        ]);
+        $result = (new NullPayrollTaxProfile())->calculateGovernmentContributions('monthly', self::LEGAL_MINIMUM_INPUTS);
 
         $this->assertSame([], $result['employee_contributions']);
         $this->assertSame([], $result['employer_contributions']);
         $this->assertSame(0.0, $result['employee_contributions_total']);
         $this->assertSame(0.0, $result['employer_contributions_total']);
     }
+
+    private const LEGAL_MINIMUM_INPUTS = [
+        'sss_covered' => true,
+        'sss_employee_share' => 250,
+        'sss_employer_share' => 500,
+        'philhealth_covered' => true,
+        'philhealth_employee_share' => 250,
+        'philhealth_employer_share' => 250,
+        'pagibig_covered' => true,
+        'pagibig_employee_share' => 100,
+        'pagibig_employer_share' => 100,
+    ];
 
     /**
      * @return array<string, array{0: string, 1: float, 2: float}>

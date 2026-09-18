@@ -1,0 +1,101 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\BusinessProfile;
+use App\Models\User;
+use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+class ProfileTest extends TestCase
+{
+    use LazilyRefreshDatabase;
+
+    private User $user;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        BusinessProfile::factory()->create(['name' => 'JPrime Fitness Naga']);
+
+        $this->user = User::factory()->withEmployeeProfile()->create([
+            'name' => 'Staff Ana',
+            'email' => 'ana@example.com',
+            'password' => Hash::make('old-secret'),
+            'status' => User::STATUS_ACTIVE,
+        ]);
+        $this->user->assignRole('staff');
+    }
+
+    public function test_profile_page_renders_for_any_panel_user(): void
+    {
+        $this->actingAs($this->user)
+            ->get('/panel/profile')
+            ->assertOk()
+            ->assertSee('<profile-page', false)
+            ->assertSee('ana@example.com', false);
+    }
+
+    public function test_name_and_phone_update_but_email_is_ignored(): void
+    {
+        // Blank password fields are exactly what ProfilePage.vue submits on a plain profile save.
+        $this->actingAs($this->user)
+            ->putJson('/panel/profile', [
+                'name' => 'Ana Reyes',
+                'phone' => '09171234567',
+                'email' => 'hacker@example.com',
+                'current_password' => '',
+                'password' => '',
+                'password_confirmation' => '',
+            ])
+            ->assertOk()
+            ->assertJsonPath('name', 'Ana Reyes')
+            ->assertJsonPath('email', 'ana@example.com');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->user->id,
+            'name' => 'Ana Reyes',
+            'phone' => '09171234567',
+            'email' => 'ana@example.com',
+        ]);
+    }
+
+    public function test_password_change_requires_the_correct_current_password(): void
+    {
+        $this->actingAs($this->user)
+            ->putJson('/panel/profile', [
+                'name' => 'Staff Ana',
+                'password' => 'new-secret-1',
+                'password_confirmation' => 'new-secret-1',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['current_password']);
+
+        $this->actingAs($this->user)
+            ->putJson('/panel/profile', [
+                'name' => 'Staff Ana',
+                'current_password' => 'wrong',
+                'password' => 'new-secret-1',
+                'password_confirmation' => 'new-secret-1',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['current_password']);
+
+        $this->assertTrue(Hash::check('old-secret', $this->user->fresh()->password));
+
+        $this->actingAs($this->user)
+            ->putJson('/panel/profile', [
+                'name' => 'Staff Ana',
+                'current_password' => 'old-secret',
+                'password' => 'new-secret-1',
+                'password_confirmation' => 'new-secret-1',
+            ])
+            ->assertOk();
+
+        $this->assertTrue(Hash::check('new-secret-1', $this->user->fresh()->password));
+    }
+}

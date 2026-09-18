@@ -9,7 +9,6 @@ use App\Models\MemberProfile;
 use App\Models\MemberSubscription;
 use App\Models\SaleTransaction;
 use App\Models\SystemActivity;
-use App\Models\User;
 use App\Services\MemberActivationService;
 use App\Services\MembershipQrService;
 use App\Services\PosSaleService;
@@ -132,8 +131,6 @@ class SalesController extends Controller
     public function void(Request $request, SaleTransaction $saleTransaction): JsonResponse
     {
         $actor = auth()->user();
-
-        abort_unless($this->canVoidSales($actor), 403);
 
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:2000'],
@@ -417,7 +414,7 @@ class SalesController extends Controller
      */
     private function transformTransaction(SaleTransaction $transaction): array
     {
-        return SaleTransactionPresenter::panelArray($transaction, $this->canVoidSales(auth()->user()));
+        return SaleTransactionPresenter::panelArray($transaction, auth()->user()->can('void sales'));
     }
 
     /**
@@ -491,16 +488,6 @@ class SalesController extends Controller
             || $subscription->pending_payment_method !== MemberSubscription::PENDING_PAYMENT_ON_SITE) {
             abort(409, 'This registration is no longer pending on-site payment.');
         }
-    }
-
-    /**
-     * Determine whether the user may void sales.
-     *
-     * @return bool
-     */
-    private function canVoidSales(mixed $user): bool
-    {
-        return $user instanceof User && $user->isManagement();
     }
 
     /**

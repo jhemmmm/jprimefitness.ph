@@ -101,20 +101,24 @@ class EmployeePayFrequencyTest extends TestCase
                     'daily_rate' => 450,
                     'pay_frequency' => 'monthly',
                     'sss_covered' => true,
-                    'sss_monthly_compensation' => 18000,
+                    'sss_employee_share' => 300,
+                    'sss_employer_share' => 600,
                     'philhealth_covered' => true,
-                    'philhealth_monthly_basic_salary' => 18000,
+                    'philhealth_employee_share' => 275.5,
+                    'philhealth_employer_share' => 275.5,
                     'pagibig_covered' => true,
-                    'pagibig_monthly_compensation' => 18000,
+                    'pagibig_employee_share' => 200,
+                    'pagibig_employer_share' => 200,
                 ],
                 'password' => 'password123',
             ])
             ->assertCreated()
             ->assertJsonPath('employee_profile.pay_frequency', 'monthly')
             ->assertJsonPath('employee_profile.sss_covered', true)
-            ->assertJsonPath('employee_profile.sss_monthly_compensation', 18000)
-            ->assertJsonPath('employee_profile.philhealth_monthly_basic_salary', 18000)
-            ->assertJsonPath('employee_profile.pagibig_monthly_compensation', 18000)
+            ->assertJsonPath('employee_profile.sss_employee_share', 300)
+            ->assertJsonPath('employee_profile.sss_employer_share', 600)
+            ->assertJsonPath('employee_profile.philhealth_employee_share', 275.5)
+            ->assertJsonPath('employee_profile.pagibig_employer_share', 200)
             ->assertJsonMissingPath('pay_frequency');
 
         $employeeId = $createResponse->json('id');
@@ -124,11 +128,14 @@ class EmployeePayFrequencyTest extends TestCase
             'pay_frequency' => 'monthly',
             'daily_rate' => '450.00',
             'sss_covered' => 1,
-            'sss_monthly_compensation' => '18000.00',
+            'sss_employee_share' => '300.00',
+            'sss_employer_share' => '600.00',
             'philhealth_covered' => 1,
-            'philhealth_monthly_basic_salary' => '18000.00',
+            'philhealth_employee_share' => '275.50',
+            'philhealth_employer_share' => '275.50',
             'pagibig_covered' => 1,
-            'pagibig_monthly_compensation' => '18000.00',
+            'pagibig_employee_share' => '200.00',
+            'pagibig_employer_share' => '200.00',
         ]);
 
         $this->actingAs($manager)
@@ -141,32 +148,38 @@ class EmployeePayFrequencyTest extends TestCase
                     'daily_rate' => 450,
                     'pay_frequency' => 'semi_monthly',
                     'sss_covered' => true,
-                    'sss_monthly_compensation' => 20000,
+                    'sss_employee_share' => 0,
+                    'sss_employer_share' => 750,
                     'philhealth_covered' => true,
-                    'philhealth_monthly_basic_salary' => 22000,
+                    'philhealth_employee_share' => 275.5,
+                    'philhealth_employer_share' => 275.5,
                     'pagibig_covered' => false,
-                    'pagibig_monthly_compensation' => null,
+                    'pagibig_employee_share' => null,
+                    'pagibig_employer_share' => null,
                 ],
                 'password' => '',
             ])
             ->assertOk()
             ->assertJsonPath('employee_profile.pay_frequency', 'semi_monthly')
-            ->assertJsonPath('employee_profile.sss_monthly_compensation', 20000)
-            ->assertJsonPath('employee_profile.philhealth_monthly_basic_salary', 22000)
+            ->assertJsonPath('employee_profile.sss_employee_share', 0)
+            ->assertJsonPath('employee_profile.sss_employer_share', 750)
             ->assertJsonPath('employee_profile.pagibig_covered', false)
-            ->assertJsonPath('employee_profile.pagibig_monthly_compensation', null)
+            ->assertJsonPath('employee_profile.pagibig_employee_share', 100)
             ->assertJsonMissingPath('pay_frequency');
 
+        // Explicit zero is kept; blank falls back to the legal minimum.
         $this->assertDatabaseHas('employee_profiles', [
             'user_id' => $employeeId,
             'pay_frequency' => 'semi_monthly',
-            'sss_monthly_compensation' => '20000.00',
-            'philhealth_monthly_basic_salary' => '22000.00',
+            'sss_employee_share' => '0.00',
+            'sss_employer_share' => '750.00',
             'pagibig_covered' => 0,
+            'pagibig_employee_share' => '100.00',
+            'pagibig_employer_share' => '100.00',
         ]);
     }
 
-    public function test_philippines_employee_creation_requires_monthly_bases_for_enabled_government_contributions(): void
+    public function test_philippines_employee_creation_defaults_contribution_amounts_to_the_legal_minimum(): void
     {
         $this->setBusinessProfile('Naga');
         $manager = $this->createUserWithRole('manager', 'Manager Mia');
@@ -187,12 +200,19 @@ class EmployeePayFrequencyTest extends TestCase
                 ],
                 'password' => 'password123',
             ])
-            ->assertUnprocessable()
-            ->assertJsonValidationErrors([
-                'employee_profile.sss_monthly_compensation',
-                'employee_profile.philhealth_monthly_basic_salary',
-                'employee_profile.pagibig_monthly_compensation',
-            ]);
+            ->assertCreated()
+            ->assertJsonPath('employee_profile.sss_employee_share', 250)
+            ->assertJsonPath('employee_profile.sss_employer_share', 500);
+
+        $this->assertDatabaseHas('employee_profiles', [
+            'user_id' => User::where('email', 'coach-ben-ph@example.com')->value('id'),
+            'sss_employee_share' => '250.00',
+            'sss_employer_share' => '500.00',
+            'philhealth_employee_share' => '250.00',
+            'philhealth_employer_share' => '250.00',
+            'pagibig_employee_share' => '100.00',
+            'pagibig_employer_share' => '100.00',
+        ]);
     }
 
     public function test_non_ph_employee_creation_ignores_ph_government_contribution_validation(): void
@@ -249,11 +269,8 @@ class EmployeePayFrequencyTest extends TestCase
                     'daily_rate' => 450,
                     'pay_frequency' => 'monthly',
                     'sss_covered' => false,
-                    'sss_monthly_compensation' => null,
                     'philhealth_covered' => false,
-                    'philhealth_monthly_basic_salary' => null,
                     'pagibig_covered' => false,
-                    'pagibig_monthly_compensation' => null,
                 ],
                 'password' => 'password123',
             ])

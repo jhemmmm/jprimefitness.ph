@@ -106,7 +106,6 @@
                         <th class="text-end">Worked</th>
                         <th class="text-end">Paid</th>
                         <th class="text-end">Day Pay</th>
-                        <th class="text-end">Deduction</th>
                         <th>Status</th>
                      </tr>
                   </thead>
@@ -119,17 +118,13 @@
                         <td class="text-end">{{ formatHours(day.worked_hours) }}h</td>
                         <td class="text-end">{{ formatHours(day.paid_hours) }}h</td>
                         <td class="text-end">₱{{ $filters.formatMoney(day.day_pay_amount) }}</td>
-                        <td class="text-end">
-                           <span v-if="day.deduction_amount > 0" class="doc-negative">-₱{{ $filters.formatMoney(day.deduction_amount) }}</span>
-                           <span v-else>-</span>
-                        </td>
                         <td>
                            <span :class="['m-badge', dayStatusBadge(day.status)]">{{ $filters.capitalize(day.status) }}</span>
                            <span v-if="day.late_minutes > 0" class="text-muted ms-1 small">{{ day.late_minutes }}m late</span>
                         </td>
                      </tr>
                      <tr v-if="!suggestionDays.length">
-                        <td colspan="9" class="text-center text-muted py-3">No attendance records found for this period.</td>
+                        <td colspan="8" class="text-center text-muted py-3">No attendance records found for this period.</td>
                      </tr>
                   </tbody>
                   <tfoot v-if="suggestionDays.length">
@@ -138,10 +133,6 @@
                         <td class="text-end">{{ formatHours(dayTotals.worked) }}h</td>
                         <td class="text-end">{{ formatHours(dayTotals.paid) }}h</td>
                         <td class="text-end">₱{{ $filters.formatMoney(dayTotals.pay) }}</td>
-                        <td class="text-end">
-                           <span v-if="dayTotals.deduction > 0" class="doc-negative">-₱{{ $filters.formatMoney(dayTotals.deduction) }}</span>
-                           <span v-else>-</span>
-                        </td>
                         <td></td>
                      </tr>
                   </tfoot>
@@ -176,13 +167,9 @@
                         <dt>Paid</dt>
                         <dd>{{ formatHours(day.paid_hours) }}h</dd>
                      </div>
-                     <div class="doc-mobile-field">
+                     <div class="doc-mobile-field doc-mobile-field--wide">
                         <dt>Day Pay</dt>
                         <dd>₱{{ $filters.formatMoney(day.day_pay_amount) }}</dd>
-                     </div>
-                     <div class="doc-mobile-field doc-mobile-field--wide">
-                        <dt>Deduction</dt>
-                        <dd :class="{ 'doc-negative': day.deduction_amount > 0 }">{{ day.deduction_amount > 0 ? "-₱" + $filters.formatMoney(day.deduction_amount) : "-" }}</dd>
                      </div>
                   </dl>
                </article>
@@ -204,10 +191,6 @@
                      <div class="doc-mobile-field">
                         <dt>Day Pay</dt>
                         <dd>₱{{ $filters.formatMoney(dayTotals.pay) }}</dd>
-                     </div>
-                     <div class="doc-mobile-field">
-                        <dt>Deduction</dt>
-                        <dd :class="{ 'doc-negative': dayTotals.deduction > 0 }">{{ dayTotals.deduction > 0 ? "-₱" + $filters.formatMoney(dayTotals.deduction) : "-" }}</dd>
                      </div>
                   </dl>
                </div>
@@ -310,12 +293,10 @@
                            <td>Withholding tax</td>
                            <td class="text-end fw-bold" :class="{ 'doc-negative': form.withholding_tax > 0 }">{{ form.withholding_tax > 0 ? "- ₱" + $filters.formatMoney(form.withholding_tax) : "-" }}</td>
                         </tr>
-                        <template v-for="program in contributionPrograms(form.employee_contributions)" :key="program.key">
-                           <tr v-for="line in program.lines" :key="program.key + '-' + line.key">
-                              <td>{{ program.label }} - {{ line.label }}</td>
-                              <td class="text-end fw-bold doc-negative">- ₱{{ $filters.formatMoney(line.amount) }}</td>
-                           </tr>
-                        </template>
+                        <tr v-for="program in governmentContributionRows" :key="program.key">
+                           <td>{{ program.label }} contribution</td>
+                           <td class="text-end fw-bold doc-negative">- ₱{{ $filters.formatMoney(program.total) }}</td>
+                        </tr>
                         <tr>
                            <td class="align-middle">Other deductions</td>
                            <td class="text-end">
@@ -366,12 +347,10 @@
                         <span>Withholding tax</span>
                         <strong :class="{ 'doc-negative': form.withholding_tax > 0 }">{{ form.withholding_tax > 0 ? "- ₱" + $filters.formatMoney(form.withholding_tax) : "-" }}</strong>
                      </div>
-                     <template v-for="program in contributionPrograms(form.employee_contributions)" :key="'mobile-' + program.key">
-                        <div class="doc-compensation-row" v-for="line in program.lines" :key="'mobile-' + program.key + '-' + line.key">
-                           <span>{{ program.label }} - {{ line.label }}</span>
-                           <strong class="doc-negative">- ₱{{ $filters.formatMoney(line.amount) }}</strong>
-                        </div>
-                     </template>
+                     <div class="doc-compensation-row" v-for="program in governmentContributionRows" :key="'mobile-' + program.key">
+                        <span>{{ program.label }} contribution</span>
+                        <strong class="doc-negative">- ₱{{ $filters.formatMoney(program.total) }}</strong>
+                     </div>
                      <div class="doc-compensation-field">
                         <label for="payroll-mobile-deductions">Other deductions</label>
                         <input id="payroll-mobile-deductions" type="number" min="0" step="0.01" class="form-control text-start doc-amount-input" v-model="form.manual_deductions" :class="{ 'is-invalid': formErrors.manual_deductions }" />
@@ -396,17 +375,12 @@
                      <div class="doc-box-heading">Notes</div>
                      <textarea class="form-control form-control-sm" rows="3" v-model="form.notes" placeholder="Optional payroll notes"></textarea>
                   </div>
-                  <div class="doc-box" v-if="contributionPrograms(form.employer_contributions).length">
-                     <div class="doc-box-heading">Employer Contributions</div>
-                     <div class="text-muted small mb-2">Reference only. These employer-share statutory amounts do not reduce employee net pay.</div>
-                     <table class="doc-breakdown">
-                        <tbody>
-                           <tr v-for="program in contributionPrograms(form.employer_contributions)" :key="'er-' + program.key">
-                              <td>{{ program.label }}</td>
-                              <td class="text-end fw-bold">₱{{ $filters.formatMoney(program.total) }}</td>
-                           </tr>
-                        </tbody>
-                     </table>
+                  <div class="doc-box" v-if="payrollGovernmentContributionsEnabled && !employeeIsEnrolled">
+                     <div class="doc-box-heading">Government Contributions</div>
+                     <div class="text-muted small">
+                        <i class="bi bi-info-circle me-1"></i>None applied — this employee isn't enrolled in SSS, PhilHealth, or Pag-IBIG.
+                        <a :href="`/panel/employees/${employee.id}?tab=settings`">Enable coverage in Settings</a>, then reopen this payroll.
+                     </div>
                   </div>
                </div>
             </div>
@@ -485,6 +459,9 @@ export default {
       dailyRate: function () {
          return Number(this.employee.employee_profile?.daily_rate || 0);
       },
+      governmentContributionRows: function () {
+         return this.$filters.contributionPrograms(this.form.employee_contributions);
+      },
       periodLabel: function () {
          if (!this.form.period_start || !this.form.period_end) return "-";
          return `${formatDate(this.form.period_start)} – ${formatDate(this.form.period_end)}`;
@@ -495,6 +472,13 @@ export default {
       payrollWithholdingTaxEnabled: function () {
          return Boolean(globalThis.JPrime?.profile?.payroll_withholding_tax_enabled);
       },
+      payrollGovernmentContributionsEnabled: function () {
+         return Boolean(globalThis.JPrime?.profile?.payroll_government_contributions_enabled);
+      },
+      employeeIsEnrolled: function () {
+         const profile = this.employee.employee_profile || {};
+         return Boolean(profile.sss_covered || profile.philhealth_covered || profile.pagibig_covered);
+      },
       suggestionDays: function () {
          return this.suggestion?.days || [];
       },
@@ -504,9 +488,8 @@ export default {
                worked: totals.worked + Number(day.worked_hours || 0),
                paid: totals.paid + Number(day.paid_hours || 0),
                pay: totals.pay + Number(day.day_pay_amount || 0),
-               deduction: totals.deduction + Number(day.deduction_amount || 0),
             }),
-            { worked: 0, paid: 0, pay: 0, deduction: 0 },
+            { worked: 0, paid: 0, pay: 0 },
          );
       },
       manualGrossAdjustment: function () {
@@ -559,8 +542,6 @@ export default {
                cash_advance_deductions: this.payroll.cash_advance_deductions || 0,
                employee_contributions: this.payroll.employee_contributions || {},
                employee_contributions_total: Number(this.payroll.employee_contributions_total || 0),
-               employer_contributions: this.payroll.employer_contributions || {},
-               employer_contributions_total: Number(this.payroll.employer_contributions_total || 0),
                notes: this.payroll.notes || "",
             };
          }
@@ -578,39 +559,12 @@ export default {
             cash_advance_deductions: "",
             employee_contributions: {},
             employee_contributions_total: 0,
-            employer_contributions: {},
-            employer_contributions_total: 0,
             notes: "",
          };
-      },
-      contributionPrograms: function (contributions) {
-         return Object.entries(contributions || {})
-            .map(([programKey, program]) => ({
-               key: programKey,
-               label: program?.label || this.humanizeContributionKey(programKey),
-               total: Number(program?.total || 0),
-               lines: Object.entries(program?.lines || {})
-                  .map(([lineKey, line]) => ({
-                     key: lineKey,
-                     label: line?.label || this.humanizeContributionKey(lineKey),
-                     amount: Number(line?.amount || 0),
-                  }))
-                  .filter((line) => line.amount > 0),
-            }))
-            .filter((program) => program.total > 0 || program.lines.length > 0);
-      },
-      humanizeContributionKey: function (value) {
-         return String(value || "")
-            .split("_")
-            .filter(Boolean)
-            .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-            .join(" ");
       },
       applyContributionState: function (payload) {
          this.form.employee_contributions = payload.employee_contributions || {};
          this.form.employee_contributions_total = Number(payload.employee_contributions_total || 0);
-         this.form.employer_contributions = payload.employer_contributions || {};
-         this.form.employer_contributions_total = Number(payload.employer_contributions_total || 0);
       },
       queueSuggestionFetch: function () {
          if (!this.form.period_start || !this.form.period_end) {

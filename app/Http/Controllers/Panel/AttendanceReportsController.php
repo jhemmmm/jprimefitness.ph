@@ -332,11 +332,7 @@ class AttendanceReportsController extends Controller
      */
     private function durationMinutes(Attendance $attendance): ?int
     {
-        if (! $attendance->checked_in_at || ! $attendance->checked_out_at) {
-            return null;
-        }
-
-        return max(0, $attendance->checked_in_at->diffInMinutes($attendance->checked_out_at));
+        return $attendance->workedMinutes();
     }
 
     /**

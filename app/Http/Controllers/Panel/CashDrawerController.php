@@ -17,7 +17,10 @@ class CashDrawerController extends Controller
 {
     public function __construct(
         private CashDrawerService $cashDrawerService,
-    ) {}
+    ) {
+        // Feature flag: everything but status() (which reports `enabled`) 404s when off.
+        $this->middleware(fn ($request, $next) => config('jprime.cash_drawer') ? $next($request) : abort(404))->except('status');
+    }
 
     /**
      * Display the cash drawer page.
@@ -26,8 +29,6 @@ class CashDrawerController extends Controller
      */
     public function index(): View
     {
-        $this->authorizeManagement();
-
         return view('panel.cash-drawer.index');
     }
 
@@ -38,8 +39,6 @@ class CashDrawerController extends Controller
      */
     public function data(): JsonResponse
     {
-        $this->authorizeManagement();
-
         $session = $this->cashDrawerService->currentSession();
         $payload = [
             'session' => null,
@@ -99,8 +98,6 @@ class CashDrawerController extends Controller
      */
     public function open(Request $request): JsonResponse
     {
-        $this->authorizeManagement();
-
         $data = $request->validate([
             'opening_float' => ['required', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:500'],
@@ -122,8 +119,6 @@ class CashDrawerController extends Controller
      */
     public function storeExpense(Request $request): JsonResponse
     {
-        $this->authorizeManagement();
-
         $data = $request->validate([
             'category' => ['required', Rule::in(CashLedgerEntry::CATEGORIES)],
             'payment_method' => ['sometimes', 'required', Rule::in(CashLedgerEntry::supportedPaymentMethods())],
@@ -156,8 +151,6 @@ class CashDrawerController extends Controller
      */
     public function close(Request $request): JsonResponse
     {
-        $this->authorizeManagement();
-
         $data = $request->validate([
             'counted_cash' => ['required', 'numeric', 'min:0'],
             'deposited_amount' => ['required', 'numeric', 'min:0', 'lte:counted_cash'],
@@ -185,8 +178,6 @@ class CashDrawerController extends Controller
      */
     public function sessions(): JsonResponse
     {
-        $this->authorizeManagement();
-
         $sessions = CashDrawerSession::query()
             ->whereNotNull('closed_at')
             ->with(['openedBy:id,name', 'closedBy:id,name'])
@@ -205,8 +196,6 @@ class CashDrawerController extends Controller
      */
     public function entries(Request $request): JsonResponse
     {
-        $this->authorizeManagement();
-
         $data = $request->validate([
             'session_id' => ['nullable', 'integer', 'exists:cash_drawer_sessions,id'],
         ]);
@@ -233,8 +222,6 @@ class CashDrawerController extends Controller
      */
     public function expenseSummary(Request $request): JsonResponse
     {
-        $this->authorizeManagement();
-
         $data = $request->validate([
             'month' => ['nullable', 'date_format:Y-m'],
         ]);
@@ -272,17 +259,9 @@ class CashDrawerController extends Controller
      */
     public function receipt(CashLedgerEntry $entry)
     {
-        $this->authorizeManagement();
-
         abort_unless($entry->receipt_path && Storage::exists($entry->receipt_path), 404);
 
         return Storage::response($entry->receipt_path);
-    }
-
-    private function authorizeManagement(): void
-    {
-        abort_unless(config('jprime.cash_drawer'), 404);
-        abort_unless(auth()->user()->isManagement(), 403);
     }
 
     /**

@@ -19,9 +19,9 @@
          </div>
       </div>
 
-      <div class="d-flex flex-wrap justify-content-end gap-2 mb-4" v-if="canAllocatePackages || canLogUsage">
+      <div class="d-flex flex-wrap justify-content-end gap-2 mb-4" v-if="canAllocatePackages">
          <button v-if="canAllocatePackages" class="btn btn-danger btn-sm" @click="openPackageModal" :disabled="drawerStatusLoading || !canRecordSales" :title="canRecordSales ? '' : 'Open the cash drawer before recording a sale'"><i class="bi bi-plus-circle me-1"></i>Sell PT Package</button>
-         <button v-if="canLogUsage" class="btn btn-outline-success btn-sm" @click="openUsageModal" :disabled="activePackages.length === 0"><i class="bi bi-check2-square me-1"></i>Log PT Session Use</button>
+         <button class="btn btn-outline-success btn-sm" @click="openUsageModal" :disabled="activePackages.length === 0"><i class="bi bi-check2-square me-1"></i>Log PT Session Use</button>
       </div>
 
       <div v-if="packages.length === 0" class="text-center py-5 text-muted">
@@ -66,7 +66,7 @@
                      <td class="small text-muted">{{ pkg.created_by?.name || "-" }}</td>
                      <td class="text-end">
                         <button
-                           v-if="canAllocatePackages && pkg.action_state?.can_cancel"
+                           v-if="canCancelPackages && pkg.action_state?.can_cancel"
                            type="button"
                            class="btn btn-outline-danger btn-sm"
                            @click="openCancelModal(pkg)"
@@ -75,7 +75,7 @@
                         >
                            {{ pkg.action_state.label }}
                         </button>
-                        <span v-else-if="canAllocatePackages && pkg.action_state?.reason" class="small text-muted" :title="pkg.action_state.reason">Unavailable</span>
+                        <span v-else-if="canCancelPackages && pkg.action_state?.reason" class="small text-muted" :title="pkg.action_state.reason">Unavailable</span>
                      </td>
                   </tr>
                </tbody>
@@ -100,7 +100,7 @@
                </div>
                <div class="small text-danger mt-1" v-if="pkg.cancellation_reason">Cancelled: {{ pkg.cancellation_reason }}</div>
                <button
-                  v-if="canAllocatePackages && pkg.action_state?.can_cancel"
+                  v-if="canCancelPackages && pkg.action_state?.can_cancel"
                   type="button"
                   class="btn btn-outline-danger btn-sm mt-2 w-100"
                   @click="openCancelModal(pkg)"
@@ -489,15 +489,14 @@ export default {
       },
 
       canAllocatePackages: function () {
-         return this.is("super admin") || this.is("admin") || this.is("manager");
+         return this.can("manage members");
+      },
+      canCancelPackages: function () {
+         return this.can("edit members");
       },
 
       canRecordSales: function () {
          return !this.drawerStatus.enabled || this.drawerStatus.is_open;
-      },
-
-      canLogUsage: function () {
-         return this.canAllocatePackages || this.is("staff");
       },
    },
 

@@ -29,11 +29,9 @@ class EmployeeProfileFactory extends Factory
             'pay_frequency' => null,
             'pt_commission_rate' => 0,
             'sss_covered' => false,
-            'sss_monthly_compensation' => null,
             'philhealth_covered' => false,
-            'philhealth_monthly_basic_salary' => null,
             'pagibig_covered' => false,
-            'pagibig_monthly_compensation' => null,
+            ...EmployeeProfile::LEGAL_MINIMUM_CONTRIBUTIONS,
         ];
     }
 }

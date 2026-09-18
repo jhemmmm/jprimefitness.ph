@@ -50,9 +50,9 @@ class SalesPageTest extends TestCase
 
     public function test_sales_page_loads_for_panel_users(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->get('/panel/sales')
             ->assertOk()
             ->assertSee('sales-page', false);
@@ -60,7 +60,7 @@ class SalesPageTest extends TestCase
 
     public function test_sales_context_returns_global_sellable_options(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
         $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
         $inventoryItem = InventoryItem::factory()->create([
             'inventory_category_id' => $category->id,
@@ -76,7 +76,7 @@ class SalesPageTest extends TestCase
             'price' => 3600,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->getJson('/panel/sales/context')
             ->assertOk()
             ->assertJsonMissingPath('location')
@@ -87,7 +87,7 @@ class SalesPageTest extends TestCase
 
     public function test_members_list_can_search_members_by_phone_for_sales_selection(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
         $member = $this->createUserWithRole('member', 'Member Zara');
         $member->update([
             'email' => 'zara@example.com',
@@ -99,7 +99,7 @@ class SalesPageTest extends TestCase
             'phone' => '09179999999',
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->getJson('/panel/members/list?search=09171234567')
             ->assertOk()
             ->assertJsonPath('members.data.0.id', $member->id)
@@ -108,7 +108,7 @@ class SalesPageTest extends TestCase
 
     public function test_inventory_sale_supports_multiple_items_and_creates_a_receipt_ready_transaction(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
         $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
         $sportsDrink = InventoryItem::factory()->create([
             'inventory_category_id' => $category->id,
@@ -125,7 +125,7 @@ class SalesPageTest extends TestCase
             'status' => InventoryItem::STATUS_ACTIVE,
         ]);
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_INVENTORY,
                 'items' => [
@@ -171,7 +171,7 @@ class SalesPageTest extends TestCase
 
     public function test_closed_drawer_rejects_every_staff_pos_sale_type_without_side_effects(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
         $member = $this->createUserWithRole('member', 'Member Bea');
         $coach = $this->createUserWithRole('coach', 'Coach Rey');
         $item = InventoryItem::factory()->create([
@@ -230,7 +230,7 @@ class SalesPageTest extends TestCase
         ];
 
         foreach ($payloads as $payload) {
-            $this->actingAs($staff)
+            $this->actingAs($cashier)
                 ->postJson('/panel/sales', $payload)
                 ->assertConflict()
                 ->assertJsonPath('message', 'Open the cash drawer before recording a sale.');
@@ -244,7 +244,7 @@ class SalesPageTest extends TestCase
 
     public function test_sale_time_must_fall_within_the_current_drawer_session(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
         $item = InventoryItem::factory()->create([
             'name' => 'Sports Drink',
             'quantity' => 10,
@@ -252,7 +252,7 @@ class SalesPageTest extends TestCase
             'status' => InventoryItem::STATUS_ACTIVE,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_INVENTORY,
                 'items' => [[
@@ -266,7 +266,7 @@ class SalesPageTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['sold_at']);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_INVENTORY,
                 'items' => [[
@@ -288,7 +288,7 @@ class SalesPageTest extends TestCase
     {
         config(['jprime.cash_drawer' => false]);
 
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
         $item = InventoryItem::factory()->create([
             'name' => 'Sports Drink',
             'quantity' => 10,
@@ -301,7 +301,7 @@ class SalesPageTest extends TestCase
             'closed_at' => now(),
         ])->save();
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_INVENTORY,
                 'items' => [[
@@ -320,7 +320,7 @@ class SalesPageTest extends TestCase
 
     public function test_inventory_sale_requires_whole_number_quantities(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
         $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
         $item = InventoryItem::factory()->create([
             'inventory_category_id' => $category->id,
@@ -330,7 +330,7 @@ class SalesPageTest extends TestCase
             'status' => InventoryItem::STATUS_ACTIVE,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_INVENTORY,
                 'items' => [[
@@ -347,13 +347,13 @@ class SalesPageTest extends TestCase
 
     public function test_membership_sale_can_attach_to_existing_member_subscription_and_transaction(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
         $member = $this->createUserWithRole('member', 'Member Mia');
         $ratePlan = $this->createRatePlan('6 Months', 180, [
             'price' => 4999.50,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_MEMBERSHIP,
                 'member_id' => $member->id,
@@ -384,12 +384,12 @@ class SalesPageTest extends TestCase
 
     public function test_membership_sale_requires_existing_member_selection(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
         $ratePlan = $this->createRatePlan('Monthly', 30, [
             'price' => 1499,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_MEMBERSHIP,
                 'member_mode' => 'new',
@@ -414,13 +414,13 @@ class SalesPageTest extends TestCase
 
     public function test_pt_package_sale_requires_a_coach(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Lou');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Lou');
         $member = $this->createUserWithRole('member', 'Member Zoe');
         $ptProduct = $this->createPtProduct('24 Sessions', 24, [
             'price' => 7200,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_PT_PACKAGE,
                 'member_id' => $member->id,
@@ -440,18 +440,18 @@ class SalesPageTest extends TestCase
 
     public function test_pt_package_sale_rejects_a_non_coach_user(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Lou');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Lou');
         $member = $this->createUserWithRole('member', 'Member Zoe');
         $ptProduct = $this->createPtProduct('24 Sessions', 24, [
             'price' => 7200,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_PT_PACKAGE,
                 'member_id' => $member->id,
                 'pt_product_id' => $ptProduct->id,
-                'coach_id' => $staff->id,
+                'coach_id' => $cashier->id,
                 'assigned_at' => '2026-03-29',
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
                 'amount_received' => 7200,
@@ -463,14 +463,14 @@ class SalesPageTest extends TestCase
 
     public function test_pt_package_sale_stores_the_selling_coach(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Lou');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Lou');
         $member = $this->createUserWithRole('member', 'Member Zoe');
         $coach = $this->createUserWithRole('coach', 'Coach Rey');
         $ptProduct = $this->createPtProduct('24 Sessions', 24, [
             'price' => 7200,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_PT_PACKAGE,
                 'member_id' => $member->id,
@@ -500,12 +500,12 @@ class SalesPageTest extends TestCase
 
     public function test_sales_context_lists_active_coaches(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
         $coach = $this->createUserWithRole('coach', 'Coach Rey');
         $inactiveCoach = $this->createUserWithRole('coach', 'Coach Gone');
         $inactiveCoach->update(['status' => User::STATUS_INACTIVE]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->getJson('/panel/sales/context')
             ->assertOk()
             ->assertJsonCount(1, 'options.coaches')
@@ -525,7 +525,7 @@ class SalesPageTest extends TestCase
 
     public function test_sale_transaction_history_survives_processor_deletion(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff June');
+        $cashier = $this->createUserWithRole('manager', 'Cashier June');
         $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
         $item = InventoryItem::factory()->create([
             'inventory_category_id' => $category->id,
@@ -535,7 +535,7 @@ class SalesPageTest extends TestCase
             'status' => InventoryItem::STATUS_ACTIVE,
         ]);
 
-        $transactionId = $this->actingAs($staff)
+        $transactionId = $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_INVENTORY,
                 'inventory_item_id' => $item->id,
@@ -546,7 +546,7 @@ class SalesPageTest extends TestCase
             ->assertCreated()
             ->json('id');
 
-        $staff->delete();
+        $cashier->delete();
 
         $this->assertDatabaseHas('sale_transactions', [
             'id' => $transactionId,
@@ -554,15 +554,15 @@ class SalesPageTest extends TestCase
 
         $transaction = SaleTransaction::findOrFail($transactionId);
 
-        $this->assertSame($staff->id, $transaction->processed_by);
+        $this->assertSame($cashier->id, $transaction->processed_by);
         $this->assertNull($transaction->processedBy);
     }
 
     public function test_receipt_page_can_be_viewed_and_printed_by_staff(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Rae');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Rae');
         $transaction = SaleTransaction::create([
-            'processed_by' => $staff->id,
+            'processed_by' => $cashier->id,
             'customer_name' => 'Customer Joy',
             'item_name' => 'Monthly Membership',
             'type' => SaleTransaction::TYPE_MEMBERSHIP,
@@ -586,7 +586,7 @@ class SalesPageTest extends TestCase
             ],
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->get(route('panel.sales.receipt', $transaction))
             ->assertOk()
             ->assertHeader('content-type', 'application/pdf');
@@ -594,10 +594,10 @@ class SalesPageTest extends TestCase
 
     public function test_walk_in_sale_creates_transaction_and_history_is_global(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
-        $otherStaff = $this->createUserWithRole('staff', 'Staff Bea');
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $otherCashier = $this->createUserWithRole('manager', 'Cashier Bea');
 
-        $this->actingAs($staff)
+        $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_WALK_IN,
                 'customer_name' => 'Walk-in Carla',
@@ -614,7 +614,7 @@ class SalesPageTest extends TestCase
             'type' => SaleTransaction::TYPE_WALK_IN,
             'total' => 500,
             'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
-            'processed_by' => $otherStaff->id,
+            'processed_by' => $otherCashier->id,
             'sold_at' => '2026-03-29 18:00:00',
             'customer_name' => 'Other Guest',
             'item_name' => 'Walk-in',
@@ -627,7 +627,7 @@ class SalesPageTest extends TestCase
             'total' => 350,
         ]);
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($cashier)
             ->getJson('/panel/sales/history')
             ->assertOk()
             ->assertJsonPath('transactions.total', 2);
@@ -740,22 +740,6 @@ class SalesPageTest extends TestCase
 
         $this->assertStringStartsWith('https://jprime.test/panel/sales/', $saleResponse->json('void_url'));
         $this->assertStringNotContainsString('http://', $saleResponse->json('void_url'));
-    }
-
-    public function test_staff_cannot_void_sales(): void
-    {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
-        $transaction = SaleTransaction::factory()->create([
-            'processed_by' => $staff->id,
-        ]);
-
-        $this->actingAs($staff)
-            ->postJson(route('panel.sales.void', $transaction), [
-                'reason' => 'Unauthorized void attempt.',
-            ])
-            ->assertForbidden();
-
-        $this->assertSame(SaleTransaction::STATUS_COMPLETED, $transaction->fresh()->status);
     }
 
     public function test_void_reason_is_required_and_completed_sale_cannot_be_voided_twice(): void

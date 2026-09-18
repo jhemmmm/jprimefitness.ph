@@ -41,17 +41,17 @@ class UserSeeder extends Seeder
                 'pay_frequency' => 'semi_monthly',
             ],
             [
+                'role' => 'cashier',
+                'email' => 'cashier@example.com',
+                'name' => 'Cashier Cara',
+                'daily_rate' => 550,
+                'pay_frequency' => 'semi_monthly',
+            ],
+            [
                 'role' => 'coach',
                 'email' => 'coach@example.com',
                 'name' => 'Coach Cole',
                 'daily_rate' => 700,
-                'pay_frequency' => 'semi_monthly',
-            ],
-            [
-                'role' => 'employee',
-                'email' => 'employee@example.com',
-                'name' => 'Employee Eli',
-                'daily_rate' => 550,
                 'pay_frequency' => 'semi_monthly',
             ],
         ];

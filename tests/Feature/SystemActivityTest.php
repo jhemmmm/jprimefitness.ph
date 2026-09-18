@@ -25,7 +25,7 @@ class SystemActivityTest extends TestCase
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        foreach (['super admin', 'admin', 'manager', 'staff', 'member', 'employee', 'coach'] as $roleName) {
+        foreach (['super admin', 'admin', 'manager', 'staff', 'member', 'coach'] as $roleName) {
             Role::findOrCreate($roleName);
         }
 
@@ -38,11 +38,11 @@ class SystemActivityTest extends TestCase
         BusinessProfile::factory()->create();
     }
 
-    public function test_users_with_manage_employees_permission_can_view_and_filter_system_activity(): void
+    public function test_admins_can_view_and_filter_system_activity_but_staff_cannot(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
         $staff = $this->createUserWithRole('staff', 'Staff Sam');
-        $employee = $this->createUserWithRole('employee', 'Employee Eli');
+        $employee = $this->createUserWithRole('staff', 'Employee Eli');
 
         SystemActivity::factory()->create([
             'subject_type' => SystemActivity::SUBJECT_PAYROLL,
@@ -51,7 +51,7 @@ class SystemActivityTest extends TestCase
             'event' => 'approved',
             'title' => 'Payroll approved',
             'message' => 'The payroll for '.$employee->name.' was approved.',
-            'actor_name' => $manager->name,
+            'actor_name' => $admin->name,
             'metadata' => [
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->name,
@@ -66,7 +66,7 @@ class SystemActivityTest extends TestCase
             'event' => 'created',
             'title' => 'Payroll created',
             'message' => 'The payroll for '.$employee->name.' was created.',
-            'actor_name' => $manager->name,
+            'actor_name' => $admin->name,
             'metadata' => [
                 'employee_id' => $employee->id,
                 'employee_name' => $employee->name,
@@ -74,12 +74,12 @@ class SystemActivityTest extends TestCase
             'occurred_at' => '2026-03-20 08:00:00',
         ]);
 
-        $this->actingAs($manager)
+        $this->actingAs($admin)
             ->get('/panel/system-activity')
             ->assertOk()
             ->assertSee('system-activity-page', false);
 
-        $this->actingAs($manager)
+        $this->actingAs($admin)
             ->getJson('/panel/system-activity/list?subject_type=payroll&subject_id=11&event=approved&search=approved&date_from=2026-04-01&date_to=2026-04-30&per_page=10')
             ->assertOk()
             ->assertJsonPath('events.total', 1)
@@ -87,7 +87,7 @@ class SystemActivityTest extends TestCase
             ->assertJsonPath('events.data.0.subject_id', 11)
             ->assertJsonPath('events.data.0.event', 'approved')
             ->assertJsonPath('events.data.0.subject_label', 'Payroll #11 - '.$employee->name)
-            ->assertJsonPath('events.data.0.actor_name', $manager->name)
+            ->assertJsonPath('events.data.0.actor_name', $admin->name)
             ->assertJsonPath('events.data.0.action_url', route('panel.employees.show', $employee));
 
         $this->actingAs($staff)
@@ -101,7 +101,7 @@ class SystemActivityTest extends TestCase
 
     public function test_system_activity_list_supports_sorting(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
 
         SystemActivity::factory()->create([
             'subject_type' => SystemActivity::SUBJECT_MEMBER,
@@ -133,14 +133,14 @@ class SystemActivityTest extends TestCase
             'occurred_at' => '2026-04-06 10:00:00',
         ]);
 
-        $this->actingAs($manager)
+        $this->actingAs($admin)
             ->getJson('/panel/system-activity/list?sort_by=actor_name&sort_direction=asc&per_page=10')
             ->assertOk()
             ->assertJsonPath('events.data.0.actor_name', 'Ava Alpha')
             ->assertJsonPath('events.data.1.actor_name', 'Mia Middle')
             ->assertJsonPath('events.data.2.actor_name', 'Zoe Zebra');
 
-        $this->actingAs($manager)
+        $this->actingAs($admin)
             ->getJson('/panel/system-activity/list?sort_by=occurred_at&sort_direction=asc&per_page=10')
             ->assertOk()
             ->assertJsonPath('events.data.0.subject_id', 102)
@@ -150,7 +150,7 @@ class SystemActivityTest extends TestCase
 
     public function test_deleted_system_activities_expose_restore_state_for_supported_subjects(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
         $member = $this->createUserWithRole('member', 'Member Max');
         $category = InventoryCategory::factory()->create(['name' => 'Supplements']);
 
@@ -162,7 +162,7 @@ class SystemActivityTest extends TestCase
             'user_id' => $member->id,
             'name' => $member->name,
             'checked_in_at' => '2026-04-10 08:00:00',
-            'recorded_by' => $manager->id,
+            'recorded_by' => $admin->id,
         ]);
         $attendance->delete();
 
@@ -176,7 +176,7 @@ class SystemActivityTest extends TestCase
         $this->makeSystemActivity(SystemActivity::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$member->name, occurredAt: '2026-04-10 13:05:00');
         $this->makeSystemActivity(SystemActivity::SUBJECT_INVENTORY_ITEM, $inventoryItem->id, 'deleted', 'Inventory Item #'.$inventoryItem->id.' - '.$inventoryItem->name, occurredAt: '2026-04-10 13:15:00');
 
-        $events = collect($this->actingAs($manager)
+        $events = collect($this->actingAs($admin)
             ->getJson('/panel/system-activity/list?per_page=20')
             ->assertOk()
             ->json('events.data'));
@@ -197,7 +197,7 @@ class SystemActivityTest extends TestCase
 
     public function test_system_activity_marks_non_restorable_deleted_events_and_non_deleted_events(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
         $activeEmployee = $this->createUserWithRole('staff', 'Staff Active');
 
         $missingDeletedEvent = $this->makeSystemActivity(
@@ -216,7 +216,7 @@ class SystemActivityTest extends TestCase
             occurredAt: '2026-04-10 09:10:00',
         );
 
-        $events = collect($this->actingAs($manager)
+        $events = collect($this->actingAs($admin)
             ->getJson('/panel/system-activity/list?per_page=20')
             ->assertOk()
             ->json('events.data'));
@@ -235,7 +235,7 @@ class SystemActivityTest extends TestCase
 
     public function test_restore_endpoint_restores_supported_deleted_subjects(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
         $member = $this->createUserWithRole('member', 'Member Max');
         $inventoryCategory = InventoryCategory::factory()->create(['name' => 'Gear']);
 
@@ -248,7 +248,7 @@ class SystemActivityTest extends TestCase
             'user_id' => $member->id,
             'name' => $member->name,
             'checked_in_at' => '2026-04-10 08:00:00',
-            'recorded_by' => $manager->id,
+            'recorded_by' => $admin->id,
         ]);
         $attendance->delete();
         $attendanceEvent = $this->makeSystemActivity(SystemActivity::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$member->name);
@@ -261,7 +261,7 @@ class SystemActivityTest extends TestCase
         $inventoryEvent = $this->makeSystemActivity(SystemActivity::SUBJECT_INVENTORY_ITEM, $inventoryItem->id, 'deleted', 'Inventory Item #'.$inventoryItem->id.' - '.$inventoryItem->name);
 
         foreach ([$employeeEvent, $attendanceEvent, $inventoryEvent] as $systemActivity) {
-            $this->actingAs($manager)
+            $this->actingAs($admin)
                 ->postJson("/panel/system-activity/{$systemActivity->id}/restore")
                 ->assertOk()
                 ->assertJsonPath('message', 'Record restored successfully.');
@@ -280,19 +280,19 @@ class SystemActivityTest extends TestCase
 
     public function test_restore_endpoint_restores_attendance_walk_in_check_ins(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
 
         $attendance = Attendance::create([
             'attendee_type' => Attendance::TYPE_WALK_IN,
             'name' => 'Walk-in Gwen',
             'checked_in_at' => '2026-04-10 09:00:00',
-            'recorded_by' => $manager->id,
+            'recorded_by' => $admin->id,
         ]);
         $attendance->delete();
 
         $systemActivity = $this->makeSystemActivity(SystemActivity::SUBJECT_ATTENDANCE, $attendance->id, 'deleted', 'Attendance #'.$attendance->id.' - '.$attendance->name);
 
-        $this->actingAs($manager)
+        $this->actingAs($admin)
             ->postJson("/panel/system-activity/{$systemActivity->id}/restore")
             ->assertOk();
 
@@ -301,7 +301,7 @@ class SystemActivityTest extends TestCase
 
     public function test_restore_endpoint_rejects_non_restorable_events(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
         $employee = $this->createUserWithRole('staff', 'Staff Active');
 
         $updatedEvent = $this->makeSystemActivity(
@@ -326,7 +326,7 @@ class SystemActivityTest extends TestCase
         );
 
         foreach ([$updatedEvent, $alreadyActiveDeletedEvent, $missingDeletedEvent] as $systemActivity) {
-            $this->actingAs($manager)
+            $this->actingAs($admin)
                 ->postJson("/panel/system-activity/{$systemActivity->id}/restore")
                 ->assertUnprocessable()
                 ->assertJsonValidationErrors(['restore']);
@@ -335,7 +335,7 @@ class SystemActivityTest extends TestCase
 
     public function test_deleted_employee_activity_links_remain_openable(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
         $employee = $this->createUserWithRole('staff', 'Staff Soft Delete');
         $employee->delete();
 
@@ -347,7 +347,7 @@ class SystemActivityTest extends TestCase
             occurredAt: '2026-04-10 11:00:00',
         );
 
-        $response = $this->actingAs($manager)
+        $response = $this->actingAs($admin)
             ->getJson('/panel/system-activity/list?subject_type=employee&subject_id='.$employee->id.'&per_page=10')
             ->assertOk();
 
@@ -355,13 +355,13 @@ class SystemActivityTest extends TestCase
 
         $this->assertSame(route('panel.employees.show', $employee->id), $actionUrl);
 
-        $this->actingAs($manager)
+        $this->actingAs($admin)
             ->get($actionUrl)
             ->assertOk()
             ->assertSee('employee-detail-page', false)
             ->assertSeeText($employee->name);
 
-        $this->actingAs($manager)
+        $this->actingAs($admin)
             ->postJson("/panel/employees/{$employee->id}/attendance")
             ->assertOk();
 
@@ -369,7 +369,7 @@ class SystemActivityTest extends TestCase
 
     public function test_sale_activity_subject_labels_are_trimmed_to_fit_the_column(): void
     {
-        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+        $admin = $this->createUserWithRole('admin', 'Admin Mia');
         $longName = str_repeat('S', 255);
 
         app(SystemActivityService::class)->recordSubjectEvent(
@@ -385,8 +385,8 @@ class SystemActivityTest extends TestCase
                 'total' => 250,
             ],
             [],
-            $manager->id,
-            $manager->name,
+            $admin->id,
+            $admin->name,
             now(),
         );
 

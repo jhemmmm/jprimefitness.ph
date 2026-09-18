@@ -80,7 +80,7 @@ class EmployeeController extends Controller
         $roles = array_values(array_filter((array) $request->input('role', []), fn ($value) => $value !== null && $value !== ''));
         $statuses = array_values(array_filter((array) $request->input('status', []), fn ($value) => $value !== null && $value !== ''));
 
-        $employees = User::role(['employee', 'coach', 'manager', 'admin', 'staff'])
+        $employees = User::role(User::EMPLOYEE_ROLES)
             ->with(['roles', 'employeeProfile'])
             ->when(! empty($request->search), function ($query) use ($request) {
                 $search = trim((string) $request->search);
@@ -124,11 +124,9 @@ class EmployeeController extends Controller
             'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
             'employee_profile.pt_commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'employee_profile.sss_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
-            'employee_profile.sss_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
             'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
-            'employee_profile.philhealth_monthly_basic_salary' => ['nullable', 'numeric', 'min:0'],
             'employee_profile.pagibig_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
-            'employee_profile.pagibig_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
+            ...$this->contributionShareRules(),
             'password' => ['required', 'string', 'min:8'],
         ]);
         $data['employee_profile'] = $this->normalizeEmployeeProfileAttributes(
@@ -185,11 +183,9 @@ class EmployeeController extends Controller
             'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
             'employee_profile.pt_commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'employee_profile.sss_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
-            'employee_profile.sss_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
             'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
-            'employee_profile.philhealth_monthly_basic_salary' => ['nullable', 'numeric', 'min:0'],
             'employee_profile.pagibig_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
-            'employee_profile.pagibig_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
+            ...$this->contributionShareRules(),
             'password' => ['nullable', 'string', 'min:8'],
         ]);
         $data['employee_profile'] = $this->normalizeEmployeeProfileAttributes(
@@ -347,7 +343,7 @@ class EmployeeController extends Controller
             ->whereNotNull('checked_in_at')
             ->whereNotNull('checked_out_at')
             ->get(['checked_in_at', 'checked_out_at'])
-            ->sum(fn (Attendance $a) => max(0, $a->checked_in_at->diffInMinutes($a->checked_out_at)));
+            ->sum(fn (Attendance $a) => $a->workedMinutes());
 
         return response()->json([
             'records' => $records,
@@ -415,29 +411,6 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Preview statutory contribution amounts for given profile inputs.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function contributionPreview(Request $request): JsonResponse
-    {
-        $data = $request->validate([
-            'pay_frequency' => ['nullable', Rule::in(['monthly', 'semi_monthly'])],
-            'sss_covered' => ['sometimes', 'boolean'],
-            'sss_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
-            'philhealth_covered' => ['sometimes', 'boolean'],
-            'philhealth_monthly_basic_salary' => ['nullable', 'numeric', 'min:0'],
-            'pagibig_covered' => ['sometimes', 'boolean'],
-            'pagibig_monthly_compensation' => ['nullable', 'numeric', 'min:0'],
-        ]);
-
-        return response()->json($this->payrollService->previewGovernmentContributions(
-            $data,
-            $data['pay_frequency'] ?? 'semi_monthly'
-        ));
-    }
-
-    /**
      * Display the payroll create/edit document page.
      *
      * @return \Illuminate\Contracts\View\View
@@ -488,7 +461,6 @@ class EmployeeController extends Controller
             'generated_by' => auth()->id(),
         ]);
 
-        $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
         return response()->json($this->serializePayroll($payroll), 201);
@@ -510,9 +482,8 @@ class EmployeeController extends Controller
 
         $data = $this->validatePayrollInput($request, $employee);
 
-        $payroll->update($this->payrollAttributes($employee, $data, $payroll));
+        $payroll->update($this->payrollAttributes($employee, $data));
 
-        $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
         $this->systemActivityService->recordSubjectEvent(
@@ -540,7 +511,7 @@ class EmployeeController extends Controller
             'gross_amount' => ['required', 'numeric', 'min:0'],
             'manual_deductions' => ['nullable', 'numeric', 'min:0'],
             'cash_advance_deductions' => $request->filled('cash_advance_deductions')
-                ? ['numeric', 'min:0', 'max:'.$this->cashAdvanceOutstanding($employee)]
+                ? ['numeric', 'min:0', 'max:'.CashAdvance::outstandingFor($employee)]
                 : ['nullable'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -553,7 +524,7 @@ class EmployeeController extends Controller
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
-    private function payrollAttributes(User $employee, array $data, ?Payroll $existingPayroll = null): array
+    private function payrollAttributes(User $employee, array $data): array
     {
         $businessProfile = BusinessProfile::current();
         $attendanceSuggestion = $this->payrollService->suggestFromAttendance(
@@ -568,17 +539,9 @@ class EmployeeController extends Controller
         $cashAdvanceDeductions = (float) ($data['cash_advance_deductions'] ?? 0);
         $payFrequency = $this->employeePayFrequency($employee);
         $payrollTaxContext = [
-            'employee_id' => $employee->id,
             'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
             'business_profile' => $this->serializeBusinessProfilePayrollSettings($businessProfile),
-            'period_start' => $data['period_start'],
-            'period_end' => $data['period_end'],
         ];
-
-        if ($existingPayroll) {
-            $payrollTaxContext['payroll_id'] = $existingPayroll->id;
-            $payrollTaxContext['exclude_payroll_id'] = $existingPayroll->id;
-        }
 
         $payrollTotals = $this->payrollService->calculatePayrollTotals(
             $businessProfile->country_code,
@@ -681,7 +644,6 @@ class EmployeeController extends Controller
 
         $payroll->status = Payroll::STATUS_CANCELED;
         $payroll->save();
-        $this->payrollService->syncMonthlyGovernmentContributionAllocation($payroll);
         $payroll = $payroll->fresh(['employee:id,name']);
 
         $this->systemActivityService->recordSubjectEvent(
@@ -739,20 +701,12 @@ class EmployeeController extends Controller
         $suggestedGross = round((float) $attendanceSuggestion['gross_amount'] + $commission['amount'], 2);
         $grossAmount = (float) ($data['gross_amount'] ?? $suggestedGross);
         $manualDeductions = (float) ($data['manual_deductions'] ?? 0);
-        $cashAdvanceOutstanding = $this->cashAdvanceOutstanding($employee);
+        $cashAdvanceOutstanding = CashAdvance::outstandingFor($employee);
         $cashAdvanceDeductions = (float) ($data['cash_advance_deductions'] ?? 0);
         $payrollTaxContext = [
-            'employee_id' => $employee->id,
             'employee_profile' => $this->serializeEmployeeProfile($employee->employeeProfile),
             'business_profile' => $this->serializeBusinessProfilePayrollSettings($businessProfile),
-            'period_start' => $data['period_start'],
-            'period_end' => $data['period_end'],
         ];
-
-        if ($payroll) {
-            $payrollTaxContext['payroll_id'] = $payroll->id;
-            $payrollTaxContext['exclude_payroll_id'] = $payroll->id;
-        }
 
         $payrollTotals = $this->payrollService->calculatePayrollTotals(
             $countryCode,
@@ -908,22 +862,10 @@ class EmployeeController extends Controller
     {
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01'],
-            'method' => ['required', Rule::in([CashAdvance::METHOD_CASH, CashAdvance::METHOD_GCASH, CashAdvance::METHOD_ONLINE_PAYMENT])],
-            'reference_number' => ['nullable', 'string', 'max:100'],
-            'notes' => ['nullable', 'string', 'max:500'],
-            'paid_at' => ['nullable', 'date'],
+            ...CashAdvance::releaseRules(),
         ]);
 
-        $advance = CashAdvance::create([
-            'employee_id' => $employee->id,
-            'amount' => $data['amount'],
-            'method' => $data['method'],
-            'reference_number' => $data['reference_number'] ?? null,
-            'released_by' => auth()->id(),
-            'notes' => $data['notes'] ?? null,
-            'paid_at' => $data['paid_at'] ?? now(),
-        ]);
-
+        $advance = CashAdvance::release($employee, $data['amount'], $data);
         $advance->loadMissing('releasedBy:id,name');
 
         return response()->json($this->serializeCashAdvance($advance), 201);
@@ -962,17 +904,6 @@ class EmployeeController extends Controller
         });
 
         return response()->json($this->serializeCashAdvance($voided));
-    }
-
-    /**
-     * Sum of unpaid cash advance balances for an employee.
-     */
-    private function cashAdvanceOutstanding(User $employee): float
-    {
-        return round((float) CashAdvance::query()
-            ->where('employee_id', $employee->id)
-            ->outstanding()
-            ->sum(DB::raw('amount - repaid_amount')), 2);
     }
 
     /**
@@ -1097,17 +1028,7 @@ class EmployeeController extends Controller
     }
 
     /**
-     * @param  array{
-     *     daily_rate?: float|int|string|null,
-     *     pay_frequency?: string|null,
-     *     pt_commission_rate?: float|int|string|null,
-     *     sss_covered?: bool,
-     *     sss_monthly_compensation?: float|int|string|null,
-     *     philhealth_covered?: bool,
-     *     philhealth_monthly_basic_salary?: float|int|string|null,
-     *     pagibig_covered?: bool,
-     *     pagibig_monthly_compensation?: float|int|string|null
-     * }  $attributes
+     * @param  array<string, mixed>  $attributes  Normalized profile attributes (see normalizeEmployeeProfileAttributes).
      */
     private function ensureEmployeeProfile(User $employee, array $attributes = []): EmployeeProfile
     {
@@ -1126,35 +1047,9 @@ class EmployeeController extends Controller
         }
 
         if ($attributes !== []) {
-            $profile->fill([
-                'daily_rate' => $attributes['daily_rate'] ?? $profile->daily_rate,
-                'pay_frequency' => $attributes['pay_frequency'] ?? $profile->pay_frequency,
-                'pt_commission_rate' => $attributes['pt_commission_rate'] ?? $profile->pt_commission_rate,
-                'sss_covered' => $attributes['sss_covered'] ?? $profile->sss_covered,
-                'sss_monthly_compensation' => array_key_exists('sss_monthly_compensation', $attributes)
-                    ? $attributes['sss_monthly_compensation']
-                    : $profile->sss_monthly_compensation,
-                'philhealth_covered' => $attributes['philhealth_covered'] ?? $profile->philhealth_covered,
-                'philhealth_monthly_basic_salary' => array_key_exists('philhealth_monthly_basic_salary', $attributes)
-                    ? $attributes['philhealth_monthly_basic_salary']
-                    : $profile->philhealth_monthly_basic_salary,
-                'pagibig_covered' => $attributes['pagibig_covered'] ?? $profile->pagibig_covered,
-                'pagibig_monthly_compensation' => array_key_exists('pagibig_monthly_compensation', $attributes)
-                    ? $attributes['pagibig_monthly_compensation']
-                    : $profile->pagibig_monthly_compensation,
-            ]);
+            $profile->fill($attributes);
 
-            if ($profile->isDirty([
-                'daily_rate',
-                'pay_frequency',
-                'pt_commission_rate',
-                'sss_covered',
-                'sss_monthly_compensation',
-                'philhealth_covered',
-                'philhealth_monthly_basic_salary',
-                'pagibig_covered',
-                'pagibig_monthly_compensation',
-            ])) {
+            if ($profile->isDirty()) {
                 $profile->save();
             }
         }
@@ -1177,17 +1072,9 @@ class EmployeeController extends Controller
             'pay_frequency' => $employeeProfile->pay_frequency,
             'pt_commission_rate' => round((float) ($employeeProfile->pt_commission_rate ?? 0), 2),
             'sss_covered' => (bool) $employeeProfile->sss_covered,
-            'sss_monthly_compensation' => $employeeProfile->sss_monthly_compensation !== null
-                ? round((float) $employeeProfile->sss_monthly_compensation, 2)
-                : null,
             'philhealth_covered' => (bool) $employeeProfile->philhealth_covered,
-            'philhealth_monthly_basic_salary' => $employeeProfile->philhealth_monthly_basic_salary !== null
-                ? round((float) $employeeProfile->philhealth_monthly_basic_salary, 2)
-                : null,
             'pagibig_covered' => (bool) $employeeProfile->pagibig_covered,
-            'pagibig_monthly_compensation' => $employeeProfile->pagibig_monthly_compensation !== null
-                ? round((float) $employeeProfile->pagibig_monthly_compensation, 2)
-                : null,
+            ...$this->contributionShares($employeeProfile),
             'hikvision_employee_no' => $employeeProfile->hikvision_employee_no,
             'biometric_status' => $employeeProfile->biometric_status,
             'biometric_fingerprint_id' => $employeeProfile->biometric_fingerprint_id,
@@ -1252,6 +1139,8 @@ class EmployeeController extends Controller
     }
 
     /**
+     * Blank share amounts fall back to the legal minimum; explicit zeros are kept.
+     *
      * @param  array<string, mixed>  $attributes
      * @return array<string, mixed>
      */
@@ -1261,63 +1150,45 @@ class EmployeeController extends Controller
             'daily_rate' => round((float) ($attributes['daily_rate'] ?? 0), 2),
             'pay_frequency' => $attributes['pay_frequency'] ?? null,
             'pt_commission_rate' => round((float) ($attributes['pt_commission_rate'] ?? 0), 2),
-            'sss_covered' => $isPhilippinesBusiness ? (bool) ($attributes['sss_covered'] ?? false) : false,
-            'sss_monthly_compensation' => $isPhilippinesBusiness
-                ? $this->normalizeNullableMoney($attributes['sss_monthly_compensation'] ?? null)
-                : null,
-            'philhealth_covered' => $isPhilippinesBusiness ? (bool) ($attributes['philhealth_covered'] ?? false) : false,
-            'philhealth_monthly_basic_salary' => $isPhilippinesBusiness
-                ? $this->normalizeNullableMoney($attributes['philhealth_monthly_basic_salary'] ?? null)
-                : null,
-            'pagibig_covered' => $isPhilippinesBusiness ? (bool) ($attributes['pagibig_covered'] ?? false) : false,
-            'pagibig_monthly_compensation' => $isPhilippinesBusiness
-                ? $this->normalizeNullableMoney($attributes['pagibig_monthly_compensation'] ?? null)
-                : null,
+            'sss_covered' => $isPhilippinesBusiness && (bool) ($attributes['sss_covered'] ?? false),
+            'philhealth_covered' => $isPhilippinesBusiness && (bool) ($attributes['philhealth_covered'] ?? false),
+            'pagibig_covered' => $isPhilippinesBusiness && (bool) ($attributes['pagibig_covered'] ?? false),
         ];
 
-        if (! $isPhilippinesBusiness) {
-            return $normalized;
-        }
-
-        $validationErrors = [];
-
-        if ($normalized['sss_covered'] && ! $normalized['sss_monthly_compensation']) {
-            $validationErrors['employee_profile.sss_monthly_compensation'] = [
-                'SSS monthly compensation is required when SSS coverage is enabled.',
-            ];
-        }
-
-        if ($normalized['philhealth_covered'] && ! $normalized['philhealth_monthly_basic_salary']) {
-            $validationErrors['employee_profile.philhealth_monthly_basic_salary'] = [
-                'PhilHealth monthly basic salary is required when PhilHealth coverage is enabled.',
-            ];
-        }
-
-        if ($normalized['pagibig_covered'] && ! $normalized['pagibig_monthly_compensation']) {
-            $validationErrors['employee_profile.pagibig_monthly_compensation'] = [
-                'Pag-IBIG monthly compensation is required when Pag-IBIG coverage is enabled.',
-            ];
-        }
-
-        if ($validationErrors !== []) {
-            throw ValidationException::withMessages($validationErrors);
+        foreach (EmployeeProfile::LEGAL_MINIMUM_CONTRIBUTIONS as $key => $minimum) {
+            $value = $attributes[$key] ?? null;
+            $normalized[$key] = round((float) ($value === null || $value === '' ? $minimum : $value), 2);
         }
 
         return $normalized;
     }
 
     /**
-     * Normalize an optional monetary value.
-     *
-     * @return ?float
+     * @return array<string, array<int, string>>
      */
-    private function normalizeNullableMoney(mixed $value): ?float
+    private function contributionShareRules(): array
     {
-        if ($value === null || $value === '') {
-            return null;
+        $rules = [];
+
+        foreach (array_keys(EmployeeProfile::LEGAL_MINIMUM_CONTRIBUTIONS) as $key) {
+            $rules['employee_profile.'.$key] = ['nullable', 'numeric', 'min:0'];
         }
 
-        return round((float) $value, 2);
+        return $rules;
+    }
+
+    /**
+     * @return array<string, float>
+     */
+    private function contributionShares(?EmployeeProfile $employeeProfile): array
+    {
+        $shares = [];
+
+        foreach (EmployeeProfile::LEGAL_MINIMUM_CONTRIBUTIONS as $key => $minimum) {
+            $shares[$key] = round((float) ($employeeProfile?->{$key} ?? $minimum), 2);
+        }
+
+        return $shares;
     }
 
     /**
@@ -1457,11 +1328,9 @@ class EmployeeController extends Controller
             'daily_rate' => $this->employeeDailyRate($employee),
             'pay_frequency' => $this->employeePayFrequency($employee),
             'sss_covered' => (bool) $employee->employeeProfile?->sss_covered,
-            'sss_monthly_compensation' => round((float) ($employee->employeeProfile?->sss_monthly_compensation ?? 0), 2),
             'philhealth_covered' => (bool) $employee->employeeProfile?->philhealth_covered,
-            'philhealth_monthly_basic_salary' => round((float) ($employee->employeeProfile?->philhealth_monthly_basic_salary ?? 0), 2),
             'pagibig_covered' => (bool) $employee->employeeProfile?->pagibig_covered,
-            'pagibig_monthly_compensation' => round((float) ($employee->employeeProfile?->pagibig_monthly_compensation ?? 0), 2),
+            ...$this->contributionShares($employee->employeeProfile),
             'biometric_status' => $employee->employeeProfile?->biometric_status,
             'biometric_fingerprint_id' => $employee->employeeProfile?->biometric_fingerprint_id,
             'biometric_enrolled_at' => $employee->employeeProfile?->biometric_enrolled_at?->toISOString(),

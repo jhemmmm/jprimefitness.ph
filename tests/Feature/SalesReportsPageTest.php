@@ -31,9 +31,9 @@ class SalesReportsPageTest extends TestCase
     public function test_sales_reports_page_loads_for_panel_users(): void
     {
         $this->setBusinessProfile('Naga');
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->get('/panel/reports/sales')
             ->assertOk()
             ->assertSee('sales-reports-page', false)
@@ -43,10 +43,10 @@ class SalesReportsPageTest extends TestCase
     public function test_sales_reports_data_returns_metrics_and_breakdowns(): void
     {
         $this->setBusinessProfile('Naga');
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
 
         SaleTransaction::factory()->create([
-            'processed_by' => $staff->id,
+            'processed_by' => $manager->id,
             'type' => SaleTransaction::TYPE_INVENTORY,
             'total' => 2000,
             'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
@@ -63,7 +63,7 @@ class SalesReportsPageTest extends TestCase
         ]);
 
         SaleTransaction::factory()->create([
-            'processed_by' => $staff->id,
+            'processed_by' => $manager->id,
             'type' => SaleTransaction::TYPE_MEMBERSHIP,
             'total' => 1500,
             'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
@@ -73,7 +73,7 @@ class SalesReportsPageTest extends TestCase
         ]);
 
         SaleTransaction::factory()->create([
-            'processed_by' => $staff->id,
+            'processed_by' => $manager->id,
             'type' => SaleTransaction::TYPE_INVENTORY,
             'status' => SaleTransaction::STATUS_VOIDED,
             'total' => 999,
@@ -82,12 +82,12 @@ class SalesReportsPageTest extends TestCase
             'item_name' => 'Voided Shake',
             'sold_at' => '2026-03-04 10:00:00',
             'void_reason' => 'Duplicate sale.',
-            'voided_by' => $staff->id,
+            'voided_by' => $manager->id,
             'voided_at' => '2026-03-04 10:05:00',
         ]);
 
         SaleTransaction::factory()->create([
-            'processed_by' => $staff->id,
+            'processed_by' => $manager->id,
             'type' => SaleTransaction::TYPE_WALK_IN,
             'total' => 300,
             'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
@@ -96,7 +96,7 @@ class SalesReportsPageTest extends TestCase
             'sold_at' => '2026-02-26 08:00:00',
         ]);
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($manager)
             ->getJson('/panel/reports/sales/data?date_from=2026-03-01&date_to=2026-03-31')
             ->assertOk();
 
@@ -130,7 +130,7 @@ class SalesReportsPageTest extends TestCase
     public function test_sales_reports_details_default_to_all_time_and_are_paginated(): void
     {
         $this->setBusinessProfile('Naga');
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
 
         foreach ([
             ['Recent Customer', '2026-05-10 09:00:00'],
@@ -138,7 +138,7 @@ class SalesReportsPageTest extends TestCase
             ['Old Customer', '2026-01-10 09:00:00'],
         ] as [$customerName, $soldAt]) {
             SaleTransaction::factory()->create([
-                'processed_by' => $staff->id,
+                'processed_by' => $manager->id,
                 'type' => SaleTransaction::TYPE_INVENTORY,
                 'total' => 500,
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
@@ -148,7 +148,7 @@ class SalesReportsPageTest extends TestCase
             ]);
         }
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($manager)
             ->getJson('/panel/reports/sales/data?per_page=2')
             ->assertOk();
 
@@ -162,7 +162,7 @@ class SalesReportsPageTest extends TestCase
         $response->assertJsonPath('transactions.data.0.customer_name', 'Recent Customer');
         $response->assertJsonPath('transactions.data.1.customer_name', 'Middle Customer');
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->getJson('/panel/reports/sales/data?per_page=2&page=2')
             ->assertOk()
             ->assertJsonPath('transactions.current_page', 2)
@@ -191,10 +191,10 @@ class SalesReportsPageTest extends TestCase
     public function test_sales_reports_can_be_exported_to_csv(): void
     {
         $this->setBusinessProfile('Naga');
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
 
         SaleTransaction::factory()->create([
-            'processed_by' => $staff->id,
+            'processed_by' => $manager->id,
             'type' => SaleTransaction::TYPE_INVENTORY,
             'total' => 850,
             'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
@@ -211,7 +211,7 @@ class SalesReportsPageTest extends TestCase
         ]);
 
         SaleTransaction::factory()->create([
-            'processed_by' => $staff->id,
+            'processed_by' => $manager->id,
             'type' => SaleTransaction::TYPE_MEMBERSHIP,
             'total' => 1200,
             'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
@@ -220,7 +220,7 @@ class SalesReportsPageTest extends TestCase
             'sold_at' => '2026-01-05 09:00:00',
         ]);
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($manager)
             ->get('/panel/reports/sales/export');
 
         $response->assertOk();

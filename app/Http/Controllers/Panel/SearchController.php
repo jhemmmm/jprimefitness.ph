@@ -13,14 +13,6 @@ class SearchController extends Controller
 {
     private const RESULTS_LIMIT = 5;
 
-    private const EMPLOYEE_ROLE_NAMES = [
-        'employee',
-        'coach',
-        'manager',
-        'admin',
-        'staff',
-    ];
-
     /**
      * Return global search results.
      *
@@ -48,7 +40,9 @@ class SearchController extends Controller
                 'employees' => $request->user()->can('manage employees')
                     ? $this->employeeGroup($search)
                     : null,
-                'inventory' => $this->inventoryGroup($search),
+                'inventory' => $request->user()->can('manage inventory')
+                    ? $this->inventoryGroup($search)
+                    : null,
             ]),
         ]);
     }
@@ -95,7 +89,7 @@ class SearchController extends Controller
      */
     private function employeeGroup(string $search): array
     {
-        $query = User::role(self::EMPLOYEE_ROLE_NAMES)
+        $query = User::role(User::EMPLOYEE_ROLES)
             ->with(['roles:id,name'])
             ->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', "%{$search}%")

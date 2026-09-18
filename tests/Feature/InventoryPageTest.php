@@ -56,7 +56,7 @@ class InventoryPageTest extends TestCase
 
     public function test_inventory_list_reports_stats_for_the_business(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
         $drinkCategory = InventoryCategory::factory()->create(['name' => 'Drinks']);
         $supplementCategory = InventoryCategory::factory()->create(['name' => 'Supplements']);
 
@@ -79,7 +79,7 @@ class InventoryPageTest extends TestCase
             'low_stock_threshold' => 3,
         ]);
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($manager)
             ->getJson('/panel/inventory/list')
             ->assertOk()
             ->assertJsonPath('stats.total', 3)
@@ -95,7 +95,7 @@ class InventoryPageTest extends TestCase
 
     public function test_inventory_list_can_be_filtered_by_category(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
         $drinkCategory = InventoryCategory::factory()->create(['name' => 'Drinks']);
         $supplementCategory = InventoryCategory::factory()->create(['name' => 'Supplements']);
 
@@ -108,7 +108,7 @@ class InventoryPageTest extends TestCase
             'name' => 'Whey Protein',
         ]);
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($manager)
             ->getJson('/panel/inventory/list?category='.$drinkCategory->id)
             ->assertOk()
             ->assertJsonPath('stats.total', 1);
@@ -120,10 +120,10 @@ class InventoryPageTest extends TestCase
 
     public function test_staff_can_create_update_and_delete_inventory_items(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
         $category = InventoryCategory::factory()->create(['name' => 'Equipment']);
 
-        $createResponse = $this->actingAs($staff)
+        $createResponse = $this->actingAs($manager)
             ->postJson('/panel/inventory', [
                 'inventory_category_id' => $category->id,
                 'name' => 'Yoga Mat',
@@ -143,7 +143,7 @@ class InventoryPageTest extends TestCase
 
         $itemId = $createResponse->json('id');
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->putJson("/panel/inventory/{$itemId}", [
                 'inventory_category_id' => $category->id,
                 'name' => 'Yoga Mat',
@@ -168,7 +168,7 @@ class InventoryPageTest extends TestCase
             'notes' => 'Moved near the cashier',
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->deleteJson("/panel/inventory/{$itemId}")
             ->assertNoContent();
 
@@ -179,7 +179,7 @@ class InventoryPageTest extends TestCase
 
     public function test_staff_can_reuse_sku_from_a_soft_deleted_inventory_item(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
         $category = InventoryCategory::factory()->create(['name' => 'Equipment']);
 
         $archivedItem = InventoryItem::factory()->create([
@@ -189,7 +189,7 @@ class InventoryPageTest extends TestCase
         ]);
         $archivedItem->delete();
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->postJson('/panel/inventory', [
                 'inventory_category_id' => $category->id,
                 'name' => 'Yoga Mat',
@@ -217,10 +217,10 @@ class InventoryPageTest extends TestCase
 
     public function test_inventory_requires_category_but_not_sku_or_prices(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
         $category = InventoryCategory::factory()->create(['name' => 'Equipment']);
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->postJson('/panel/inventory', [
                 'name' => 'Foam Roller',
                 'sku' => null,
@@ -232,7 +232,7 @@ class InventoryPageTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['inventory_category_id']);
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->postJson('/panel/inventory', [
                 'inventory_category_id' => $category->id,
                 'name' => 'Foam Roller',
@@ -251,7 +251,7 @@ class InventoryPageTest extends TestCase
 
     public function test_edit_modal_zero_price_values_remain_persisted_on_save(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
         $category = InventoryCategory::factory()->create(['name' => 'Supplies']);
         $item = InventoryItem::factory()->create([
             'inventory_category_id' => $category->id,
@@ -261,7 +261,7 @@ class InventoryPageTest extends TestCase
             'notes' => 'Original note',
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->putJson("/panel/inventory/{$item->id}", [
                 'inventory_category_id' => $category->id,
                 'name' => 'Complimentary Towel',

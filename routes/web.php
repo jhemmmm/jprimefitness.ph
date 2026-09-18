@@ -5,7 +5,9 @@ use App\Http\Controllers\Home\HomeController;
 use App\Http\Controllers\Home\RegistrationController;
 use App\Http\Controllers\Panel\AttendanceController;
 use App\Http\Controllers\Panel\AttendanceReportsController;
+use App\Http\Controllers\Panel\CashAdvanceRequestController;
 use App\Http\Controllers\Panel\CashDrawerController;
+use App\Http\Controllers\Panel\CoachPtSessionsController;
 use App\Http\Controllers\Panel\SystemActivityController;
 use App\Http\Controllers\Panel\DashboardController;
 use App\Http\Controllers\Panel\EmployeeBiometricController;
@@ -13,9 +15,12 @@ use App\Http\Controllers\Panel\EmployeeController;
 use App\Http\Controllers\Panel\InventoryController;
 use App\Http\Controllers\Panel\KioskPaymentsController;
 use App\Http\Controllers\Panel\MembersController;
+use App\Http\Controllers\Panel\MyDashboardController;
+use App\Http\Controllers\Panel\MyRecordController;
 use App\Http\Controllers\Panel\NotificationsController;
 use App\Http\Controllers\Panel\PayrollReportsController;
 use App\Http\Controllers\Panel\PricingController;
+use App\Http\Controllers\Panel\ProfileController;
 use App\Http\Controllers\Panel\SalesController;
 use App\Http\Controllers\Panel\SalesReportsController;
 use App\Http\Controllers\Panel\SearchController;
@@ -33,17 +38,21 @@ Route::get('/register/cancelled', [RegistrationController::class, 'cancelled'])-
 Route::post('/contact', [ContactController::class, 'store'])->name('contact');
 
 Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(function () {
+    // Permission matrix lives in database/seeders/RoleSeeder.php; each block below maps to one permission.
+
+    // Anyone with panel access (self-scoped pages)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard/data', [DashboardController::class, 'data'])->name('dashboard.data');
-    Route::get('/search', [SearchController::class, 'index'])->name('search');
-    Route::get('/system-activity', [SystemActivityController::class, 'index'])->name('system-activity');
-    Route::get('/system-activity/list', [SystemActivityController::class, 'list'])->name('system-activity.list');
-    Route::post('/system-activity/{systemActivity}/restore', [SystemActivityController::class, 'restore'])->name('system-activity.restore')->whereNumber('systemActivity');
-    Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
-    Route::prefix('business')->name('business.')->group(function () {
-        Route::get('/settings', [SettingsController::class, 'settingsPage'])->name('settings');
-        Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::get('/my-dashboard/data', [MyDashboardController::class, 'data'])->name('my-dashboard.data');
+    Route::get('/my/{section}', [MyRecordController::class, 'show'])->name('my.show')->whereIn('section', array_keys(MyRecordController::SECTIONS));
+    Route::middleware('permission:log pt sessions')->group(function () {
+        Route::get('/pt-sessions', [CoachPtSessionsController::class, 'index'])->name('pt-sessions.index');
+        Route::get('/pt-sessions/list', [CoachPtSessionsController::class, 'list'])->name('pt-sessions.list');
+        Route::post('/pt-sessions', [CoachPtSessionsController::class, 'store'])->name('pt-sessions.store');
+        Route::get('/pt-session/{member}', [CoachPtSessionsController::class, 'show'])->name('pt-session.show')->whereNumber('member');
+        Route::get('/pt-session/{member}/data', [CoachPtSessionsController::class, 'data'])->name('pt-session.data')->whereNumber('member');
     });
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::get('/notifications', [NotificationsController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/list', [NotificationsController::class, 'list'])->name('notifications.list');
     Route::post('/notifications/read-all', [NotificationsController::class, 'markAllAsRead'])->name('notifications.read-all');
@@ -51,67 +60,101 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
         ->whereUuid('notificationId')
         ->name('notifications.read');
 
-    // Members
-    Route::get('/members', [MembersController::class, 'index'])->name('members.index');
-    Route::get('/members/list', [MembersController::class, 'list'])->name('members.list');
-    Route::post('/members', [MembersController::class, 'store'])->name('members.store');
-    Route::get('/members/{member}/attendance', [MembersController::class, 'attendance'])->name('members.attendance')->whereNumber('member');
-    Route::put('/members/{member}/membership', [MembersController::class, 'updateMembership'])->name('members.membership.update')->whereNumber('member');
-    Route::put('/members/{member}/membership/status', [MembersController::class, 'updateMembershipStatus'])->name('members.membership.status')->whereNumber('member');
-    Route::get('/members/{member}/memberships/{membership}/qr', [MembersController::class, 'membershipQr'])->name('members.memberships.qr')->whereNumber('member')->whereNumber('membership');
-    Route::post('/members/{member}/pt-packages', [MembersController::class, 'storePtPackage'])->name('members.pt-packages.store')->whereNumber('member');
-    Route::post('/members/{member}/pt-packages/{memberPtPackage}/cancel', [MembersController::class, 'cancelPtPackage'])->name('members.pt-packages.cancel')->whereNumber('member')->whereNumber('memberPtPackage');
-    Route::post('/members/{member}/pt-session-usages', [MembersController::class, 'storePtSessionUsage'])->name('members.pt-session-usages.store')->whereNumber('member');
-    Route::get('/members/{member}', [MembersController::class, 'show'])->name('members.show')->whereNumber('member');
-    Route::put('/members/{member}', [MembersController::class, 'update'])->name('members.update')->whereNumber('member');
+    Route::middleware('permission:view dashboard')->group(function () {
+        Route::get('/dashboard/data', [DashboardController::class, 'data'])->name('dashboard.data');
+    });
+
+    Route::middleware('permission:view system activity')->group(function () {
+        Route::get('/system-activity', [SystemActivityController::class, 'index'])->name('system-activity');
+        Route::get('/system-activity/list', [SystemActivityController::class, 'list'])->name('system-activity.list');
+        Route::post('/system-activity/{systemActivity}/restore', [SystemActivityController::class, 'restore'])->name('system-activity.restore')->whereNumber('systemActivity');
+    });
+
+    Route::middleware('permission:manage settings')->group(function () {
+        Route::get('/settings', [SettingsController::class, 'index'])->name('settings');
+        Route::prefix('business')->name('business.')->group(function () {
+            Route::get('/settings', [SettingsController::class, 'settingsPage'])->name('settings');
+            Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
+        });
+    });
+
+    // Members: front desk (cashier+) can look up, register, sell PT packages, log PT usage.
+    // Search also returns inventory/employee hits; those groups are gated inside SearchController.
+    Route::middleware('permission:manage members')->group(function () {
+        Route::get('/search', [SearchController::class, 'index'])->name('search');
+        Route::get('/members', [MembersController::class, 'index'])->name('members.index');
+        Route::get('/members/list', [MembersController::class, 'list'])->name('members.list');
+        Route::post('/members', [MembersController::class, 'store'])->name('members.store');
+        Route::get('/members/{member}/memberships/{membership}/qr', [MembersController::class, 'membershipQr'])->name('members.memberships.qr')->whereNumber('member')->whereNumber('membership');
+        Route::post('/members/{member}/pt-packages', [MembersController::class, 'storePtPackage'])->name('members.pt-packages.store')->whereNumber('member');
+        Route::post('/members/{member}/pt-session-usages', [MembersController::class, 'storePtSessionUsage'])->name('members.pt-session-usages.store')->whereNumber('member');
+        Route::get('/members/{member}', [MembersController::class, 'show'])->name('members.show')->whereNumber('member');
+        // A member's attendance history is attendance data.
+        Route::get('/members/{member}/attendance', [MembersController::class, 'attendance'])->name('members.attendance')->whereNumber('member')->middleware('permission:manage attendance');
+    });
+
+    // Editing members (management): details/settings, change/pause/cancel a membership, cancel a PT package.
+    Route::middleware('permission:edit members')->group(function () {
+        Route::put('/members/{member}', [MembersController::class, 'update'])->name('members.update')->whereNumber('member');
+        Route::put('/members/{member}/membership', [MembersController::class, 'updateMembership'])->name('members.membership.update')->whereNumber('member');
+        Route::put('/members/{member}/membership/status', [MembersController::class, 'updateMembershipStatus'])->name('members.membership.status')->whereNumber('member');
+        Route::post('/members/{member}/pt-packages/{memberPtPackage}/cancel', [MembersController::class, 'cancelPtPackage'])->name('members.pt-packages.cancel')->whereNumber('member')->whereNumber('memberPtPackage');
+    });
 
     // Inventory
-    Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
-    Route::get('/inventory/list', [InventoryController::class, 'list'])->name('inventory.list');
-    Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
-    Route::put('/inventory/{inventoryItem}', [InventoryController::class, 'update'])->name('inventory.update')->whereNumber('inventoryItem');
-    Route::delete('/inventory/{inventoryItem}', [InventoryController::class, 'destroy'])->name('inventory.destroy')->whereNumber('inventoryItem');
+    Route::middleware('permission:manage inventory')->group(function () {
+        Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::get('/inventory/list', [InventoryController::class, 'list'])->name('inventory.list');
+        Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
+        Route::put('/inventory/{inventoryItem}', [InventoryController::class, 'update'])->name('inventory.update')->whereNumber('inventoryItem');
+        Route::delete('/inventory/{inventoryItem}', [InventoryController::class, 'destroy'])->name('inventory.destroy')->whereNumber('inventoryItem');
+    });
 
     // Pricing
-    Route::get('/pricing', [PricingController::class, 'index'])->name('pricing.index');
-    Route::get('/pricing/data', [PricingController::class, 'show'])->name('pricing.show');
-    Route::post('/pricing/rate-plans', [PricingController::class, 'createRatePlan'])->name('pricing.rate-plans.create');
-    Route::put('/pricing/rate-plans/{ratePlan}', [PricingController::class, 'updateRatePlan'])->name('pricing.rate-plans.update')->whereNumber('ratePlan');
-    Route::delete('/pricing/rate-plans/{ratePlan}', [PricingController::class, 'destroyRatePlan'])->name('pricing.rate-plans.destroy')->whereNumber('ratePlan');
-    Route::post('/pricing/pt-products', [PricingController::class, 'createPtProduct'])->name('pricing.pt-products.create');
-    Route::put('/pricing/pt-products/{ptProduct}', [PricingController::class, 'updatePtProduct'])->name('pricing.pt-products.update')->whereNumber('ptProduct');
-    Route::delete('/pricing/pt-products/{ptProduct}', [PricingController::class, 'destroyPtProduct'])->name('pricing.pt-products.destroy')->whereNumber('ptProduct');
+    Route::middleware('permission:manage pricing')->group(function () {
+        Route::get('/pricing', [PricingController::class, 'index'])->name('pricing.index');
+        Route::get('/pricing/data', [PricingController::class, 'show'])->name('pricing.show');
+        Route::post('/pricing/rate-plans', [PricingController::class, 'createRatePlan'])->name('pricing.rate-plans.create');
+        Route::put('/pricing/rate-plans/{ratePlan}', [PricingController::class, 'updateRatePlan'])->name('pricing.rate-plans.update')->whereNumber('ratePlan');
+        Route::delete('/pricing/rate-plans/{ratePlan}', [PricingController::class, 'destroyRatePlan'])->name('pricing.rate-plans.destroy')->whereNumber('ratePlan');
+        Route::post('/pricing/pt-products', [PricingController::class, 'createPtProduct'])->name('pricing.pt-products.create');
+        Route::put('/pricing/pt-products/{ptProduct}', [PricingController::class, 'updatePtProduct'])->name('pricing.pt-products.update')->whereNumber('ptProduct');
+        Route::delete('/pricing/pt-products/{ptProduct}', [PricingController::class, 'destroyPtProduct'])->name('pricing.pt-products.destroy')->whereNumber('ptProduct');
+    });
 
-    // Sales
-    Route::get('/sales', [SalesController::class, 'index'])->name('sales.index');
-    Route::get('/sales/context', [SalesController::class, 'context'])->name('sales.context');
-    Route::get('/sales/history', [SalesController::class, 'history'])->name('sales.history');
-    Route::get('/sales/pending-payments', [SalesController::class, 'pendingPayments'])->name('sales.pending-payments.list');
-    Route::post('/sales', [SalesController::class, 'store'])->name('sales.store');
-    Route::post('/sales/pending-memberships/{subscription}/confirm', [SalesController::class, 'confirmPendingMembership'])->name('sales.pending-memberships.confirm')->whereNumber('subscription');
-    Route::post('/sales/pending-memberships/{subscription}/cancel', [SalesController::class, 'cancelPendingMembership'])->name('sales.pending-memberships.cancel')->whereNumber('subscription');
-    Route::post('/sales/{saleTransaction}/void', [SalesController::class, 'void'])->name('sales.void')->whereNumber('saleTransaction');
-    Route::get('/sales/{saleTransaction}/membership-qr', [SalesController::class, 'membershipQr'])->name('sales.membership-qr')->whereNumber('saleTransaction');
-    Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
+    // Sales (cashier+) + kiosk counter walk-in actions; voiding additionally needs `void sales`.
+    Route::middleware('permission:manage sales')->group(function () {
+        Route::get('/sales', [SalesController::class, 'index'])->name('sales.index');
+        Route::get('/sales/context', [SalesController::class, 'context'])->name('sales.context');
+        Route::get('/sales/history', [SalesController::class, 'history'])->name('sales.history');
+        Route::get('/sales/pending-payments', [SalesController::class, 'pendingPayments'])->name('sales.pending-payments.list');
+        Route::post('/sales', [SalesController::class, 'store'])->name('sales.store');
+        Route::post('/sales/pending-memberships/{subscription}/confirm', [SalesController::class, 'confirmPendingMembership'])->name('sales.pending-memberships.confirm')->whereNumber('subscription');
+        Route::post('/sales/pending-memberships/{subscription}/cancel', [SalesController::class, 'cancelPendingMembership'])->name('sales.pending-memberships.cancel')->whereNumber('subscription');
+        Route::post('/sales/{saleTransaction}/void', [SalesController::class, 'void'])->name('sales.void')->whereNumber('saleTransaction')->middleware('permission:void sales');
+        Route::get('/sales/{saleTransaction}/membership-qr', [SalesController::class, 'membershipQr'])->name('sales.membership-qr')->whereNumber('saleTransaction');
+        Route::get('/sales/{saleTransaction}/receipt', [SalesController::class, 'receipt'])->name('sales.receipt')->whereNumber('saleTransaction');
+        Route::post('/kiosk-payments/{reference}/confirm', [KioskPaymentsController::class, 'confirm'])->name('kiosk-payments.confirm');
+        Route::post('/kiosk-payments/{reference}/cancel', [KioskPaymentsController::class, 'cancel'])->name('kiosk-payments.cancel');
+    });
 
-    // Cash drawer
-    Route::get('/cash-drawer', [CashDrawerController::class, 'index'])->name('cash-drawer.index');
-    Route::get('/cash-drawer/status', [CashDrawerController::class, 'status'])->name('cash-drawer.status');
-    Route::get('/cash-drawer/data', [CashDrawerController::class, 'data'])->name('cash-drawer.data');
-    Route::post('/cash-drawer/open', [CashDrawerController::class, 'open'])->name('cash-drawer.open');
-    Route::post('/cash-drawer/expenses', [CashDrawerController::class, 'storeExpense'])->name('cash-drawer.expenses.store');
-    Route::post('/cash-drawer/close', [CashDrawerController::class, 'close'])->name('cash-drawer.close');
-    Route::get('/cash-drawer/sessions', [CashDrawerController::class, 'sessions'])->name('cash-drawer.sessions');
-    Route::get('/cash-drawer/entries', [CashDrawerController::class, 'entries'])->name('cash-drawer.entries');
-    Route::get('/cash-drawer/entries/{entry}/receipt', [CashDrawerController::class, 'receipt'])->name('cash-drawer.entries.receipt')->whereNumber('entry');
-    Route::get('/cash-drawer/expense-summary', [CashDrawerController::class, 'expenseSummary'])->name('cash-drawer.expense-summary');
-
-    // Kiosk counter walk-in actions (listing is folded into sales.pending-payments)
-    Route::post('/kiosk-payments/{reference}/confirm', [KioskPaymentsController::class, 'confirm'])->name('kiosk-payments.confirm');
-    Route::post('/kiosk-payments/{reference}/cancel', [KioskPaymentsController::class, 'cancel'])->name('kiosk-payments.cancel');
+    // Cash drawer. `status` is only "is the drawer open?", read by the Sales and
+    // member PT-package screens, so anyone who can sell may call it.
+    Route::get('/cash-drawer/status', [CashDrawerController::class, 'status'])->middleware('permission:manage sales|manage members')->name('cash-drawer.status');
+    Route::middleware('permission:manage cash drawer')->group(function () {
+        Route::get('/cash-drawer', [CashDrawerController::class, 'index'])->name('cash-drawer.index');
+        Route::get('/cash-drawer/data', [CashDrawerController::class, 'data'])->name('cash-drawer.data');
+        Route::post('/cash-drawer/open', [CashDrawerController::class, 'open'])->name('cash-drawer.open');
+        Route::post('/cash-drawer/expenses', [CashDrawerController::class, 'storeExpense'])->name('cash-drawer.expenses.store');
+        Route::post('/cash-drawer/close', [CashDrawerController::class, 'close'])->name('cash-drawer.close');
+        Route::get('/cash-drawer/sessions', [CashDrawerController::class, 'sessions'])->name('cash-drawer.sessions');
+        Route::get('/cash-drawer/entries', [CashDrawerController::class, 'entries'])->name('cash-drawer.entries');
+        Route::get('/cash-drawer/entries/{entry}/receipt', [CashDrawerController::class, 'receipt'])->name('cash-drawer.entries.receipt')->whereNumber('entry');
+        Route::get('/cash-drawer/expense-summary', [CashDrawerController::class, 'expenseSummary'])->name('cash-drawer.expense-summary');
+    });
 
     // Reports
-    Route::group(['prefix' => 'reports', 'as' => 'reports.'], function () {
+    Route::middleware('permission:view reports')->prefix('reports')->name('reports.')->group(function () {
         Route::get('/sales', [SalesReportsController::class, 'index'])->name('sales');
         Route::get('/sales/data', [SalesReportsController::class, 'data'])->name('sales.data');
         Route::get('/sales/export', [SalesReportsController::class, 'export'])->name('sales.export');
@@ -126,14 +169,17 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     });
 
     // Attendance
-    Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
-    Route::get('/attendance/list', [AttendanceController::class, 'list'])->name('attendance.list');
-    Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
-    Route::put('/attendance/{attendance}', [AttendanceController::class, 'update'])->name('attendance.update')->whereNumber('attendance');
-    Route::post('/attendance/{attendance}/checkout', [AttendanceController::class, 'checkout'])->name('attendance.checkout')->whereNumber('attendance');
-    Route::delete('/attendance/{attendance}', [AttendanceController::class, 'destroy'])->name('attendance.destroy')->whereNumber('attendance');
+    Route::middleware('permission:manage attendance')->group(function () {
+        Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+        Route::get('/attendance/list', [AttendanceController::class, 'list'])->name('attendance.list');
+        Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
+        Route::put('/attendance/{attendance}', [AttendanceController::class, 'update'])->name('attendance.update')->whereNumber('attendance');
+        Route::post('/attendance/{attendance}/checkout', [AttendanceController::class, 'checkout'])->name('attendance.checkout')->whereNumber('attendance');
+        Route::delete('/attendance/{attendance}', [AttendanceController::class, 'destroy'])->name('attendance.destroy')->whereNumber('attendance');
+    });
 
-    // Employees
+    // Employees — NOT wrapped in `permission:manage employees`: the controller applies it itself
+    // and exempts the self-service reads (show/schedule/attendance/payrolls/payslip/payouts/cash advances).
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
     Route::get('/employees/list', [EmployeeController::class, 'list'])->name('employees.list');
     Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
@@ -146,7 +192,6 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/employees/{employee}/schedule', [EmployeeController::class, 'schedule'])->name('employees.schedule.show')->whereNumber('employee')->withTrashed();
     Route::put('/employees/{employee}/schedule', [EmployeeController::class, 'updateSchedule'])->name('employees.schedule.update')->whereNumber('employee');
     Route::post('/employees/{employee}/attendance', [EmployeeController::class, 'attendance'])->name('employees.attendance')->whereNumber('employee')->withTrashed();
-    Route::get('/employees/contribution-preview', [EmployeeController::class, 'contributionPreview'])->name('employees.contributions.preview');
     Route::get('/employees/{employee}/payrolls', [EmployeeController::class, 'payrolls'])->name('employees.payrolls.list')->whereNumber('employee')->withTrashed();
     Route::get('/employees/{employee}/payrolls/create', [EmployeeController::class, 'createPayrollPage'])->name('employees.payrolls.create')->whereNumber('employee');
     Route::post('/employees/{employee}/payrolls', [EmployeeController::class, 'storePayroll'])->name('employees.payrolls.store')->whereNumber('employee');
@@ -161,6 +206,11 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     Route::get('/employees/{employee}/cash-advances', [EmployeeController::class, 'cashAdvances'])->name('employees.cash-advances.list')->whereNumber('employee')->withTrashed();
     Route::post('/employees/{employee}/cash-advances', [EmployeeController::class, 'storeCashAdvance'])->name('employees.cash-advances.store')->whereNumber('employee');
     Route::post('/employees/{employee}/cash-advances/{cashAdvance}/void', [EmployeeController::class, 'voidCashAdvance'])->name('employees.cash-advances.void')->whereNumber('employee')->whereNumber('cashAdvance');
+    Route::get('/employees/{employee}/cash-advance-requests', [CashAdvanceRequestController::class, 'index'])->name('employees.cash-advance-requests.list')->whereNumber('employee');
+    Route::post('/employees/{employee}/cash-advance-requests', [CashAdvanceRequestController::class, 'store'])->name('employees.cash-advance-requests.store')->whereNumber('employee');
+    Route::post('/employees/{employee}/cash-advance-requests/{cashAdvanceRequest}/withdraw', [CashAdvanceRequestController::class, 'withdraw'])->name('employees.cash-advance-requests.withdraw')->whereNumber('employee')->whereNumber('cashAdvanceRequest');
+    Route::post('/employees/{employee}/cash-advance-requests/{cashAdvanceRequest}/approve', [CashAdvanceRequestController::class, 'approve'])->name('employees.cash-advance-requests.approve')->whereNumber('employee')->whereNumber('cashAdvanceRequest');
+    Route::post('/employees/{employee}/cash-advance-requests/{cashAdvanceRequest}/reject', [CashAdvanceRequestController::class, 'reject'])->name('employees.cash-advance-requests.reject')->whereNumber('employee')->whereNumber('cashAdvanceRequest');
 });
 
 Auth::routes(['register' => false]);

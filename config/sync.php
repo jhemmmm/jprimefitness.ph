@@ -148,6 +148,7 @@ return [
         'payout' => ['model' => \App\Models\Payout::class],
         'cash_advance' => ['model' => \App\Models\CashAdvance::class],
         'cash_advance_repayment' => ['model' => \App\Models\CashAdvanceRepayment::class],
+        'cash_advance_request' => ['model' => \App\Models\CashAdvanceRequest::class],
 
         // Cash drawer (physical cash tracking).
         'cash_drawer_session' => ['model' => \App\Models\CashDrawerSession::class],

@@ -29,7 +29,7 @@ class EmployeePayrollTaxTest extends TestCase
         $staffRole->givePermissionTo($permission);
     }
 
-    public function test_philippines_semi_monthly_payroll_uses_withholding_tax_in_preview_and_saved_totals(): void
+    public function test_philippines_semi_monthly_payroll_deducts_half_of_the_monthly_contributions_on_each_cutoff(): void
     {
         $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES);
         $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
@@ -40,253 +40,86 @@ class EmployeePayrollTaxTest extends TestCase
             $this->philippinesContributionProfile()
         );
 
-        $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-01&period_end=2026-03-15&gross_amount=20000&manual_deductions=200")
-            ->assertOk()
-            ->assertJsonMissingPath('bonus_non_taxable_amount')
-            ->assertJsonMissingPath('bonus_taxable_amount')
-            ->assertJsonPath('withholding_tax', 1604.1)
-            ->assertJsonPath('taxable_earnings', 20000)
-            ->assertJsonPath('employee_contributions_total', 0)
-            ->assertJsonPath('employer_contributions_total', 0)
-            ->assertJsonPath('employee_deductions_total', 1804.1)
-            ->assertJsonPath('net_amount_preview', 18195.9);
+        foreach ([['2026-03-01', '2026-03-15'], ['2026-03-16', '2026-03-31']] as [$periodStart, $periodEnd]) {
+            $this->actingAs($manager)
+                ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start={$periodStart}&period_end={$periodEnd}&gross_amount=20000&manual_deductions=200")
+                ->assertOk()
+                ->assertJsonMissingPath('bonus_non_taxable_amount')
+                ->assertJsonPath('employee_contributions.sss.total', 125)
+                ->assertJsonPath('employee_contributions.philhealth.total', 125)
+                ->assertJsonPath('employee_contributions.pagibig.total', 50)
+                ->assertJsonPath('employee_contributions_total', 300)
+                ->assertJsonPath('employer_contributions.sss.total', 250)
+                ->assertJsonPath('employer_contributions.philhealth.total', 125)
+                ->assertJsonPath('employer_contributions.pagibig.total', 50)
+                ->assertJsonPath('employer_contributions_total', 425)
+                ->assertJsonPath('taxable_earnings', 19700)
+                ->assertJsonPath('withholding_tax', 1544.1)
+                ->assertJsonPath('employee_deductions_total', 2044.1)
+                ->assertJsonPath('net_amount_preview', 17955.9);
 
-        $response = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-01',
-                'period_end' => '2026-03-15',
-                'gross_amount' => 20000,
-                'manual_deductions' => 200,
-                'notes' => 'Semi-monthly Philippines payroll.',
-            ])
-            ->assertCreated()
-            ->assertJsonPath('withholding_tax', 1604.1)
-            ->assertJsonPath('employee_contributions_total', 0)
-            ->assertJsonPath('employer_contributions_total', 0)
-            ->assertJsonPath('employee_deductions_total', 1804.1)
-            ->assertJsonPath('total_earnings', 20000)
-            ->assertJsonPath('net_amount', 18195.9);
+            $response = $this->actingAs($manager)
+                ->postJson("/panel/employees/{$employee->id}/payrolls", [
+                    'period_start' => $periodStart,
+                    'period_end' => $periodEnd,
+                    'gross_amount' => 20000,
+                    'manual_deductions' => 200,
+                ])
+                ->assertCreated()
+                ->assertJsonPath('withholding_tax', 1544.1)
+                ->assertJsonPath('employee_contributions_total', 300)
+                ->assertJsonPath('employer_contributions_total', 425)
+                ->assertJsonPath('employee_deductions_total', 2044.1)
+                ->assertJsonPath('total_earnings', 20000)
+                ->assertJsonPath('net_amount', 17955.9);
 
-        $this->assertDatabaseHas('payrolls', [
-            'id' => $response->json('id'),
-            'employee_id' => $employee->id,
-            'withholding_tax' => '1604.10',
-            'manual_deductions' => '200.00',
-            'net_amount' => '18195.90',
-        ]);
+            $this->assertDatabaseHas('payrolls', [
+                'id' => $response->json('id'),
+                'employee_id' => $employee->id,
+                'withholding_tax' => '1544.10',
+                'manual_deductions' => '200.00',
+                'net_amount' => '17955.90',
+            ]);
+
+            $payroll = Payroll::findOrFail($response->json('id'));
+
+            $this->assertSame('SSS', data_get($payroll->employee_contributions, 'sss.label'));
+            $this->assertSame(125.0, (float) data_get($payroll->employee_contributions, 'sss.total'));
+            $this->assertSame(250.0, (float) data_get($payroll->employer_contributions, 'sss.total'));
+        }
     }
 
-    public function test_philippines_second_half_semi_monthly_payroll_snapshots_government_contributions(): void
+    public function test_philippines_monthly_payroll_deducts_the_full_monthly_contributions(): void
     {
         $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES);
         $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
         $employee = $this->createEmployeeWithRole(
             'staff',
             'Ana Rivera',
-            'semi_monthly',
+            'monthly',
             $this->philippinesContributionProfile()
         );
 
         $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&manual_deductions=200")
-            ->assertOk()
-            ->assertJsonPath('employee_contributions.sss.total', 1025)
-            ->assertJsonPath('employee_contributions.philhealth.total', 500)
-            ->assertJsonPath('employee_contributions.pagibig.total', 200)
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->assertJsonPath('employer_contributions.sss.total', 2080)
-            ->assertJsonPath('employer_contributions.philhealth.total', 500)
-            ->assertJsonPath('employer_contributions.pagibig.total', 200)
-            ->assertJsonPath('employer_contributions_total', 2780)
-            ->assertJsonPath('taxable_earnings', 18275)
-            ->assertJsonPath('withholding_tax', 1259.1)
-            ->assertJsonPath('employee_deductions_total', 3184.1)
-            ->assertJsonPath('net_amount_preview', 16815.9);
-
-        $response = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-16',
-                'period_end' => '2026-03-31',
-                'gross_amount' => 20000,
-                'manual_deductions' => 200,
-                'notes' => 'Second half with statutory deductions.',
-            ])
-            ->assertCreated()
-            ->assertJsonPath('withholding_tax', 1259.1)
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->assertJsonPath('employer_contributions_total', 2780)
-            ->assertJsonPath('employee_deductions_total', 3184.1)
-            ->assertJsonPath('net_amount', 16815.9);
-
-        $payroll = Payroll::findOrFail($response->json('id'));
-
-        $this->assertSame(1725.0, $payroll->employeeContributionsTotal());
-        $this->assertSame(2780.0, $payroll->employerContributionsTotal());
-        $this->assertSame(1000.0, (float) data_get($payroll->employee_contributions, 'sss.lines.regular_ss.amount'));
-        $this->assertSame(25.0, (float) data_get($payroll->employee_contributions, 'sss.lines.mpf.amount'));
-        $this->assertSame(30.0, (float) data_get($payroll->employer_contributions, 'sss.lines.ec.amount'));
-    }
-
-    public function test_philippines_semi_monthly_payroll_posts_contributions_only_to_the_later_payroll_in_the_month(): void
-    {
-        $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES);
-        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole(
-            'staff',
-            'Carlo Dizon',
-            'semi_monthly',
-            $this->philippinesContributionProfile()
-        );
-
-        $firstHalfPayrollId = $this->actingAs($manager)
             ->postJson("/panel/employees/{$employee->id}/payrolls", [
                 'period_start' => '2026-03-01',
-                'period_end' => '2026-03-15',
-                'gross_amount' => 20000,
-                'manual_deductions' => 0,
-            ])
-            ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 0)
-            ->json('id');
-
-        $secondHalfPayrollId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-16',
                 'period_end' => '2026-03-31',
                 'gross_amount' => 20000,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->json('id');
-
-        $firstHalfPayroll = Payroll::findOrFail($firstHalfPayrollId);
-        $secondHalfPayroll = Payroll::findOrFail($secondHalfPayrollId);
-
-        $this->assertSame(0.0, $firstHalfPayroll->employeeContributionsTotal());
-        $this->assertSame(0.0, $firstHalfPayroll->employerContributionsTotal());
-        $this->assertSame(1725.0, $secondHalfPayroll->employeeContributionsTotal());
-        $this->assertSame(2780.0, $secondHalfPayroll->employerContributionsTotal());
+            ->assertJsonPath('employee_contributions.sss.total', 250)
+            ->assertJsonPath('employee_contributions.philhealth.total', 250)
+            ->assertJsonPath('employee_contributions.pagibig.total', 100)
+            ->assertJsonPath('employee_contributions_total', 600)
+            ->assertJsonPath('employer_contributions.sss.total', 500)
+            ->assertJsonPath('employer_contributions_total', 850)
+            ->assertJsonPath('withholding_tax', 0)
+            ->assertJsonPath('employee_deductions_total', 600)
+            ->assertJsonPath('net_amount', 19400);
     }
 
-    public function test_philippines_semi_monthly_contributions_move_to_remaining_draft_when_later_draft_is_cancelled(): void
-    {
-        $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES);
-        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole(
-            'staff',
-            'Nico Santos',
-            'semi_monthly',
-            $this->philippinesContributionProfile()
-        );
-
-        $firstHalfPayrollId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-01',
-                'period_end' => '2026-03-15',
-                'gross_amount' => 20000,
-                'manual_deductions' => 0,
-            ])
-            ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 0)
-            ->json('id');
-
-        $secondHalfPayrollId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-16',
-                'period_end' => '2026-03-31',
-                'gross_amount' => 20000,
-                'manual_deductions' => 0,
-            ])
-            ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->json('id');
-
-        $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls/{$secondHalfPayrollId}/cancel")
-            ->assertOk();
-
-        $firstHalfPayroll = Payroll::findOrFail($firstHalfPayrollId);
-
-        $this->assertSame(Payroll::STATUS_DRAFT, $firstHalfPayroll->status);
-        $this->assertSame(1725.0, $firstHalfPayroll->employeeContributionsTotal());
-        $this->assertSame(2780.0, $firstHalfPayroll->employerContributionsTotal());
-        $this->assertSame(17015.9, (float) $firstHalfPayroll->net_amount);
-
-        $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls/{$firstHalfPayrollId}/approve")
-            ->assertOk()
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->assertJsonPath('employer_contributions_total', 2780)
-            ->assertJsonPath('net_amount', 17015.9);
-    }
-
-    public function test_philippines_replacement_second_half_draft_skips_contributions_when_fallback_payroll_is_finalized(): void
-    {
-        $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES);
-        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole(
-            'staff',
-            'Ramon Cruz',
-            'semi_monthly',
-            $this->philippinesContributionProfile()
-        );
-
-        $firstHalfPayrollId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-01',
-                'period_end' => '2026-03-15',
-                'gross_amount' => 20000,
-                'manual_deductions' => 0,
-            ])
-            ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 0)
-            ->json('id');
-
-        $secondHalfPayrollId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-16',
-                'period_end' => '2026-03-31',
-                'gross_amount' => 20000,
-                'manual_deductions' => 0,
-            ])
-            ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->json('id');
-
-        $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls/{$secondHalfPayrollId}/cancel")
-            ->assertOk();
-
-        $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls/{$firstHalfPayrollId}/approve")
-            ->assertOk()
-            ->assertJsonPath('employee_contributions_total', 1725);
-
-        $replacementPayrollId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-16',
-                'period_end' => '2026-03-31',
-                'gross_amount' => 20000,
-                'manual_deductions' => 0,
-            ])
-            ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 0)
-            ->assertJsonPath('employer_contributions_total', 0)
-            ->json('id');
-
-        $firstHalfPayroll = Payroll::findOrFail($firstHalfPayrollId);
-        $replacementPayroll = Payroll::findOrFail($replacementPayrollId);
-
-        $this->assertSame(Payroll::STATUS_APPROVED, $firstHalfPayroll->status);
-        $this->assertSame(1725.0, $firstHalfPayroll->employeeContributionsTotal());
-        $this->assertSame(2780.0, $firstHalfPayroll->employerContributionsTotal());
-        $this->assertSame(0.0, $replacementPayroll->employeeContributionsTotal());
-        $this->assertSame(0.0, $replacementPayroll->employerContributionsTotal());
-    }
-
-    public function test_philippines_monthly_contribution_resync_does_not_recalculate_finalized_payrolls(): void
+    public function test_changing_contribution_amounts_does_not_recalculate_approved_payrolls(): void
     {
         $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES);
         $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
@@ -299,13 +132,13 @@ class EmployeePayrollTaxTest extends TestCase
 
         $approvedPayrollId = $this->actingAs($manager)
             ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-16',
-                'period_end' => '2026-03-31',
+                'period_start' => '2026-03-01',
+                'period_end' => '2026-03-15',
                 'gross_amount' => 20000,
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 1725)
+            ->assertJsonPath('employee_contributions_total', 300)
             ->json('id');
 
         $approvedPayroll = Payroll::findOrFail($approvedPayrollId);
@@ -316,9 +149,8 @@ class EmployeePayrollTaxTest extends TestCase
         ]);
 
         $employee->employeeProfile()->update([
-            'sss_monthly_compensation' => 10000,
-            'philhealth_monthly_basic_salary' => 10000,
-            'pagibig_monthly_compensation' => 10000,
+            'sss_employee_share' => 500,
+            'sss_employer_share' => 1000,
         ]);
         $employee->unsetRelation('employeeProfile');
 
@@ -330,62 +162,16 @@ class EmployeePayrollTaxTest extends TestCase
                 'manual_deductions' => 0,
             ])
             ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 0);
+            ->assertJsonPath('employee_contributions.sss.total', 250)
+            ->assertJsonPath('employee_contributions_total', 425)
+            ->assertJsonPath('employer_contributions_total', 675);
 
         $approvedPayroll->refresh();
 
         $this->assertSame(Payroll::STATUS_APPROVED, $approvedPayroll->status);
-        $this->assertSame(1725.0, $approvedPayroll->employeeContributionsTotal());
-        $this->assertSame(2780.0, $approvedPayroll->employerContributionsTotal());
-        $this->assertSame(17015.9, (float) $approvedPayroll->net_amount);
-    }
-
-    public function test_philippines_same_day_draft_payrolls_allocate_contributions_to_the_latest_draft(): void
-    {
-        $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES);
-        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
-        $employee = $this->createEmployeeWithRole(
-            'staff',
-            'Dina Reyes',
-            'semi_monthly',
-            $this->philippinesContributionProfile()
-        );
-
-        $firstPayrollId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-16',
-                'period_end' => '2026-03-31',
-                'gross_amount' => 20000,
-                'manual_deductions' => 0,
-            ])
-            ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->json('id');
-
-        $this->actingAs($manager)
-            ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&manual_deductions=0")
-            ->assertOk()
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->assertJsonPath('employer_contributions_total', 2780);
-
-        $secondPayrollId = $this->actingAs($manager)
-            ->postJson("/panel/employees/{$employee->id}/payrolls", [
-                'period_start' => '2026-03-16',
-                'period_end' => '2026-03-31',
-                'gross_amount' => 20000,
-                'manual_deductions' => 0,
-            ])
-            ->assertCreated()
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->json('id');
-
-        $firstPayroll = Payroll::findOrFail($firstPayrollId);
-        $secondPayroll = Payroll::findOrFail($secondPayrollId);
-
-        $this->assertSame(0.0, $firstPayroll->employeeContributionsTotal());
-        $this->assertSame(0.0, $firstPayroll->employerContributionsTotal());
-        $this->assertSame(1725.0, $secondPayroll->employeeContributionsTotal());
-        $this->assertSame(2780.0, $secondPayroll->employerContributionsTotal());
+        $this->assertSame(300.0, $approvedPayroll->employeeContributionsTotal());
+        $this->assertSame(425.0, $approvedPayroll->employerContributionsTotal());
+        $this->assertSame(18155.9, (float) $approvedPayroll->net_amount);
     }
 
     public function test_philippines_monthly_payroll_uses_monthly_withholding_tax_table(): void
@@ -432,9 +218,9 @@ class EmployeePayrollTaxTest extends TestCase
             ->getJson("/panel/employees/{$employee->id}/payrolls/suggest?period_start=2026-03-16&period_end=2026-03-31&gross_amount=20000&manual_deductions=200")
             ->assertOk()
             ->assertJsonPath('withholding_tax', 0)
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->assertJsonPath('employee_deductions_total', 1925)
-            ->assertJsonPath('net_amount_preview', 18075);
+            ->assertJsonPath('employee_contributions_total', 300)
+            ->assertJsonPath('employee_deductions_total', 500)
+            ->assertJsonPath('net_amount_preview', 19500);
     }
 
     public function test_business_toggle_can_disable_government_contributions(): void
@@ -515,7 +301,7 @@ class EmployeePayrollTaxTest extends TestCase
     public function test_updating_business_toggles_does_not_recalculate_existing_approved_payroll_snapshots(): void
     {
         $profile = $this->setBusinessProfile('Naga', BusinessProfile::COUNTRY_PHILIPPINES);
-        $manager = $this->createEmployeeWithRole('manager', 'Payroll Manager');
+        $manager = $this->createEmployeeWithRole('admin', 'Payroll Admin'); // business settings are admin-only
         $employee = $this->createEmployeeWithRole(
             'staff',
             'Noel Santos',
@@ -531,9 +317,9 @@ class EmployeePayrollTaxTest extends TestCase
                 'manual_deductions' => 200,
             ])
             ->assertCreated()
-            ->assertJsonPath('withholding_tax', 1259.1)
-            ->assertJsonPath('employee_contributions_total', 1725)
-            ->assertJsonPath('employer_contributions_total', 2780)
+            ->assertJsonPath('withholding_tax', 1544.1)
+            ->assertJsonPath('employee_contributions_total', 300)
+            ->assertJsonPath('employer_contributions_total', 425)
             ->json('id');
 
         $payroll = Payroll::findOrFail($payrollId);
@@ -566,10 +352,10 @@ class EmployeePayrollTaxTest extends TestCase
         $payroll->refresh();
 
         $this->assertSame(Payroll::STATUS_APPROVED, $payroll->status);
-        $this->assertSame(1259.1, (float) $payroll->withholding_tax);
-        $this->assertSame(1725.0, $payroll->employeeContributionsTotal());
-        $this->assertSame(2780.0, $payroll->employerContributionsTotal());
-        $this->assertSame(16815.9, (float) $payroll->net_amount);
+        $this->assertSame(1544.1, (float) $payroll->withholding_tax);
+        $this->assertSame(300.0, $payroll->employeeContributionsTotal());
+        $this->assertSame(425.0, $payroll->employerContributionsTotal());
+        $this->assertSame(17955.9, (float) $payroll->net_amount);
     }
 
     public function test_payroll_snapshots_the_employee_pay_frequency(): void
@@ -627,17 +413,16 @@ class EmployeePayrollTaxTest extends TestCase
     }
 
     /**
-     * @return array<string, mixed>
+     * Covered on all programs; the factory supplies the legal-minimum amounts.
+     *
+     * @return array<string, bool>
      */
     private function philippinesContributionProfile(): array
     {
         return [
             'sss_covered' => true,
-            'sss_monthly_compensation' => 20250,
             'philhealth_covered' => true,
-            'philhealth_monthly_basic_salary' => 20000,
             'pagibig_covered' => true,
-            'pagibig_monthly_compensation' => 20000,
         ];
     }
 }

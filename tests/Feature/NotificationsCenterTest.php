@@ -36,7 +36,6 @@ class NotificationsCenterTest extends TestCase
             'manager',
             'staff',
             'member',
-            'employee',
             'coach',
         ];
 
@@ -49,7 +48,6 @@ class NotificationsCenterTest extends TestCase
         Role::findByName('super admin')->givePermissionTo($permission);
         Role::findByName('admin')->givePermissionTo($permission);
         Role::findByName('manager')->givePermissionTo($permission);
-        Role::findByName('staff')->givePermissionTo($permission);
 
         CashDrawerSession::factory()->create(['opened_at' => '2026-01-01 08:00:00']);
     }
@@ -121,7 +119,7 @@ class NotificationsCenterTest extends TestCase
         $managerA = $this->createUserWithRole('manager', 'Manager Mia');
         $managerB = $this->createUserWithRole('manager', 'Manager Ben');
         $staff = $this->createUserWithRole('staff', 'Staff Sol');
-        $employee = $this->createUserWithRole('employee', 'Employee Eli');
+        $employee = $this->createUserWithRole('staff', 'Employee Eli');
 
         $payroll = Payroll::create([
             'employee_id' => $employee->id,
@@ -235,7 +233,7 @@ class NotificationsCenterTest extends TestCase
             'low_stock_threshold' => 5,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->postJson('/panel/sales', [
                 'type' => 'inventory',
                 'items' => [
@@ -343,7 +341,7 @@ class NotificationsCenterTest extends TestCase
             'status' => MemberPtPackage::STATUS_ACTIVE,
         ]);
 
-        $this->actingAs($staff)
+        $this->actingAs($managerA)
             ->postJson("/panel/members/{$member->id}/pt-session-usages", [
                 'member_pt_package_id' => $package->id,
                 'sessions_used' => 2,
@@ -357,7 +355,7 @@ class NotificationsCenterTest extends TestCase
         $this->assertSame(['pt-package-running-low'], $this->notificationTypesFor($managerB));
         $this->assertSame([], $this->notificationTypesFor($staff));
 
-        $this->actingAs($staff)
+        $this->actingAs($managerA)
             ->postJson("/panel/members/{$member->id}/pt-session-usages", [
                 'member_pt_package_id' => $package->id,
                 'sessions_used' => 1,

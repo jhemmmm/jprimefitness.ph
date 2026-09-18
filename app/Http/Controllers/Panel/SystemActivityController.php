@@ -21,13 +21,7 @@ class SystemActivityController extends Controller
      */
     public function __construct(
         private SystemActivityService $systemActivityService,
-    ) {
-        $this->middleware(function (Request $request, \Closure $next) {
-            abort_unless($this->systemActivityService->canViewSystemActivity($request->user()), 403);
-
-            return $next($request);
-        });
-    }
+    ) {}
 
     /**
      * Display the system activity page.

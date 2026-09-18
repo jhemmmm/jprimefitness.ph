@@ -46,6 +46,18 @@ class Attendance extends Model
         return $this->checked_out_at !== null;
     }
 
+    /**
+     * Minutes between check-in and check-out; null while still checked in.
+     */
+    public function workedMinutes(): ?int
+    {
+        if (! $this->checked_in_at || ! $this->checked_out_at) {
+            return null;
+        }
+
+        return (int) floor(max(0, $this->checked_in_at->diffInMinutes($this->checked_out_at)));
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);

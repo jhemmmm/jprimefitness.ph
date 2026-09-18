@@ -55,80 +55,14 @@ class EmployeePayslipTest extends TestCase
             'gross_amount' => 20000,
             'withholding_tax' => 1323.10,
             'employee_contributions' => [
-                'sss' => [
-                    'label' => 'SSS',
-                    'total' => 1025,
-                    'lines' => [
-                        'regular_ss' => [
-                            'label' => 'Regular SS',
-                            'amount' => 1000,
-                        ],
-                        'mpf' => [
-                            'label' => 'MPF',
-                            'amount' => 25,
-                        ],
-                    ],
-                ],
-                'philhealth' => [
-                    'label' => 'PhilHealth',
-                    'total' => 500,
-                    'lines' => [
-                        'premium' => [
-                            'label' => 'Premium',
-                            'amount' => 500,
-                        ],
-                    ],
-                ],
-                'pagibig' => [
-                    'label' => 'Pag-IBIG',
-                    'total' => 200,
-                    'lines' => [
-                        'premium' => [
-                            'label' => 'Premium',
-                            'amount' => 200,
-                        ],
-                    ],
-                ],
+                'sss' => ['label' => 'SSS', 'total' => 125],
+                'philhealth' => ['label' => 'PhilHealth', 'total' => 125],
+                'pagibig' => ['label' => 'Pag-IBIG', 'total' => 50],
             ],
             'employer_contributions' => [
-                'sss' => [
-                    'label' => 'SSS',
-                    'total' => 2080,
-                    'lines' => [
-                        'regular_ss' => [
-                            'label' => 'Regular SS',
-                            'amount' => 2000,
-                        ],
-                        'mpf' => [
-                            'label' => 'MPF',
-                            'amount' => 50,
-                        ],
-                        'ec' => [
-                            'label' => "Employees' Compensation",
-                            'amount' => 30,
-                        ],
-                    ],
-                ],
-                'philhealth' => [
-                    'label' => 'PhilHealth',
-                    'total' => 500,
-                    'lines' => [
-                        'premium' => [
-                            'label' => 'Premium',
-                            'amount' => 500,
-                        ],
-                    ],
-                ],
-                'pagibig' => [
-                    'label' => 'Pag-IBIG',
-                    'total' => 200,
-                    'lines' => [
-                        'premium' => [
-                            'label' => 'Premium',
-                            'amount' => 200,
-                        ],
-                    ],
-                ],
+                'sss' => ['label' => 'SSS', 'total' => 250],
+                'philhealth' => ['label' => 'PhilHealth', 'total' => 125],
+                'pagibig' => ['label' => 'Pag-IBIG', 'total' => 50],
             ],
             'manual_deductions' => 100,
             'net_amount' => 17351.90,
@@ -169,12 +103,14 @@ class EmployeePayslipTest extends TestCase
         $this->assertStringContainsString('Overwork pay', $html);
         $this->assertStringContainsString('Manual gross adjustment', $html);
         $this->assertStringContainsString('Withholding tax', $html);
-        $this->assertStringContainsString('Employee government contributions', $html);
-        $this->assertStringContainsString('SSS - Regular SS', $html);
-        $this->assertStringContainsString('Employer Contributions', $html);
-        $this->assertStringContainsString('Total employer contributions', $html);
+        $this->assertStringContainsString('SSS contribution', $html);
+        $this->assertStringContainsString('PhilHealth contribution', $html);
+        $this->assertStringContainsString('Pag-IBIG contribution', $html);
+        $this->assertStringNotContainsString('Employee government contributions', $html);
+        $this->assertStringNotContainsString('Employer Contributions', $html);
         $this->assertStringContainsString('1,323.10', $html);
-        $this->assertStringContainsString('2,780.00', $html);
+        $this->assertStringContainsString('125.00', $html);
+        $this->assertStringNotContainsString('425.00', $html);
         $this->assertStringContainsString('JPrime Fitness Naga', $html);
 
         Pdf::assertRespondedWithPdf(function ($pdf) use ($employee, $payroll) {
@@ -184,8 +120,8 @@ class EmployeePayslipTest extends TestCase
             $this->assertSame('Includes holiday payout.', $pdf->viewData['payroll']->notes);
             $this->assertSame(1323.1, (float) $pdf->viewData['payroll']->withholding_tax);
             $this->assertSame(17351.9, (float) $pdf->viewData['payroll']->net_amount);
-            $this->assertSame(1725.0, $pdf->viewData['payroll']->employeeContributionsTotal());
-            $this->assertSame(2780.0, $pdf->viewData['payroll']->employerContributionsTotal());
+            $this->assertSame(300.0, $pdf->viewData['payroll']->employeeContributionsTotal());
+            $this->assertSame(425.0, $pdf->viewData['payroll']->employerContributionsTotal());
             $this->assertSame('Payroll Manager', $pdf->viewData['payroll']->generatedBy?->name);
 
             return true;

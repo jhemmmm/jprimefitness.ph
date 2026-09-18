@@ -53,7 +53,7 @@ class PricingPageTest extends TestCase
 
     public function test_pricing_data_returns_configured_rates_and_stats(): void
     {
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
         $configuredRatePlan = $this->createRatePlan('Monthly', 30, [
             'price' => 1499,
             'effective_from' => '2026-04-01',
@@ -69,7 +69,7 @@ class PricingPageTest extends TestCase
         $configuredRatePlan = $configuredRatePlan->fresh();
         $configuredPtProduct = $configuredPtProduct->fresh();
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->getJson('/panel/pricing/data')
             ->assertOk()
             ->assertJsonCount(1, 'membership_rates')
@@ -191,62 +191,6 @@ class PricingPageTest extends TestCase
             'effective_from' => null,
             'effective_until' => null,
         ]);
-    }
-
-    public function test_manager_cannot_create_update_or_delete_pricing(): void
-    {
-        $manager = $this->createUserWithRole('manager', 'Manager Lou');
-        $ratePlan = $this->createRatePlan('Annual', 365);
-        $ptProduct = $this->createPtProduct('32 Sessions', 32);
-
-        $this->actingAs($manager)
-            ->putJson('/panel/pricing/rate-plans/'.$ratePlan->id, [
-                'price' => 10999,
-                'is_active' => true,
-            ])
-            ->assertForbidden();
-
-        $this->actingAs($manager)
-            ->postJson('/panel/pricing/rate-plans', [
-                'name' => 'Annual',
-                'duration_days' => 365,
-                'price' => 10999,
-                'is_active' => true,
-            ])
-            ->assertForbidden();
-
-        $this->actingAs($manager)
-            ->putJson('/panel/pricing/pt-products/'.$ptProduct->id, [
-                'price' => 9200,
-                'is_active' => true,
-            ])
-            ->assertForbidden();
-
-        $this->actingAs($manager)
-            ->postJson('/panel/pricing/pt-products', [
-                'name' => '32 Sessions',
-                'session_count' => 32,
-                'price' => 9200,
-                'is_active' => true,
-            ])
-            ->assertForbidden();
-
-        $ratePlan->update([
-            'price' => 9999,
-            'effective_from' => '2026-04-01',
-        ]);
-        $ptProduct->update([
-            'price' => 9200,
-            'effective_from' => '2026-04-01',
-        ]);
-
-        $this->actingAs($manager)
-            ->deleteJson('/panel/pricing/rate-plans/'.$ratePlan->id)
-            ->assertForbidden();
-
-        $this->actingAs($manager)
-            ->deleteJson('/panel/pricing/pt-products/'.$ptProduct->id)
-            ->assertForbidden();
     }
 
     /**

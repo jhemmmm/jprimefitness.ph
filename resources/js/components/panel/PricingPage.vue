@@ -27,7 +27,7 @@
       <div class="panel-card mb-4">
          <div class="panel-card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
             <span class="panel-card-title">Membership Rates</span>
-            <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreateMembershipModal">
+            <button class="btn btn-danger btn-sm px-3" @click="openCreateMembershipModal">
                <i class="bi bi-plus-lg me-1"></i>
                Add Membership Rate
             </button>
@@ -67,7 +67,7 @@
                            <div>Until: {{ formatDate(rate.effective_until) }}</div>
                         </td>
                         <td>
-                           <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
+                           <div class="d-flex gap-1 justify-content-end">
                               <button class="btn btn-sm btn-outline-secondary" @click="openEditMembershipModal(rate)"><i class="bi bi-pencil tbl-icon"></i></button>
                               <button class="btn btn-sm btn-outline-danger" @click="confirmDelete('membership', rate)"><i class="bi bi-trash tbl-icon"></i></button>
                            </div>
@@ -86,7 +86,7 @@
                            <div class="member-card-sub">{{ rate.description || "No description" }}</div>
                         </div>
                      </div>
-                     <div class="dropdown" v-if="canManagePricing">
+                     <div class="dropdown">
                         <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
                            <i class="bi bi-three-dots-vertical"></i>
                         </button>
@@ -123,7 +123,7 @@
       <div class="panel-card">
          <div class="panel-card-header d-flex justify-content-between align-items-center flex-wrap gap-3">
             <span class="panel-card-title">PT Rates</span>
-            <button class="btn btn-danger btn-sm px-3" v-if="canManagePricing" @click="openCreatePtModal">
+            <button class="btn btn-danger btn-sm px-3" @click="openCreatePtModal">
                <i class="bi bi-plus-lg me-1"></i>
                Add PT Rate
             </button>
@@ -163,7 +163,7 @@
                            <div>Until: {{ formatDate(rate.effective_until) }}</div>
                         </td>
                         <td>
-                           <div class="d-flex gap-1 justify-content-end" v-if="canManagePricing">
+                           <div class="d-flex gap-1 justify-content-end">
                               <button class="btn btn-sm btn-outline-secondary" @click="openEditPtModal(rate)"><i class="bi bi-pencil tbl-icon"></i></button>
                               <button class="btn btn-sm btn-outline-danger" @click="confirmDelete('pt', rate)"><i class="bi bi-trash tbl-icon"></i></button>
                            </div>
@@ -182,7 +182,7 @@
                            <div class="member-card-sub">{{ rate.description || rate.category || "No description" }}</div>
                         </div>
                      </div>
-                     <div class="dropdown" v-if="canManagePricing">
+                     <div class="dropdown">
                         <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
                            <i class="bi bi-three-dots-vertical"></i>
                         </button>
@@ -354,12 +354,6 @@ import { Modal } from "bootstrap";
 import { formatDate } from "../../dates";
 
 export default {
-   props: {
-      canManagePricing: {
-         type: Boolean,
-         default: false,
-      },
-   },
    data: function () {
       return {
          loading: true,

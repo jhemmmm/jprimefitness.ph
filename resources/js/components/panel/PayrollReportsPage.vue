@@ -360,6 +360,7 @@
                               <th>Frequency</th>
                               <th>Status</th>
                               <th>Gross</th>
+                              <th>Gov't Contributions</th>
                               <th>Net</th>
                               <th>Paid Out To Date</th>
                               <th>Outstanding To Date</th>
@@ -377,6 +378,7 @@
                                  <span :class="['m-badge', $filters.statusBadge(payroll.status)]">{{ payroll.status_label }}</span>
                               </td>
                               <td>₱{{ $filters.formatMoney(payroll.gross_amount) }}</td>
+                              <td class="text-warning">₱{{ $filters.formatMoney(payroll.employee_contributions_total) }}</td>
                               <td class="fw-semibold">₱{{ $filters.formatMoney(payroll.net_amount) }}</td>
                               <td class="text-success">₱{{ $filters.formatMoney(payroll.total_paid) }}</td>
                               <td :class="payroll.outstanding_balance > 0 ? 'text-danger' : 'text-success'">
@@ -401,6 +403,7 @@
                         <div class="small text-muted mb-2" v-if="payroll.approved_by_name">Approved by {{ payroll.approved_by_name }}</div>
                         <div class="member-card-footer flex-column align-items-start gap-1">
                            <span>Gross: ₱{{ $filters.formatMoney(payroll.gross_amount) }}</span>
+                           <span>Gov't contributions: ₱{{ $filters.formatMoney(payroll.employee_contributions_total) }}</span>
                            <span>Net: ₱{{ $filters.formatMoney(payroll.net_amount) }}</span>
                            <span>Paid Out To Date: ₱{{ $filters.formatMoney(payroll.total_paid) }}</span>
                            <span :class="payroll.outstanding_balance > 0 ? 'text-danger' : 'text-success'">

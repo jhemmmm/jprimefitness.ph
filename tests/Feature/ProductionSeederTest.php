@@ -7,6 +7,7 @@ use App\Models\PTProduct;
 use App\Models\RatePlan;
 use App\Models\User;
 use Database\Seeders\ProductionSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -58,8 +59,8 @@ class ProductionSeederTest extends TestCase
         $this->assertSame(1, User::query()->count());
         $this->assertSame(1, User::query()->where('email', 'owner@example.com')->count());
         $this->assertSame(1, BusinessProfile::query()->count());
-        $this->assertSame(7, Role::query()->count());
-        $this->assertSame(2, Permission::query()->count());
+        $this->assertSame(count(RoleSeeder::MATRIX), Role::query()->count());
+        $this->assertSame(count(RoleSeeder::PERMISSIONS), Permission::query()->count());
 
         $this->assertDatabaseHas('permissions', ['name' => 'access panel']);
         $this->assertDatabaseHas('permissions', ['name' => 'manage employees']);

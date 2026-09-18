@@ -29,7 +29,7 @@
       </div>
 
       <ul class="nav nav-tabs mb-0" style="border-bottom: none">
-         <li class="nav-item" v-for="tab in tabs" :key="tab.key">
+         <li class="nav-item" v-for="tab in visibleTabs" :key="tab.key">
             <button class="nav-link" :class="{ active: activeTab === tab.key }" @click="activeTab = tab.key"><i class="bi me-1" :class="tab.icon"></i>{{ tab.label }}</button>
          </li>
       </ul>
@@ -76,6 +76,13 @@ export default {
    },
 
    computed: {
+      visibleTabs: function () {
+         return this.tabs.filter((tab) => {
+            if (tab.key === "attendance") return this.can("manage attendance");
+            if (tab.key === "settings") return this.can("edit members");
+            return true;
+         });
+      },
       activeComponent: function () {
          return {
             information: "MemberInformationPage",

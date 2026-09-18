@@ -69,7 +69,8 @@ class AppServiceProvider extends ServiceProvider
             $businessProfile = BusinessProfile::current();
             $ratePlans = RatePlan::where('is_active', true)->get();
             $ptProducts = PTProduct::where('is_active', true)->get();
-            $roles = Role::all();
+            // Assignable panel roles; `member` is never assigned from the employees UI.
+            $roles = Role::query()->where('name', '!=', 'member')->get();
 
             $view->with(compact('businessProfile', 'ratePlans', 'ptProducts', 'roles'));
         });

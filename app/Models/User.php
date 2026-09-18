@@ -40,6 +40,12 @@ class User extends Authenticatable
     public const STATUS_SUSPENDED = 'suspended';
 
     /**
+     * Roles listed on the Employees page / global search.
+     * `super admin` and `member` are intentionally excluded (matches existing behaviour).
+     */
+    public const EMPLOYEE_ROLES = ['admin', 'manager', 'cashier', 'staff', 'coach'];
+
+    /**
      * Whether the user holds a management role (super admin, admin, or manager).
      */
     public function isManagement(): bool

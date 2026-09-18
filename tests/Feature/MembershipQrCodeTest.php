@@ -44,12 +44,12 @@ class MembershipQrCodeTest extends TestCase
     {
         Mail::fake();
 
-        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
         $member = $this->createUserWithRole('member', 'Member Mia');
         $member->update(['email' => 'mia@example.com']);
         $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1499]);
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($manager)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_MEMBERSHIP,
                 'member_id' => $member->id,
@@ -79,12 +79,12 @@ class MembershipQrCodeTest extends TestCase
     {
         Mail::fake();
 
-        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
         $member = $this->createUserWithRole('member', 'Member No Email');
         $member->update(['email' => null]);
         $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1499]);
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_MEMBERSHIP,
                 'member_id' => $member->id,
@@ -109,10 +109,10 @@ class MembershipQrCodeTest extends TestCase
     {
         Mail::fake();
 
-        $staff = $this->createUserWithRole('manager', 'Manager Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
         $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1499]);
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($manager)
             ->postJson('/panel/members', [
                 'name' => 'Member Lina',
                 'email' => 'lina@example.com',
@@ -137,12 +137,12 @@ class MembershipQrCodeTest extends TestCase
     {
         Mail::fake();
 
-        $staff = $this->createUserWithRole('manager', 'Manager Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
         $member = $this->createUserWithRole('member', 'Member Rene');
         $member->update(['email' => 'rene@example.com']);
         $ratePlan = $this->createRatePlan('Quarterly', 90, ['price' => 3999]);
 
-        $response = $this->actingAs($staff)
+        $response = $this->actingAs($manager)
             ->putJson("/panel/members/{$member->id}/membership", [
                 'rate_plan_id' => $ratePlan->id,
                 'start_date' => '2026-05-01',
@@ -162,11 +162,11 @@ class MembershipQrCodeTest extends TestCase
     {
         Mail::fake();
 
-        $staff = $this->createUserWithRole('staff', 'Staff Ben');
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
         $member = $this->createUserWithRole('member', 'Member Mia');
         $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1499]);
 
-        $transactionId = $this->actingAs($staff)
+        $transactionId = $this->actingAs($manager)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_MEMBERSHIP,
                 'member_id' => $member->id,
@@ -182,13 +182,13 @@ class MembershipQrCodeTest extends TestCase
         $transaction = SaleTransaction::findOrFail($transactionId);
         $subscription = MemberSubscription::findOrFail(data_get($transaction->details, 'subscription_id'));
 
-        $memberQr = $this->actingAs($staff)
+        $memberQr = $this->actingAs($manager)
             ->getJson(route('panel.members.memberships.qr', [$member, $subscription]))
             ->assertOk()
             ->assertJsonPath('membership_id', $subscription->id)
             ->json();
 
-        $saleQr = $this->actingAs($staff)
+        $saleQr = $this->actingAs($manager)
             ->getJson(route('panel.sales.membership-qr', $transaction))
             ->assertOk()
             ->assertJsonPath('membership_id', $subscription->id)

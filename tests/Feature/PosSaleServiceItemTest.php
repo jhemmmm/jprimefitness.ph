@@ -190,7 +190,7 @@ class PosSaleServiceItemTest extends TestCase
             'status' => User::STATUS_ACTIVE,
         ]);
 
-        $user->assignRole('staff');
+        $user->assignRole('manager');
 
         return $user;
     }

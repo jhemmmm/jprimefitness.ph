@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class CashAdvance extends Model
 {
@@ -40,6 +42,49 @@ class CashAdvance extends Model
         'paid_at' => 'datetime',
         'voided_at' => 'datetime',
     ];
+
+    /**
+     * Validation rules for how an advance is handed over (shared by manual
+     * recording and request approval).
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    public static function releaseRules(): array
+    {
+        return [
+            'method' => ['required', Rule::in([self::METHOD_CASH, self::METHOD_GCASH, self::METHOD_ONLINE_PAYMENT])],
+            'reference_number' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:500'],
+            'paid_at' => ['nullable', 'date'],
+        ];
+    }
+
+    /**
+     * @param  array{method: string, reference_number?: ?string, notes?: ?string, paid_at?: ?string}  $data
+     */
+    public static function release(User $employee, float|string $amount, array $data): self
+    {
+        return self::create([
+            'employee_id' => $employee->id,
+            'amount' => $amount,
+            'method' => $data['method'],
+            'reference_number' => $data['reference_number'] ?? null,
+            'released_by' => auth()->id(),
+            'notes' => $data['notes'] ?? null,
+            'paid_at' => $data['paid_at'] ?? now(),
+        ]);
+    }
+
+    /**
+     * Sum of unpaid, non-voided balances for an employee.
+     */
+    public static function outstandingFor(User $employee): float
+    {
+        return round((float) self::query()
+            ->where('employee_id', $employee->id)
+            ->outstanding()
+            ->sum(DB::raw('amount - repaid_amount')), 2);
+    }
 
     public function employee(): BelongsTo
     {

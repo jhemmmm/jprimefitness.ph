@@ -32,7 +32,6 @@ class DashboardPageTest extends TestCase
         Role::findOrCreate('admin');
         Role::findOrCreate('manager');
         Role::findOrCreate('staff');
-        Role::findOrCreate('employee');
         Role::findOrCreate('member');
         Role::findOrCreate('coach');
     }
@@ -44,12 +43,12 @@ class DashboardPageTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_dashboard_page_loads_for_panel_users(): void
+    public function test_dashboard_page_loads_for_management_users(): void
     {
         $this->setBusinessProfile('Naga');
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
 
-        $this->actingAs($staff)
+        $this->actingAs($manager)
             ->get('/panel/dashboard')
             ->assertOk()
             ->assertSee('dashboard-page', false)
@@ -244,43 +243,15 @@ class DashboardPageTest extends TestCase
         $response->assertJsonPath('pending_payrolls.0.outstanding_balance', 1000);
     }
 
-    public function test_dashboard_hides_financial_widgets_for_staff_roles(): void
+    public function test_dashboard_data_is_forbidden_for_self_service_roles(): void
     {
         $this->setBusinessProfile('Naga');
-        $staff = $this->createUserWithRole('staff', 'Staff Ana');
 
-        Attendance::create([
-            'attendee_type' => Attendance::TYPE_MEMBER,
-            'name' => 'Today Naga',
-            'checked_in_at' => '2026-04-15 08:00:00',
-            'checked_out_at' => null,
-            'recorded_by' => $staff->id,
-        ]);
-
-        Attendance::create([
-            'attendee_type' => Attendance::TYPE_WALK_IN,
-            'name' => 'Today Guest',
-            'checked_in_at' => '2026-04-15 10:00:00',
-            'checked_out_at' => '2026-04-15 11:00:00',
-            'recorded_by' => $staff->id,
-        ]);
-
-        $response = $this->actingAs($staff)
-            ->getJson('/panel/dashboard/data')
-            ->assertOk();
-
-        $payload = $response->json();
-
-        $response->assertJsonPath('permissions.can_view_financial_data', false);
-        $response->assertJsonPath('stats_row_1.check_ins_today', 2);
-        $response->assertJsonPath('operations.current_occupancy', 1);
-        $response->assertJsonMissingPath('location_load');
-
-        $this->assertArrayNotHasKey('pending_payrolls', $payload);
-        $this->assertArrayNotHasKey('revenue_today', $payload['stats_row_1']);
-        $this->assertArrayNotHasKey('revenue_this_month', $payload['stats_row_1']);
-        $this->assertArrayNotHasKey('pending_payroll_balance', $payload['stats_row_2']);
-        $this->assertSame(['Today Guest', 'Today Naga'], collect($payload['check_ins_today'])->pluck('name')->all());
+        foreach (['staff', 'coach'] as $role) {
+            $this->actingAs($this->createUserWithRole($role, ucfirst($role).' Ana'))
+                ->getJson('/panel/dashboard/data')
+                ->assertForbidden();
+        }
     }
 
     private function setBusinessProfile(string $name): BusinessProfile
