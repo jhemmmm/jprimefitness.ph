@@ -158,6 +158,11 @@ class SaleTransaction extends Model
         return (string) $reference;
     }
 
+    public static function typeLabel(?string $type): string
+    {
+        return str((string) $type)->replace('_', ' ')->title()->toString();
+    }
+
     public static function paymentMethodLabel(?string $paymentMethod): string
     {
         return match ($paymentMethod) {

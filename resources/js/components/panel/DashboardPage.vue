@@ -136,7 +136,10 @@
                               <tr v-for="row in dashboard.check_ins_today" :key="row.id" v-else>
                                  <td>{{ row.name }}</td>
                                  <td>
-                                    <span :class="['m-badge', $filters.roleBadge(row.attendee_type)]">{{ row.attendee_type_label }}</span>
+                                    <div class="d-flex gap-1 flex-wrap">
+                                       <span v-for="role in row.roles" :key="role" :class="['m-badge', $filters.roleBadge(role)]">{{ $filters.capitalize(role) }}</span>
+                                       <span v-if="!row.roles.length" :class="['m-badge', $filters.roleBadge(row.attendee_type)]">{{ row.attendee_type_label }}</span>
+                                    </div>
                                  </td>
                                  <td>{{ row.plan_or_rate }}</td>
                                  <td>{{ formatTime(row.checked_in_at) }}</td>
@@ -158,7 +161,10 @@
                                     <div class="member-card-sub">{{ row.plan_or_rate }}</div>
                                  </div>
                               </div>
-                              <span :class="['m-badge', $filters.roleBadge(row.attendee_type)]">{{ row.attendee_type_label }}</span>
+                              <div class="d-flex gap-1 flex-wrap justify-content-end">
+                                 <span v-for="role in row.roles" :key="role" :class="['m-badge', $filters.roleBadge(role)]">{{ $filters.capitalize(role) }}</span>
+                                 <span v-if="!row.roles.length" :class="['m-badge', $filters.roleBadge(row.attendee_type)]">{{ row.attendee_type_label }}</span>
+                              </div>
                            </div>
                            <div class="member-card-footer">
                               <span>Time In</span>

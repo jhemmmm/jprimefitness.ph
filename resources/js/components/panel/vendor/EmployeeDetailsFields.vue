@@ -11,7 +11,7 @@
    </div>
    <div class="col-md-6">
       <label :class="labelClass">Date Hired</label>
-      <input type="date" class="form-control" :class="{ 'is-invalid': errors['employee_profile.hired_at'] }" v-model="form.employee_profile.hired_at" />
+      <input type="date" class="form-control" :class="{ 'is-invalid': errors['employee_profile.hired_at'] }" v-model="form.employee_profile.hired_at" :disabled="hiredReadonly" />
       <div class="invalid-feedback" v-if="errors['employee_profile.hired_at']">{{ errors["employee_profile.hired_at"][0] }}</div>
    </div>
    <div class="col-md-6">
@@ -34,6 +34,8 @@ export default {
       form: { type: Object, required: true },
       errors: { type: Object, default: () => ({}) },
       labelClass: { type: String, default: "form-label fw-semibold" },
+      // employees may edit their own details on the profile page, but not when they were hired
+      hiredReadonly: { type: Boolean, default: false },
    },
 };
 </script>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\Attendance;
+use App\Support\ReportExport;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -35,76 +36,39 @@ class AttendanceReportsController extends Controller
     }
 
     /**
-     * Export the attendance report as CSV.
-     *
-     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     * Download the attendance report as an Excel workbook.
      */
     public function export(Request $request): StreamedResponse
     {
         $report = $this->reportPayload($request, false);
-        $dateSuffix = now()->format('Ymd_His');
-        $fileName = "attendance-report-{$dateSuffix}.csv";
 
-        return response()->streamDownload(function () use ($report): void {
-            $handle = fopen('php://output', 'w');
-
-            if ($handle === false) {
-                return;
-            }
-
-            fputcsv($handle, ['Attendance Reports']);
-            fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '-']);
-            fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '-']);
-            fputcsv($handle, ['Attendee Type', $report['filters']['type_label'] ?: 'All Types']);
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Summary']);
-            fputcsv($handle, ['Metric', 'Value']);
-            fputcsv($handle, ['Total Check-ins', $report['summary']['total_check_ins']]);
-            fputcsv($handle, ['Unique Attendees', $report['summary']['unique_attendees']]);
-            fputcsv($handle, ['Checked Out', $report['summary']['checked_out_count']]);
-            fputcsv($handle, ['Currently In', $report['summary']['currently_in_count']]);
-            fputcsv($handle, ['Average Visit Minutes', $report['summary']['average_visit_minutes']]);
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Attendance by Type']);
-            fputcsv($handle, ['Type', 'Check-ins', 'Unique Attendees', 'Currently In']);
-            foreach ($report['type_breakdown'] as $row) {
-                fputcsv($handle, [$row['label'], $row['check_in_count'], $row['unique_attendees'], $row['currently_in_count']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Daily Trend']);
-            fputcsv($handle, ['Date', 'Check-ins', 'Unique Attendees']);
-            foreach ($report['daily_trend'] as $row) {
-                fputcsv($handle, [$row['attendance_date'], $row['check_in_count'], $row['unique_attendees']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Busiest Hours']);
-            fputcsv($handle, ['Hour', 'Check-ins']);
-            foreach ($report['busiest_hours'] as $row) {
-                fputcsv($handle, [$row['label'], $row['check_in_count']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Attendance Records']);
-            fputcsv($handle, ['Name', 'Type', 'Checked In', 'Checked Out', 'Duration Minutes', 'Status']);
-            foreach ($report['records'] as $row) {
-                fputcsv($handle, [
+        return (new ReportExport(
+            'Attendance Report',
+            [
+                'Period' => ReportExport::period($report['filters']['date_from'], $report['filters']['date_to']),
+                'Attendee Type' => $report['filters']['type_label'] ?: 'All Types',
+            ],
+            [
+                'Total Check-ins' => $report['summary']['total_check_ins'],
+                'Unique Attendees' => $report['summary']['unique_attendees'],
+                'Checked Out' => $report['summary']['checked_out_count'],
+                'Currently In' => $report['summary']['currently_in_count'],
+                'Average Visit Minutes' => $report['summary']['average_visit_minutes'],
+            ],
+            [
+                ['Attendance by Type', ['Type', 'Check-ins', 'Unique Attendees', 'Currently In'], collect($report['type_breakdown'])->map(fn ($row) => [$row['label'], $row['check_in_count'], $row['unique_attendees'], $row['currently_in_count']])],
+                ['Daily Trend', ['Date', 'Check-ins', 'Unique Attendees'], collect($report['daily_trend'])->map(fn ($row) => [$row['attendance_date'], $row['check_in_count'], $row['unique_attendees']])],
+                ['Busiest Hours', ['Hour', 'Check-ins'], collect($report['busiest_hours'])->map(fn ($row) => [$row['label'], $row['check_in_count']])],
+                ['Attendance Records', ['Name', 'Type', 'Checked In', 'Checked Out', 'Duration Minutes', 'Status'], collect($report['records'])->map(fn ($row) => [
                     $row['name'],
                     $row['attendee_type_label'],
                     $row['checked_in_at'],
                     $row['checked_out_at'],
                     $row['duration_minutes'],
                     $row['is_currently_in'] ? 'Currently In' : 'Checked Out',
-                ]);
-            }
-
-            fclose($handle);
-        }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+                ])],
+            ],
+        ))->download();
     }
 
     /**
@@ -291,8 +255,8 @@ class AttendanceReportsController extends Controller
             'name' => $attendance->name,
             'attendee_type' => $attendance->attendee_type,
             'attendee_type_label' => $this->typeLabel($attendance->attendee_type),
-            'checked_in_at' => $attendance->checked_in_at?->toISOString(),
-            'checked_out_at' => $attendance->checked_out_at?->toISOString(),
+            'checked_in_at' => $attendance->checked_in_at,
+            'checked_out_at' => $attendance->checked_out_at,
             'duration_minutes' => $this->durationMinutes($attendance),
             'is_currently_in' => $attendance->checked_out_at === null,
         ];

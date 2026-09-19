@@ -236,6 +236,10 @@ class DashboardPageTest extends TestCase
         $response->assertJsonMissingPath('location_status');
         $response->assertJsonPath('check_ins_today.0.name', 'Walk-in Pia');
         $response->assertJsonPath('check_ins_today.0.plan_or_rate', 'Walk-in');
+        // employees show their roles as badges and nothing under Plan / Rate
+        $coachRow = collect($response->json('check_ins_today'))->firstWhere('name', 'Coach Joy');
+        $this->assertSame(['coach'], $coachRow['roles']);
+        $this->assertSame('', $coachRow['plan_or_rate']);
         $response->assertJsonPath('recent_members.0.name', 'Member Lea');
         $response->assertJsonPath('recent_sales.0.item_name', 'Monthly Membership');
         $response->assertJsonPath('expiring_memberships.0.member_name', 'Member Lea');

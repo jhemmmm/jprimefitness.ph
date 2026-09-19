@@ -188,7 +188,7 @@ class SalesReportsPageTest extends TestCase
         }
     }
 
-    public function test_sales_reports_can_be_exported_to_csv(): void
+    public function test_sales_reports_can_be_exported_to_xlsx(): void
     {
         $this->setBusinessProfile('Naga');
         $manager = $this->createUserWithRole('manager', 'Manager Ana');
@@ -220,20 +220,24 @@ class SalesReportsPageTest extends TestCase
             'sold_at' => '2026-01-05 09:00:00',
         ]);
 
+        $this->freezeTime();
         $response = $this->actingAs($manager)
             ->get('/panel/reports/sales/export');
 
         $response->assertOk();
-        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
-        $content = $response->streamedContent();
+        $response->assertDownload('sales-report-'.now()->format('Ymd_His').'.xlsx');
+        $content = $this->xlsxText($response);
 
-        $this->assertStringContainsString('Sales Reports', $content);
+        $this->assertStringContainsString('Sales Report', $content);
         $this->assertStringContainsString('Summary', $content);
         $this->assertStringContainsString('Sales by Type', $content);
         $this->assertStringContainsString('Transactions', $content);
         $this->assertStringContainsString('Bottled Water', $content);
         $this->assertStringContainsString('Old Member', $content);
         $this->assertStringNotContainsString('Location Totals', $content);
+        $this->assertStringContainsString('Naga', $content);
+        $this->assertStringContainsString('2,050.00', $content); // total sales, formatted
+        $this->assertStringContainsString('Mar 05, 2026 09:00 AM', $content); // local time, not UTC
     }
 
     private function setBusinessProfile(string $name): BusinessProfile

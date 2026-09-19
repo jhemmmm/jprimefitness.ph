@@ -160,7 +160,7 @@ class AttendanceReportsPageTest extends TestCase
             ->assertJsonPath('records.data.0.name', 'Old Attendee');
     }
 
-    public function test_attendance_reports_can_be_exported_to_csv(): void
+    public function test_attendance_reports_can_be_exported_to_xlsx(): void
     {
         $this->setBusinessProfile('Naga');
         $manager = $this->createUserWithRole('manager', 'Manager Ana');
@@ -181,20 +181,23 @@ class AttendanceReportsPageTest extends TestCase
             'recorded_by' => $manager->id,
         ]);
 
+        $this->freezeTime();
         $response = $this->actingAs($manager)
             ->get('/panel/reports/attendance/export');
 
         $response->assertOk();
-        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
-        $content = $response->streamedContent();
+        $response->assertDownload('attendance-report-'.now()->format('Ymd_His').'.xlsx');
+        $content = $this->xlsxText($response);
 
-        $this->assertStringContainsString('Attendance Reports', $content);
+        $this->assertStringContainsString('Attendance Report', $content);
         $this->assertStringContainsString('Summary', $content);
         $this->assertStringContainsString('Attendance by Type', $content);
         $this->assertStringContainsString('Attendance Records', $content);
         $this->assertStringContainsString('Member Joy', $content);
         $this->assertStringContainsString('Old Walk-in', $content);
         $this->assertStringNotContainsString('Location Totals', $content);
+        $this->assertStringContainsString('Naga', $content);
+        $this->assertStringContainsString('Mar 05, 2026 08:00 AM', $content); // local time, not UTC
     }
 
     private function setBusinessProfile(string $name): BusinessProfile

@@ -127,7 +127,7 @@ class EmployeeController extends Controller
             'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             'employee_profile.pagibig_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             ...$this->contributionShareRules(),
-            ...$this->personRules(),
+            ...self::personRules(),
             'password' => ['required', 'string', Password::defaults()],
         ]);
         $data['employee_profile'] = $this->normalizeEmployeeProfileAttributes(
@@ -187,7 +187,7 @@ class EmployeeController extends Controller
             'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             'employee_profile.pagibig_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             ...$this->contributionShareRules(),
-            ...$this->personRules($employee),
+            ...self::personRules($employee),
             'password' => ['nullable', 'string', Password::defaults()],
         ]);
         $data['employee_profile'] = $this->normalizeEmployeeProfileAttributes(
@@ -1174,13 +1174,13 @@ class EmployeeController extends Controller
     }
 
     /**
-     * Contact and EmployeeProfile::DETAIL_COLUMNS rules shared by store() and update().
+     * Contact and EmployeeProfile::DETAIL_COLUMNS rules shared by store(), update() and ProfileController.
      * Phone, DOB and emergency contact are required for new employees; an existing employee
      * may leave a still-blank one empty but can't clear one that is set.
      *
      * @return array<string, array<int, mixed>>
      */
-    private function personRules(?User $employee = null): array
+    public static function personRules(?User $employee = null): array
     {
         $profile = $employee?->employeeProfile;
         $presence = fn (mixed $current) => $employee && $current === null ? 'nullable' : 'required';

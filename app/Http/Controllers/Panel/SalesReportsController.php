@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Panel;
 
 use App\Http\Controllers\Controller;
 use App\Models\SaleTransaction;
+use App\Support\ReportExport;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
@@ -38,88 +39,45 @@ class SalesReportsController extends Controller
     }
 
     /**
-     * Export the sales report as CSV.
-     *
-     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     * Download the sales report as an Excel workbook.
      */
     public function export(Request $request): StreamedResponse
     {
         $report = $this->reportPayload($request, false);
-        $dateSuffix = now()->format('Ymd_His');
-        $fileName = "sales-report-{$dateSuffix}.csv";
 
-        return response()->streamDownload(function () use ($report): void {
-            $handle = fopen('php://output', 'w');
+        $typeLabels = ! empty($report['filters']['type'])
+            ? collect($report['filters']['type'])->map(SaleTransaction::typeLabel(...))->implode(', ')
+            : 'All Types';
 
-            if ($handle === false) {
-                return;
-            }
-
-            $typeLabels = ! empty($report['filters']['type'])
-                ? collect($report['filters']['type'])->map(fn (string $type) => str($type)->replace('_', ' ')->title()->toString())->implode(', ')
-                : 'All Types';
-
-            fputcsv($handle, ['Sales Reports']);
-            fputcsv($handle, ['Date From', $report['filters']['date_from'] ?: '-']);
-            fputcsv($handle, ['Date To', $report['filters']['date_to'] ?: '-']);
-            fputcsv($handle, ['Sale Type', $typeLabels]);
-            fputcsv($handle, ['Payment Method', $report['filters']['payment_method_label'] ?: 'All Methods']);
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Summary']);
-            fputcsv($handle, ['Metric', 'Value']);
-            fputcsv($handle, ['Total Sales', $report['summary']['total_sales']]);
-            fputcsv($handle, ['Transactions', $report['summary']['transaction_count']]);
-            fputcsv($handle, ['Average Sale', $report['summary']['average_sale']]);
-            fputcsv($handle, ['Cash Collected', $report['summary']['cash_sales']]);
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Sales by Type']);
-            fputcsv($handle, ['Type', 'Transactions', 'Total Sales']);
-            foreach ($report['type_breakdown'] as $row) {
-                fputcsv($handle, [$row['label'], $row['transaction_count'], $row['total_sales']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Payment Methods']);
-            fputcsv($handle, ['Method', 'Transactions', 'Total Sales']);
-            foreach ($report['payment_breakdown'] as $row) {
-                fputcsv($handle, [$row['label'], $row['transaction_count'], $row['total_sales']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Daily Sales Trend']);
-            fputcsv($handle, ['Date', 'Transactions', 'Total Sales']);
-            foreach ($report['daily_trend'] as $row) {
-                fputcsv($handle, [$row['sale_date'], $row['transaction_count'], $row['total_sales']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Top Items']);
-            fputcsv($handle, ['Item', 'Type', 'Quantity', 'Total Sales']);
-            foreach ($report['top_items'] as $row) {
-                fputcsv($handle, [$row['name'], $row['type'], $row['quantity'], $row['total_sales']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Transactions']);
-            fputcsv($handle, ['Customer', 'Item', 'Type', 'Payment Method', 'Total', 'Processed By', 'Sold At']);
-            foreach ($report['transactions'] as $row) {
-                fputcsv($handle, [
+        return (new ReportExport(
+            'Sales Report',
+            [
+                'Period' => ReportExport::period($report['filters']['date_from'], $report['filters']['date_to']),
+                'Sale Type' => $typeLabels,
+                'Payment Method' => $report['filters']['payment_method_label'] ?: 'All Methods',
+            ],
+            [
+                'Total Sales' => $report['summary']['total_sales'],
+                'Transactions' => $report['summary']['transaction_count'],
+                'Average Sale' => $report['summary']['average_sale'],
+                'Cash Collected' => $report['summary']['cash_sales'],
+            ],
+            [
+                ['Sales by Type', ['Type', 'Transactions', 'Total Sales'], collect($report['type_breakdown'])->map(fn ($row) => [$row['label'], $row['transaction_count'], $row['total_sales']])],
+                ['Payment Methods', ['Method', 'Transactions', 'Total Sales'], collect($report['payment_breakdown'])->map(fn ($row) => [$row['label'], $row['transaction_count'], $row['total_sales']])],
+                ['Daily Sales Trend', ['Date', 'Transactions', 'Total Sales'], collect($report['daily_trend'])->map(fn ($row) => [$row['sale_date'], $row['transaction_count'], $row['total_sales']])],
+                ['Top Items', ['Item', 'Type', 'Quantity', 'Total Sales'], collect($report['top_items'])->map(fn ($row) => [$row['name'], SaleTransaction::typeLabel($row['type']), $row['quantity'], $row['total_sales']])],
+                ['Transactions', ['Customer', 'Item', 'Type', 'Payment Method', 'Total', 'Processed By', 'Sold At'], collect($report['transactions'])->map(fn ($row) => [
                     $row['customer_name'],
                     $row['item_name'],
-                    $row['type'],
+                    SaleTransaction::typeLabel($row['type']),
                     $row['payment_method_label'],
                     $row['total'],
                     $row['processed_by'],
                     $row['sold_at'],
-                ]);
-            }
-
-            fclose($handle);
-        }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+                ])],
+            ],
+        ))->download();
     }
 
     /**
@@ -225,7 +183,7 @@ class SalesReportsController extends Controller
 
             return [
                 'type' => $type,
-                'label' => str($type)->replace('_', ' ')->title()->toString(),
+                'label' => SaleTransaction::typeLabel($type),
                 'transaction_count' => (int) ($row->transaction_count ?? 0),
                 'total_sales' => round((float) ($row->total_sales ?? 0), 2),
             ];
@@ -377,7 +335,7 @@ class SalesReportsController extends Controller
             'payment_method_label' => SaleTransaction::paymentMethodLabel($transaction->payment_method),
             'total' => round((float) $transaction->total, 2),
             'processed_by' => $transaction->processedBy?->name,
-            'sold_at' => $transaction->sold_at?->toISOString(),
+            'sold_at' => $transaction->sold_at,
         ];
     }
 }

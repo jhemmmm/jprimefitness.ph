@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Panel;
 use App\Http\Controllers\Controller;
 use App\Models\Payout;
 use App\Models\Payroll;
+use App\Support\ReportExport;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -35,76 +36,37 @@ class PayrollReportsController extends Controller
     }
 
     /**
-     * Export the payroll report as CSV.
-     *
-     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     * Download the payroll report as an Excel workbook.
      */
     public function export(Request $request): StreamedResponse
     {
         $report = $this->reportPayload($request, false);
-        $dateSuffix = now()->format('Ymd_His');
-        $fileName = "payroll-report-{$dateSuffix}.csv";
 
-        return response()->streamDownload(function () use ($report): void {
-            $handle = fopen('php://output', 'w');
-
-            if ($handle === false) {
-                return;
-            }
-
-            fputcsv($handle, ['Payroll Reports']);
-            fputcsv($handle, ['Period End From', $report['filters']['date_from'] ?: '-']);
-            fputcsv($handle, ['Period End To', $report['filters']['date_to'] ?: '-']);
-            fputcsv($handle, ['Status', $report['filters']['status_label'] ?: 'All Active Statuses']);
-            fputcsv($handle, ['Pay Frequency', $report['filters']['pay_frequency_label'] ?: 'All Frequencies']);
-            fputcsv($handle, ['Payout Scope', 'Current payout progress for payrolls ending within the selected period']);
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Summary']);
-            fputcsv($handle, ['Metric', 'Value']);
-            fputcsv($handle, ['Payroll Runs', $report['summary']['payroll_count']]);
-            fputcsv($handle, ['Gross Payroll', $report['summary']['gross_payroll']]);
-            fputcsv($handle, ['Withholding Tax', $report['summary']['withholding_tax']]);
-            fputcsv($handle, ['Employee Government Contributions', $report['summary']['employee_government_contributions']]);
-            fputcsv($handle, ['Employer Government Contributions', $report['summary']['employer_government_contributions']]);
-            fputcsv($handle, ['Total Deductions', $report['summary']['total_deductions']]);
-            fputcsv($handle, ['Net Payroll', $report['summary']['net_payroll']]);
-            fputcsv($handle, ['Paid Out To Date', $report['summary']['total_paid']]);
-            fputcsv($handle, ['Outstanding Balance To Date', $report['summary']['outstanding_balance']]);
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Status Breakdown']);
-            fputcsv($handle, ['Status', 'Payroll Runs', 'Net Payroll']);
-            foreach ($report['status_breakdown'] as $row) {
-                fputcsv($handle, [$row['label'], $row['payroll_count'], $row['net_payroll']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Pay Frequency Breakdown']);
-            fputcsv($handle, ['Frequency', 'Payroll Runs', 'Net Payroll']);
-            foreach ($report['pay_frequency_breakdown'] as $row) {
-                fputcsv($handle, [$row['label'], $row['payroll_count'], $row['net_payroll']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Payout Methods for Selected Payrolls']);
-            fputcsv($handle, ['Method', 'Payouts', 'Total Paid']);
-            foreach ($report['payout_method_breakdown'] as $row) {
-                fputcsv($handle, [$row['label'], $row['payout_count'], $row['total_paid']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Payroll Trend']);
-            fputcsv($handle, ['Period End', 'Payroll Runs', 'Net Payroll']);
-            foreach ($report['payroll_trend'] as $row) {
-                fputcsv($handle, [$row['period_end'], $row['payroll_count'], $row['net_payroll']]);
-            }
-            fputcsv($handle, []);
-
-            fputcsv($handle, ['Payroll Runs']);
-            fputcsv($handle, ['Employee', 'Period', 'Pay Frequency', 'Status', 'Gross', "Gov't Contributions", 'Net', 'Paid Out', 'Outstanding', 'Approved By']);
-            foreach ($report['payrolls'] as $row) {
-                fputcsv($handle, [
+        return (new ReportExport(
+            'Payroll Report',
+            [
+                'Period End' => ReportExport::period($report['filters']['date_from'], $report['filters']['date_to']),
+                'Status' => $report['filters']['status_label'] ?: 'All Active Statuses',
+                'Pay Frequency' => $report['filters']['pay_frequency_label'] ?: 'All Frequencies',
+                'Payout Scope' => 'Payouts to date for payrolls ending in the period',
+            ],
+            [
+                'Payroll Runs' => $report['summary']['payroll_count'],
+                'Gross Payroll' => $report['summary']['gross_payroll'],
+                'Withholding Tax' => $report['summary']['withholding_tax'],
+                'Employee Government Contributions' => $report['summary']['employee_government_contributions'],
+                'Employer Government Contributions' => $report['summary']['employer_government_contributions'],
+                'Total Deductions' => $report['summary']['total_deductions'],
+                'Net Payroll' => $report['summary']['net_payroll'],
+                'Paid Out To Date' => $report['summary']['total_paid'],
+                'Outstanding Balance To Date' => $report['summary']['outstanding_balance'],
+            ],
+            [
+                ['Status Breakdown', ['Status', 'Payroll Runs', 'Net Payroll'], collect($report['status_breakdown'])->map(fn ($row) => [$row['label'], $row['payroll_count'], $row['net_payroll']])],
+                ['Pay Frequency Breakdown', ['Frequency', 'Payroll Runs', 'Net Payroll'], collect($report['pay_frequency_breakdown'])->map(fn ($row) => [$row['label'], $row['payroll_count'], $row['net_payroll']])],
+                ['Payout Methods', ['Method', 'Payouts', 'Total Paid'], collect($report['payout_method_breakdown'])->map(fn ($row) => [$row['label'], $row['payout_count'], $row['total_paid']])],
+                ['Payroll Trend', ['Period End', 'Payroll Runs', 'Net Payroll'], collect($report['payroll_trend'])->map(fn ($row) => [$row['period_end'], $row['payroll_count'], $row['net_payroll']])],
+                ['Payroll Runs', ['Employee', 'Period', 'Pay Frequency', 'Status', 'Gross', "Gov't Contributions", 'Net', 'Paid Out', 'Outstanding', 'Approved By'], collect($report['payrolls'])->map(fn ($row) => [
                     $row['employee_name'],
                     $row['period_label'],
                     $row['pay_frequency_label'],
@@ -115,13 +77,9 @@ class PayrollReportsController extends Controller
                     $row['total_paid'],
                     $row['outstanding_balance'],
                     $row['approved_by_name'],
-                ]);
-            }
-
-            fclose($handle);
-        }, $fileName, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+                ])],
+            ],
+        ))->download();
     }
 
     /**

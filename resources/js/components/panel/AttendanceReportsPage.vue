@@ -56,8 +56,8 @@
                   Refresh
                </button>
                <a class="btn btn-outline-dark btn-sm px-3" :href="exportUrl">
-                  <i class="bi bi-download me-1"></i>
-                  Export CSV
+                  <i class="bi bi-file-earmark-excel me-1"></i>
+                  Export Excel
                </a>
             </div>
 

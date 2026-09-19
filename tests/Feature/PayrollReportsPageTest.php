@@ -300,7 +300,7 @@ class PayrollReportsPageTest extends TestCase
             ->assertJsonPath('payrolls.data.0.period_end', '2026-01-15');
     }
 
-    public function test_payroll_reports_can_be_exported_to_csv(): void
+    public function test_payroll_reports_can_be_exported_to_xlsx(): void
     {
         $this->setBusinessProfile('Naga');
         $manager = $this->createUserWithRole('manager', 'Payroll Manager');
@@ -364,15 +364,16 @@ class PayrollReportsPageTest extends TestCase
             'approved_at' => '2026-01-16 09:00:00',
         ]);
 
+        $this->freezeTime();
         $response = $this->actingAs($manager)
             ->get('/panel/reports/payroll/export');
 
         $response->assertOk();
-        $response->assertHeader('content-type', 'text/csv; charset=UTF-8');
-        $content = $response->streamedContent();
+        $response->assertDownload('payroll-report-'.now()->format('Ymd_His').'.xlsx');
+        $content = $this->xlsxText($response);
 
-        $this->assertStringContainsString('Payroll Reports', $content);
-        $this->assertStringContainsString('Period End From', $content);
+        $this->assertStringContainsString('Payroll Report', $content);
+        $this->assertStringContainsString('Period End', $content);
         $this->assertStringContainsString('Payout Scope', $content);
         $this->assertStringContainsString('Summary', $content);
         $this->assertStringContainsString('Withholding Tax', $content);
@@ -384,6 +385,7 @@ class PayrollReportsPageTest extends TestCase
         $this->assertStringContainsString('Juan Dela Cruz', $content);
         $this->assertStringContainsString('2026-01-01 – 2026-01-15', $content);
         $this->assertStringNotContainsString('Location Totals', $content);
+        $this->assertStringContainsString('Naga', $content);
     }
 
     public function test_payroll_reports_forbid_staff_access(): void

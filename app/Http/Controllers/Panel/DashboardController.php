@@ -205,20 +205,20 @@ class DashboardController extends Controller
             ->get()
             ->map(function (Attendance $attendance): array {
                 $membership = $this->loadedCurrentMembership($attendance->user);
-                $employeeRole = $attendance->user?->roles
-                    ? $attendance->user->roles->pluck('name')->filter()->implode(', ')
-                    : null;
 
                 return [
                     'id' => $attendance->id,
                     'name' => $attendance->name,
                     'attendee_type' => $attendance->attendee_type,
                     'attendee_type_label' => $this->attendanceTypeLabel($attendance->attendee_type),
+                    // an employee's roles render as badges in place of the type; nothing goes in Plan / Rate
+                    'roles' => $attendance->attendee_type === Attendance::TYPE_EMPLOYEE
+                        ? ($attendance->user?->roles->pluck('name')->all() ?? [])
+                        : [],
                     'plan_or_rate' => match ($attendance->attendee_type) {
                         Attendance::TYPE_MEMBER => $membership?->ratePlan?->name ?? 'Membership',
                         Attendance::TYPE_WALK_IN => 'Walk-in',
-                        Attendance::TYPE_EMPLOYEE => $employeeRole ?: 'Employee',
-                        default => '-',
+                        default => '',
                     },
                     'checked_in_at' => $attendance->checked_in_at?->toISOString(),
                 ];

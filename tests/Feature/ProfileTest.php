@@ -43,7 +43,7 @@ class ProfileTest extends TestCase
             ->assertOk()
             ->assertSee('<profile-page', false)
             ->assertSee('ana@example.com', false)
-            // employee details are shown read-only on the profile page
+            // employee details are editable on the profile page
             ->assertSee('12 Rizal St, Naga City', false)
             ->assertSee('123-456-789-000', false)
             ->assertSee('Next of Kin', false)
@@ -55,6 +55,7 @@ class ProfileTest extends TestCase
         // Blank password fields are exactly what ProfilePage.vue submits on a plain profile save.
         $this->actingAs($this->user)
             ->putJson('/panel/profile', [
+                ...$this->details(),
                 'name' => 'Ana Reyes',
                 'phone' => '09171234567',
                 'email' => 'hacker@example.com',
@@ -71,13 +72,16 @@ class ProfileTest extends TestCase
             'name' => 'Ana Reyes',
             'phone' => '09171234567',
             'email' => 'ana@example.com',
+            'address' => '12 Rizal St, Naga City', // omitted from the request, must survive
         ]);
+        $this->assertDatabaseHas('employee_profiles', ['user_id' => $this->user->id, 'tin' => '123-456-789-000']);
     }
 
     public function test_password_change_requires_the_correct_current_password(): void
     {
         $this->actingAs($this->user)
             ->putJson('/panel/profile', [
+                ...$this->details(),
                 'name' => 'Staff Ana',
                 'password' => 'new-secret-1',
                 'password_confirmation' => 'new-secret-1',
@@ -87,6 +91,7 @@ class ProfileTest extends TestCase
 
         $this->actingAs($this->user)
             ->putJson('/panel/profile', [
+                ...$this->details(),
                 'name' => 'Staff Ana',
                 'current_password' => 'wrong',
                 'password' => 'new-secret-1',
@@ -99,6 +104,7 @@ class ProfileTest extends TestCase
 
         $this->actingAs($this->user)
             ->putJson('/panel/profile', [
+                ...$this->details(),
                 'name' => 'Staff Ana',
                 'phone' => '09171234567',
                 'current_password' => 'old-secret',
@@ -110,10 +116,57 @@ class ProfileTest extends TestCase
         $this->assertTrue(Hash::check('New-secret-1', $this->user->fresh()->password));
     }
 
+    public function test_employee_can_update_their_own_details_but_not_the_hire_date(): void
+    {
+        $this->actingAs($this->user)
+            ->putJson('/panel/profile', [
+                'name' => 'Staff Ana',
+                'phone' => '09170000000',
+                'address' => '7 Mabini St, Naga City',
+                'employee_profile' => [
+                    'date_of_birth' => '1992-03-04',
+                    'emergency_contact_name' => 'Kin Ana',
+                    'emergency_contact_phone' => '09170000001',
+                    'tin' => '987-654-321-000',
+                    'sss_number' => '34-7654321-8',
+                    'hired_at' => '2020-01-01', // ignored: managers set this
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonPath('address', '7 Mabini St, Naga City')
+            ->assertJsonPath('employee_profile.tin', '987-654-321-000')
+            ->assertJsonPath('employee_profile.hired_at', '2026-01-15');
+
+        $this->assertDatabaseHas('employee_profiles', [
+            'user_id' => $this->user->id,
+            'emergency_contact_name' => 'Kin Ana',
+            'sss_number' => '34-7654321-8',
+        ]);
+        $this->assertSame('1992-03-04', $this->user->employeeProfile->fresh()->date_of_birth->toDateString());
+
+        // once set, the mandatory details can't be cleared
+        $this->actingAs($this->user)
+            ->putJson('/panel/profile', ['name' => 'Staff Ana', 'phone' => '09170000000', 'employee_profile' => ['date_of_birth' => null]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['employee_profile.date_of_birth', 'employee_profile.emergency_contact_name']);
+    }
+
+    /**
+     * What the profile page always submits alongside the account fields: the
+     * details already on file (required once set).
+     *
+     * @return array<string, mixed>
+     */
+    private function details(): array
+    {
+        return ['employee_profile' => ['emergency_contact_name' => 'Next of Kin']];
+    }
+
     public function test_new_password_needs_an_uppercase_letter_and_a_symbol(): void
     {
         $this->actingAs($this->user)
             ->putJson('/panel/profile', [
+                ...$this->details(),
                 'name' => 'Staff Ana',
                 'phone' => '09171234567',
                 'current_password' => 'old-secret',
