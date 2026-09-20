@@ -111,19 +111,19 @@
                   </thead>
                   <tbody>
                      <tr v-for="index in 6" :key="'activity-sk-' + index">
-                        <td><div class="skeleton-box" style="width: 132px; height: 12px; border-radius: 4px"></div></td>
+                        <td><div class="skeleton-box" style="width: 132px; height: 12px"></div></td>
                         <td><div class="skeleton-box" style="width: 88px; height: 22px; border-radius: 999px"></div></td>
                         <td>
-                           <div class="skeleton-box mb-1" style="width: 160px; height: 14px; border-radius: 4px"></div>
-                           <div class="skeleton-box" style="width: 84px; height: 11px; border-radius: 4px"></div>
+                           <div class="skeleton-box mb-1" style="width: 160px; height: 14px"></div>
+                           <div class="skeleton-box" style="width: 84px; height: 11px"></div>
                         </td>
                         <td>
-                           <div class="skeleton-box mb-1" style="width: 180px; height: 14px; border-radius: 4px"></div>
-                           <div class="skeleton-box mb-1" style="width: 240px; height: 11px; border-radius: 4px"></div>
-                           <div class="skeleton-box" style="width: 160px; height: 11px; border-radius: 4px"></div>
+                           <div class="skeleton-box mb-1" style="width: 180px; height: 14px"></div>
+                           <div class="skeleton-box mb-1" style="width: 240px; height: 11px"></div>
+                           <div class="skeleton-box" style="width: 160px; height: 11px"></div>
                         </td>
-                        <td><div class="skeleton-box" style="width: 96px; height: 12px; border-radius: 4px"></div></td>
-                        <td><div class="skeleton-box ms-auto" style="width: 58px; height: 32px; border-radius: 6px"></div></td>
+                        <td><div class="skeleton-box" style="width: 96px; height: 12px"></div></td>
+                        <td><div class="skeleton-box ms-auto" style="width: 58px; height: 32px"></div></td>
                      </tr>
                   </tbody>
                </table>
@@ -133,8 +133,8 @@
                <div class="member-card" v-for="index in 4" :key="'activity-mobile-sk-' + index">
                   <div class="member-card-top">
                      <div>
-                        <div class="skeleton-box mb-1" style="width: 150px; height: 14px; border-radius: 4px"></div>
-                        <div class="skeleton-box" style="width: 118px; height: 11px; border-radius: 4px"></div>
+                        <div class="skeleton-box mb-1" style="width: 150px; height: 14px"></div>
+                        <div class="skeleton-box" style="width: 118px; height: 11px"></div>
                      </div>
                      <div class="skeleton-box" style="width: 90px; height: 22px; border-radius: 999px"></div>
                   </div>
@@ -142,12 +142,12 @@
                      <div class="skeleton-box" style="width: 96px; height: 22px; border-radius: 999px"></div>
                      <div class="skeleton-box" style="width: 112px; height: 22px; border-radius: 999px"></div>
                   </div>
-                  <div class="skeleton-box mb-1" style="width: 170px; height: 12px; border-radius: 4px"></div>
-                  <div class="skeleton-box mb-1" style="width: 100%; height: 11px; border-radius: 4px"></div>
-                  <div class="skeleton-box" style="width: 78%; height: 11px; border-radius: 4px"></div>
+                  <div class="skeleton-box mb-1" style="width: 170px; height: 12px"></div>
+                  <div class="skeleton-box mb-1" style="width: 100%; height: 11px"></div>
+                  <div class="skeleton-box" style="width: 78%; height: 11px"></div>
                   <div class="member-card-footer mt-3">
-                     <div class="skeleton-box" style="width: 90px; height: 12px; border-radius: 4px"></div>
-                     <div class="skeleton-box" style="width: 64px; height: 12px; border-radius: 4px"></div>
+                     <div class="skeleton-box" style="width: 90px; height: 12px"></div>
+                     <div class="skeleton-box" style="width: 64px; height: 12px"></div>
                   </div>
                </div>
             </div>
@@ -630,7 +630,7 @@ export default {
             "d-inline-flex",
             "align-items-center",
             "gap-1",
-            this.sort.by === column ? "text-dark fw-semibold" : "text-muted",
+            this.sort.by === column ? "text-body-emphasis fw-semibold" : "text-muted",
          ];
       },
 

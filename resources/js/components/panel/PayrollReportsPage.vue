@@ -86,13 +86,13 @@
          <div class="row g-3 mb-4">
             <div class="col-12 col-md-6 col-xl-3" v-for="stat in statCards" :key="stat.label">
                <div class="stat-card h-100">
-                  <div class="stat-card-icon" :class="stat.iconBg">
-                     <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+                  <div class="stat-card-icon">
+                     <i class="bi" :class="stat.icon"></i>
                   </div>
                   <div class="stat-card-body">
                      <div class="stat-card-label">{{ stat.label }}</div>
                      <div class="stat-card-value" v-if="loading">
-                        <div class="skeleton-box" style="width: 88px; height: 18px; border-radius: 5px"></div>
+                        <div class="skeleton-box" style="width: 88px; height: 18px"></div>
                      </div>
                      <div class="stat-card-value" v-else :class="stat.valueClass">
                         {{ stat.value }}
@@ -113,7 +113,7 @@
                      </div>
                   </div>
                   <div class="panel-card-body chart-wrapper">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 6" :key="'chart-trend-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 6" :key="'chart-trend-sk-' + index"></div>
                   </div>
                </div>
                <div v-else-if="report.payroll_trend.length === 0" class="panel-card h-100">
@@ -140,7 +140,7 @@
                      </div>
                   </div>
                   <div class="panel-card-body chart-wrapper chart-wrapper-pie d-flex flex-column justify-content-center">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 5" :key="'chart-status-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 5" :key="'chart-status-sk-' + index"></div>
                   </div>
                </div>
                <div v-else-if="chartStatusBreakdown.length === 0" class="panel-card h-100">
@@ -167,7 +167,7 @@
                   </div>
                   <div class="p-3 p-md-4">
                      <div v-if="loading">
-                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 4" :key="'status-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="height: 18px" v-for="index in 4" :key="'status-sk-' + index"></div>
                      </div>
                      <div v-else-if="report.status_breakdown.length === 0" class="text-center py-4 text-muted">
                         <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
@@ -201,7 +201,7 @@
                   </div>
                   <div class="p-3 p-md-4">
                      <div v-if="loading">
-                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 2" :key="'frequency-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="height: 18px" v-for="index in 2" :key="'frequency-sk-' + index"></div>
                      </div>
                      <div v-else-if="report.pay_frequency_breakdown.length === 0" class="text-center py-4 text-muted">
                         <i class="bi bi-calendar-week fs-1 d-block mb-2 opacity-25"></i>
@@ -240,7 +240,7 @@
                   </div>
                   <div class="p-3 p-md-4">
                      <div v-if="loading">
-                        <div class="skeleton-box mb-2" style="height: 18px; border-radius: 4px" v-for="index in 3" :key="'method-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="height: 18px" v-for="index in 3" :key="'method-sk-' + index"></div>
                      </div>
                      <div v-else-if="report.payout_method_breakdown.length === 0" class="text-center py-4 text-muted">
                         <i class="bi bi-cash-stack fs-1 d-block mb-2 opacity-25"></i>
@@ -277,7 +277,7 @@
                   <div class="panel-card-body p-0">
                      <div v-if="loading">
                         <div class="p-3">
-                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 5" :key="'trend-sk-' + index"></div>
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 5" :key="'trend-sk-' + index"></div>
                         </div>
                      </div>
                      <div v-else-if="report.payroll_trend.length === 0" class="text-center py-5 text-muted">
@@ -333,14 +333,14 @@
             <div class="panel-card-body p-0">
                <div v-if="loading">
                   <div class="p-3 d-none d-md-block">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'recent-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 6" :key="'recent-sk-' + index"></div>
                   </div>
                   <div class="d-md-none p-3">
                      <div class="member-card" v-for="index in 4" :key="'recent-mobile-sk-' + index">
                         <div class="member-card-top">
                            <div>
-                              <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                              <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                              <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                            </div>
                         </div>
                      </div>
@@ -549,8 +549,6 @@ export default {
                value: `${this.report.summary.payroll_count}`,
                sub: this.currentPayrollScopeLabel(),
                icon: "bi-receipt",
-               iconBg: "bg-secondary-soft",
-               iconColor: "text-secondary",
                valueClass: "",
             },
             {
@@ -558,8 +556,6 @@ export default {
                value: this.formatCurrencyLabel(this.report.summary.gross_payroll),
                sub: "Base wages in scope",
                icon: "bi-cash-stack",
-               iconBg: "bg-primary-soft",
-               iconColor: "text-primary",
                valueClass: "",
             },
             {
@@ -567,8 +563,6 @@ export default {
                value: this.formatCurrencyLabel(this.report.summary.withholding_tax),
                sub: "Payroll withholding",
                icon: "bi-percent",
-               iconBg: "bg-danger-soft",
-               iconColor: "text-danger",
                valueClass: "text-danger",
             },
             {
@@ -576,8 +570,6 @@ export default {
                value: this.formatCurrencyLabel(this.report.summary.employee_government_contributions),
                sub: "Employee-side statutory deductions",
                icon: "bi-shield-check",
-               iconBg: "bg-warning-soft",
-               iconColor: "text-warning",
                valueClass: "text-warning",
             },
             {
@@ -585,8 +577,6 @@ export default {
                value: this.formatCurrencyLabel(this.report.summary.net_payroll),
                sub: "Before payout progress",
                icon: "bi-calculator",
-               iconBg: "bg-success-soft",
-               iconColor: "text-success",
                valueClass: "",
             },
             {
@@ -594,8 +584,6 @@ export default {
                value: this.formatCurrencyLabel(this.report.summary.total_paid),
                sub: this.payoutProgressLabel(),
                icon: "bi-cash-coin",
-               iconBg: "bg-primary-soft",
-               iconColor: "text-primary",
                valueClass: "text-success",
             },
             {
@@ -603,8 +591,6 @@ export default {
                value: this.formatCurrencyLabel(this.report.summary.outstanding_balance),
                sub: this.report.summary.outstanding_balance > 0 ? "Remaining payout balance" : "Fully settled",
                icon: "bi-exclamation-circle",
-               iconBg: this.report.summary.outstanding_balance > 0 ? "bg-danger-soft" : "bg-success-soft",
-               iconColor: this.report.summary.outstanding_balance > 0 ? "text-danger" : "text-success",
                valueClass: this.report.summary.outstanding_balance > 0 ? "text-danger" : "text-success",
             },
          ];

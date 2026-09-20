@@ -18,8 +18,8 @@
       <div class="row g-3 mb-4">
          <div class="col-6 col-lg-3" v-for="stat in statCards" :key="stat.label">
             <div class="stat-card">
-               <div class="stat-card-icon" :class="stat.iconBg">
-                  <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+               <div class="stat-card-icon">
+                  <i class="bi" :class="stat.icon"></i>
                </div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ stat.label }}</div>
@@ -299,7 +299,7 @@
                         <div class="invalid-feedback" v-if="formErrors.password">{{ formErrors.password }}</div>
                         <div class="form-text" v-else>At least 8 characters with upper and lower case letters and a symbol.</div>
                      </div>
-                     <div class="col-md-6">
+                     <div class="col-md">
                         <label class="form-label form-label-sm">Status</label>
                         <select class="form-select flex-grow-1" v-model="form.status">
                            <option value="active">Active</option>
@@ -338,7 +338,7 @@
                         <input type="text" class="form-control" v-model="form.emergency_contact_phone" :class="{ 'is-invalid': formErrors.emergency_contact_phone }" placeholder="Phone number" />
                         <div class="invalid-feedback" v-if="formErrors.emergency_contact_phone">{{ formErrors.emergency_contact_phone }}</div>
                      </div>
-                     <div class="col-md-6">
+                     <div class="col-12">
                         <label class="form-label form-label-sm">ID Discount</label>
                         <select class="form-select" v-model="form.discount_type">
                            <option :value="''">None - regular rate</option>
@@ -359,7 +359,7 @@
                         Membership Plan
                      </div>
                      <div class="row g-3">
-                        <div class="col-md-6">
+                        <div class="col-md">
                            <label class="form-label form-label-sm">Rate Plan</label>
                            <select class="form-select" v-model="form.rate_plan_id">
                               <option disabled value="">Select a plan...</option>
@@ -602,10 +602,10 @@ export default {
       },
       statCards: function () {
          return [
-            { label: "Total Members", value: this.stats.total, icon: "bi-people-fill", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-            { label: "Active", value: this.stats.active, icon: "bi-person-check-fill", iconBg: "bg-success-soft", iconColor: "text-success" },
-            { label: "Inactive", value: this.stats.inactive, icon: "bi-person-dash-fill", iconBg: "bg-warning-soft", iconColor: "text-warning" },
-            { label: "Suspended", value: this.stats.suspended, icon: "bi-person-x-fill", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+            { label: "Total Members", value: this.stats.total, icon: "bi-people-fill" },
+            { label: "Active", value: this.stats.active, icon: "bi-person-check-fill" },
+            { label: "Inactive", value: this.stats.inactive, icon: "bi-person-dash-fill" },
+            { label: "Suspended", value: this.stats.suspended, icon: "bi-person-x-fill" },
          ];
       },
    },

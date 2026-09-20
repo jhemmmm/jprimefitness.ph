@@ -10,13 +10,13 @@
       <div class="row g-3 mb-4">
          <div class="col-6 col-lg-3" v-for="card in statCards" :key="card.label">
             <div class="stat-card">
-               <div class="stat-card-icon" :class="card.iconBg">
-                  <i class="bi" :class="[card.icon, card.iconColor]"></i>
+               <div class="stat-card-icon">
+                  <i class="bi" :class="card.icon"></i>
                </div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ card.label }}</div>
                   <div class="stat-card-value" v-if="loading">
-                     <div class="skeleton-box" style="width: 52px; height: 18px; border-radius: 5px"></div>
+                     <div class="skeleton-box" style="width: 52px; height: 18px"></div>
                   </div>
                   <div class="stat-card-value" v-else>{{ card.value }}</div>
                </div>
@@ -390,10 +390,10 @@ export default {
       },
       statCards: function () {
          return [
-            { label: "Configured Membership Rates", value: this.pricing.stats.membership_configured, icon: "bi-card-checklist", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-            { label: "Active Membership Rates", value: this.pricing.stats.membership_active, icon: "bi-check-circle-fill", iconBg: "bg-success-soft", iconColor: "text-success" },
-            { label: "Configured PT Rates", value: this.pricing.stats.pt_configured, icon: "bi-person-badge-fill", iconBg: "bg-warning-soft", iconColor: "text-warning" },
-            { label: "Active PT Rates", value: this.pricing.stats.pt_active, icon: "bi-graph-up-arrow", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+            { label: "Configured Membership Rates", value: this.pricing.stats.membership_configured, icon: "bi-card-checklist" },
+            { label: "Active Membership Rates", value: this.pricing.stats.membership_active, icon: "bi-check-circle-fill" },
+            { label: "Configured PT Rates", value: this.pricing.stats.pt_configured, icon: "bi-person-badge-fill" },
+            { label: "Active PT Rates", value: this.pricing.stats.pt_active, icon: "bi-graph-up-arrow" },
          ];
       },
    },

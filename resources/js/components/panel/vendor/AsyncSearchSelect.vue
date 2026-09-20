@@ -216,7 +216,7 @@ export default {
    background: transparent;
    text-align: left;
    padding: 0.5rem;
-   border-radius: 0.5rem;
+   border-radius: var(--bs-border-radius);
    color: var(--bs-body-color);
    transition:
       background-color 0.15s ease,

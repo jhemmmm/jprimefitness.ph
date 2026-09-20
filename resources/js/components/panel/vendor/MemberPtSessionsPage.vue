@@ -10,7 +10,7 @@
       <div class="row g-3 mb-4">
          <div class="col-md-4" v-for="stat in statCards" :key="stat.label">
             <div class="stat-card">
-               <div class="stat-card-icon" :class="stat.iconBg"><i class="bi" :class="[stat.icon, stat.iconColor]"></i></div>
+               <div class="stat-card-icon"><i class="bi" :class="stat.icon"></i></div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ stat.label }}</div>
                   <div class="stat-card-value">{{ stat.value }}</div>
@@ -470,20 +470,16 @@ export default {
 
       statCards: function () {
          return [
-            { label: "Active Packages", value: this.activePackages.length, icon: "bi-box-seam", iconBg: "bg-primary-soft", iconColor: "text-primary" },
+            { label: "Active Packages", value: this.activePackages.length, icon: "bi-box-seam" },
             {
                label: "Remaining Sessions",
                value: this.activePackages.reduce((total, pkg) => total + Number(pkg.remaining_sessions || 0), 0),
                icon: "bi-lightning-charge",
-               iconBg: "bg-success-soft",
-               iconColor: "text-success",
             },
             {
                label: "Sessions Used",
                value: this.usageEntries.reduce((total, usage) => total + Number(usage.sessions_used || 0), 0),
                icon: "bi-activity",
-               iconBg: "bg-warning-soft",
-               iconColor: "text-warning",
             },
          ];
       },

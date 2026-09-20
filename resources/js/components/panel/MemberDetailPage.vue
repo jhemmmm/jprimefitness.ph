@@ -2,7 +2,7 @@
    <div>
       <div class="d-flex align-items-center justify-content-between mb-4">
          <div>
-            <h4 class="fw-bold mb-0">Member Details</h4>
+            <h4 class="panel-page-title mb-0">Member Details</h4>
             <div class="text-muted small">Information, attendance, memberships, PT sessions, and settings</div>
          </div>
          <a href="/panel/members" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back</a>

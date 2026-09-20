@@ -77,13 +77,13 @@
          <div class="row g-3 mb-4">
             <div class="col-6 col-xl" v-for="stat in statCards" :key="stat.label">
                <div class="stat-card h-100">
-                  <div class="stat-card-icon" :class="stat.iconBg">
-                     <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+                  <div class="stat-card-icon">
+                     <i class="bi" :class="stat.icon"></i>
                   </div>
                   <div class="stat-card-body">
                      <div class="stat-card-label">{{ stat.label }}</div>
                      <div class="stat-card-value" v-if="loading">
-                        <div class="skeleton-box" style="width: 72px; height: 18px; border-radius: 5px"></div>
+                        <div class="skeleton-box" style="width: 72px; height: 18px"></div>
                      </div>
                      <div class="stat-card-value" v-else>{{ stat.value }}</div>
                   </div>
@@ -103,7 +103,7 @@
                   </div>
                   <div class="panel-card-body">
                      <div v-if="loading">
-                        <div class="skeleton-box" style="width: 100%; height: 240px; border-radius: 8px"></div>
+                        <div class="skeleton-box" style="width: 100%; height: 240px"></div>
                      </div>
                      <div v-else class="text-center py-5 text-muted">
                         <i class="bi bi-activity empty-icon"></i>
@@ -123,7 +123,7 @@
                   <div class="panel-card-body p-0">
                      <div v-if="loading">
                         <div class="p-3 d-none d-md-block">
-                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 3" :key="'type-sk-' + index"></div>
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 3" :key="'type-sk-' + index"></div>
                         </div>
                         <div class="d-md-none p-3">
                            <div class="member-card" v-for="index in 3" :key="'type-mobile-sk-' + index">
@@ -133,8 +133,8 @@
                                        <i class="bi bi-people-fill"></i>
                                     </div>
                                     <div>
-                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                       <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                       <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                     </div>
                                  </div>
                               </div>
@@ -202,7 +202,7 @@
                   <div class="panel-card-body p-0">
                      <div v-if="loading">
                         <div class="p-3 d-none d-md-block">
-                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 5" :key="'trend-sk-' + index"></div>
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 5" :key="'trend-sk-' + index"></div>
                         </div>
                         <div class="d-md-none p-3">
                            <div class="member-card" v-for="index in 4" :key="'trend-mobile-sk-' + index">
@@ -212,8 +212,8 @@
                                        <i class="bi bi-calendar3"></i>
                                     </div>
                                     <div>
-                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                       <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                       <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                     </div>
                                  </div>
                               </div>
@@ -275,7 +275,7 @@
                   <div class="panel-card-body p-0">
                      <div v-if="loading">
                         <div class="p-3">
-                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 6" :key="'hour-sk-' + index"></div>
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 6" :key="'hour-sk-' + index"></div>
                         </div>
                      </div>
                      <div v-else-if="report.busiest_hours.length === 0" class="text-center py-5 text-muted">
@@ -314,7 +314,7 @@
             <div class="panel-card-body p-0">
                <div v-if="loading">
                   <div class="p-3 d-none d-md-block">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'recent-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 6" :key="'recent-sk-' + index"></div>
                   </div>
                   <div class="d-md-none p-3">
                      <div class="member-card" v-for="index in 4" :key="'recent-mobile-sk-' + index">
@@ -322,8 +322,8 @@
                            <div class="member-card-identity">
                               <div class="member-avatar"></div>
                               <div>
-                                 <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                 <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                 <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                 <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                               </div>
                            </div>
                         </div>
@@ -507,36 +507,26 @@ export default {
                label: "Total Check-ins",
                value: this.report.summary.total_check_ins,
                icon: "bi-calendar-check",
-               iconBg: "bg-primary-soft",
-               iconColor: "text-primary",
             },
             {
                label: "Unique Attendees",
                value: this.report.summary.unique_attendees,
                icon: "bi-people-fill",
-               iconBg: "bg-success-soft",
-               iconColor: "text-success",
             },
             {
                label: "Checked Out",
                value: this.report.summary.checked_out_count,
                icon: "bi-box-arrow-right",
-               iconBg: "bg-secondary-soft",
-               iconColor: "text-secondary",
             },
             {
                label: "Currently In",
                value: this.report.summary.currently_in_count,
                icon: "bi-door-open-fill",
-               iconBg: "bg-warning-soft",
-               iconColor: "text-warning",
             },
             {
                label: "Avg Visit",
                value: this.averageVisitLabel,
                icon: "bi-clock-history",
-               iconBg: "bg-danger-soft",
-               iconColor: "text-danger",
             },
          ];
       },

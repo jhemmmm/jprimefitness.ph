@@ -6,7 +6,7 @@
       <div class="row g-3 mb-4">
          <div class="col-md-4" v-for="stat in statCards" :key="stat.label">
             <div class="stat-card">
-               <div class="stat-card-icon" :class="stat.iconBg"><i class="bi" :class="[stat.icon, stat.iconColor]"></i></div>
+               <div class="stat-card-icon"><i class="bi" :class="stat.icon"></i></div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ stat.label }}</div>
                   <div class="stat-card-value">{{ stat.value }}</div>
@@ -286,9 +286,9 @@ export default {
 
       statCards: function () {
          return [
-            { label: "Total Plans", value: this.memberships.length, icon: "bi-postcard", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-            { label: "Active", value: this.memberships.filter((membership) => membership.status === "active").length, icon: "bi-check-circle", iconBg: "bg-success-soft", iconColor: "text-success" },
-            { label: "Past", value: this.memberships.filter((membership) => membership.status !== "active").length, icon: "bi-clock-history", iconBg: "bg-warning-soft", iconColor: "text-warning" },
+            { label: "Total Plans", value: this.memberships.length, icon: "bi-postcard" },
+            { label: "Active", value: this.memberships.filter((membership) => membership.status === "active").length, icon: "bi-check-circle" },
+            { label: "Past", value: this.memberships.filter((membership) => membership.status !== "active").length, icon: "bi-clock-history" },
          ];
       },
    },

@@ -179,6 +179,6 @@ export default {
     z-index: 9999;
     background: #fff;
     box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
-    border-radius: 0.25rem;
+    border-radius: var(--bs-border-radius);
 }
 </style>

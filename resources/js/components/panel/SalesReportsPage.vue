@@ -86,13 +86,13 @@
       <div class="row g-3 mb-4">
          <div class="col-6 col-xl-3" v-for="stat in statCards" :key="stat.label">
             <div class="stat-card h-100">
-               <div class="stat-card-icon" :class="stat.iconBg">
-                  <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+               <div class="stat-card-icon">
+                  <i class="bi" :class="stat.icon"></i>
                </div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ stat.label }}</div>
                   <div class="stat-card-value" v-if="loading">
-                     <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 5px"></div>
+                     <div class="skeleton-box" style="width: 90px; height: 18px"></div>
                   </div>
                   <div class="stat-card-value" v-else>{{ stat.value }}</div>
                </div>
@@ -118,7 +118,7 @@
                <div class="panel-card-body p-0">
                   <div v-if="loading">
                      <div class="p-3 d-none d-md-block">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 4" :key="'type-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 4" :key="'type-sk-' + index"></div>
                      </div>
                      <div class="d-md-none p-3">
                         <div class="member-card" v-for="index in 3" :key="'type-mobile-sk-' + index">
@@ -128,13 +128,13 @@
                                     <i class="bi bi-pie-chart-fill"></i>
                                  </div>
                                  <div>
-                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                    <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                    <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                  </div>
                               </div>
                            </div>
                            <div class="member-card-footer">
-                              <div class="skeleton-box" style="width: 72px; height: 12px; border-radius: 4px"></div>
+                              <div class="skeleton-box" style="width: 72px; height: 12px"></div>
                            </div>
                         </div>
                      </div>
@@ -192,7 +192,7 @@
                <div class="panel-card-body p-0">
                   <div v-if="loading">
                      <div class="p-3 d-none d-md-block">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 4" :key="'payment-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 4" :key="'payment-sk-' + index"></div>
                      </div>
                      <div class="d-md-none p-3">
                         <div class="member-card" v-for="index in 3" :key="'payment-mobile-sk-' + index">
@@ -202,13 +202,13 @@
                                     <i class="bi bi-credit-card-2-front-fill"></i>
                                  </div>
                                  <div>
-                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                    <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                    <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                  </div>
                               </div>
                            </div>
                            <div class="member-card-footer">
-                              <div class="skeleton-box" style="width: 72px; height: 12px; border-radius: 4px"></div>
+                              <div class="skeleton-box" style="width: 72px; height: 12px"></div>
                            </div>
                         </div>
                      </div>
@@ -272,7 +272,7 @@
                <div class="panel-card-body p-0">
                   <div v-if="loading">
                      <div class="p-3 d-none d-md-block">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 6" :key="'trend-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 6" :key="'trend-sk-' + index"></div>
                      </div>
                      <div class="d-md-none p-3">
                         <div class="member-card" v-for="index in 4" :key="'trend-mobile-sk-' + index">
@@ -282,13 +282,13 @@
                                     <i class="bi bi-calendar3"></i>
                                  </div>
                                  <div>
-                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                    <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                    <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                  </div>
                               </div>
                            </div>
                            <div class="member-card-footer">
-                              <div class="skeleton-box" style="width: 72px; height: 12px; border-radius: 4px"></div>
+                              <div class="skeleton-box" style="width: 72px; height: 12px"></div>
                            </div>
                         </div>
                      </div>
@@ -352,7 +352,7 @@
                <div class="panel-card-body p-0">
                   <div v-if="loading">
                      <div class="p-3 d-none d-md-block">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 18px; border-radius: 4px" v-for="index in 6" :key="'item-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 6" :key="'item-sk-' + index"></div>
                      </div>
                      <div class="d-md-none p-3">
                         <div class="member-card" v-for="index in 4" :key="'item-mobile-sk-' + index">
@@ -362,8 +362,8 @@
                                     <i class="bi bi-bag-fill"></i>
                                  </div>
                                  <div>
-                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                    <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                    <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                  </div>
                               </div>
                            </div>
@@ -371,7 +371,7 @@
                               <div class="skeleton-box" style="width: 84px; height: 22px; border-radius: 999px"></div>
                            </div>
                            <div class="member-card-footer">
-                              <div class="skeleton-box" style="width: 72px; height: 12px; border-radius: 4px"></div>
+                              <div class="skeleton-box" style="width: 72px; height: 12px"></div>
                            </div>
                         </div>
                      </div>
@@ -431,11 +431,11 @@
                      </thead>
                      <tbody>
                         <tr v-for="index in 6" :key="'recent-sk-' + index">
-                           <td><div class="skeleton-box" style="width: 120px; height: 14px; border-radius: 4px"></div></td>
+                           <td><div class="skeleton-box" style="width: 120px; height: 14px"></div></td>
                            <td><div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div></td>
-                           <td><div class="skeleton-box" style="width: 90px; height: 14px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 80px; height: 14px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 120px; height: 14px; border-radius: 4px"></div></td>
+                           <td><div class="skeleton-box" style="width: 90px; height: 14px"></div></td>
+                           <td><div class="skeleton-box" style="width: 80px; height: 14px"></div></td>
+                           <td><div class="skeleton-box" style="width: 120px; height: 14px"></div></td>
                         </tr>
                      </tbody>
                   </table>
@@ -448,8 +448,8 @@
                               <i class="bi bi-receipt-cutoff"></i>
                            </div>
                            <div>
-                              <div class="skeleton-box mb-1" style="width: 126px; height: 14px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 98px; height: 11px; border-radius: 4px"></div>
+                              <div class="skeleton-box mb-1" style="width: 126px; height: 14px"></div>
+                              <div class="skeleton-box" style="width: 98px; height: 11px"></div>
                            </div>
                         </div>
                      </div>
@@ -458,12 +458,12 @@
                         <div class="skeleton-box" style="width: 86px; height: 22px; border-radius: 999px"></div>
                      </div>
                      <div class="small text-muted mb-2">
-                        <div class="skeleton-box mb-1" style="width: 110px; height: 12px; border-radius: 4px"></div>
-                        <div class="skeleton-box mb-1" style="width: 118px; height: 12px; border-radius: 4px"></div>
-                        <div class="skeleton-box" style="width: 96px; height: 12px; border-radius: 4px"></div>
+                        <div class="skeleton-box mb-1" style="width: 110px; height: 12px"></div>
+                        <div class="skeleton-box mb-1" style="width: 118px; height: 12px"></div>
+                        <div class="skeleton-box" style="width: 96px; height: 12px"></div>
                      </div>
                      <div class="member-card-footer">
-                        <div class="skeleton-box" style="width: 78px; height: 12px; border-radius: 4px"></div>
+                        <div class="skeleton-box" style="width: 78px; height: 12px"></div>
                      </div>
                   </div>
                </div>
@@ -623,29 +623,21 @@ export default {
                label: "Total Sales",
                value: `₱${this.$filters.formatMoney(this.report.summary.total_sales)}`,
                icon: "bi-cash-stack",
-               iconBg: "bg-primary-soft",
-               iconColor: "text-primary",
             },
             {
                label: "Transactions",
                value: this.report.summary.transaction_count,
                icon: "bi-receipt-cutoff",
-               iconBg: "bg-success-soft",
-               iconColor: "text-success",
             },
             {
                label: "Average Sale",
                value: `₱${this.$filters.formatMoney(this.report.summary.average_sale)}`,
                icon: "bi-graph-up-arrow",
-               iconBg: "bg-warning-soft",
-               iconColor: "text-warning",
             },
             {
                label: "Cash Collected",
                value: `₱${this.$filters.formatMoney(this.report.summary.cash_sales)}`,
                icon: "bi-wallet2",
-               iconBg: "bg-danger-soft",
-               iconColor: "text-danger",
             },
          ];
       },

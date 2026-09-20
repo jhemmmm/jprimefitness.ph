@@ -40,7 +40,7 @@
                         <input v-model="form.date_of_birth" type="date" class="form-control rounded-1" :class="{ 'is-invalid': errors.date_of_birth }" />
                         <div class="invalid-feedback" v-if="errors.date_of_birth">{{ errors.date_of_birth[0] }}</div>
                      </div>
-                     <div class="col-md-6">
+                     <div class="col-12">
                         <label class="form-label small fw-semibold">Gender</label>
                         <select v-model="form.gender" class="form-select rounded-1" :class="{ 'is-invalid': errors.gender }">
                            <option value="">Prefer not to say</option>

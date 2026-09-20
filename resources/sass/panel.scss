@@ -1,6 +1,6 @@
 $sidebar-width: 240px;
 $sidebar-collapsed: 68px;
-$sidebar-bg: #0d0f12;
+$sidebar-bg: #111;
 $sidebar-border: rgba(255, 255, 255, 0.06);
 $sidebar-text: rgba(255, 255, 255, 0.55);
 $sidebar-text-active: #fff;
@@ -104,7 +104,7 @@ body.panel-body {
     width: 34px;
     height: 34px;
     min-width: 34px;
-    border-radius: 8px;
+    border-radius: var(--bs-border-radius);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -158,7 +158,7 @@ body.panel-body {
 
     &::-webkit-scrollbar-thumb {
         background: rgba(200, 16, 46, 0.5);
-        border-radius: 4px;
+        border-radius: var(--bs-border-radius);
 
         &:hover {
             background: rgba(200, 16, 46, 0.75);
@@ -167,11 +167,10 @@ body.panel-body {
 }
 
 .sidebar-menu-heading {
-    font-size: 0.58rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    color: rgba(255, 255, 255, 0.25);
+    @include display-type(500);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: rgba(255, 255, 255, 0.4);
     padding: 14px 18px 4px;
     white-space: nowrap;
     transition: opacity 0.2s ease;
@@ -252,7 +251,7 @@ body.panel-body {
     justify-content: center;
     width: 24px;
     height: 24px;
-    border-radius: 6px;
+    border-radius: var(--bs-border-radius);
     color: rgba(255, 255, 255, 0.45);
     font-size: 0.9rem;
     flex-shrink: 0;
@@ -316,7 +315,7 @@ body.panel-body {
     height: 34px;
     border: none;
     background: transparent;
-    border-radius: 6px;
+    border-radius: var(--bs-border-radius);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -335,9 +334,10 @@ body.panel-body {
 }
 
 .topbar-title {
+    @include display-type;
     display: block;
     font-size: 1.05rem;
-    font-weight: 700;
+    letter-spacing: 0.05em;
     color: #111;
     min-width: 0;
     overflow: hidden;
@@ -398,7 +398,7 @@ body.panel-body {
     height: 34px;
     border: none;
     background: transparent;
-    border-radius: 6px;
+    border-radius: var(--bs-border-radius);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -533,7 +533,7 @@ body.panel-body {
     align-items: center;
     gap: 8px;
     padding: 4px 8px;
-    border-radius: 8px;
+    border-radius: var(--bs-border-radius);
     cursor: pointer;
     transition: background 0.15s ease;
     text-decoration: none;
@@ -654,10 +654,8 @@ body.panel-body {
 
 // ─── Shared Logo ─────────────────────────────────────────────────────────────
 .jprime-logo {
-    font-family: "Oswald", sans-serif;
-    font-weight: 700;
+    @include display-type(700);
     letter-spacing: 1.5px;
-    text-transform: uppercase;
 
     img {
         width: 40px;
@@ -685,7 +683,7 @@ body.panel-body {
 // Stat cards
 .stat-card {
     background: #fff;
-    border-radius: 0.375rem;
+    border-radius: var(--bs-border-radius);
     border: 1px solid #eaecf0;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     padding: 16px;
@@ -704,31 +702,14 @@ body.panel-body {
     width: 44px;
     height: 44px;
     min-width: 44px;
-    border-radius: 10px;
+    border: 1px solid #e6e6e6;
+    border-radius: var(--bs-border-radius);
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 1.2rem;
     flex-shrink: 0;
-}
-
-.bg-primary-soft {
-    background: rgba(13, 110, 253, 0.1);
-}
-.bg-secondary-soft {
-    background: rgba(108, 117, 125, 0.12);
-}
-.bg-success-soft {
-    background: rgba(25, 135, 84, 0.1);
-}
-.bg-info-soft {
-    background: rgba(13, 202, 240, 0.12);
-}
-.bg-warning-soft {
-    background: rgba(255, 193, 7, 0.12);
-}
-.bg-danger-soft {
-    background: rgba(200, 16, 46, 0.1);
+    color: $primary;
 }
 
 .stat-card-body {
@@ -748,8 +729,9 @@ body.panel-body {
 }
 
 .stat-card-value {
-    font-size: 1.45rem;
-    font-weight: 800;
+    font-family: $font-family-display;
+    font-size: 1.6rem;
+    font-weight: 600;
     color: #111;
     line-height: 1.2;
     margin: 2px 0;
@@ -794,7 +776,7 @@ body.panel-body {
 .badge-trend {
     font-size: 0.7rem;
     font-weight: 700;
-    border-radius: 4px;
+    border-radius: var(--bs-border-radius);
     padding: 1px 5px;
 
     &.up {
@@ -812,7 +794,7 @@ body.panel-body {
 .panel-card {
     background: #fff;
     border: 1px solid #eaecf0;
-    border-radius: 0.375rem;
+    border-radius: var(--bs-border-radius);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     display: flex;
     flex-direction: column;
@@ -829,9 +811,23 @@ body.panel-body {
 }
 
 .panel-card-title {
-    font-size: 0.88rem;
-    font-weight: 700;
+    @include display-type;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
     color: #111;
+}
+
+.panel-page-title {
+    @include display-type;
+    font-size: 1.75rem;
+    line-height: 1.05;
+    letter-spacing: 0.02em;
+}
+
+.modal-title {
+    @include display-type;
+    font-size: 1.15rem;
+    letter-spacing: 0.02em;
 }
 
 .panel-card-sub {
@@ -864,7 +860,7 @@ body.panel-body {
 
 .business-settings-toggle-card {
     border: 1px solid #eef1f4;
-    border-radius: 14px;
+    border-radius: var(--bs-border-radius);
     background: #fafbfc;
     padding: 1rem 1.1rem;
 }
@@ -881,7 +877,7 @@ body.panel-body {
     align-items: end;
     padding: 0.9rem 1rem;
     border: 1px solid #eef1f4;
-    border-radius: 14px;
+    border-radius: var(--bs-border-radius);
     background: #fafbfc;
 }
 
@@ -1069,29 +1065,23 @@ body.auth-body {
     justify-content: center;
     padding: 48px 40px;
     position: relative;
+    isolation: isolate;
     overflow: hidden;
+
+    .band-bg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        z-index: -1;
+    }
 
     &::before {
         content: "";
         position: absolute;
-        top: -80px;
-        right: -80px;
-        width: 320px;
-        height: 320px;
-        border-radius: 50%;
-        background: rgba($sidebar-accent, 0.12);
-        pointer-events: none;
-    }
-
-    &::after {
-        content: "";
-        position: absolute;
-        bottom: -60px;
-        left: -60px;
-        width: 240px;
-        height: 240px;
-        border-radius: 50%;
-        background: rgba($sidebar-accent, 0.07);
+        inset: 0;
+        background: rgba(0, 0, 0, 0.74);
         pointer-events: none;
     }
 }
@@ -1114,7 +1104,7 @@ body.auth-body {
     height: 40px;
     min-width: 40px;
     background: $sidebar-accent;
-    border-radius: 10px;
+    border-radius: var(--bs-border-radius);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1143,10 +1133,11 @@ body.auth-body {
 }
 
 .auth-brand-headline {
-    font-size: 1.6rem;
-    font-weight: 800;
+    @include display-type;
+    font-size: 2.2rem;
+    letter-spacing: 0.02em;
     color: #fff;
-    line-height: 1.25;
+    line-height: 1.05;
     margin-bottom: 16px;
 }
 
@@ -1160,21 +1151,18 @@ body.auth-body {
 
 .auth-brand-pills {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-direction: column;
 }
 
 .auth-brand-pill {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 20px;
-    padding: 5px 12px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.65);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+    padding: 0.6rem 0;
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
 
     i {
         color: $sidebar-accent;
@@ -1198,8 +1186,9 @@ body.auth-body {
 }
 
 .auth-form-title {
-    font-size: 1.4rem;
-    font-weight: 800;
+    @include display-type;
+    font-size: 1.6rem;
+    letter-spacing: 0.02em;
     color: #111;
     margin-bottom: 4px;
 }
@@ -1234,7 +1223,7 @@ body.auth-body {
 
 .auth-input {
     padding-left: 36px;
-    border-radius: 8px;
+    border-radius: var(--bs-border-radius);
     border: 1.5px solid #e0e0e0;
     font-size: 0.88rem;
     height: 42px;
@@ -1287,7 +1276,7 @@ body.auth-body {
 .auth-submit-btn {
     background: $sidebar-accent;
     border: none;
-    border-radius: 8px;
+    border-radius: var(--bs-border-radius);
     color: #fff;
     font-size: 0.88rem;
     font-weight: 700;
@@ -1322,7 +1311,7 @@ body.auth-body {
     .auth-form-inner {
         padding: 24px;
         background: #fff;
-        border-radius: 14px;
+        border-radius: var(--bs-border-radius);
         box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07);
     }
 }
@@ -1353,7 +1342,7 @@ body.auth-body {
     font-size: 0.72rem;
     font-weight: 600;
     padding: 3px 10px;
-    border-radius: 20px;
+    border-radius: var(--bs-border-radius);
     border: 1px solid transparent;
     line-height: 1.4;
     white-space: nowrap;
@@ -1618,7 +1607,7 @@ body.auth-body {
     justify-content: center;
     border: none;
     background: transparent;
-    border-radius: 6px;
+    border-radius: var(--bs-border-radius);
     color: var(--bs-secondary-color);
     font-size: 1rem;
     flex-shrink: 0;
@@ -1643,7 +1632,7 @@ body.auth-body {
 
 .skeleton-box {
     display: block;
-    border-radius: 4px;
+    border-radius: var(--bs-border-radius);
     background: linear-gradient(90deg, rgba(0, 0, 0, 0.06) 25%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.06) 75%);
     background-size: 800px 100%;
     animation: skeleton-shimmer 1.4s infinite linear;
@@ -1663,7 +1652,7 @@ body.auth-body {
 .sk-stat-val {
     width: 48px;
     height: 22px;
-    border-radius: 4px;
+    border-radius: var(--bs-border-radius);
     margin-top: 3px;
 }
 .sk-num {
@@ -1695,12 +1684,12 @@ body.auth-body {
 .sk-plan-badge {
     width: 50px;
     height: 18px;
-    border-radius: 10px;
+    border-radius: var(--bs-border-radius);
 }
 .sk-status {
     width: 55px;
     height: 18px;
-    border-radius: 10px;
+    border-radius: var(--bs-border-radius);
 }
 .sk-joined {
     width: 78px;
@@ -1709,7 +1698,7 @@ body.auth-body {
 .sk-btn {
     width: 30px;
     height: 30px;
-    border-radius: 6px;
+    border-radius: var(--bs-border-radius);
 }
 .sk-mc-name {
     width: 120px;
@@ -1721,7 +1710,7 @@ body.auth-body {
 }
 .sk-mc-tag {
     height: 20px;
-    border-radius: 20px;
+    border-radius: var(--bs-border-radius);
 }
 .sk-mc-tag--sm {
     width: 55px;
@@ -1751,7 +1740,7 @@ body.auth-body {
     background: var(--bs-secondary-bg);
     color: var(--bs-secondary-color);
     padding: 2px 7px;
-    border-radius: 10px;
+    border-radius: var(--bs-border-radius);
     line-height: 1.4;
 }
 
@@ -1959,7 +1948,7 @@ body.auth-body {
 .subscription-box {
     background: rgba(0, 0, 0, 0.04);
     padding: 0.75rem 1rem;
-    border-radius: 8px;
+    border-radius: var(--bs-border-radius);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -2006,8 +1995,17 @@ body.auth-body {
         border-bottom-color: var(--panel-border);
     }
 
-    .business-settings-toggle-card {
+    .business-settings-toggle-card,
+    .business-settings-hours-row {
         background-color: rgba(255, 255, 255, 0.03);
+        border-color: var(--panel-border);
+    }
+
+    .business-settings-hours-day {
+        color: var(--panel-text);
+    }
+
+    .stat-card-icon {
         border-color: var(--panel-border);
     }
 

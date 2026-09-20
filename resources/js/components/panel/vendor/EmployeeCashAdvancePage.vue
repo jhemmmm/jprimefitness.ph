@@ -5,7 +5,7 @@
       <!-- Summary -->
       <div class="d-flex align-items-center justify-content-between mb-3">
          <template v-if="loading">
-            <div class="skeleton-box" style="height: 14px; width: 80px; border-radius: 4px"></div>
+            <div class="skeleton-box" style="height: 14px; width: 80px"></div>
          </template>
          <template v-else>
             <div class="text-muted small">{{ advances.length }} cash advance{{ advances.length !== 1 ? "s" : "" }}</div>
@@ -69,7 +69,7 @@
 
       <!-- Loading -->
       <div v-if="loading">
-         <div class="skeleton-box" v-for="i in 4" :key="i" style="height: 48px; border-radius: 6px; margin-bottom: 8px"></div>
+         <div class="skeleton-box" v-for="i in 4" :key="i" style="height: 48px margin-bottom: 8px"></div>
       </div>
 
       <!-- Empty -->
@@ -169,7 +169,7 @@
                         <label class="form-label form-label-sm">Reference No.</label>
                         <input type="text" class="form-control" v-model="form.reference_number" placeholder="Optional" />
                      </div>
-                     <div class="col-md-6">
+                     <div class="col-md">
                         <label class="form-label form-label-sm">Given At</label>
                         <input type="datetime-local" class="form-control" v-model="form.paid_at" />
                      </div>
@@ -199,7 +199,7 @@
                   <div class="alert alert-danger py-2 small" v-if="requestError">{{ requestError }}</div>
                   <p class="text-muted small">Your manager will be notified and can approve or reject the request. Approved advances are deducted from your payroll.</p>
                   <div class="row g-3">
-                     <div class="col-md-6">
+                     <div class="col-12">
                         <label class="form-label form-label-sm">Amount (₱) <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" v-model="requestForm.amount" min="0.01" step="0.01" :class="{ 'is-invalid': requestErrors.amount }" />
                         <div class="invalid-feedback">{{ requestErrors.amount }}</div>

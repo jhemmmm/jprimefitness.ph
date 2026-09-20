@@ -2,7 +2,7 @@
    <div>
       <div class="d-flex align-items-center justify-content-between mb-4">
          <div>
-            <h4 class="fw-bold mb-0">{{ canManage ? "Employee Details" : "My Record" }}</h4>
+            <h4 class="panel-page-title mb-0">{{ canManage ? "Employee Details" : "My Record" }}</h4>
             <div class="text-muted small">Overview, activity, payroll, payouts{{ canManage ? ", and settings" : "" }}</div>
          </div>
          <a href="/panel/employees" class="btn btn-outline-secondary" v-if="canManage"><i class="bi bi-arrow-left me-1"></i> Back</a>

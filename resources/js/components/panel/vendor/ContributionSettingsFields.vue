@@ -4,7 +4,7 @@
       <div class="text-muted small mb-3">Monthly amounts. Semi-monthly employees have each amount split equally across the two cutoffs.</div>
 
       <div class="row g-3 mb-3">
-         <div class="col-md-4">
+         <div class="col-12">
             <label class="form-label form-label-sm fw-semibold mb-1">TIN</label>
             <input type="text" class="form-control" :class="{ 'is-invalid': errorFor('tin') }" v-model="profile.tin" placeholder="123-456-789-000" />
             <div class="invalid-feedback d-block" v-if="errorFor('tin')">{{ errorFor("tin") }}</div>

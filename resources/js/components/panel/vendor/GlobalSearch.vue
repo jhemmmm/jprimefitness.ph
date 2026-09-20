@@ -73,9 +73,9 @@
 import { Modal } from "bootstrap";
 
 const GROUP_CONFIG = {
-   members: { icon: "bi-people-fill", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-   employees: { icon: "bi-person-workspace", iconBg: "bg-warning-soft", iconColor: "text-warning" },
-   inventory: { icon: "bi-box-seam-fill", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+   members: { icon: "bi-people-fill", iconBg: "bg-primary-subtle", iconColor: "text-primary" },
+   employees: { icon: "bi-person-workspace", iconBg: "bg-warning-subtle", iconColor: "text-warning" },
+   inventory: { icon: "bi-box-seam-fill", iconBg: "bg-danger-subtle", iconColor: "text-danger" },
 };
 
 export default {
@@ -212,7 +212,7 @@ export default {
                total: group.total || 0,
                items: Array.isArray(group.items) ? group.items : [],
                viewAllUrl: group.view_all_url,
-               ...(GROUP_CONFIG[key] || { icon: "bi-search", iconBg: "bg-primary-soft", iconColor: "text-primary" }),
+               ...(GROUP_CONFIG[key] || { icon: "bi-search", iconBg: "bg-primary-subtle", iconColor: "text-primary" }),
             }))
             .filter((group) => group.items.length > 0);
       },
@@ -268,7 +268,7 @@ export default {
 
 .global-search-section {
    border: 1px solid rgba(15, 23, 42, 0.08);
-   border-radius: 1rem;
+   border-radius: var(--bs-border-radius);
    overflow: hidden;
    background: var(--bs-tertiary-bg);
 }
@@ -296,7 +296,7 @@ export default {
    display: inline-flex;
    align-items: center;
    justify-content: center;
-   border-radius: 0.8rem;
+   border-radius: var(--bs-border-radius);
    flex-shrink: 0;
 }
 

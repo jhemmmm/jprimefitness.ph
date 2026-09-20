@@ -22,6 +22,7 @@
 
         {{-- Left Panel: Branding --}}
         <div class="auth-brand d-none d-lg-flex">
+            <img class="band-bg" src="/images/gym/sign.webp" alt="">
             <div class="auth-brand-inner">
                 <div class="auth-brand-logo">
                     <a href="/" class="text-white text-decoration-none">

@@ -17,7 +17,7 @@
       <div class="row g-3 mb-4" v-else-if="payrolls.length">
          <div class="col-6 col-md-3" v-for="s in summaryCards" :key="s.label">
             <div class="stat-card">
-               <div class="stat-card-icon" :class="s.iconBg"><i class="bi" :class="[s.icon, s.iconColor]"></i></div>
+               <div class="stat-card-icon"><i class="bi" :class="s.icon"></i></div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ s.label }}</div>
                   <div class="stat-card-value small">₱{{ $filters.formatMoney(s.value) }}</div>
@@ -29,13 +29,13 @@
       <!-- Actions bar -->
       <div class="d-flex justify-content-between align-items-center mb-3">
          <div class="text-muted small" v-if="!loading">{{ payrolls.length }} payroll record{{ payrolls.length !== 1 ? "s" : "" }}</div>
-         <div class="skeleton-box" v-else style="height: 14px; width: 110px; border-radius: 4px"></div>
+         <div class="skeleton-box" v-else style="height: 14px; width: 110px"></div>
          <a v-if="canCreatePayroll" class="btn btn-danger btn-sm" :href="createUrl"><i class="bi bi-plus-lg me-1"></i>Create Payroll</a>
       </div>
 
       <!-- Loading -->
       <div v-if="loading">
-         <div class="skeleton-box" v-for="i in 3" :key="i" style="height: 60px; border-radius: 6px; margin-bottom: 8px"></div>
+         <div class="skeleton-box" v-for="i in 3" :key="i" style="height: 60px margin-bottom: 8px"></div>
       </div>
 
       <!-- Empty -->
@@ -309,10 +309,10 @@ export default {
          const totalPaid = this.summaryPayrolls.reduce((sum, payroll) => sum + payroll.total_paid, 0);
          const outstanding = this.summaryPayrolls.reduce((sum, payroll) => sum + payroll.remaining_balance, 0);
          return [
-            { label: "Total Gross", value: totalGross, icon: "bi-receipt", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-            { label: "Total Net", value: totalNet, icon: "bi-calculator", iconBg: "bg-success-soft", iconColor: "text-success" },
-            { label: "Total Paid", value: totalPaid, icon: "bi-cash-stack", iconBg: "bg-success-soft", iconColor: "text-success" },
-            { label: "Outstanding", value: outstanding, icon: "bi-exclamation-circle", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+            { label: "Total Gross", value: totalGross, icon: "bi-receipt" },
+            { label: "Total Net", value: totalNet, icon: "bi-calculator" },
+            { label: "Total Paid", value: totalPaid, icon: "bi-cash-stack" },
+            { label: "Outstanding", value: outstanding, icon: "bi-exclamation-circle" },
          ];
       },
    },

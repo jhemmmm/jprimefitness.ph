@@ -18,8 +18,8 @@
       <div class="row g-3 mb-4">
          <div class="col-6 col-lg-3" v-for="stat in statCards" :key="stat.label">
             <div class="stat-card">
-               <div class="stat-card-icon" :class="stat.iconBg">
-                  <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+               <div class="stat-card-icon">
+                  <i class="bi" :class="stat.icon"></i>
                </div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ stat.label }}</div>
@@ -312,7 +312,7 @@
                      </template>
 
                      <!-- Checked In -->
-                     <div class="col-md-6">
+                     <div class="col-md">
                         <label class="form-label form-label-sm">Checked In <span class="text-danger">*</span></label>
                         <input type="datetime-local" class="form-control" v-model="form.checked_in_at" :class="{ 'is-invalid': formErrors.checked_in_at }" />
                         <div class="invalid-feedback" v-if="formErrors.checked_in_at">
@@ -657,29 +657,21 @@ export default {
                label: "Today",
                value: this.stats.today,
                icon: "bi-person-check-fill",
-               iconBg: "bg-primary-soft",
-               iconColor: "text-primary",
             },
             {
                label: "This Week",
                value: this.stats.this_week,
                icon: "bi-calendar-week",
-               iconBg: "bg-success-soft",
-               iconColor: "text-success",
             },
             {
                label: "This Month",
                value: this.stats.this_month,
                icon: "bi-calendar-month",
-               iconBg: "bg-warning-soft",
-               iconColor: "text-warning",
             },
             {
                label: "Currently In",
                value: this.stats.currently_in,
                icon: "bi-door-open-fill",
-               iconBg: "bg-danger-soft",
-               iconColor: "text-danger",
             },
          ];
       },

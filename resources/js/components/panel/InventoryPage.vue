@@ -14,13 +14,13 @@
       <div class="row g-3 mb-4">
          <div class="col-6 col-lg-3" v-for="stat in statCards" :key="stat.label">
             <div class="stat-card">
-               <div class="stat-card-icon" :class="stat.iconBg">
-                  <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+               <div class="stat-card-icon">
+                  <i class="bi" :class="stat.icon"></i>
                </div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ stat.label }}</div>
                   <div class="stat-card-value" v-if="loading">
-                     <div class="skeleton-box" style="width: 52px; height: 18px; border-radius: 5px"></div>
+                     <div class="skeleton-box" style="width: 52px; height: 18px"></div>
                   </div>
                   <div class="stat-card-value" v-else>{{ stat.value }}</div>
                </div>
@@ -103,10 +103,10 @@
                      <tr v-for="i in 5" :key="'inventory-sk-' + i">
                         <td>
                            <div class="d-flex align-items-center gap-2">
-                              <div class="skeleton-box" style="width: 40px; height: 40px; border-radius: 14px"></div>
+                              <div class="skeleton-box" style="width: 40px; height: 40px"></div>
                               <div>
-                                 <div class="skeleton-box mb-1" style="width: 150px; height: 14px; border-radius: 4px"></div>
-                                 <div class="skeleton-box mb-2" style="width: 115px; height: 11px; border-radius: 4px"></div>
+                                 <div class="skeleton-box mb-1" style="width: 150px; height: 14px"></div>
+                                 <div class="skeleton-box mb-2" style="width: 115px; height: 11px"></div>
                                  <div class="d-flex gap-1">
                                     <div class="skeleton-box" style="width: 84px; height: 22px; border-radius: 999px"></div>
                                     <div class="skeleton-box" style="width: 56px; height: 22px; border-radius: 999px"></div>
@@ -115,22 +115,22 @@
                            </div>
                         </td>
                         <td>
-                           <div class="skeleton-box mb-2" style="width: 110px; height: 12px; border-radius: 4px"></div>
+                           <div class="skeleton-box mb-2" style="width: 110px; height: 12px"></div>
                            <div class="skeleton-box" style="width: 140px; height: 6px; border-radius: 999px"></div>
                         </td>
                         <td>
-                           <div class="skeleton-box mb-1" style="width: 95px; height: 13px; border-radius: 4px"></div>
-                           <div class="skeleton-box" style="width: 125px; height: 11px; border-radius: 4px"></div>
+                           <div class="skeleton-box mb-1" style="width: 95px; height: 13px"></div>
+                           <div class="skeleton-box" style="width: 125px; height: 11px"></div>
                         </td>
                         <td>
-                           <div class="skeleton-box mb-1" style="width: 85px; height: 12px; border-radius: 4px"></div>
-                           <div class="skeleton-box" style="width: 100px; height: 12px; border-radius: 4px"></div>
+                           <div class="skeleton-box mb-1" style="width: 85px; height: 12px"></div>
+                           <div class="skeleton-box" style="width: 100px; height: 12px"></div>
                         </td>
                         <td>
                            <div class="d-flex gap-1 justify-content-end">
-                              <div class="skeleton-box" style="width: 32px; height: 32px; border-radius: 6px"></div>
-                              <div class="skeleton-box" style="width: 32px; height: 32px; border-radius: 6px"></div>
-                              <div class="skeleton-box" style="width: 32px; height: 32px; border-radius: 6px"></div>
+                              <div class="skeleton-box" style="width: 32px; height: 32px"></div>
+                              <div class="skeleton-box" style="width: 32px; height: 32px"></div>
+                              <div class="skeleton-box" style="width: 32px; height: 32px"></div>
                            </div>
                         </td>
                      </tr>
@@ -142,13 +142,13 @@
                <div class="member-card" v-for="i in 4" :key="'inventory-mobile-sk-' + i">
                   <div class="member-card-top">
                      <div class="member-card-identity">
-                        <div class="skeleton-box" style="width: 40px; height: 40px; border-radius: 14px"></div>
+                        <div class="skeleton-box" style="width: 40px; height: 40px"></div>
                         <div>
-                           <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                           <div class="skeleton-box" style="width: 95px; height: 11px; border-radius: 4px"></div>
+                           <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                           <div class="skeleton-box" style="width: 95px; height: 11px"></div>
                         </div>
                      </div>
-                     <div class="skeleton-box" style="width: 30px; height: 30px; border-radius: 6px"></div>
+                     <div class="skeleton-box" style="width: 30px; height: 30px"></div>
                   </div>
                   <div class="member-card-tags mt-2">
                      <div class="skeleton-box" style="width: 86px; height: 22px; border-radius: 999px"></div>
@@ -156,13 +156,13 @@
                      <div class="skeleton-box" style="width: 92px; height: 22px; border-radius: 999px"></div>
                   </div>
                   <div class="mt-3">
-                     <div class="skeleton-box mb-2" style="width: 120px; height: 12px; border-radius: 4px"></div>
-                     <div class="skeleton-box mb-2" style="width: 145px; height: 12px; border-radius: 4px"></div>
-                     <div class="skeleton-box" style="width: 118px; height: 12px; border-radius: 4px"></div>
+                     <div class="skeleton-box mb-2" style="width: 120px; height: 12px"></div>
+                     <div class="skeleton-box mb-2" style="width: 145px; height: 12px"></div>
+                     <div class="skeleton-box" style="width: 118px; height: 12px"></div>
                   </div>
                   <div class="member-card-footer mt-3">
-                     <div class="skeleton-box" style="width: 70px; height: 13px; border-radius: 4px"></div>
-                     <div class="skeleton-box" style="width: 34px; height: 13px; border-radius: 4px"></div>
+                     <div class="skeleton-box" style="width: 70px; height: 13px"></div>
+                     <div class="skeleton-box" style="width: 34px; height: 13px"></div>
                   </div>
                </div>
             </div>
@@ -384,7 +384,7 @@
                            </label>
                         </div>
                      </div>
-                     <div class="col-md-4">
+                     <div class="col-md">
                         <label class="form-label form-label-sm">Unit <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" v-model="form.unit" :class="{ 'is-invalid': formErrors.unit }" :placeholder="form.tracks_stock ? 'pcs, box, bottle' : 'service'" />
                         <div class="invalid-feedback" v-if="formErrors.unit">{{ formErrors.unit }}</div>
@@ -400,7 +400,7 @@
                            <input type="number" min="0" step="0.01" class="form-control" v-model="form.low_stock_threshold" :class="{ 'is-invalid': formErrors.low_stock_threshold }" />
                            <div class="invalid-feedback" v-if="formErrors.low_stock_threshold">{{ formErrors.low_stock_threshold }}</div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-12">
                            <label class="form-label form-label-sm">Last Restocked At</label>
                            <input type="datetime-local" class="form-control" v-model="form.last_restocked_at" :class="{ 'is-invalid': formErrors.last_restocked_at }" />
                            <div class="invalid-feedback" v-if="formErrors.last_restocked_at">{{ formErrors.last_restocked_at }}</div>
@@ -437,7 +437,7 @@
 
                   <div class="form-section-title">Status & Notes</div>
                   <div class="row g-3">
-                     <div class="col-md-4">
+                     <div class="col-12">
                         <label class="form-label form-label-sm">Status <span class="text-danger">*</span></label>
                         <select class="form-select" v-model="form.status" :class="{ 'is-invalid': formErrors.status }">
                            <option value="active">Active</option>
@@ -900,10 +900,10 @@ export default {
       },
       statCards: function () {
          return [
-            { label: "Total Items", value: this.stats.total, icon: "bi-box-seam-fill", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-            { label: "Active", value: this.stats.active, icon: "bi-check-circle-fill", iconBg: "bg-success-soft", iconColor: "text-success" },
-            { label: "Low Stock", value: this.stats.low_stock, icon: "bi-exclamation-circle-fill", iconBg: "bg-warning-soft", iconColor: "text-warning" },
-            { label: "Out of Stock", value: this.stats.out_of_stock, icon: "bi-x-octagon-fill", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+            { label: "Total Items", value: this.stats.total, icon: "bi-box-seam-fill" },
+            { label: "Active", value: this.stats.active, icon: "bi-check-circle-fill" },
+            { label: "Low Stock", value: this.stats.low_stock, icon: "bi-exclamation-circle-fill" },
+            { label: "Out of Stock", value: this.stats.out_of_stock, icon: "bi-x-octagon-fill" },
          ];
       },
       formMarginInfo: function () {
@@ -926,7 +926,7 @@ export default {
 .inventory-avatar {
    width: 2.5rem;
    height: 2.5rem;
-   border-radius: 0.9rem;
+   border-radius: var(--bs-border-radius);
    display: inline-flex;
    align-items: center;
    justify-content: center;
@@ -937,7 +937,7 @@ export default {
 .inventory-avatar--sm {
    width: 2rem;
    height: 2rem;
-   border-radius: 0.65rem;
+   border-radius: var(--bs-border-radius);
    font-size: 0.85rem;
 }
 .inventory-avatar--warning {
@@ -987,7 +987,7 @@ export default {
    width: 2px;
    height: 10px;
    background: rgba(0, 0, 0, 0.45);
-   border-radius: 1px;
+   border-radius: var(--bs-border-radius);
    pointer-events: none;
 }
 
@@ -1070,7 +1070,7 @@ export default {
    display: flex;
    align-items: center;
    padding: 0.45rem 0.75rem;
-   border-radius: 0.4rem;
+   border-radius: var(--bs-border-radius);
    font-size: 0.85rem;
    font-weight: 600;
    min-height: calc(2.25rem + 2px);
@@ -1108,7 +1108,7 @@ export default {
 .restock-summary {
    background: rgba(0, 0, 0, 0.025);
    border: 1px solid rgba(0, 0, 0, 0.06);
-   border-radius: 0.6rem;
+   border-radius: var(--bs-border-radius);
    padding: 0.85rem;
 }
 .restock-stats {

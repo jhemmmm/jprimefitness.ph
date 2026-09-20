@@ -2,7 +2,7 @@
    <div class="pt-session-detail-page">
       <div class="d-flex align-items-center justify-content-between mb-4">
          <div>
-            <h4 class="fw-bold mb-0">Client Details</h4>
+            <h4 class="panel-page-title mb-0">Client Details</h4>
             <div class="text-muted small">Packages assigned to you and every session logged for this client</div>
          </div>
          <a href="/panel/pt-sessions" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i> Back</a>
@@ -46,7 +46,7 @@
          <div class="panel-card-body">
             <div v-if="loading" class="row g-3">
                <div class="col-md-6 col-xl-4" v-for="i in 2" :key="'pk-sk' + i">
-                  <div class="skeleton-box" style="height: 120px; border-radius: 8px"></div>
+                  <div class="skeleton-box" style="height: 120px"></div>
                </div>
             </div>
             <div v-else-if="packages.length === 0" class="text-center py-4 text-muted small">
@@ -86,7 +86,7 @@
             </span>
          </div>
          <div v-if="loading" class="p-3">
-            <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 5" :key="'log-sk-' + index"></div>
+            <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 5" :key="'log-sk-' + index"></div>
          </div>
          <div v-else>
             <div class="d-none d-md-block table-responsive">

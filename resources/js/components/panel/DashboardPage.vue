@@ -16,17 +16,17 @@
       <div class="row g-3 mb-4">
          <div class="col-6 col-xl-3" v-for="stat in visibleStats" :key="stat.key">
             <div class="stat-card h-100">
-               <div class="stat-card-icon" :class="stat.iconBg">
-                  <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+               <div class="stat-card-icon">
+                  <i class="bi" :class="stat.icon"></i>
                </div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ stat.label }}</div>
                   <div class="stat-card-value" v-if="loading">
-                     <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 5px"></div>
+                     <div class="skeleton-box" style="width: 90px; height: 18px"></div>
                   </div>
                   <div class="stat-card-value" v-else>{{ stat.value }}</div>
                   <div class="stat-card-sub" v-if="loading">
-                     <div class="skeleton-box" style="width: 120px; height: 11px; border-radius: 4px"></div>
+                     <div class="skeleton-box" style="width: 120px; height: 11px"></div>
                   </div>
                   <div class="stat-card-sub" v-else>{{ stat.sub }}</div>
                </div>
@@ -46,7 +46,7 @@
                </div>
                <div class="panel-card-body">
                   <div v-if="loading">
-                     <div class="skeleton-box" style="width: 100%; height: 260px; border-radius: 8px"></div>
+                     <div class="skeleton-box" style="width: 100%; height: 260px"></div>
                   </div>
                   <div v-else class="text-center py-5 text-muted">
                      <i class="bi bi-bar-chart empty-icon"></i>
@@ -66,7 +66,7 @@
                </div>
                <div class="panel-card-body">
                   <div v-if="loading">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 56px; border-radius: 12px" v-for="index in 4" :key="'operations-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 56px" v-for="index in 4" :key="'operations-sk-' + index"></div>
                   </div>
                   <div v-else class="d-flex flex-column gap-2">
                      <div class="d-flex align-items-center justify-content-between border rounded-3 px-3 py-2" v-for="item in operationsSummaryItems" :key="item.label">
@@ -95,7 +95,7 @@
                <div class="panel-card-body p-0">
                   <div v-if="loading">
                      <div class="d-none d-md-block p-3">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'check-ins-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 6" :key="'check-ins-sk-' + index"></div>
                      </div>
                      <div class="d-md-none p-3">
                         <div class="member-card" v-for="index in 4" :key="'check-ins-mobile-sk-' + index">
@@ -103,14 +103,14 @@
                               <div class="member-card-identity">
                                  <div class="member-avatar"></div>
                                  <div>
-                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                    <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                    <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                  </div>
                               </div>
                               <div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div>
                            </div>
                            <div class="member-card-footer">
-                              <div class="skeleton-box" style="width: 72px; height: 12px; border-radius: 4px"></div>
+                              <div class="skeleton-box" style="width: 72px; height: 12px"></div>
                            </div>
                         </div>
                      </div>
@@ -188,7 +188,7 @@
                </div>
                <div class="panel-card-body">
                   <div v-if="loading">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 48px; border-radius: 12px" v-for="index in 5" :key="'business-snapshot-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 48px" v-for="index in 5" :key="'business-snapshot-sk-' + index"></div>
                   </div>
                   <div v-else class="d-flex flex-column gap-2">
                      <div class="border rounded-3 px-3 py-2" v-for="item in businessSnapshotItems" :key="item.label">
@@ -210,7 +210,7 @@
                </div>
                <div class="panel-card-body">
                   <div v-if="loading">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 20px; border-radius: 4px" v-for="index in 4" :key="'trainer-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 20px" v-for="index in 4" :key="'trainer-sk-' + index"></div>
                   </div>
                   <div v-else-if="dashboard.trainers.length === 0" class="text-muted small text-center py-2">No trainers added yet.</div>
                   <div v-else class="d-flex flex-column gap-2">
@@ -240,7 +240,7 @@
                <div class="panel-card-body p-0">
                   <div v-if="loading">
                      <div class="d-none d-md-block p-3">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'recent-members-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 6" :key="'recent-members-sk-' + index"></div>
                      </div>
                      <div class="d-md-none p-3">
                         <div class="member-card" v-for="index in 4" :key="'recent-members-mobile-sk-' + index">
@@ -248,8 +248,8 @@
                               <div class="member-card-identity">
                                  <div class="member-avatar"></div>
                                  <div>
-                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                    <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                    <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                  </div>
                               </div>
                               <div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div>
@@ -319,7 +319,7 @@
                <div class="panel-card-body p-0">
                   <div v-if="loading">
                      <div class="d-none d-md-block p-3">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'recent-sales-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 6" :key="'recent-sales-sk-' + index"></div>
                      </div>
                      <div class="d-md-none p-3">
                         <div class="member-card" v-for="index in 4" :key="'recent-sales-mobile-sk-' + index">
@@ -327,14 +327,14 @@
                               <div class="member-card-identity">
                                  <div class="member-avatar"></div>
                                  <div>
-                                    <div class="skeleton-box mb-1" style="width: 130px; height: 14px; border-radius: 4px"></div>
-                                    <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    <div class="skeleton-box mb-1" style="width: 130px; height: 14px"></div>
+                                    <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                  </div>
                               </div>
                            </div>
                            <div class="member-card-footer">
-                              <div class="skeleton-box" style="width: 80px; height: 12px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 64px; height: 12px; border-radius: 4px"></div>
+                              <div class="skeleton-box" style="width: 80px; height: 12px"></div>
+                              <div class="skeleton-box" style="width: 64px; height: 12px"></div>
                            </div>
                         </div>
                      </div>
@@ -406,7 +406,7 @@
                <div class="panel-card-body p-0">
                   <div v-if="loading">
                      <div class="d-none d-md-block p-3">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'expiring-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 6" :key="'expiring-sk-' + index"></div>
                      </div>
                      <div class="d-md-none p-3">
                         <div class="member-card" v-for="index in 4" :key="'expiring-mobile-sk-' + index">
@@ -414,15 +414,15 @@
                               <div class="member-card-identity">
                                  <div class="member-avatar"></div>
                                  <div>
-                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                    <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                    <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                  </div>
                               </div>
                               <div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div>
                            </div>
                            <div class="member-card-footer">
-                              <div class="skeleton-box" style="width: 60px; height: 12px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 80px; height: 12px; border-radius: 4px"></div>
+                              <div class="skeleton-box" style="width: 60px; height: 12px"></div>
+                              <div class="skeleton-box" style="width: 80px; height: 12px"></div>
                            </div>
                         </div>
                      </div>
@@ -495,7 +495,7 @@
                <div class="panel-card-body p-0">
                   <div v-if="loading">
                      <div class="d-none d-md-block p-3">
-                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 6" :key="'payroll-sk-' + index"></div>
+                        <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 6" :key="'payroll-sk-' + index"></div>
                      </div>
                      <div class="d-md-none p-3">
                         <div class="member-card" v-for="index in 4" :key="'payroll-mobile-sk-' + index">
@@ -503,15 +503,15 @@
                               <div class="member-card-identity">
                                  <div class="member-avatar"></div>
                                  <div>
-                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px; border-radius: 4px"></div>
-                                    <div class="skeleton-box" style="width: 96px; height: 11px; border-radius: 4px"></div>
+                                    <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                    <div class="skeleton-box" style="width: 96px; height: 11px"></div>
                                  </div>
                               </div>
                               <div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div>
                            </div>
                            <div class="member-card-footer">
-                              <div class="skeleton-box" style="width: 80px; height: 12px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 64px; height: 12px; border-radius: 4px"></div>
+                              <div class="skeleton-box" style="width: 80px; height: 12px"></div>
+                              <div class="skeleton-box" style="width: 64px; height: 12px"></div>
                            </div>
                         </div>
                      </div>
@@ -707,8 +707,6 @@ export default {
                value: this.formatCount(row1.total_members),
                sub: "registered in your business",
                icon: "bi-people-fill",
-               iconBg: "bg-primary-soft",
-               iconColor: "text-primary",
             },
             {
                key: "check_ins_today",
@@ -716,8 +714,6 @@ export default {
                value: this.formatCount(row1.check_ins_today),
                sub: "attendance activity today",
                icon: "bi-person-check-fill",
-               iconBg: "bg-success-soft",
-               iconColor: "text-success",
             },
          ];
 
@@ -729,8 +725,6 @@ export default {
                   value: this.formatCurrency(row1.revenue_today),
                   sub: "recorded sales today",
                   icon: "bi-receipt",
-                  iconBg: "bg-warning-soft",
-                  iconColor: "text-warning",
                },
                {
                   key: "revenue_this_month",
@@ -738,8 +732,6 @@ export default {
                   value: this.formatCurrency(row1.revenue_this_month),
                   sub: "month-to-date gross revenue",
                   icon: "bi-cash-stack",
-                  iconBg: "bg-danger-soft",
-                  iconColor: "text-danger",
                },
             );
          }
@@ -751,8 +743,6 @@ export default {
                value: this.formatCount(row2.active_trainers),
                sub: "coaches assigned in scope",
                icon: "bi-person-badge-fill",
-               iconBg: "bg-primary-soft",
-               iconColor: "text-primary",
             },
             {
                key: "active_employees",
@@ -760,8 +750,6 @@ export default {
                value: this.formatCount(row2.active_employees),
                sub: "active non-coach staff",
                icon: "bi-person-workspace",
-               iconBg: "bg-success-soft",
-               iconColor: "text-success",
             },
             {
                key: "guest_check_ins_today",
@@ -769,8 +757,6 @@ export default {
                value: this.formatCount(row2.guest_check_ins_today),
                sub: "attendance guest activity",
                icon: "bi-person-fill-exclamation",
-               iconBg: "bg-warning-soft",
-               iconColor: "text-warning",
             },
          );
 
@@ -781,8 +767,6 @@ export default {
                value: this.formatCurrency(row2.pending_payroll_balance),
                sub: "outstanding approved payroll balance",
                icon: "bi-wallet2",
-               iconBg: "bg-danger-soft",
-               iconColor: "text-danger",
             });
          }
 

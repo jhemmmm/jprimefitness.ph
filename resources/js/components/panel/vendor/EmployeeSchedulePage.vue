@@ -3,7 +3,7 @@
       <div class="alert alert-danger py-2 small" v-if="pageError">{{ pageError }}</div>
 
       <div v-if="loading">
-         <div class="skeleton-box mb-2" v-for="i in 7" :key="'sk-sch-' + i" style="height: 56px; border-radius: 8px"></div>
+         <div class="skeleton-box mb-2" v-for="i in 7" :key="'sk-sch-' + i" style="height: 56px"></div>
       </div>
 
       <div v-else>
@@ -398,7 +398,7 @@ export default {
    flex-wrap: wrap;
    padding: 10px 14px;
    border: 1px solid var(--bs-border-color);
-   border-radius: 10px;
+   border-radius: var(--bs-border-radius);
    background: var(--bs-tertiary-bg);
 }
 
@@ -454,7 +454,7 @@ export default {
 
 .schedule-day {
    border: 1px solid var(--bs-border-color);
-   border-radius: 8px;
+   border-radius: var(--bs-border-radius);
    padding: 8px 12px;
    background: var(--bs-body-bg);
 }
@@ -488,7 +488,7 @@ export default {
    color: var(--bs-danger);
    background: rgba(var(--bs-danger-rgb), 0.1);
    padding: 1px 6px;
-   border-radius: 4px;
+   border-radius: var(--bs-border-radius);
    text-transform: uppercase;
    letter-spacing: 0.04em;
 }

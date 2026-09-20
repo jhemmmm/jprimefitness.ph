@@ -57,7 +57,7 @@
                      <div v-if="loadingContext">
                         <div class="row g-3">
                            <div class="col-12" v-for="index in 6" :key="'context-sk-' + index">
-                              <div class="skeleton-box" style="width: 100%; height: 44px; border-radius: 10px"></div>
+                              <div class="skeleton-box" style="width: 100%; height: 44px"></div>
                            </div>
                         </div>
                      </div>
@@ -507,13 +507,13 @@
                      </thead>
                      <tbody>
                         <tr v-for="index in 6" :key="'history-sk-' + index">
-                           <td><div class="skeleton-box" style="width: 120px; height: 14px; border-radius: 4px"></div></td>
+                           <td><div class="skeleton-box" style="width: 120px; height: 14px"></div></td>
                            <td><div class="skeleton-box" style="width: 80px; height: 22px; border-radius: 999px"></div></td>
-                           <td><div class="skeleton-box" style="width: 130px; height: 14px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 100px; height: 14px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 80px; height: 14px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box" style="width: 130px; height: 14px; border-radius: 4px"></div></td>
-                           <td><div class="skeleton-box ms-auto" style="width: 80px; height: 32px; border-radius: 6px"></div></td>
+                           <td><div class="skeleton-box" style="width: 130px; height: 14px"></div></td>
+                           <td><div class="skeleton-box" style="width: 100px; height: 14px"></div></td>
+                           <td><div class="skeleton-box" style="width: 80px; height: 14px"></div></td>
+                           <td><div class="skeleton-box" style="width: 130px; height: 14px"></div></td>
+                           <td><div class="skeleton-box ms-auto" style="width: 80px; height: 32px"></div></td>
                         </tr>
                      </tbody>
                   </table>
@@ -525,8 +525,8 @@
                         <div class="member-card-identity">
                            <div class="skeleton-box" style="width: 40px; height: 40px; border-radius: 999px"></div>
                            <div>
-                              <div class="skeleton-box mb-1" style="width: 110px; height: 14px; border-radius: 4px"></div>
-                              <div class="skeleton-box" style="width: 90px; height: 11px; border-radius: 4px"></div>
+                              <div class="skeleton-box mb-1" style="width: 110px; height: 14px"></div>
+                              <div class="skeleton-box" style="width: 90px; height: 11px"></div>
                            </div>
                         </div>
                      </div>
@@ -1552,7 +1552,7 @@ export default {
 
 .sales-type-group > .btn {
    width: 100%;
-   border-radius: 0.5rem !important;
+   border-radius: var(--bs-border-radius) !important;
 }
 
 @media (min-width: 768px) {
@@ -1568,13 +1568,13 @@ export default {
    }
 
    .sales-type-group > .btn:first-child {
-      border-top-left-radius: 0.375rem !important;
-      border-bottom-left-radius: 0.375rem !important;
+      border-top-left-radius: var(--bs-border-radius) !important;
+      border-bottom-left-radius: var(--bs-border-radius) !important;
    }
 
    .sales-type-group > .btn:last-child {
-      border-top-right-radius: 0.375rem !important;
-      border-bottom-right-radius: 0.375rem !important;
+      border-top-right-radius: var(--bs-border-radius) !important;
+      border-bottom-right-radius: var(--bs-border-radius) !important;
    }
 }
 

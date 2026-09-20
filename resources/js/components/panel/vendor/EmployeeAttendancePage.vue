@@ -18,7 +18,7 @@
          <template v-else>
             <div class="col-6 col-md-3" v-for="s in statCards" :key="s.label">
                <div class="stat-card">
-                  <div class="stat-card-icon" :class="s.iconBg"><i class="bi" :class="[s.icon, s.iconColor]"></i></div>
+                  <div class="stat-card-icon"><i class="bi" :class="s.icon"></i></div>
                   <div class="stat-card-body">
                      <div class="stat-card-label">{{ s.label }}</div>
                      <div class="stat-card-value">{{ s.value }}</div>
@@ -43,7 +43,7 @@
 
       <!-- Loading skeleton -->
       <div v-if="loading">
-         <div class="skeleton-box" v-for="i in 5" :key="i" style="height: 44px; border-radius: 6px; margin-bottom: 8px"></div>
+         <div class="skeleton-box" v-for="i in 5" :key="i" style="height: 44px margin-bottom: 8px"></div>
       </div>
 
       <!-- Empty state -->
@@ -226,10 +226,10 @@ export default {
       },
       statCards: function () {
          return [
-            { label: "Total", value: this.stats.total, icon: "bi-calendar-check", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-            { label: "This Month", value: this.stats.this_month, icon: "bi-calendar-month", iconBg: "bg-success-soft", iconColor: "text-success" },
-            { label: "Total Hours", value: this.stats.total_hours + "h", icon: "bi-clock-history", iconBg: "bg-warning-soft", iconColor: "text-warning" },
-            { label: "Currently In", value: this.stats.currently_in, icon: "bi-door-open-fill", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+            { label: "Total", value: this.stats.total, icon: "bi-calendar-check" },
+            { label: "This Month", value: this.stats.this_month, icon: "bi-calendar-month" },
+            { label: "Total Hours", value: this.stats.total_hours + "h", icon: "bi-clock-history" },
+            { label: "Currently In", value: this.stats.currently_in, icon: "bi-door-open-fill" },
          ];
       },
    },

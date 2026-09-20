@@ -50,8 +50,7 @@
 
             {{-- Logo --}}
             <a class="navbar-brand jprime-logo fw-bold fs-5 text-white text-decoration-none" href="/">
-                <img src="{{ asset('logo.png') }}" alt="JPrime Fitness Logo" />JPrime <span
-                    class="text-danger">Fitness</span>
+                <img src="{{ asset('logo.png') }}" alt="" />JPrime <span class="text-danger">Fitness</span>
             </a>
 
             {{-- Mobile Toggle --}}
@@ -63,29 +62,13 @@
 
             {{-- Nav Links --}}
             <div class="collapse navbar-collapse" id="mainNavbar">
-                <ul class="navbar-nav mx-auto gap-lg-1">
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold {{ request()->is('/') ? 'active' : '' }}" href="/">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold" href="#about">About</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold" href="#pricing">Pricing</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold" href="#services">Programs</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold" href="#membership">Membership</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link fw-semibold" href="#contact">Contact</a>
-                    </li>
+                <ul class="navbar-nav ms-auto me-lg-3">
+                    <li class="nav-item"><a class="nav-link" href="/#about">The Gym</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/#pricing">Rates</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/#membership">Membership</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/#contact">Contact</a></li>
                 </ul>
-                <div class="mt-3 mt-lg-0">
-                    <a href="#register" class="btn btn-danger rounded-1 px-4 fw-semibold">Join Now</a>
-                </div>
+                <a href="/#register" class="btn btn-primary px-4 mt-3 mt-lg-0">Join Now</a>
             </div>
 
         </div>
@@ -103,6 +86,7 @@
             ->filter()
             ->join(', ');
         $footerHours = $bp->formattedOperatingHours() ?? 'Hours to be announced';
+        $footerPlace = collect([$bp->city, $bp->province])->filter()->join(', ');
     @endphp
     <footer class="jprime-footer bg-dark text-white pt-5">
         <div class="container">
@@ -113,7 +97,7 @@
                         <img src="{{ asset('logo.png') }}" alt="JPrime Fitness Logo" />JPrime <span class="text-danger">Fitness</span>
                     </span>
                     <p class="text-white-50 small mt-3 mb-3" style="max-width: 320px;">
-                        {{ $bp->name }} is a community-driven gym committed to clean facilities, honest pricing, and real, measurable progress.
+                        Independent gym{{ $footerPlace ? ' in ' . $footerPlace : '' }}.
                     </p>
                     @if ($bp->social_links)
                         <div class="d-flex gap-2">
@@ -129,11 +113,11 @@
                     <h6 class="footer-heading">Explore</h6>
                     <ul class="footer-links">
                         <li><a href="/">Home</a></li>
-                        <li><a href="#about">About</a></li>
-                        <li><a href="#pricing">Pricing</a></li>
-                        <li><a href="#services">Programs</a></li>
-                        <li><a href="#features">Member Experience</a></li>
-                        <li><a href="#membership">Membership</a></li>
+                        <li><a href="/#about">The Gym</a></li>
+                        <li><a href="/#pricing">Rates</a></li>
+                        <li><a href="/#membership">Membership</a></li>
+                        <li><a href="/#register">Join</a></li>
+                        <li><a href="/#contact">Contact</a></li>
                         <li><a href="/terms">Terms &amp; Conditions</a></li>
                     </ul>
                 </div>
@@ -150,12 +134,6 @@
                             <i class="bi bi-clock-fill text-danger"></i>
                             <span>{{ $footerHours }}</span>
                         </li>
-                        @if ($bp->timezone)
-                            <li>
-                                <i class="bi bi-globe text-danger"></i>
-                                <span>{{ $bp->timezone }}</span>
-                            </li>
-                        @endif
                     </ul>
                 </div>
 
@@ -169,22 +147,15 @@
                         </li>
                         <li>
                             <i class="bi bi-chat-dots-fill text-danger"></i>
-                            <a href="#contact">Send us a message</a>
-                        </li>
-                        <li>
-                            <i class="bi bi-person-badge-fill text-danger"></i>
-                            <a href="#contact">Coaching inquiries</a>
+                            <a href="/#contact">Send us a message</a>
                         </li>
                     </ul>
                 </div>
             </div>
 
-            <div class="footer-bottom d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 py-3">
+            <div class="footer-bottom py-3">
                 <div class="text-white-50 small">
                     &copy; {{ now()->year }} {{ $bp->name }}. All rights reserved.
-                </div>
-                <div class="text-white-50 small">
-                    Built for the community &middot; Powered by clean training and honest pricing
                 </div>
             </div>
         </div>

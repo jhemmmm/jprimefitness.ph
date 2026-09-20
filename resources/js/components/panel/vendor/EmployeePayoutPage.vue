@@ -5,7 +5,7 @@
       <!-- Summary -->
       <div class="d-flex align-items-center justify-content-between mb-3">
          <template v-if="loading">
-            <div class="skeleton-box" style="height: 14px; width: 80px; border-radius: 4px"></div>
+            <div class="skeleton-box" style="height: 14px; width: 80px"></div>
          </template>
          <template v-else>
             <div class="text-muted small">{{ payouts.length }} payout{{ payouts.length !== 1 ? "s" : "" }}</div>
@@ -15,7 +15,7 @@
 
       <!-- Loading -->
       <div v-if="loading">
-         <div class="skeleton-box" v-for="i in 4" :key="i" style="height: 48px; border-radius: 6px; margin-bottom: 8px"></div>
+         <div class="skeleton-box" v-for="i in 4" :key="i" style="height: 48px margin-bottom: 8px"></div>
       </div>
 
       <!-- Empty -->

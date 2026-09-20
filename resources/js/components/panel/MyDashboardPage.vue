@@ -18,17 +18,17 @@
       <div class="row g-3 mb-4">
          <div class="col-6 col-xl-3" v-for="stat in stats" :key="stat.key">
             <div class="stat-card h-100">
-               <div class="stat-card-icon" :class="stat.iconBg">
-                  <i class="bi" :class="[stat.icon, stat.iconColor]"></i>
+               <div class="stat-card-icon">
+                  <i class="bi" :class="stat.icon"></i>
                </div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ stat.label }}</div>
                   <div class="stat-card-value" v-if="loading">
-                     <div class="skeleton-box" style="width: 90px; height: 18px; border-radius: 5px"></div>
+                     <div class="skeleton-box" style="width: 90px; height: 18px"></div>
                   </div>
                   <div class="stat-card-value" v-else>{{ stat.value }}</div>
                   <div class="stat-card-sub" v-if="loading">
-                     <div class="skeleton-box" style="width: 120px; height: 11px; border-radius: 4px"></div>
+                     <div class="skeleton-box" style="width: 120px; height: 11px"></div>
                   </div>
                   <div class="stat-card-sub" v-else>{{ stat.sub }}</div>
                </div>
@@ -49,7 +49,7 @@
                </div>
                <div class="panel-card-body p-0">
                   <div v-if="loading" class="p-3">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 4" :key="'trainee-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 4" :key="'trainee-sk-' + index"></div>
                   </div>
                   <div class="table-responsive" v-else>
                      <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
@@ -101,7 +101,7 @@
                </div>
                <div class="panel-card-body p-0">
                   <div v-if="loading" class="p-3">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 4" :key="'session-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 4" :key="'session-sk-' + index"></div>
                   </div>
                   <div class="table-responsive" v-else>
                      <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
@@ -147,7 +147,7 @@
                </div>
                <div class="panel-card-body p-0">
                   <div v-if="loading" class="p-3">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 4" :key="'payroll-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 4" :key="'payroll-sk-' + index"></div>
                   </div>
                   <div class="table-responsive" v-else>
                      <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
@@ -199,7 +199,7 @@
                </div>
                <div class="panel-card-body p-0">
                   <div v-if="loading" class="p-3">
-                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px; border-radius: 4px" v-for="index in 4" :key="'att-sk-' + index"></div>
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 4" :key="'att-sk-' + index"></div>
                   </div>
                   <div class="table-responsive" v-else>
                      <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
@@ -262,8 +262,6 @@ export default {
                value: latest ? this.$filters.formatPeso(latest.net_amount) : "—",
                sub: latest ? `${formatDate(latest.period_start)} – ${formatDate(latest.period_end)} • ${latest.status.replace("_", " ")}` : "no payroll yet",
                icon: "bi-receipt",
-               iconBg: "bg-warning-soft",
-               iconColor: "text-warning",
             },
             {
                key: "outstanding",
@@ -271,8 +269,6 @@ export default {
                value: this.$filters.formatPeso(s.outstanding_payroll_balance),
                sub: "approved pay not yet released",
                icon: "bi-cash-stack",
-               iconBg: "bg-danger-soft",
-               iconColor: "text-danger",
             },
          ];
 
@@ -284,8 +280,6 @@ export default {
                   value: String(s.active_trainees ?? 0),
                   sub: "members with sessions left",
                   icon: "bi-people-fill",
-                  iconBg: "bg-primary-soft",
-                  iconColor: "text-primary",
                },
                {
                   key: "sessions",
@@ -293,8 +287,6 @@ export default {
                   value: String(s.sessions_this_month ?? 0),
                   sub: "PT sessions you ran",
                   icon: "bi-lightning-charge-fill",
-                  iconBg: "bg-success-soft",
-                  iconColor: "text-success",
                },
                ...payrollTiles,
             ];
@@ -308,8 +300,6 @@ export default {
                value: `${s.attendance_this_month.days} days`,
                sub: `${s.attendance_this_month.hours} hrs${s.currently_in ? " • currently in" : ""}`,
                icon: "bi-person-check-fill",
-               iconBg: "bg-success-soft",
-               iconColor: "text-success",
             },
             {
                key: "cash_advance",
@@ -317,8 +307,6 @@ export default {
                value: this.$filters.formatPeso(s.cash_advance_balance),
                sub: s.pending_cash_advance_requests ? `${s.pending_cash_advance_requests} request${s.pending_cash_advance_requests === 1 ? "" : "s"} pending approval` : "still to be repaid",
                icon: "bi-wallet2",
-               iconBg: "bg-primary-soft",
-               iconColor: "text-primary",
             },
          ];
       },

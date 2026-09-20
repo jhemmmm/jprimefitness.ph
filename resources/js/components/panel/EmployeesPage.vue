@@ -52,8 +52,8 @@
                   </div>
                </div>
                <div class="d-flex gap-2">
-                  <div class="skeleton-box" style="height: 20px; width: 60px; border-radius: 20px"></div>
-                  <div class="skeleton-box" style="height: 20px; width: 50px; border-radius: 20px"></div>
+                  <div class="skeleton-box" style="height: 20px; width: 60px"></div>
+                  <div class="skeleton-box" style="height: 20px; width: 50px"></div>
                </div>
             </div>
          </div>
@@ -171,7 +171,7 @@
                         <div class="form-text small">Set the payroll schedule directly on the employee contract.</div>
                         <div class="invalid-feedback" v-if="formErrors['employee_profile.pay_frequency']">{{ formErrors["employee_profile.pay_frequency"][0] }}</div>
                      </div>
-                     <div class="col-md-6">
+                     <div class="col-12">
                         <label class="form-label fw-semibold">PT Commission Rate (%)</label>
                         <input
                            type="number"
@@ -191,7 +191,7 @@
                            <contribution-settings-fields :profile="form.employee_profile" :errors="formErrors" id-prefix="employee-create" />
                         </div>
                      </div>
-                     <div class="col-md-6">
+                     <div class="col-12">
                         <label class="form-label fw-semibold">
                            Password
                            <span class="text-danger" v-if="modalMode === 'create'">*</span>

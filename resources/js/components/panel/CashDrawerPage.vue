@@ -2,7 +2,7 @@
    <div class="cash-drawer-page">
       <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
          <div>
-            <h4 class="fw-bold mb-0">Cash Drawer</h4>
+            <h4 class="panel-page-title mb-0">Cash Drawer</h4>
             <div class="text-muted small">Track drawer cash, record cash or online expenses, reconcile at close, and deposit to bank</div>
          </div>
          <div class="d-flex align-items-center gap-2">
@@ -31,7 +31,7 @@
       <div class="row g-3 mb-2" v-else-if="session">
          <div class="col-6 col-md-3" v-for="card in statCards" :key="card.label">
             <div class="stat-card">
-               <div class="stat-card-icon" :class="card.iconBg"><i class="bi" :class="[card.icon, card.iconColor]"></i></div>
+               <div class="stat-card-icon"><i class="bi" :class="card.icon"></i></div>
                <div class="stat-card-body">
                   <div class="stat-card-label">{{ card.label }}</div>
                   <div class="stat-card-value">₱{{ $filters.formatMoney(card.value) }}</div>
@@ -341,7 +341,7 @@
                         <div class="invalid-feedback" v-if="expenseErrors.payment_method">{{ expenseErrors.payment_method }}</div>
                         <div class="form-text" v-if="expenseForm.payment_method === 'online_payment'">This expense will not reduce expected physical cash.</div>
                      </div>
-                     <div class="col-md-6">
+                     <div class="col-12">
                         <label class="form-label form-label-sm">Amount (₱) <span class="text-danger">*</span></label>
                         <input type="number" class="form-control" v-model="expenseForm.amount" min="0.01" step="0.01" :class="{ 'is-invalid': expenseErrors.amount }" />
                         <div class="invalid-feedback" v-if="expenseErrors.amount">{{ expenseErrors.amount }}</div>
@@ -599,10 +599,10 @@ export default {
    computed: {
       statCards: function () {
          return [
-            { label: "Opening Cash", value: this.session.opening_float, icon: "bi-unlock", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-            { label: "Cash In", value: this.session.cash_in, icon: "bi-arrow-down-circle", iconBg: "bg-success-soft", iconColor: "text-success" },
-            { label: "Cash Out", value: this.session.cash_out, icon: "bi-arrow-up-circle", iconBg: "bg-danger-soft", iconColor: "text-danger" },
-            { label: "Expected Cash Now", value: this.session.expected_cash, icon: "bi-safe", iconBg: "bg-warning-soft", iconColor: "text-warning" },
+            { label: "Opening Cash", value: this.session.opening_float, icon: "bi-unlock" },
+            { label: "Cash In", value: this.session.cash_in, icon: "bi-arrow-down-circle" },
+            { label: "Cash Out", value: this.session.cash_out, icon: "bi-arrow-up-circle" },
+            { label: "Expected Cash Now", value: this.session.expected_cash, icon: "bi-safe" },
          ];
       },
       liveOverShort: function () {
@@ -794,7 +794,7 @@ export default {
 .history-heading-icon {
    width: 2.5rem;
    height: 2.5rem;
-   border-radius: 0.75rem;
+   border-radius: var(--bs-border-radius);
    display: inline-flex;
    align-items: center;
    justify-content: center;
@@ -899,7 +899,7 @@ export default {
    gap: 0.75rem;
    margin: 1rem 0;
    padding: 0.75rem;
-   border-radius: 0.5rem;
+   border-radius: var(--bs-border-radius);
    background: var(--bs-tertiary-bg);
 }
 
@@ -951,7 +951,7 @@ export default {
 .history-metric {
    min-width: 0;
    padding: 0.65rem;
-   border-radius: 0.5rem;
+   border-radius: var(--bs-border-radius);
    background: var(--bs-tertiary-bg);
 }
 
@@ -975,7 +975,7 @@ export default {
 
 .history-skeleton {
    height: 0.875rem;
-   border-radius: 0.25rem;
+   border-radius: var(--bs-border-radius);
 }
 
 .history-skeleton--date {
@@ -1003,7 +1003,7 @@ export default {
 .history-skeleton--button {
    width: 4.75rem;
    height: 2rem;
-   border-radius: 0.375rem;
+   border-radius: var(--bs-border-radius);
 }
 
 .expense-month {
@@ -1024,7 +1024,7 @@ export default {
    gap: 1rem;
    padding: 0.75rem 0.875rem;
    border: 1px solid var(--bs-border-color);
-   border-radius: 0.5rem;
+   border-radius: var(--bs-border-radius);
    background: var(--bs-tertiary-bg);
 }
 
@@ -1068,7 +1068,7 @@ export default {
    min-width: 0;
    padding: 0.875rem;
    border: 1px solid var(--bs-border-color);
-   border-radius: 0.5rem;
+   border-radius: var(--bs-border-radius);
    background: var(--bs-body-bg);
 }
 
@@ -1091,7 +1091,7 @@ export default {
    margin-top: 1rem;
    padding: 0.75rem 0.875rem;
    border-left: 3px solid var(--bs-secondary-color);
-   border-radius: 0.25rem;
+   border-radius: var(--bs-border-radius);
    background: var(--bs-body-bg);
    color: var(--bs-secondary-color);
    font-size: 0.82rem;

@@ -17,7 +17,7 @@
          <template v-else>
             <div class="col-4" v-for="stat in statCards" :key="stat.label">
                <div class="stat-card">
-                  <div class="stat-card-icon" :class="stat.iconBg"><i class="bi" :class="[stat.icon, stat.iconColor]"></i></div>
+                  <div class="stat-card-icon"><i class="bi" :class="stat.icon"></i></div>
                   <div class="stat-card-body">
                      <div class="stat-card-label">{{ stat.label }}</div>
                      <div class="stat-card-value">{{ stat.value }}</div>
@@ -40,7 +40,7 @@
       </div>
 
       <div v-if="loading">
-         <div class="skeleton-box" v-for="i in 5" :key="i" style="height: 44px; border-radius: 6px; margin-bottom: 8px"></div>
+         <div class="skeleton-box" v-for="i in 5" :key="i" style="height: 44px margin-bottom: 8px"></div>
       </div>
 
       <div v-else-if="records.length === 0" class="text-center py-5 text-muted">
@@ -195,9 +195,9 @@ export default {
    computed: {
       statCards: function () {
          return [
-            { label: "Total", value: this.stats.total, icon: "bi-calendar-check", iconBg: "bg-primary-soft", iconColor: "text-primary" },
-            { label: "This Month", value: this.stats.this_month, icon: "bi-calendar-month", iconBg: "bg-success-soft", iconColor: "text-success" },
-            { label: "Currently In", value: this.stats.currently_in, icon: "bi-door-open-fill", iconBg: "bg-danger-soft", iconColor: "text-danger" },
+            { label: "Total", value: this.stats.total, icon: "bi-calendar-check" },
+            { label: "This Month", value: this.stats.this_month, icon: "bi-calendar-month" },
+            { label: "Currently In", value: this.stats.currently_in, icon: "bi-door-open-fill" },
          ];
       },
    },

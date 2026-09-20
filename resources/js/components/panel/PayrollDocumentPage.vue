@@ -2,7 +2,7 @@
    <div>
       <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2 payroll-page-header">
          <div class="payroll-page-heading">
-            <h4 class="fw-bold mb-0">{{ isEdit ? "Edit Payroll Draft" : "Create Payroll" }}</h4>
+            <h4 class="panel-page-title mb-0">{{ isEdit ? "Edit Payroll Draft" : "Create Payroll" }}</h4>
             <div class="text-muted small">Review attendance, adjust amounts, and save the payroll draft</div>
          </div>
          <a :href="employeeUrl" class="btn btn-outline-secondary payroll-back-button"><i class="bi bi-arrow-left me-1"></i> Back</a>
@@ -653,7 +653,7 @@ export default {
    background: #ffffff;
    color: #111827;
    border: 1px solid #d1d5db;
-   border-radius: 4px;
+   border-radius: var(--bs-border-radius);
    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
@@ -808,7 +808,7 @@ export default {
 .doc-mobile-summary,
 .doc-mobile-empty {
    border: 1px solid #e5e7eb;
-   border-radius: 8px;
+   border-radius: var(--bs-border-radius);
    background: #ffffff;
 }
 

@@ -7,7 +7,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <title>@yield('title', 'Panel') - JPrime Fitness Panel</title>
     <link rel="preconnect" href="https://fonts.bunny.net" />
-    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800,900|nunito:400,600,700|oswald:400,700"
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800,900|nunito:400,600,700|oswald:400,500,600,700"
         rel="stylesheet" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
     <link rel="apple-touch-icon" sizes="57x57" href="/apple-icon-57x57.png">
