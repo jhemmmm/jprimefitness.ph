@@ -48,6 +48,8 @@ return [
         'helper_timeout' => (int) env('BIOMETRIC_HELPER_TIMEOUT', 60),
         'enrollment_timeout' => (int) env('BIOMETRIC_ENROLLMENT_TIMEOUT', 30),
         'fingerprint_id' => (int) env('BIOMETRIC_FINGERPRINT_ID', 1),
+        'cf_access_client_id' => env('BIOMETRIC_HELPER_CF_ACCESS_CLIENT_ID'),
+        'cf_access_client_secret' => env('BIOMETRIC_HELPER_CF_ACCESS_CLIENT_SECRET'),
     ],
 
     'paymongo' => [

@@ -35,3 +35,9 @@ graphify-out/.graphify_python
 .graphify_python
 .graphify_python_runner
 Capstone-1.docx
+
+# Allow the release workflow even though .github/skills is ignored
+!/.github/
+/.github/*
+!/.github/workflows/
+/dist

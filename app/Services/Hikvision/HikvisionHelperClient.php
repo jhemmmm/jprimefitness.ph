@@ -81,13 +81,25 @@ class HikvisionHelperClient
 
         $timeout = max(1, (int) config('services.biometric.helper_timeout', 60));
 
+        $pendingRequest = $this->http
+            ->acceptJson()
+            ->asJson()
+            ->baseUrl($baseUrl)
+            ->timeout($timeout)
+            ->connectTimeout($timeout);
+
+        $cfAccessClientId = (string) config('services.biometric.cf_access_client_id', '');
+        $cfAccessClientSecret = (string) config('services.biometric.cf_access_client_secret', '');
+
+        if ($cfAccessClientId !== '' && $cfAccessClientSecret !== '') {
+            $pendingRequest = $pendingRequest->withHeaders([
+                'CF-Access-Client-Id' => $cfAccessClientId,
+                'CF-Access-Client-Secret' => $cfAccessClientSecret,
+            ]);
+        }
+
         try {
-            return $this->http
-                ->acceptJson()
-                ->asJson()
-                ->baseUrl($baseUrl)
-                ->timeout($timeout)
-                ->connectTimeout($timeout)
+            return $pendingRequest
                 ->send(strtoupper($method), ltrim($path, '/'), [
                     'json' => $payload,
                 ]);
