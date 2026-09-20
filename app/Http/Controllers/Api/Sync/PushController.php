@@ -33,7 +33,7 @@ class PushController extends Controller
             'events' => ['required', 'array'],
             'events.*.event_id' => ['required', 'string', 'max:64'],
             'events.*.entity_type' => ['required', 'string', 'max:64'],
-            'events.*.entity_id' => ['required', 'string', 'max:64'],
+            'events.*.entity_id' => ['required', 'string', 'max:191'],
             'events.*.op' => ['required', 'string', 'in:'.implode(',', SyncOp::all())],
             'events.*.payload' => ['required', 'array'],
             'events.*.origin_node' => ['required', 'string', 'max:64'],
