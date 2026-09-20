@@ -70,7 +70,7 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('panel.*', function ($view) {
             $businessProfile = BusinessProfile::current();
-            $ratePlans = RatePlan::where('is_active', true)->get();
+            $ratePlans = RatePlan::membership()->orderBy('duration_days')->orderBy('name')->get();
             $ptProducts = PTProduct::where('is_active', true)->get();
             // Roles the signed-in user may assign from the employees UI, and every role's badge colour for the roleBadge filter.
             $roles = auth()->check() ? Role::assignableBy(auth()->user())->makeHidden('permissions') : collect();

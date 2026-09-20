@@ -92,6 +92,30 @@ class MembersAccessTest extends TestCase
         ]);
     }
 
+    public function test_removed_and_walk_in_plans_are_neither_offered_nor_accepted_for_membership(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
+        $offered = $this->createRatePlan('Monthly', 30);
+        $removed = tap($this->createRatePlan('Old Monthly', 30))->update(['price' => null]); // Pricing "delete" nulls the price
+        $walkIn = tap($this->createRatePlan('Daily Pass', 1))->update(['is_walk_in_only' => true]);
+        $inactive = tap($this->createRatePlan('Retired', 30))->update(['is_active' => false]);
+
+        $page = $this->actingAs($manager)->get("/panel/members/{$member->id}")->assertOk();
+        $page->assertSee('Monthly')->assertDontSee('Old Monthly')->assertDontSee('Daily Pass')->assertDontSee('Retired');
+
+        foreach ([$removed, $walkIn, $inactive] as $plan) {
+            $this->actingAs($manager)
+                ->putJson("/panel/members/{$member->id}/membership", ['rate_plan_id' => $plan->id, 'start_date' => '2026-04-01'])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('rate_plan_id');
+        }
+
+        $this->actingAs($manager)
+            ->putJson("/panel/members/{$member->id}/membership", ['rate_plan_id' => $offered->id, 'start_date' => '2026-04-01'])
+            ->assertOk();
+    }
+
     public function test_manager_can_update_membership_status_for_a_member(): void
     {
         $manager = $this->createUserWithRole('manager');

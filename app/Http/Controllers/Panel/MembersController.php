@@ -37,6 +37,12 @@ class MembersController extends Controller
         private SystemActivityService $systemActivityService,
     ) {}
 
+    /** Mirrors RatePlan::scopeMembership(): no removed, inactive or walk-in-only plans. */
+    private function membershipPlanRule(): \Illuminate\Validation\Rules\Exists
+    {
+        return Rule::exists('rate_plans', 'id')->where(fn ($q) => $q->where('is_active', true)->whereNotNull('price')->where('is_walk_in_only', false));
+    }
+
     /**
      * Contact-detail rules shared by store() and update(). Required for new members;
      * an existing member may leave a still-blank field empty but can't clear one that is set.
@@ -148,7 +154,7 @@ class MembersController extends Controller
                 ]),
             ],
             ...$this->personRules(),
-            'rate_plan_id' => ['required', 'exists:rate_plans,id'],
+            'rate_plan_id' => ['required', $this->membershipPlanRule()],
             'start_date' => ['nullable', 'date'],
         ]);
 
@@ -267,7 +273,7 @@ class MembersController extends Controller
         abort_unless($member->hasRole('member'), 404);
 
         $data = $request->validate([
-            'rate_plan_id' => ['required', 'exists:rate_plans,id'],
+            'rate_plan_id' => ['required', $this->membershipPlanRule()],
             'start_date' => ['required', 'date'],
         ]);
 
@@ -484,7 +490,7 @@ class MembersController extends Controller
                 ]),
             ],
             ...$this->personRules($member),
-            'rate_plan_id' => ['nullable', 'exists:rate_plans,id'],
+            'rate_plan_id' => ['nullable', $this->membershipPlanRule()],
             'start_date' => ['nullable', 'date'],
         ]);
 
