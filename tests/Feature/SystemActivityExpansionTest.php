@@ -96,6 +96,7 @@ class SystemActivityExpansionTest extends TestCase
 
         $this->assertSame([
             SystemActivity::SUBJECT_BUSINESS_PROFILE,
+            SystemActivity::SUBJECT_ROLE,
             SystemActivity::SUBJECT_EMPLOYEE,
             SystemActivity::SUBJECT_PAYROLL,
             SystemActivity::SUBJECT_PAYOUT,
@@ -167,6 +168,7 @@ class SystemActivityExpansionTest extends TestCase
                 'name' => 'Coach Lou',
                 'email' => 'coach.lou@example.com',
                 'phone' => '09170000001',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$coachRoleId],
                 'employee_profile' => [
@@ -191,6 +193,7 @@ class SystemActivityExpansionTest extends TestCase
                 'name' => 'Coach Lou Updated',
                 'email' => 'coach.lou@example.com',
                 'phone' => '09170000002',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$coachRoleId],
                 'employee_profile' => [
@@ -212,6 +215,7 @@ class SystemActivityExpansionTest extends TestCase
                 'name' => 'Staff Delete',
                 'email' => 'staff.delete@example.com',
                 'phone' => '09170000003',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRoleId],
                 'employee_profile' => [
@@ -370,6 +374,7 @@ class SystemActivityExpansionTest extends TestCase
                 'name' => 'Member Cara',
                 'email' => 'member.cara@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'date_of_birth' => '1990-01-01',
                 'emergency_contact_name' => 'Next of Kin',
                 'emergency_contact_phone' => '09170000001',
@@ -390,6 +395,7 @@ class SystemActivityExpansionTest extends TestCase
                 'emergency_contact_name' => 'Next of Kin',
                 'emergency_contact_phone' => '09170000001',
                 'phone' => '09170000100',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'rate_plan_id' => $planA->id,
                 'start_date' => '2026-04-01',

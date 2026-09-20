@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Permission;
 use App\Models\Role;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -70,6 +71,16 @@ class RoleSeeder extends Seeder
     }
 
     public function run(): void
+    {
+        // Re-running this resets seeded roles to MATRIX, discarding edits made under Settings > Roles &
+        // permissions. To add a permission later, givePermissionTo() in a migration instead of re-seeding.
+        //
+        // Unguarded: this also runs from migrations, and a guarded fill() would cache the roles columns
+        // before later migrations (e.g. add_color_to_roles_table) add theirs, silently dropping them.
+        Model::unguarded(fn () => $this->seed());
+    }
+
+    private function seed(): void
     {
         foreach (self::permissions() as $name) {
             Permission::findOrCreate($name);

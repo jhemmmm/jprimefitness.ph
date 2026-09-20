@@ -115,7 +115,7 @@ class DashboardController extends Controller
     private function activeEmployeeCount(): int
     {
         // Coaches are counted separately as "Active Trainers".
-        return User::role(array_values(array_diff(User::EMPLOYEE_ROLES, ['coach'])))
+        return User::employees(['coach'])
             ->where('status', User::STATUS_ACTIVE)
             ->count();
     }

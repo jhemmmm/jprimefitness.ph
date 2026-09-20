@@ -120,6 +120,7 @@ class MembershipQrCodeTest extends TestCase
                 'emergency_contact_name' => 'Next of Kin',
                 'emergency_contact_phone' => '09170000001',
                 'phone' => '09171234567',
+                'address' => '12 Rizal St, Naga City',
                 'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
                 'rate_plan_id' => $ratePlan->id,

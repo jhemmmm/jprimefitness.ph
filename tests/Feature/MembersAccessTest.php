@@ -180,7 +180,7 @@ class MembersAccessTest extends TestCase
                 'rate_plan_id' => $plan->id,
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['phone', 'date_of_birth', 'emergency_contact_name', 'emergency_contact_phone']);
+            ->assertJsonValidationErrors(['phone', 'address', 'date_of_birth', 'emergency_contact_name', 'emergency_contact_phone']);
     }
 
     public function test_legacy_member_can_be_edited_without_contact_details_but_cannot_clear_them_once_set(): void
@@ -213,6 +213,7 @@ class MembersAccessTest extends TestCase
                 'name' => 'New Member',
                 'email' => 'new-member@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'date_of_birth' => '1990-01-01',
                 'emergency_contact_name' => 'Next of Kin',
                 'emergency_contact_phone' => '09170000001',
@@ -223,6 +224,7 @@ class MembersAccessTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('name', 'New Member')
+            ->assertJsonPath('address', '12 Rizal St, Naga City')
             ->assertJsonPath('member_subscriptions.0.rate_plan.id', $plan->id);
 
         $member = User::query()->where('email', 'new-member@example.com')->firstOrFail();
@@ -245,6 +247,7 @@ class MembersAccessTest extends TestCase
                 'name' => 'New Member',
                 'email' => 'archived-member@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'date_of_birth' => '1990-01-01',
                 'emergency_contact_name' => 'Next of Kin',
                 'emergency_contact_phone' => '09170000001',

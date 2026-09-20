@@ -536,7 +536,7 @@
                               </tr>
                               <tr v-for="payroll in dashboard.pending_payrolls" :key="payroll.id" v-else>
                                  <td>{{ payroll.employee_name }}</td>
-                                 <td>{{ $filters.capitalize(payroll.employee_role) }}</td>
+                                 <td><span :class="['m-badge', $filters.roleBadge(payroll.employee_role)]">{{ $filters.capitalize(payroll.employee_role) }}</span></td>
                                  <td>{{ formatCurrency(payroll.outstanding_balance) }}</td>
                                  <td>
                                     <span :class="['m-badge', $filters.statusBadge(payroll.status)]">{{ $filters.capitalize(payroll.status) }}</span>
@@ -556,7 +556,7 @@
                                  <div class="member-avatar">{{ $filters.getNameInitials(payroll.employee_name) }}</div>
                                  <div>
                                     <div class="member-card-name">{{ payroll.employee_name }}</div>
-                                    <div class="member-card-sub">{{ $filters.capitalize(payroll.employee_role) }}</div>
+                                    <div class="member-card-sub"><span :class="['m-badge', $filters.roleBadge(payroll.employee_role)]">{{ $filters.capitalize(payroll.employee_role) }}</span></div>
                                  </div>
                               </div>
                               <span :class="['m-badge', $filters.statusBadge(payroll.status)]">{{ $filters.capitalize(payroll.status) }}</span>

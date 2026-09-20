@@ -47,12 +47,13 @@ class RegistrationController extends Controller
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'max:191'],
             'phone' => ['required', 'string', 'max:20'],
+            'address' => ['required', 'string', 'max:255'],
             'date_of_birth' => ['required', 'date', 'before:today'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
             'emergency_contact_name' => ['required', 'string', 'max:120'],
             'emergency_contact_phone' => ['required', 'string', 'max:20'],
             'preferred_start_date' => ['nullable', 'date', 'after_or_equal:today'],
-            'notes' => ['nullable', 'string', 'max:500'],
+            'notes' => ['nullable', 'string', 'max:255'],
             ...$this->planRules(),
         ]);
 
@@ -78,6 +79,7 @@ class RegistrationController extends Controller
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'phone' => $data['phone'],
+                'address' => $data['address'],
                 'password' => Hash::make(Str::random(40)),
                 'status' => User::STATUS_INACTIVE,
             ]);

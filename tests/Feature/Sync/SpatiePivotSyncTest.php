@@ -206,6 +206,26 @@ class SpatiePivotSyncTest extends TestCase
         $this->assertDatabaseHas('roles', ['name' => 'gate-tester', 'guard_name' => 'web']);
     }
 
+    public function test_role_receiver_applies_colour_only_when_the_payload_carries_one(): void
+    {
+        config(['sync.role' => 'live']);
+        $event = fn (array $payload) => [
+            'event_id' => (string) Str::uuid(),
+            'entity_type' => 'role',
+            'entity_id' => RoleReceiver::entityId('cashier', 'web'),
+            'op' => SyncOp::UPDATE,
+            'payload' => ['name' => 'cashier', 'guard_name' => 'web', 'updated_at' => now()->toIso8601String(), ...$payload],
+            'origin_node' => 'remote',
+            'occurred_at' => now()->toIso8601String(),
+        ];
+
+        app(SyncEventApplier::class)->applyOne($event(['color' => 'teal']));
+        $this->assertDatabaseHas('roles', ['name' => 'cashier', 'color' => 'teal']);
+
+        app(SyncEventApplier::class)->applyOne($event([]));
+        $this->assertDatabaseHas('roles', ['name' => 'cashier', 'color' => 'teal']);
+    }
+
     public function test_permission_receiver_creates_permission_locally(): void
     {
         config(['sync.role' => 'live']);

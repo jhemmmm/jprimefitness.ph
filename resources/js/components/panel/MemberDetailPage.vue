@@ -22,6 +22,7 @@
                <div class="d-flex gap-3 flex-wrap small text-muted">
                   <span v-if="localMember.email"><i class="bi bi-envelope me-1"></i>{{ localMember.email }}</span>
                   <span v-if="localMember.phone"><i class="bi bi-telephone me-1"></i>{{ localMember.phone }}</span>
+                  <span v-if="localMember.address"><i class="bi bi-house me-1"></i>{{ localMember.address }}</span>
                   <span><i class="bi bi-calendar3 me-1"></i>Member since {{ formatDate(localMember.created_at) }}</span>
                </div>
             </div>

@@ -169,23 +169,13 @@ app.config.globalProperties.$filters = {
          }[type] || "m-badge--draft"
       );
    },
+   // Role colours come from the roles table (Settings > Roles & permissions); attendee types keep fixed ones.
    roleBadge(role) {
-      return (
-         {
-            "super admin": "m-badge--super-admin",
-            admin: "m-badge--admin",
-            manager: "m-badge--manager",
-            staff: "m-badge--staff",
-            member: "m-badge--member",
-            coach: "m-badge--coach",
-            cashier: "m-badge--cashier",
-            walk_in: "m-badge--plan",
-         }[
-            String(role ?? "")
-               .trim()
-               .toLowerCase()
-         ] ?? ""
-      );
+      const key = String(role ?? "")
+         .trim()
+         .toLowerCase();
+      const color = window.JPrime?.roleColors?.[key] || { walk_in: "plan", employee: "teal" }[key] || "slate";
+      return `m-badge--${color}`;
    },
    statusBadge(status) {
       return (

@@ -13,7 +13,6 @@ use App\Models\Payroll;
 use App\Models\RatePlan;
 use App\Models\Role;
 use App\Models\SaleTransaction;
-use App\Models\User;
 use App\Observers\AttendanceObserver;
 use App\Observers\BusinessProfileObserver;
 use App\Observers\CashAdvanceObserver;
@@ -73,10 +72,11 @@ class AppServiceProvider extends ServiceProvider
             $businessProfile = BusinessProfile::current();
             $ratePlans = RatePlan::where('is_active', true)->get();
             $ptProducts = PTProduct::where('is_active', true)->get();
-            // Roles assignable from the employees UI.
-            $roles = Role::query()->whereIn('name', User::EMPLOYEE_ROLES)->get();
+            // Roles the signed-in user may assign from the employees UI, and every role's badge colour for the roleBadge filter.
+            $roles = auth()->check() ? Role::assignableBy(auth()->user())->makeHidden('permissions') : collect();
+            $roleColors = Role::query()->pluck('color', 'name');
 
-            $view->with(compact('businessProfile', 'ratePlans', 'ptProducts', 'roles'));
+            $view->with(compact('businessProfile', 'ratePlans', 'ptProducts', 'roles', 'roleColors'));
         });
 
         View::composer('home.*', function ($view) {

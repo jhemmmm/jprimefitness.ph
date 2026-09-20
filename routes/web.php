@@ -21,6 +21,7 @@ use App\Http\Controllers\Panel\NotificationsController;
 use App\Http\Controllers\Panel\PayrollReportsController;
 use App\Http\Controllers\Panel\PricingController;
 use App\Http\Controllers\Panel\ProfileController;
+use App\Http\Controllers\Panel\RoleController;
 use App\Http\Controllers\Panel\SalesController;
 use App\Http\Controllers\Panel\SalesReportsController;
 use App\Http\Controllers\Panel\SearchController;
@@ -79,6 +80,11 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
             Route::get('/settings', [SettingsController::class, 'settingsPage'])->name('settings');
             Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
         });
+        // Roles & permissions section of Settings; permissions themselves are code-defined.
+        Route::get('/roles', [RoleController::class, 'list'])->name('roles.list');
+        Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
+        Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
     });
 
     // Members: front desk (cashier+) can look up, register, sell PT packages, log PT usage.

@@ -198,7 +198,19 @@
                </div>
             </section>
 
-            <div class="d-flex flex-wrap justify-content-end align-items-center gap-3 mt-4">
+            <section class="panel-card business-settings-section" v-if="activeSection === 'roles'">
+               <div class="panel-card-header">
+                  <div>
+                     <div class="panel-card-title">Roles &amp; permissions</div>
+                     <div class="panel-card-sub">Who can do what in the panel. Changes here save immediately.</div>
+                  </div>
+               </div>
+               <div class="panel-card-body">
+                  <roles-permissions-section />
+               </div>
+            </section>
+
+            <div class="d-flex flex-wrap justify-content-end align-items-center gap-3 mt-4" v-if="activeSection !== 'roles'">
                <span class="form-text m-0" v-if="identityFieldsLocked">Business name and country code can only be changed by a super admin.</span>
                <span class="form-text m-0" v-else-if="!saving && !hasPendingChanges">No pending changes.</span>
                <button type="button" class="btn btn-danger px-4" @click="save" :disabled="saving || !hasPendingChanges">
@@ -212,6 +224,8 @@
 </template>
 
 <script>
+import RolesPermissionsSection from "./RolesPermissionsSection.vue";
+
 const regionNames = typeof Intl !== "undefined" && typeof Intl.DisplayNames === "function" ? new Intl.DisplayNames(["en"], { type: "region" }) : null;
 
 const COUNTRY_CODES = ["PH", "US", "CA", "AU", "NZ", "GB", "SG", "MY", "ID", "TH", "VN", "JP", "KR", "HK", "TW", "CN", "IN", "AE"];
@@ -276,6 +290,12 @@ const SECTIONS = [
       note: "Icons in the public site footer.",
       fields: ["social_links"],
    },
+   {
+      id: "roles",
+      label: "Roles & permissions",
+      note: "Who can do what in the panel.",
+      fields: [],
+   },
 ];
 
 function socialLinks(source) {
@@ -297,6 +317,8 @@ function ensureSelectOption(options, value, formatter = null) {
 }
 
 export default {
+   components: { RolesPermissionsSection },
+
    props: {
       profile: { type: Object, required: true },
    },

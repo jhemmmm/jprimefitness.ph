@@ -49,6 +49,7 @@ class MembersController extends Controller
 
         return [
             'phone' => [$presence($member?->phone), 'string', 'max:50'],
+            'address' => [$presence($member?->address), 'string', 'max:255'],
             'date_of_birth' => [$presence($member?->profile?->date_of_birth), 'date', 'before:today'],
             'gender' => ['nullable', Rule::in(['male', 'female', 'other'])],
             'emergency_contact_name' => [$presence($member?->profile?->emergency_contact_name), 'string', 'max:255'],
@@ -155,6 +156,7 @@ class MembersController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'],
+            'address' => $data['address'],
             'password' => Hash::make($data['password']),
             'status' => $data['status'],
         ]);
@@ -492,6 +494,7 @@ class MembersController extends Controller
             'name' => $data['name'],
             'email' => $data['email'],
             'phone' => $data['phone'] ?? null,
+            'address' => $data['address'] ?? null,
             'status' => $data['status'] ?? $member->status,
         ]);
 
@@ -575,6 +578,7 @@ class MembersController extends Controller
             'name' => $member->name,
             'email' => $member->email,
             'phone' => $member->phone,
+            'address' => $member->address,
             'status' => $member->status,
             'created_at' => $member->created_at?->toISOString(),
             'profile' => $member->profile ? [

@@ -293,6 +293,11 @@
                         <input type="text" class="form-control" v-model="form.phone" :class="{ 'is-invalid': formErrors.phone }" placeholder="09XX XXX XXXX" />
                         <div class="invalid-feedback" v-if="formErrors.phone">{{ formErrors.phone }}</div>
                      </div>
+                     <div class="col-12">
+                        <label class="form-label form-label-sm">Address <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" v-model="form.address" :class="{ 'is-invalid': formErrors.address }" placeholder="Street, Barangay, City" />
+                        <div class="invalid-feedback" v-if="formErrors.address">{{ formErrors.address }}</div>
+                     </div>
                      <div class="col-md-6" v-if="modalMode === 'add'">
                         <label class="form-label form-label-sm">Password <span class="text-danger">*</span></label>
                         <input type="password" class="form-control" v-model="form.password" :class="{ 'is-invalid': formErrors.password }" />
@@ -437,6 +442,7 @@ export default {
             name: "",
             email: "",
             phone: "",
+            address: "",
             password: "",
             status: "active",
             date_of_birth: "",
@@ -503,6 +509,7 @@ export default {
             name: member.name || "",
             email: member.email || "",
             phone: member.phone || "",
+            address: member.address || "",
             password: "",
             status: member.status || "active",
             date_of_birth: (member.profile && member.profile.date_of_birth) || "",

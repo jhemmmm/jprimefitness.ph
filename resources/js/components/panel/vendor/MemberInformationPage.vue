@@ -14,6 +14,10 @@
                      <div class="fw-semibold small">{{ member.phone || "-" }}</div>
                   </div>
                   <div class="col-md-6">
+                     <div class="small text-muted">Address</div>
+                     <div class="fw-semibold small">{{ member.address || "-" }}</div>
+                  </div>
+                  <div class="col-md-6">
                      <div class="small text-muted">Status</div>
                      <div class="fw-semibold small">{{ $filters.capitalize(member.status) }}</div>
                   </div>

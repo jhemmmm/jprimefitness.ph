@@ -50,6 +50,7 @@ class PanelSystemActivityFormatter
     {
         $label = match ($subjectType) {
             SystemActivity::SUBJECT_BUSINESS_PROFILE => (string) ($snapshot['name'] ?? 'Business Profile'),
+            SystemActivity::SUBJECT_ROLE => sprintf('Role - %s', ucwords((string) ($snapshot['name'] ?? 'Unknown Role'))),
             SystemActivity::SUBJECT_EMPLOYEE => sprintf('Employee #%d - %s', $subjectId, $snapshot['name'] ?? 'Unknown Employee'),
             SystemActivity::SUBJECT_PAYROLL => sprintf('Payroll #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
             SystemActivity::SUBJECT_PAYOUT => sprintf('Payout #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
@@ -78,6 +79,11 @@ class PanelSystemActivityFormatter
     {
         return match ($subjectType) {
             SystemActivity::SUBJECT_BUSINESS_PROFILE => 'Business profile updated',
+            SystemActivity::SUBJECT_ROLE => match ($event) {
+                'created' => 'Role created',
+                'deleted' => 'Role deleted',
+                default => 'Role permissions updated',
+            },
             SystemActivity::SUBJECT_EMPLOYEE => match ($event) {
                 'created' => 'Employee created',
                 'deleted' => 'Employee deleted',
@@ -157,6 +163,7 @@ class PanelSystemActivityFormatter
     {
         return match ($subjectType) {
             SystemActivity::SUBJECT_BUSINESS_PROFILE => $this->businessProfileMessage($event, $snapshot),
+            SystemActivity::SUBJECT_ROLE => $this->roleMessage($event, $snapshot, $metadata),
             SystemActivity::SUBJECT_EMPLOYEE => $this->employeeMessage($event, $snapshot),
             SystemActivity::SUBJECT_PAYROLL => $this->payrollMessage($event, $snapshot),
             SystemActivity::SUBJECT_PAYOUT => $this->payoutMessage($snapshot),
@@ -331,6 +338,22 @@ class PanelSystemActivityFormatter
         $name = (string) ($snapshot['name'] ?? 'The business profile');
 
         return $name.' was updated.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, mixed>  $metadata
+     */
+    private function roleMessage(string $event, array $snapshot, array $metadata): string
+    {
+        $name = ucwords((string) ($snapshot['name'] ?? 'Unknown role'));
+        $list = fn (array $permissions) => $permissions ? implode(', ', $permissions) : 'nothing';
+
+        return match ($event) {
+            'created' => sprintf('%s role was created with: %s.', $name, $list($snapshot['permissions'] ?? [])),
+            'deleted' => sprintf('%s role was deleted.', $name),
+            default => sprintf('%s role was updated. Granted: %s. Revoked: %s.', $name, $list($metadata['granted'] ?? []), $list($metadata['revoked'] ?? [])),
+        };
     }
 
     /**

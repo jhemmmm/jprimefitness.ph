@@ -68,6 +68,7 @@ class RegistrationTest extends TestCase
             'name' => 'Juan Dela Cruz',
             'email' => 'juan@example.com',
             'phone' => '09171234567',
+            'address' => '12 Rizal St, Naga City',
             'date_of_birth' => '1995-04-12',
             'gender' => 'male',
             'emergency_contact_name' => 'Maria Cruz',
@@ -131,7 +132,7 @@ class RegistrationTest extends TestCase
         $response = $this->postJson('/register', []);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['name', 'email', 'phone', 'date_of_birth', 'emergency_contact_name', 'emergency_contact_phone', 'rate_plan_id', 'terms_accepted', 'payment_method']);
+            ->assertJsonValidationErrors(['name', 'email', 'phone', 'address', 'date_of_birth', 'emergency_contact_name', 'emergency_contact_phone', 'rate_plan_id', 'terms_accepted', 'payment_method']);
     }
 
     public function test_validation_rejects_an_email_that_belongs_to_a_non_member_account(): void

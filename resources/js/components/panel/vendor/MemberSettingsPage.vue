@@ -21,6 +21,11 @@
                   <input type="text" class="form-control" :class="{ 'is-invalid': errors.phone }" v-model="form.phone" />
                   <div class="invalid-feedback" v-if="errors.phone">{{ errors.phone[0] }}</div>
                </div>
+               <div class="col-12">
+                  <label class="form-label form-label-sm fw-semibold">Address <span class="text-danger">*</span></label>
+                  <input type="text" class="form-control" :class="{ 'is-invalid': errors.address }" v-model="form.address" />
+                  <div class="invalid-feedback" v-if="errors.address">{{ errors.address[0] }}</div>
+               </div>
                <div class="col-md-6">
                   <label class="form-label form-label-sm fw-semibold">Status <span class="text-danger">*</span></label>
                   <select class="form-select" :class="{ 'is-invalid': errors.status }" v-model="form.status">
@@ -118,6 +123,7 @@ export default {
             name: member.name || "",
             email: member.email || "",
             phone: member.phone || "",
+            address: member.address || "",
             status: member.status || "active",
             date_of_birth: member.profile?.date_of_birth || "",
             gender: member.profile?.gender || "",

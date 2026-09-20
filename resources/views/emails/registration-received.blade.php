@@ -45,7 +45,7 @@
             <tr>
                 <td style="padding:16px 20px;font-size:14px;color:#1e3a8a;">
                     <div style="font-weight:700;margin-bottom:4px;">Next: Complete payment online</div>
-                    You'll be redirected to PayMongo to finish your payment. Once we receive confirmation, your membership will activate automatically and your QR code will arrive in a separate email.
+                    You'll be redirected to our secure payment page to pay with GCash, Maya or Instant Pay. Once we receive confirmation, your membership will activate automatically and your QR code will arrive in a separate email.
                 </td>
             </tr>
         </table>

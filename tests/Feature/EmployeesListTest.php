@@ -53,6 +53,7 @@ class EmployeesListTest extends TestCase
                 'name' => 'Would-be Admin',
                 'email' => 'would-be-admin@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [Role::findByName('admin')->id],
@@ -77,6 +78,7 @@ class EmployeesListTest extends TestCase
                 'name' => 'Admin Amy',
                 'email' => $both->email,
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [Role::findByName('manager')->id], // the form only offers employee roles
                 'employee_profile' => [

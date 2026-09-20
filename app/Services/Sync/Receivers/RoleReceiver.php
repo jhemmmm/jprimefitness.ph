@@ -54,6 +54,10 @@ class RoleReceiver extends DefaultReceiver
                     'updated_at' => $payload['updated_at'] ?? now(),
                 ];
 
+                if (isset($payload['color'])) {
+                    $values['color'] = $payload['color'];
+                }
+
                 if ($uuid) {
                     $values['uuid'] = $uuid;
                 }

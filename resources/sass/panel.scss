@@ -1317,6 +1317,20 @@ body.auth-body {
 }
 
 // ── Custom badges ──────────────────────────────────────────────
+// key: (base rgb, text on light, text on dark). Keep in step with App\Models\Role::COLORS.
+$badge-palette: (
+    slate: (rgb: rgb(100, 116, 139), light-text: #475569, dark-text: #cbd5e1),
+    sky: (rgb: rgb(2, 132, 199), light-text: #0369a1, dark-text: #bae6fd),
+    indigo: (rgb: rgb(79, 70, 229), light-text: #4338ca, dark-text: #c7d2fe),
+    purple: (rgb: rgb(88, 28, 135), light-text: #6b21a8, dark-text: #e9d5ff),
+    pink: (rgb: rgb(190, 24, 93), light-text: #9d174d, dark-text: #f9a8d4),
+    rose: (rgb: rgb(225, 29, 72), light-text: #9f1239, dark-text: #fda4af),
+    orange: (rgb: rgb(234, 88, 12), light-text: #c2410c, dark-text: #fdba74),
+    amber: (rgb: rgb(202, 138, 4), light-text: #a16207, dark-text: #fde68a),
+    green: (rgb: rgb(22, 163, 74), light-text: #15803d, dark-text: #bbf7d0),
+    teal: (rgb: rgb(13, 148, 136), light-text: #0f766e, dark-text: #99f6e4),
+);
+
 @mixin badge-variant($bg, $text, $border, $dot: null) {
     background: $bg;
     color: $text;
@@ -1346,6 +1360,11 @@ body.auth-body {
     border: 1px solid transparent;
     line-height: 1.4;
     white-space: nowrap;
+
+    // the chosen swatch in the role colour picker
+    &.is-selected {
+        box-shadow: 0 0 0 2px var(--bs-body-bg), 0 0 0 4px currentColor;
+    }
 
     &--active {
         @include badge-variant(rgba(34, 197, 94, 0.12), #166534, rgba(34, 197, 94, 0.24), #16a34a);
@@ -1391,32 +1410,11 @@ body.auth-body {
         @include badge-variant(rgba(20, 184, 166, 0.14), #0f766e, rgba(20, 184, 166, 0.24), #14b8a6);
     }
 
-    &--super-admin {
-        @include badge-variant(rgba(88, 28, 135, 0.12), #6b21a8, rgba(88, 28, 135, 0.22));
-    }
-
-    &--admin {
-        @include badge-variant(rgba(190, 24, 93, 0.12), #9d174d, rgba(190, 24, 93, 0.22));
-    }
-
-    &--manager {
-        @include badge-variant(rgba(79, 70, 229, 0.12), #4338ca, rgba(79, 70, 229, 0.22));
-    }
-
-    &--staff {
-        @include badge-variant(rgba(2, 132, 199, 0.12), #0369a1, rgba(2, 132, 199, 0.22));
-    }
-
-    &--member {
-        @include badge-variant(rgba(22, 163, 74, 0.12), #15803d, rgba(22, 163, 74, 0.22));
-    }
-
-    &--coach {
-        @include badge-variant(rgba(234, 88, 12, 0.12), #c2410c, rgba(234, 88, 12, 0.22));
-    }
-
-    &--employee {
-        @include badge-variant(rgba(13, 148, 136, 0.12), #0f766e, rgba(13, 148, 136, 0.22));
+    // Role badge palette; roles pick a key under Settings > Roles & permissions (Role::COLORS).
+    @each $name, $c in $badge-palette {
+        &--#{$name} {
+            @include badge-variant(rgba(map-get($c, rgb), 0.12), map-get($c, light-text), rgba(map-get($c, rgb), 0.22));
+        }
     }
 
     &--plan {
@@ -1474,26 +1472,10 @@ body.auth-body {
     .m-badge--fully_deducted {
         @include badge-variant(rgba(20, 184, 166, 0.22), #99f6e4, rgba(20, 184, 166, 0.34), #5eead4);
     }
-    .m-badge--super-admin {
-        @include badge-variant(rgba(88, 28, 135, 0.22), #e9d5ff, rgba(88, 28, 135, 0.34), #d8b4fe);
-    }
-    .m-badge--admin {
-        @include badge-variant(rgba(190, 24, 93, 0.22), #f9a8d4, rgba(190, 24, 93, 0.34), #f472b6);
-    }
-    .m-badge--manager {
-        @include badge-variant(rgba(79, 70, 229, 0.22), #c7d2fe, rgba(79, 70, 229, 0.34), #a5b4fc);
-    }
-    .m-badge--staff {
-        @include badge-variant(rgba(2, 132, 199, 0.22), #bae6fd, rgba(2, 132, 199, 0.34), #7dd3fc);
-    }
-    .m-badge--member {
-        @include badge-variant(rgba(22, 163, 74, 0.22), #bbf7d0, rgba(22, 163, 74, 0.34), #86efac);
-    }
-    .m-badge--coach {
-        @include badge-variant(rgba(234, 88, 12, 0.22), #fdba74, rgba(234, 88, 12, 0.34), #fb923c);
-    }
-    .m-badge--cashier {
-        @include badge-variant(rgba(202, 138, 4, 0.22), #fde68a, rgba(202, 138, 4, 0.34), #fcd34d);
+    @each $name, $c in $badge-palette {
+        .m-badge--#{$name} {
+            @include badge-variant(rgba(map-get($c, rgb), 0.22), map-get($c, dark-text), rgba(map-get($c, rgb), 0.34));
+        }
     }
     .m-badge--plan {
         @include badge-variant(rgba(37, 99, 235, 0.18), #93c5fd, rgba(37, 99, 235, 0.28));

@@ -13,6 +13,8 @@ class SystemActivity extends Model
 
     public const SUBJECT_BUSINESS_PROFILE = 'business_profile';
 
+    public const SUBJECT_ROLE = 'role';
+
     public const SUBJECT_EMPLOYEE = 'employee';
 
     public const SUBJECT_PAYROLL = 'payroll';

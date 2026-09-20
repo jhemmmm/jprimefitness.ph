@@ -89,7 +89,7 @@ class SearchController extends Controller
      */
     private function employeeGroup(string $search): array
     {
-        $query = User::role(User::EMPLOYEE_ROLES)
+        $query = User::employees()
             ->with(['roles:id,name'])
             ->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', "%{$search}%")

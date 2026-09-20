@@ -23,7 +23,7 @@
             pending state and you will not have access to gym facilities under a membership plan.
         </p>
         <p>
-            For online payments processed through PayMongo, activation occurs once the payment gateway confirms a
+            For online payments, activation occurs once the payment gateway confirms a
             successful transaction. For on-site payments, activation occurs upon receipt and verification of
             payment by gym staff.
         </p>
@@ -47,7 +47,7 @@
             change without prior notice; however, any change will not affect a membership plan already paid for.
         </p>
         <p>
-            Accepted payment methods include GCash, Maya, major credit and debit cards (via PayMongo), and cash on
+            Accepted payment methods include GCash, Maya, Instant Pay, and cash on
             site. The Gym is not liable for any charges, fees, or issues imposed by your bank or payment provider.
         </p>
 

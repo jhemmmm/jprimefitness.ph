@@ -55,6 +55,7 @@ class EmployeeBiometricIntegrationTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben@example.com',
                 'phone' => '09170000001',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
@@ -104,6 +105,7 @@ class EmployeeBiometricIntegrationTest extends TestCase
                 'name' => 'Staff Sol Updated',
                 'email' => $employee->email,
                 'phone' => '09179990000',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [

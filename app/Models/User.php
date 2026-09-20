@@ -39,10 +39,22 @@ class User extends Authenticatable
     public const STATUS_SUSPENDED = 'suspended';
 
     /**
-     * Roles listed on (and assignable from) the Employees page / global search.
-     * `super admin` and `admin` are administrators, not employees; `member` never is.
+     * Roles that are never employees: `super admin` and `admin` are administrators, `member` is a gym member.
      */
-    public const EMPLOYEE_ROLES = ['manager', 'cashier', 'staff', 'coach'];
+    public const NON_EMPLOYEE_ROLES = ['super admin', 'admin', 'member'];
+
+    /**
+     * Users holding any employee role (see Role::scopeEmployee), optionally excluding some roles.
+     * whereHas instead of Spatie's role() scope, which re-resolves each role name with its own query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
+     * @param  array<int, string>  $except
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    public function scopeEmployees($query, array $except = [])
+    {
+        return $query->whereHas('roles', fn ($roles) => $roles->employee()->whereNotIn('name', $except));
+    }
 
     /**
      * Whether the user holds a management role (super admin, admin, or manager).

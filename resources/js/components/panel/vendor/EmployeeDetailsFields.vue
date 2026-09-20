@@ -1,6 +1,6 @@
 <template>
    <div class="col-12">
-      <label :class="labelClass">Address</label>
+      <label :class="labelClass">Address <span class="text-danger">*</span></label>
       <input type="text" class="form-control" :class="{ 'is-invalid': errors.address }" v-model="form.address" />
       <div class="invalid-feedback" v-if="errors.address">{{ errors.address[0] }}</div>
    </div>

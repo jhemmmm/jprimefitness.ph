@@ -120,7 +120,7 @@
                   <h2>How membership works</h2>
                   <ol class="step-list mb-4">
                      <li><span><strong>Register online.</strong> Fill in the form below and pick a plan.</span></li>
-                     <li><span><strong>Pay online or at the gym.</strong> GCash, Maya or card via PayMongo, or cash at the front desk.</span></li>
+                     <li><span><strong>Pay online or at the gym.</strong> GCash, Maya or Instant Pay online, or cash at the front desk.</span></li>
                      <li><span><strong>Get your QR card.</strong> Once payment is confirmed, your membership QR is emailed to you.</span></li>
                      <li><span><strong>Scan in and train.</strong> Show the QR at the kiosk on every visit.</span></li>
                   </ol>
@@ -153,7 +153,7 @@
                   <h3>After you submit</h3>
                   <ol class="step-list mb-5">
                      <li><span>Your registration is saved right away.</span></li>
-                     <li><span>Pay online via PayMongo, or at the front desk when you come in.</span></li>
+                     <li><span>Pay online with GCash, Maya or Instant Pay, or at the front desk when you come in.</span></li>
                      <li><span>Once payment is confirmed, your QR membership card is emailed to you.</span></li>
                   </ol>
                   <h3>Bring on your first visit</h3>

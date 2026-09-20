@@ -39,6 +39,7 @@ class EmployeePayFrequencyTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
@@ -64,6 +65,7 @@ class EmployeePayFrequencyTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben-root@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'daily_rate' => 450,
@@ -101,6 +103,7 @@ class EmployeePayFrequencyTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
@@ -152,6 +155,7 @@ class EmployeePayFrequencyTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
@@ -240,12 +244,40 @@ class EmployeePayFrequencyTest extends TestCase
 
         $incomplete = $payload;
         $incomplete['email'] = 'coach-ben-incomplete@example.com';
-        unset($incomplete['phone'], $incomplete['employee_profile']['date_of_birth'], $incomplete['employee_profile']['emergency_contact_phone']);
+        unset(
+            $incomplete['phone'],
+            $incomplete['address'],
+            $incomplete['employee_profile']['date_of_birth'],
+            $incomplete['employee_profile']['emergency_contact_phone'],
+            $incomplete['employee_profile']['tin'],
+            $incomplete['employee_profile']['sss_number'],
+            $incomplete['employee_profile']['philhealth_number'],
+        );
+        $incomplete['employee_profile']['philhealth_covered'] = false;
+
+        // government IDs are optional while payroll ignores them...
+        $this->actingAs($manager)
+            ->postJson('/panel/employees', $incomplete)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['phone', 'address', 'employee_profile.date_of_birth', 'employee_profile.emergency_contact_phone'])
+            ->assertJsonMissingValidationErrors(['employee_profile.tin', 'employee_profile.sss_number', 'employee_profile.philhealth_number']);
+
+        // ...and required once the business toggles are on, for the programs the employee is covered by
+        BusinessProfile::current()->update(['payroll_withholding_tax_enabled' => true, 'payroll_government_contributions_enabled' => true]);
 
         $this->actingAs($manager)
             ->postJson('/panel/employees', $incomplete)
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['phone', 'employee_profile.date_of_birth', 'employee_profile.emergency_contact_phone']);
+            ->assertJsonValidationErrors(['employee_profile.tin', 'employee_profile.sss_number'])
+            ->assertJsonMissingValidationErrors(['employee_profile.philhealth_number', 'employee_profile.pagibig_number']);
+
+        // ...but never outside Philippine payroll, where the form doesn't show them at all
+        BusinessProfile::current()->update(['country_code' => 'SG']);
+
+        $this->actingAs($manager)
+            ->postJson('/panel/employees', $incomplete)
+            ->assertUnprocessable()
+            ->assertJsonMissingValidationErrors(['employee_profile.tin', 'employee_profile.sss_number']);
 
         // the detail page carries them for the read-only Information tab
         $employeeId = User::where('email', 'coach-ben-details@example.com')->value('id');
@@ -296,6 +328,7 @@ class EmployeePayFrequencyTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben-ph@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
@@ -336,6 +369,7 @@ class EmployeePayFrequencyTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'coach-ben-sg@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [
@@ -378,6 +412,7 @@ class EmployeePayFrequencyTest extends TestCase
                 'name' => 'Coach Ben',
                 'email' => 'archived-coach@example.com',
                 'phone' => '09170000000',
+                'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
                 'role_ids' => [$staffRole->id],
                 'employee_profile' => [

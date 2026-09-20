@@ -41,6 +41,11 @@
                         <div class="invalid-feedback" v-if="errors.date_of_birth">{{ errors.date_of_birth[0] }}</div>
                      </div>
                      <div class="col-12">
+                        <label class="form-label small fw-semibold">Address <span class="text-danger">*</span></label>
+                        <input v-model="form.address" type="text" class="form-control rounded-1" :class="{ 'is-invalid': errors.address }" placeholder="Street, Barangay, City" />
+                        <div class="invalid-feedback" v-if="errors.address">{{ errors.address[0] }}</div>
+                     </div>
+                     <div class="col-12">
                         <label class="form-label small fw-semibold">Gender</label>
                         <select v-model="form.gender" class="form-select rounded-1" :class="{ 'is-invalid': errors.gender }">
                            <option value="">Prefer not to say</option>
@@ -121,7 +126,7 @@
                         <div>
                            <div class="fw-semibold"><i class="bi bi-credit-card-2-front me-1"></i>Pay online now</div>
                            <div class="text-muted small" v-if="hasDiscount">Unavailable - staff must verify your ID on-site</div>
-                           <div class="text-muted small" v-else>GCash, Maya, card via PayMongo</div>
+                           <div class="text-muted small" v-else>GCash, Maya or Instant Pay</div>
                         </div>
                      </label>
                   </div>
@@ -255,6 +260,7 @@ export default {
             name: "",
             email: this.initialEmail || "",
             phone: "",
+            address: "",
             date_of_birth: "",
             gender: "",
             emergency_contact_name: "",

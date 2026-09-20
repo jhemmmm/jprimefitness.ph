@@ -72,7 +72,7 @@ class ProfileTest extends TestCase
             'name' => 'Ana Reyes',
             'phone' => '09171234567',
             'email' => 'ana@example.com',
-            'address' => '12 Rizal St, Naga City', // omitted from the request, must survive
+            'address' => '12 Rizal St, Naga City',
         ]);
         $this->assertDatabaseHas('employee_profiles', ['user_id' => $this->user->id, 'tin' => '123-456-789-000']);
     }
@@ -148,7 +148,7 @@ class ProfileTest extends TestCase
         $this->actingAs($this->user)
             ->putJson('/panel/profile', ['name' => 'Staff Ana', 'phone' => '09170000000', 'employee_profile' => ['date_of_birth' => null]])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['employee_profile.date_of_birth', 'employee_profile.emergency_contact_name']);
+            ->assertJsonValidationErrors(['address', 'employee_profile.date_of_birth', 'employee_profile.emergency_contact_name']);
     }
 
     /**
@@ -159,7 +159,7 @@ class ProfileTest extends TestCase
      */
     private function details(): array
     {
-        return ['employee_profile' => ['emergency_contact_name' => 'Next of Kin']];
+        return ['address' => '12 Rizal St, Naga City', 'employee_profile' => ['emergency_contact_name' => 'Next of Kin']];
     }
 
     public function test_new_password_needs_an_uppercase_letter_and_a_symbol(): void

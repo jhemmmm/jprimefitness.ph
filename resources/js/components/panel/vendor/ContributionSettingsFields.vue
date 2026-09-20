@@ -5,7 +5,7 @@
 
       <div class="row g-3 mb-3">
          <div class="col-12">
-            <label class="form-label form-label-sm fw-semibold mb-1">TIN</label>
+            <label class="form-label form-label-sm fw-semibold mb-1">TIN <span class="text-danger" v-if="payroll.payroll_withholding_tax_enabled">*</span></label>
             <input type="text" class="form-control" :class="{ 'is-invalid': errorFor('tin') }" v-model="profile.tin" placeholder="123-456-789-000" />
             <div class="invalid-feedback d-block" v-if="errorFor('tin')">{{ errorFor("tin") }}</div>
          </div>
@@ -13,7 +13,7 @@
 
       <div class="row g-3">
          <div class="col-md-4" v-for="program in programs" :key="program.key">
-            <label class="form-label form-label-sm fw-semibold mb-1">{{ program.label }} No.</label>
+            <label class="form-label form-label-sm fw-semibold mb-1">{{ program.label }} No. <span class="text-danger" v-if="payroll.payroll_government_contributions_enabled && profile[`${program.key}_covered`]">*</span></label>
             <input type="text" class="form-control mb-2" :class="{ 'is-invalid': errorFor(`${program.key}_number`) }" v-model="profile[`${program.key}_number`]" :placeholder="program.numberPlaceholder" />
             <div class="invalid-feedback d-block" v-if="errorFor(`${program.key}_number`)">{{ errorFor(`${program.key}_number`) }}</div>
             <div class="form-check form-switch mb-2">
@@ -93,6 +93,9 @@ export default {
       },
       minimums: function () {
          return window.JPrime?.contributionMinimums || {};
+      },
+      payroll: function () {
+         return window.JPrime?.profile || {};
       },
       rows: function () {
          return PROGRAMS.filter((program) => this.profile[`${program.key}_covered`]).map((program) => ({

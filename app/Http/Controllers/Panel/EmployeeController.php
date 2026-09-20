@@ -12,6 +12,7 @@ use App\Models\CashAdvance;
 use App\Models\CashAdvanceRepayment;
 use App\Models\Payout;
 use App\Models\Payroll;
+use App\Models\Role;
 use App\Models\SaleTransaction;
 use App\Models\User;
 use App\Notifications\PayrollApprovedNotification;
@@ -81,7 +82,7 @@ class EmployeeController extends Controller
         $roles = array_values(array_filter((array) $request->input('role', []), fn ($value) => $value !== null && $value !== ''));
         $statuses = array_values(array_filter((array) $request->input('status', []), fn ($value) => $value !== null && $value !== ''));
 
-        $employees = User::role(User::EMPLOYEE_ROLES)
+        $employees = User::employees()
             ->with(['roles', 'employeeProfile'])
             ->when(! empty($request->search), function ($query) use ($request) {
                 $search = trim((string) $request->search);
@@ -112,13 +113,14 @@ class EmployeeController extends Controller
     {
         $businessProfile = BusinessProfile::current();
         $isPhilippinesBusiness = $this->isPhilippinesPayrollBusiness($businessProfile);
+        $assignableRoleIds = Role::assignableBy($request->user())->pluck('id');
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'role_ids' => ['required', 'array', 'min:1'],
-            'role_ids.*' => ['integer', Rule::exists('roles', 'id')->whereIn('name', User::EMPLOYEE_ROLES)],
+            'role_ids.*' => ['integer', Rule::in($assignableRoleIds)],
             'employee_profile' => ['required', 'array'],
             'employee_profile.daily_rate' => ['required', 'numeric', 'min:0'],
             'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
@@ -127,7 +129,7 @@ class EmployeeController extends Controller
             'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             'employee_profile.pagibig_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             ...$this->contributionShareRules(),
-            ...self::personRules(),
+            ...self::personRules(null, $businessProfile),
             'password' => ['required', 'string', Password::defaults()],
         ]);
         $data['employee_profile'] = $this->normalizeEmployeeProfileAttributes(
@@ -172,13 +174,14 @@ class EmployeeController extends Controller
     {
         $businessProfile = BusinessProfile::current();
         $isPhilippinesBusiness = $this->isPhilippinesPayrollBusiness($businessProfile);
+        $assignableRoleIds = Role::assignableBy($request->user())->pluck('id');
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($employee->id)->withoutTrashed()],
             'status' => ['required', Rule::in([User::STATUS_ACTIVE, User::STATUS_INACTIVE, User::STATUS_SUSPENDED])],
             'role_ids' => ['required', 'array', 'min:1'],
-            'role_ids.*' => ['integer', Rule::exists('roles', 'id')->whereIn('name', User::EMPLOYEE_ROLES)],
+            'role_ids.*' => ['integer', Rule::in($assignableRoleIds)],
             'employee_profile' => ['required', 'array'],
             'employee_profile.daily_rate' => ['required', 'numeric', 'min:0'],
             'employee_profile.pay_frequency' => ['required', Rule::in(['monthly', 'semi_monthly'])],
@@ -187,7 +190,7 @@ class EmployeeController extends Controller
             'employee_profile.philhealth_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             'employee_profile.pagibig_covered' => [Rule::requiredIf($isPhilippinesBusiness), 'boolean'],
             ...$this->contributionShareRules(),
-            ...self::personRules($employee),
+            ...self::personRules($employee, $businessProfile),
             'password' => ['nullable', 'string', Password::defaults()],
         ]);
         $data['employee_profile'] = $this->normalizeEmployeeProfileAttributes(
@@ -206,8 +209,8 @@ class EmployeeController extends Controller
                 : $employee->password,
         ]);
 
-        // the form only offers employee roles; an administrator role the user also holds is kept
-        $employee->roles()->sync([...$data['role_ids'], ...$employee->roles->whereNotIn('name', User::EMPLOYEE_ROLES)->pluck('id')]);
+        // the form only offers roles the actor may hand out; any other role the user holds (e.g. admin) is kept
+        $employee->roles()->sync([...$data['role_ids'], ...$employee->roles->pluck('id')->diff($assignableRoleIds)]);
         $this->ensureEmployeeProfile($employee, $data['employee_profile']);
         $employee = $employee->fresh()->load(['roles', 'employeeProfile']);
 
@@ -816,7 +819,7 @@ class EmployeeController extends Controller
             'amount' => "required|numeric|min:0.01|max:{$remaining}",
             'method' => ['required', Rule::in([Payout::METHOD_CASH, Payout::METHOD_BANK_TRANSFER, Payout::METHOD_ONLINE_PAYMENT])],
             'reference_number' => ['nullable', 'string', 'max:100'],
-            'notes' => ['nullable', 'string', 'max:500'],
+            'notes' => ['nullable', 'string', 'max:255'],
             'paid_at' => ['nullable', 'date'],
         ]);
 
@@ -1175,27 +1178,36 @@ class EmployeeController extends Controller
 
     /**
      * Contact and EmployeeProfile::DETAIL_COLUMNS rules shared by store(), update() and ProfileController.
-     * Phone, DOB and emergency contact are required for new employees; an existing employee
-     * may leave a still-blank one empty but can't clear one that is set.
+     * Phone, address, DOB and emergency contact are required for new employees; an existing employee
+     * may leave a still-blank one empty but can't clear one that is set. Government IDs follow the
+     * same rule, but only while payroll actually uses them (business toggle on, and for SSS/PhilHealth/
+     * Pag-IBIG the employee is covered).
      *
      * @return array<string, array<int, mixed>>
      */
-    public static function personRules(?User $employee = null): array
+    public static function personRules(?User $employee = null, ?BusinessProfile $businessProfile = null): array
     {
         $profile = $employee?->employeeProfile;
-        $presence = fn (mixed $current) => $employee && $current === null ? 'nullable' : 'required';
+        $businessProfile ??= BusinessProfile::current();
+        $presence = fn (mixed $current, bool $required = true) => $required && ! ($employee && $current === null) ? 'required' : 'nullable';
+        // government IDs only exist for Philippine payroll (the form hides them elsewhere)
+        $philippines = $businessProfile->country_code === BusinessProfile::COUNTRY_PHILIPPINES;
+        $withholdingTax = $philippines && $businessProfile->payroll_withholding_tax_enabled;
+        // the request's switch when the form sends one, else what is stored (the profile page sends none)
+        $covered = fn (string $program) => $philippines && $businessProfile->payroll_government_contributions_enabled
+            && request()->boolean("employee_profile.{$program}_covered", $profile?->{"{$program}_covered"});
 
         return [
             'phone' => [$presence($employee?->phone), 'string', 'max:20'],
-            'address' => ['nullable', 'string', 'max:500'],
+            'address' => [$presence($employee?->address), 'string', 'max:255'],
             'employee_profile.date_of_birth' => [$presence($profile?->date_of_birth), 'date', 'before:today'],
             'employee_profile.emergency_contact_name' => [$presence($profile?->emergency_contact_name), 'string', 'max:255'],
             'employee_profile.emergency_contact_phone' => [$presence($profile?->emergency_contact_phone), 'string', 'max:50'],
             'employee_profile.hired_at' => ['nullable', 'date'],
-            'employee_profile.tin' => ['nullable', 'string', 'max:20'],
-            'employee_profile.sss_number' => ['nullable', 'string', 'max:20'],
-            'employee_profile.philhealth_number' => ['nullable', 'string', 'max:20'],
-            'employee_profile.pagibig_number' => ['nullable', 'string', 'max:20'],
+            'employee_profile.tin' => [$presence($profile?->tin, $withholdingTax), 'string', 'max:20'],
+            'employee_profile.sss_number' => [$presence($profile?->sss_number, $covered('sss')), 'string', 'max:20'],
+            'employee_profile.philhealth_number' => [$presence($profile?->philhealth_number, $covered('philhealth')), 'string', 'max:20'],
+            'employee_profile.pagibig_number' => [$presence($profile?->pagibig_number, $covered('pagibig')), 'string', 'max:20'],
         ];
     }
 

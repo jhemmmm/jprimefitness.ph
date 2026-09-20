@@ -15,6 +15,7 @@ class SystemActivitySubjectRegistry
     {
         return [
             ['value' => SystemActivity::SUBJECT_BUSINESS_PROFILE, 'label' => 'Business Profile'],
+            ['value' => SystemActivity::SUBJECT_ROLE, 'label' => 'Roles & Permissions'],
             ['value' => SystemActivity::SUBJECT_EMPLOYEE, 'label' => 'Employees'],
             ['value' => SystemActivity::SUBJECT_PAYROLL, 'label' => 'Payrolls'],
             ['value' => SystemActivity::SUBJECT_PAYOUT, 'label' => 'Payouts'],
@@ -96,7 +97,8 @@ class SystemActivitySubjectRegistry
         $memberId = $this->integerValue($metadata, ['member_id', 'context.member_id']);
 
         return match ($subjectType) {
-            SystemActivity::SUBJECT_BUSINESS_PROFILE => route('panel.business.settings'),
+            SystemActivity::SUBJECT_BUSINESS_PROFILE,
+            SystemActivity::SUBJECT_ROLE => route('panel.business.settings'),
             SystemActivity::SUBJECT_EMPLOYEE => route('panel.employees.show', $subjectId),
             SystemActivity::SUBJECT_PAYROLL,
             SystemActivity::SUBJECT_PAYOUT,
