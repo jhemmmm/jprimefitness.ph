@@ -185,6 +185,7 @@ Run on the on-premise PC at the gym.
     SYNC_HTTP_TIMEOUT=30
     SYNC_PUSH_BATCH_SIZE=200
     SYNC_PULL_BATCH_SIZE=500
+    SYNC_INSTANT_PUSH=true              # push right after each write; the 30-second sync:push schedule stays on as the safety net
 
     # Hikvision helper on the LAN:
     BIOMETRIC_TOKEN=<shared with the helper service>
@@ -214,6 +215,8 @@ Run on the on-premise PC at the gym.
     ```
 
     This walks every shared entity in dependency order, calls `/api/sync/snapshot/{type}`, upserts each row, and finally records the live outbox high-water mark in `sync_state.live_pull_cursor` so subsequent incremental pulls don't replay history. Replayable - if the local DB is wiped, re-run it.
+
+    **Passwords:** password hashes sync with the user row (bootstrap and incremental), so staff sign in on either node with the same password and a change on one side follows to the other; only `remember_token`/`api_token` stay node-local.
 
 6. Wire up the schedule. The local instance must have Laravel's scheduler running. Add to root crontab:
 

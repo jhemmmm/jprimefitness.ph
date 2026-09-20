@@ -144,6 +144,16 @@ class OutboxEmissionTest extends TestCase
         $this->assertSame($plan->uuid, $payload['uuid']);
     }
 
+    public function test_user_outbox_payload_carries_the_password_hash_but_not_the_session_token(): void
+    {
+        $user = User::factory()->create(['remember_token' => 'keep-me-local']);
+
+        $payload = json_decode(DB::table('sync_outbox')->where('entity_type', 'user')->latest('id')->value('payload'), true);
+
+        $this->assertSame($user->password, $payload['password']);
+        $this->assertArrayNotHasKey('remember_token', $payload);
+    }
+
     public function test_cash_ledger_entry_outbox_payload_includes_payment_method(): void
     {
         $user = User::factory()->create();

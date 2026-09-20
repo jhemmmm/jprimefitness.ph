@@ -19,7 +19,7 @@ Schedule::command('panel:send-expiring-membership-notifications')
 if (config('sync.role') === \App\Services\Sync\SyncRole::LOCAL) {
     // 5-minute lock TTL: long enough that a backlog drain won't double-fire,
     // short enough that a crashed worker self-recovers within a shift.
-    Schedule::command('sync:push')->everyThirtySeconds()->withoutOverlapping(5)->runInBackground();
+    Schedule::command('sync:push')->everyThirtySeconds()->withoutOverlapping(5)->runInBackground(); // OutboxPusher's lock is the real guard; this just avoids spawning a process
     Schedule::command('sync:pull')->everyThirtySeconds()->withoutOverlapping(5)->runInBackground();
     Schedule::command('sync:heartbeat')->everyMinute()->withoutOverlapping(5)->runInBackground();
     Schedule::command('sync:prune')->dailyAt('03:30')->withoutOverlapping(30);

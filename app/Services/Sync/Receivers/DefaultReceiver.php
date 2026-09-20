@@ -12,6 +12,7 @@ use App\Services\SystemActivityService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Throwable;
 
@@ -286,7 +287,7 @@ class DefaultReceiver
                     'event_id' => $event['event_id'] ?? null,
                     'incoming_updated_at' => $payload['updated_at'] ?? null,
                     'local_updated_at' => optional($existing->getAttribute('updated_at'))->toIso8601String(),
-                    'incoming_payload' => $payload,
+                    'incoming_payload' => Arr::except($payload, [...config('sync.redacted_attributes', []), 'password']),
                 ],
             ]);
         } catch (Throwable $e) {
@@ -317,7 +318,7 @@ class DefaultReceiver
             ->limit($limit)
             ->get();
 
-        $payload = $rows->map(fn ($row) => (array) $row)->all();
+        $payload = $rows->map(fn ($row) => Arr::except((array) $row, config('sync.redacted_attributes', [])))->all();
         $lastId = $rows->isNotEmpty() ? (int) $rows->last()->{$keyName} : (int) $afterId;
 
         return [

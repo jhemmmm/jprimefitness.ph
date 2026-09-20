@@ -47,6 +47,9 @@ return [
     'push_batch_size' => (int) env('SYNC_PUSH_BATCH_SIZE', 200),
     'pull_batch_size' => (int) env('SYNC_PULL_BATCH_SIZE', 500),
 
+    // Local node: push right after any request/command/job writes outbox rows; the sync:push schedule stays on as the safety net.
+    'instant_push' => (bool) env('SYNC_INSTANT_PUSH', true),
+
     /*
     |--------------------------------------------------------------------------
     | Inbound IP allowlist (used only when role=live)
@@ -100,7 +103,7 @@ return [
         ],
 
         // Users (members + employees share the table).
-        'user' => ['model' => \App\Models\User::class],
+        'user' => ['model' => \App\Models\User::class, 'receiver' => \App\Services\Sync\Receivers\UserReceiver::class],
         'member_profile' => ['model' => \App\Models\MemberProfile::class],
         'employee_profile' => ['model' => \App\Models\EmployeeProfile::class],
 
@@ -167,11 +170,12 @@ return [
     |--------------------------------------------------------------------------
     |
     | Attributes scrubbed from outbox payloads regardless of model. Per-model
-    | overrides live in the model's syncableAttributes() method.
+    | overrides live in the model's syncableAttributes() method. Password hashes
+    | are deliberately not listed: sync:bootstrap copies them anyway, and staff
+    | sign in on either node with the same password.
     |
     */
     'redacted_attributes' => [
-        'password',
         'remember_token',
         'api_token',
     ],

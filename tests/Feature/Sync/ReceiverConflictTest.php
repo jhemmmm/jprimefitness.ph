@@ -18,8 +18,10 @@ use App\Models\User;
 use App\Services\Sync\Receivers\DefaultReceiver;
 use App\Services\Sync\Receivers\KioskPaymentReceiver;
 use App\Services\Sync\Receivers\MemberPtSessionUsageReceiver;
+use App\Services\Sync\SyncReceiverRegistry;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -44,6 +46,67 @@ class ReceiverConflictTest extends TestCase
             'origin_node' => 'remote-test',
             'occurred_at' => now()->toIso8601String(),
         ];
+    }
+
+    public function test_user_created_by_the_other_node_signs_in_with_the_password_it_arrived_with(): void
+    {
+        // the sender hashes with a higher bcrypt cost than this node: the `hashed` cast would refuse it, the receiver writes it raw
+        config(['hashing.bcrypt.rounds' => 4]);
+        $uuid = (string) Str::uuid();
+        $receiver = app(SyncReceiverRegistry::class)->receiverFor('user');
+        $ago = now()->subMinute()->toIso8601String();
+
+        $status = $receiver->apply($this->event('user', 'create', [
+            'uuid' => $uuid,
+            'name' => 'Remote Rae',
+            'email' => 'rae@example.com',
+            'status' => User::STATUS_ACTIVE,
+            'password' => password_hash('Remote-secret-1', PASSWORD_BCRYPT, ['cost' => 10]),
+            'created_at' => $ago,
+            'updated_at' => $ago,
+        ]));
+
+        $this->assertSame('ok', $status);
+        $user = User::where('uuid', $uuid)->firstOrFail();
+        $this->assertTrue(Hash::check('Remote-secret-1', $user->password));
+
+        // a node holding no password for this user sends `password: null`; that must not wipe ours
+        $status = $receiver->apply($this->event('user', 'update', [
+            'uuid' => $uuid,
+            'name' => 'Remote Rae Renamed',
+            'email' => 'rae@example.com',
+            'status' => User::STATUS_ACTIVE,
+            'password' => null,
+            'created_at' => $ago,
+            'updated_at' => now()->addMinute()->toIso8601String(),
+        ]));
+
+        $this->assertSame('ok', $status);
+        $this->assertSame('Remote Rae Renamed', $user->fresh()->name);
+        $this->assertTrue(Hash::check('Remote-secret-1', $user->fresh()->password));
+    }
+
+    public function test_user_arriving_without_a_password_has_none_until_an_admin_sets_one_locally(): void
+    {
+        $receiver = app(SyncReceiverRegistry::class)->receiverFor('user');
+        $uuid = (string) Str::uuid();
+        $ago = now()->subMinute()->toIso8601String();
+
+        // an un-upgraded sender may still omit the hash
+        $status = $receiver->apply($this->event('user', 'create', ['uuid' => $uuid, 'name' => 'Remote Rae', 'email' => 'rae@example.com', 'status' => User::STATUS_ACTIVE, 'created_at' => $ago, 'updated_at' => $ago]));
+        $this->assertSame('ok', $status);
+
+        $user = User::where('uuid', $uuid)->firstOrFail();
+        $this->assertNull($user->password);
+        $this->assertFalse(Hash::check('', $user->password));
+
+        // an admin sets a password here; a later remote update without one must not clobber it
+        $user->update(['password' => Hash::make('Local-secret-1')]);
+
+        $status = $receiver->apply($this->event('user', 'update', ['uuid' => $uuid, 'name' => 'Remote Rae Renamed', 'email' => 'rae@example.com', 'status' => User::STATUS_ACTIVE, 'created_at' => $ago, 'updated_at' => now()->addMinute()->toIso8601String()]));
+        $this->assertSame('ok', $status);
+        $this->assertSame('Remote Rae Renamed', $user->fresh()->name);
+        $this->assertTrue(Hash::check('Local-secret-1', $user->fresh()->password));
     }
 
     public function test_newer_local_edit_wins_against_older_remote_update(): void

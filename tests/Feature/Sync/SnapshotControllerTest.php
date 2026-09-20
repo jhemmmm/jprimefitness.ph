@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Sync;
 
 use App\Models\RatePlan;
+use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Tests\TestCase;
 
@@ -44,6 +45,19 @@ class SnapshotControllerTest extends TestCase
             ->assertJsonPath('has_more', false);
 
         $this->assertIsInt($response->json('outbox_max_id'));
+    }
+
+    public function test_snapshot_carries_password_hashes_but_not_session_tokens(): void
+    {
+        $user = User::factory()->create(['remember_token' => 'stays-on-live']);
+
+        $row = collect($this->withHeaders(['Authorization' => 'Bearer '.self::TOKEN])
+            ->getJson('/api/sync/snapshot/user?after_id=0&limit=100')
+            ->assertOk()
+            ->json('rows'))->firstWhere('email', $user->email);
+
+        $this->assertSame($user->password, $row['password']);
+        $this->assertArrayNotHasKey('remember_token', $row);
     }
 
     public function test_snapshot_paginates_after_id(): void
