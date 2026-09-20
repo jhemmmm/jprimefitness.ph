@@ -6,6 +6,7 @@ namespace App\Services\Sync\Receivers;
 
 use App\Models\SystemActivity;
 use App\Services\Sync\AckStatus;
+use App\Services\Sync\ForeignKeys;
 use App\Services\Sync\OutboxWriter;
 use App\Services\Sync\SyncOp;
 use App\Services\SystemActivityService;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -103,6 +105,14 @@ class DefaultReceiver
      */
     protected function applyUpsert(?Model $existing, array $payload, array $event): string
     {
+        // A uuid-keyed row that arrives without a uuid can never be matched
+        // again; creating it would spawn a new duplicate on every replay.
+        if (! $existing && array_key_exists('uuid', $payload) && empty($payload['uuid'])) {
+            Log::warning('sync: uuid-keyed row arrived without a uuid; skipped to avoid duplicates', Arr::only($event, ['entity_type', 'entity_id', 'origin_node', 'event_id']));
+
+            return AckStatus::SKIPPED;
+        }
+
         if ($existing && $this->incomingIsStale($existing, $payload)) {
             $this->recordConflict($existing, $payload, $event);
 
@@ -112,6 +122,7 @@ class DefaultReceiver
         $payload = $this->beforeWrite($payload, $existing);
 
         $model = $existing ?? $this->newModelFor($event['entity_type']);
+        $payload = ForeignKeys::resolve($model->getTable(), $payload);
         $this->fillModel($model, $payload);
         $model->saveQuietly();
 
@@ -318,7 +329,7 @@ class DefaultReceiver
             ->limit($limit)
             ->get();
 
-        $payload = $rows->map(fn ($row) => Arr::except((array) $row, config('sync.redacted_attributes', [])))->all();
+        $payload = ForeignKeys::attach($table, $rows->map(fn ($row) => Arr::except((array) $row, config('sync.redacted_attributes', [])))->all());
         $lastId = $rows->isNotEmpty() ? (int) $rows->last()->{$keyName} : (int) $afterId;
 
         return [

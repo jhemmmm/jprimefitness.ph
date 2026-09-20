@@ -25,7 +25,7 @@ class HeartbeatCommand extends Command
         }
 
         try {
-            $response = $client->heartbeat((string) config('sync.node_id'));
+            $response = $client->heartbeat((string) config('sync.node_id'), $state->getInt('live_pull_cursor', 0));
         } catch (Throwable $e) {
             report($e);
             $this->error('Heartbeat failed: '.$e->getMessage());

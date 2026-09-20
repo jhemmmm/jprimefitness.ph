@@ -155,7 +155,7 @@ Run on the public cloud server.
 
     Expect `{"ok":true,...}`.
 
-> Live does not run any sync schedules. It's purely the receiver. The default `panel:expire-memberships` (00:05) and `panel:send-expiring-membership-notifications` (08:00) crons still run as before; in a two-node setup only the node with mail configured emails members.
+> Live runs only `sync:prune` (daily 03:30, trims outbox rows local has already pulled). Otherwise it's purely the receiver. The default `panel:expire-memberships` (00:05) and `panel:send-expiring-membership-notifications` (08:00) crons still run as before; in a two-node setup only the node with mail configured emails members.
 
 ---
 
@@ -235,6 +235,8 @@ Run on the on-premise PC at the gym.
     php artisan sync:heartbeat   # should exit 0; check live for sync_state.last_local_seen_at
     php artisan sync:push        # drains the local outbox; expect "Pushed 0 events." on a fresh box
     php artisan sync:pull        # pulls anything live has accumulated
+
+    Rows live keeps rejecting are parked after 10 attempts so they don't block the queue; `sync:push` prints a warning with the count. Fix the cause, then `php artisan sync:push --retry-parked`. A pull that hits an event local can't apply holds its cursor on that event and reports it, so nothing is skipped.
     ```
 
 8. Configure the Hikvision device to POST events to `http://<local-pc-LAN-ip>/api/biometric/hikvision/callback` with header `X-Biometric-Token: <BIOMETRIC_TOKEN>`. Configure the kiosk frontend to POST to `http://<local-pc-LAN-ip>/api/kiosk/...` with header `X-Kiosk-Token: <KIOSK_TOKEN>`. Both are unchanged from single-node deployment.

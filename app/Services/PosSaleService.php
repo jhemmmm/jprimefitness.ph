@@ -13,6 +13,8 @@ use App\Models\RatePlan;
 use App\Models\SaleTransaction;
 use App\Models\SystemActivity;
 use App\Models\User;
+use App\Services\Sync\OutboxWriter;
+use App\Services\Sync\SyncOp;
 use Carbon\Carbon;
 use DateTimeInterface;
 use Illuminate\Support\Arr;
@@ -240,6 +242,7 @@ class PosSaleService
                 if ($item->tracks_stock) {
                     $item->quantity = round($availableQuantity - $quantity, 2);
                     $item->saveQuietly();
+                    app(OutboxWriter::class)->write($item, SyncOp::UPDATE); // quiet save skips the sync hook; the other node still needs the new stock level
                     $this->inventoryStockAlertService->sync($item);
                     $stockDeductions[] = [
                         // $item already carries the decremented quantity and eager-loaded category
@@ -553,6 +556,7 @@ class PosSaleService
 
             $inventoryItem->quantity = round((float) $inventoryItem->quantity + (float) data_get($lineItem, 'quantity', 0), 2);
             $inventoryItem->saveQuietly();
+            app(OutboxWriter::class)->write($inventoryItem, SyncOp::UPDATE);
             $this->inventoryStockAlertService->sync($inventoryItem);
         }
     }

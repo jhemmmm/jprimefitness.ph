@@ -56,16 +56,22 @@ class PullCommand extends Command
 
             $acks = $applier->applyBatch($events);
 
-            foreach ($acks as $ack) {
-                if (in_array($ack['status'], [AckStatus::OK, AckStatus::CONFLICT], true)) {
+            // ponytail: the cursor stops at the first errored event so it is retried next tick;
+            // a poison event stalls the pull until fixed. Park after N attempts if that ever bites.
+            foreach ($events as $i => $event) {
+                if ($acks[$i]['status'] === AckStatus::ERROR) {
+                    $state->set('live_pull_cursor', (string) $cursor);
+                    $this->error("Event {$acks[$i]['event_id']} ({$event['entity_type']}) failed; cursor held at {$cursor}. Applied {$totalApplied}.");
+
+                    return self::FAILURE;
+                }
+
+                if (in_array($acks[$i]['status'], [AckStatus::OK, AckStatus::CONFLICT], true)) {
                     $totalApplied++;
                 }
-            }
 
-            $cursor = (int) max(
-                $cursor,
-                ...array_map(fn ($e) => (int) ($e['sequence'] ?? 0), $events)
-            );
+                $cursor = max($cursor, (int) ($event['sequence'] ?? 0));
+            }
 
             $state->set('live_pull_cursor', (string) $cursor);
             $state->set('last_pull_at', (string) now());

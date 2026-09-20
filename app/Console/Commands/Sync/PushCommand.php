@@ -11,7 +11,7 @@ use Throwable;
 
 class PushCommand extends Command
 {
-    protected $signature = 'sync:push {--limit= : Override the per-call batch size}';
+    protected $signature = 'sync:push {--limit= : Override the per-call batch size} {--retry-parked : Re-queue rows live rejected '.OutboxPusher::MAX_ATTEMPTS.' times}';
 
     protected $description = 'Drain the local sync_outbox to the live API.';
 
@@ -23,13 +23,21 @@ class PushCommand extends Command
             return self::SUCCESS;
         }
 
+        if ($this->option('retry-parked')) {
+            $this->info("Re-queued {$pusher->retryParked()} parked rows.");
+        }
+
         try {
             $pushed = $pusher->push($this->option('limit') ? (int) $this->option('limit') : null);
         } catch (Throwable $e) {
+            // every 30 s while live is down; the staleness of sync_state.last_push_at is the alarm, not the log
             $this->error('Push failed: '.$e->getMessage());
-            report($e);
 
             return self::FAILURE;
+        }
+
+        if ($parked = $pusher->parked()) {
+            $this->warn("{$parked} rows parked after repeated rejection; fix the cause, then sync:push --retry-parked.");
         }
 
         if ($pushed === null) {

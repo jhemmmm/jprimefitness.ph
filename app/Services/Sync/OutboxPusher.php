@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Sync;
 
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
 use Throwable;
@@ -21,6 +23,8 @@ class OutboxPusher
 
     /** After a failed or stuck instant push, leave retries to the schedule for this long instead of stalling every request. */
     public const BACKOFF_SECONDS = 60;
+
+    public const MAX_ATTEMPTS = 10;
 
     private const BACKOFF_KEY = 'sync:push:backoff';
 
@@ -62,10 +66,14 @@ class OutboxPusher
     {
         // a batch can take a connect timeout plus the request timeout; never start one that could outlive the lock
         $deadline = microtime(true) + self::LOCK_SECONDS - (int) config('sync.http_timeout', 30) - 10;
+        $fullBatch = $batchSize;
         $pushed = 0;
+        $failed = []; // ids rejected during this drain: retried next run, not in every batch of this one
 
         for ($batch = 0; ($maxBatches === null || $batch < $maxBatches) && microtime(true) < $deadline; $batch++) {
-            $rows = DB::table('sync_outbox')->whereNull('pushed_at')->orderBy('attempts')->orderBy('id')->limit($batchSize)->get();
+            // id order keeps per-entity causality (a delete never overtakes the create it follows);
+            // rows past MAX_ATTEMPTS are parked and skipped so one poison row can't stall the queue
+            $rows = DB::table('sync_outbox')->whereNull('pushed_at')->where('attempts', '<', self::MAX_ATTEMPTS)->whereNotIn('id', $failed)->orderBy('id')->limit($batchSize)->get();
 
             if ($rows->isEmpty()) {
                 break;
@@ -81,6 +89,22 @@ class OutboxPusher
                 'occurred_at' => $row->occurred_at,
             ])->all());
 
+            if ($response->clientError()) {
+                // live rejected the batch as a whole (413 too large, 422 malformed): shrink until the
+                // offending row stands alone, then count that as a failed attempt for it
+                if ($rows->count() > 1) {
+                    $batchSize = intdiv($rows->count(), 2);
+
+                    continue;
+                }
+
+                $this->markFailed($rows->pluck('id'));
+                $failed[] = $rows->first()->id;
+                $batchSize = $fullBatch;
+
+                continue;
+            }
+
             if ($response->failed()) {
                 throw new RuntimeException('Push HTTP error '.$response->status().': '.Str::limit($response->body(), 200));
             }
@@ -89,13 +113,13 @@ class OutboxPusher
             $terminal = [AckStatus::OK, AckStatus::CONFLICT, AckStatus::SKIPPED];
             [$drained, $errored] = $rows->partition(fn ($row) => in_array($acks->get($row->event_id)['status'] ?? '', $terminal, true));
 
-            // errored rows move to the back of the queue and are retried on later runs
             if ($errored->isNotEmpty()) {
-                DB::table('sync_outbox')->whereIn('id', $errored->pluck('id'))->increment('attempts');
+                $this->markFailed($errored->pluck('id'));
+                $failed = [...$failed, ...$errored->pluck('id')->all()];
             }
 
             if ($drained->isEmpty()) {
-                // nothing but rejected rows left at the head: stop rather than spin, and rest the instant path
+                // nothing but rejected rows at the head: stop rather than spin, and rest the instant path
                 $this->backOff();
                 break;
             }
@@ -111,6 +135,28 @@ class OutboxPusher
         $this->state->set('last_push_at', (string) now());
 
         return $pushed;
+    }
+
+    /** Unpushed rows live has rejected MAX_ATTEMPTS times; skipped until retryParked(). */
+    public function parked(): int
+    {
+        return DB::table('sync_outbox')->whereNull('pushed_at')->where('attempts', '>=', self::MAX_ATTEMPTS)->count();
+    }
+
+    public function retryParked(): int
+    {
+        return DB::table('sync_outbox')->whereNull('pushed_at')->where('attempts', '>=', self::MAX_ATTEMPTS)->update(['attempts' => 0]);
+    }
+
+    private function markFailed(Collection $ids): void
+    {
+        DB::table('sync_outbox')->whereIn('id', $ids)->increment('attempts');
+
+        $parked = DB::table('sync_outbox')->whereIn('id', $ids)->where('attempts', '>=', self::MAX_ATTEMPTS)->pluck('event_id');
+
+        if ($parked->isNotEmpty()) {
+            Log::warning('sync: outbox rows parked after '.self::MAX_ATTEMPTS.' rejected pushes; run sync:push --retry-parked once fixed', ['event_ids' => $parked->all()]);
+        }
     }
 
     private function backOff(): void

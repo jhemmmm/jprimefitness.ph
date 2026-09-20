@@ -122,13 +122,10 @@ return [
         'inventory_item' => ['model' => \App\Models\InventoryItem::class],
         'sale_transaction' => ['model' => \App\Models\SaleTransaction::class],
 
-        // Subscriptions, packages, sessions. Sales must land before linked
-        // PT packages so their stable sale UUID can resolve to a local ID.
+        // Subscriptions, packages, sessions. Parents must land before
+        // children so their foreign-key uuids (`_refs`) resolve to local ids.
         'member_subscription' => ['model' => \App\Models\MemberSubscription::class],
-        'member_pt_package' => [
-            'model' => \App\Models\MemberPtPackage::class,
-            'receiver' => \App\Services\Sync\Receivers\MemberPtPackageReceiver::class,
-        ],
+        'member_pt_package' => ['model' => \App\Models\MemberPtPackage::class],
         'member_pt_session_usage' => [
             'model' => \App\Models\MemberPtSessionUsage::class,
             'receiver' => \App\Services\Sync\Receivers\MemberPtSessionUsageReceiver::class,

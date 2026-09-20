@@ -61,27 +61,35 @@ class SyncEventApplier
         try {
             $receiver = $this->registry->receiverFor($event['entity_type']);
 
-            return DB::transaction(function () use ($event, $receiver) {
-                $status = $receiver->apply($event);
+            DB::beginTransaction();
 
-                DB::table('sync_inbox')->insert([
-                    'origin_node' => $event['origin_node'],
-                    'event_id' => $event['event_id'],
-                    'entity_type' => $event['entity_type'],
-                    'entity_id' => $event['entity_id'],
-                    'op' => $event['op'],
-                    'status' => $status,
-                    'applied_at' => now(),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+            $status = $receiver->apply($event);
 
-                return [
-                    'event_id' => $event['event_id'],
-                    'status' => $status,
-                ];
-            });
+            if ($status === AckStatus::ERROR) {
+                // no inbox row and nothing kept: the sender retries this event,
+                // and a recorded row would dedupe that retry as "replayed"
+                DB::rollBack();
+
+                return ['event_id' => $event['event_id'], 'status' => $status];
+            }
+
+            DB::table('sync_inbox')->insert([
+                'origin_node' => $event['origin_node'],
+                'event_id' => $event['event_id'],
+                'entity_type' => $event['entity_type'],
+                'entity_id' => $event['entity_id'],
+                'op' => $event['op'],
+                'status' => $status,
+                'applied_at' => now(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::commit();
+
+            return ['event_id' => $event['event_id'], 'status' => $status];
         } catch (Throwable $e) {
+            DB::rollBack();
             report($e);
 
             return [

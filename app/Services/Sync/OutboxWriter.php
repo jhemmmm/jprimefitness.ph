@@ -23,9 +23,6 @@ class OutboxWriter
 {
     private static int $muted = 0;
 
-    /** Whether the current request/command/job already has an instant push deferred. */
-    private static bool $pushDeferred = false;
-
     /** @var array<class-string, ?string> */
     private static array $entityTypeCache = [];
 
@@ -113,14 +110,9 @@ class OutboxWriter
             'updated_at' => now(),
         ]);
 
-        if (! self::$pushDeferred && config('sync.role') === SyncRole::LOCAL && config('sync.instant_push')) {
-            // once this request, command or job finishes, push what it wrote; registered once per cycle
-            // so a bulk writer doesn't queue a closure per row
-            self::$pushDeferred = true;
-            defer(function () {
-                self::$pushDeferred = false;
-                app(OutboxPusher::class)->pushNow();
-            }, 'sync:push', always: true);
+        if (config('sync.role') === SyncRole::LOCAL && config('sync.instant_push')) {
+            // once this request, command or job finishes, push what it wrote; defer() keeps one callback per name
+            defer(fn () => app(OutboxPusher::class)->pushNow(), 'sync:push', always: true);
         }
     }
 
@@ -135,7 +127,7 @@ class OutboxWriter
             unset($attributes[$field]);
         }
 
-        return $attributes;
+        return ForeignKeys::attach($model->getTable(), [$attributes])[0];
     }
 
     private function resolveEntityType(Model $model): ?string

@@ -49,18 +49,6 @@ class MemberPtPackage extends Model
      *
      * @return array<string, mixed>
      */
-    public function syncableAttributes(): array
-    {
-        $attributes = $this->decodeJsonCastAttributes($this->getAttributes());
-        $attributes['sale_transaction_uuid'] = $this->sale_transaction_id
-            ? $this->saleTransaction()->value('uuid')
-            : null;
-
-        unset($attributes['sale_transaction_id']);
-
-        return $attributes;
-    }
-
     public function member(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');

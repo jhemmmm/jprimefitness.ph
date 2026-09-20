@@ -73,6 +73,19 @@ class InstantPushTest extends TestCase
         $this->assertSame(2, DB::table('sync_outbox')->where('entity_type', 'rate_plan')->whereNull('pushed_at')->count());
     }
 
+    public function test_a_discarded_deferred_callback_does_not_disable_instant_push_for_the_process(): void
+    {
+        $this->fakeLiveAckingEverything();
+
+        RatePlan::create(['name' => 'Lost', 'duration_days' => 30, 'price' => 100, 'is_active' => true]);
+        app(DeferredCallbackCollection::class)->forget('sync:push'); // e.g. a nested Artisan::call whose CommandFinished drops the request's callbacks
+        RatePlan::create(['name' => 'Next', 'duration_days' => 30, 'price' => 100, 'is_active' => true]);
+        $this->finishRequest();
+
+        Http::assertSentCount(1);
+        $this->assertSame(0, DB::table('sync_outbox')->whereNull('pushed_at')->count());
+    }
+
     private function fakeLiveAckingEverything(): void
     {
         Http::fake(fn (Request $request) => Http::response([

@@ -23,6 +23,7 @@ class HeartbeatController extends Controller
 
         $this->state->set('last_local_seen_at', (string) now());
         $this->state->set('last_local_node_id', $node);
+        $this->state->set('last_local_pull_cursor', (string) max(0, (int) $request->input('pull_cursor', 0)));
 
         return response()->json([
             'ok' => true,

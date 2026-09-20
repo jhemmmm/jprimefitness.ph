@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Sync;
 
+use App\Services\Sync\AckStatus;
 use App\Services\Sync\OutboxWriter;
 use App\Services\Sync\SyncClient;
 use App\Services\Sync\SyncOp;
@@ -50,6 +51,7 @@ class BootstrapCommand extends Command
 
             $afterId = 0;
             $count = 0;
+            $failed = 0;
 
             while (true) {
                 try {
@@ -77,8 +79,8 @@ class BootstrapCommand extends Command
                 $receiver = $registry->receiverFor($entityType);
 
                 foreach ($rows as $row) {
-                    OutboxWriter::mute(function () use ($receiver, $row, $entityType) {
-                        $receiver->apply([
+                    $status = OutboxWriter::mute(function () use ($receiver, $row, $entityType) {
+                        return $receiver->apply([
                             'event_id' => (string) Str::uuid(),
                             'entity_type' => $entityType,
                             'entity_id' => (string) ($row['entity_id'] ?? $row['uuid'] ?? $row['id'] ?? ''),
@@ -89,7 +91,7 @@ class BootstrapCommand extends Command
                         ]);
                     });
 
-                    $count++;
+                    $status === AckStatus::ERROR ? $failed++ : $count++;
                 }
 
                 $afterId = (int) $response->json('next_after_id', $afterId);
@@ -99,7 +101,7 @@ class BootstrapCommand extends Command
                 }
             }
 
-            $this->line("  imported {$count} rows.");
+            $this->line("  imported {$count} rows.".($failed ? " {$failed} FAILED (see log)." : ''));
         }
 
         $state->set('live_pull_cursor', (string) $highestOutboxId);

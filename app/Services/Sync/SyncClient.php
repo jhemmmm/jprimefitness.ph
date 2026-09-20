@@ -38,10 +38,11 @@ class SyncClient
         ]);
     }
 
-    public function heartbeat(string $nodeId): Response
+    public function heartbeat(string $nodeId, int $pullCursor = 0): Response
     {
         return $this->request()->post('sync/heartbeat', [
             'node_id' => $nodeId,
+            'pull_cursor' => $pullCursor, // lets live prune outbox rows this node has already pulled
         ]);
     }
 
