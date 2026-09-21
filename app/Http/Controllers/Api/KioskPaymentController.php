@@ -13,7 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class KioskPaymentController extends Controller
@@ -34,12 +33,6 @@ class KioskPaymentController extends Controller
 
         $method = $data['method'] ?? 'online';
         $discountType = $data['discount_type'] ?? null;
-
-        if ($discountType !== null && $method === 'online') {
-            throw ValidationException::withMessages([
-                'method' => ['Discounted rates must be paid in cash so staff can verify the ID.'],
-            ]);
-        }
 
         $baseAmount = $this->resolveWalkInAmount();
         $amount = $discountType !== null
