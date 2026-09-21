@@ -193,7 +193,10 @@ class User extends Authenticatable
     {
         $currentPlan = $this->currentMembership();
 
-        if ($currentPlan) {
+        if ($currentPlan?->status === MemberSubscription::STATUS_ACTIVE && $currentPlan->end_date) {
+            // Renewal: queue behind the running plan so the member keeps every paid day.
+            $startDate = Carbon::parse($startDate)->max($this->nextMembershipStartDate())->toDateString();
+        } elseif ($currentPlan) {
             $currentPlan->update([
                 'status' => MemberSubscription::STATUS_CANCELLED,
             ]);

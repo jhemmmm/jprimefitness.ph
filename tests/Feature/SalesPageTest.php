@@ -383,6 +383,68 @@ class SalesPageTest extends TestCase
         ]);
     }
 
+    public function test_early_renewal_queues_after_current_plan_without_losing_paid_days(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1500]);
+
+        $current = $member->memberSubscriptions()->create([
+            'rate_plan_id' => $ratePlan->id,
+            'status' => MemberSubscription::STATUS_ACTIVE,
+            'start_date' => today()->subDays(26)->toDateString(),
+            'end_date' => today()->addDays(3)->toDateString(),
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => today()->toDateString(),
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 1500,
+                'sold_at' => now()->toDateTimeString(),
+            ])
+            ->assertCreated();
+
+        $renewal = MemberSubscription::where('user_id', $member->id)->whereKeyNot($current->id)->firstOrFail();
+
+        $this->assertSame(MemberSubscription::STATUS_ACTIVE, $current->fresh()->status);
+        $this->assertSame(today()->addDays(4)->toDateString(), $renewal->start_date->toDateString());
+        $this->assertSame(today()->addDays(33)->toDateString(), $renewal->end_date->toDateString());
+        $this->assertTrue($member->currentMembership()->is($current));
+    }
+
+    public function test_membership_sale_replaces_paused_plan(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1500]);
+
+        $paused = $member->memberSubscriptions()->create([
+            'rate_plan_id' => $ratePlan->id,
+            'status' => MemberSubscription::STATUS_PAUSED,
+            'start_date' => today()->subDays(10)->toDateString(),
+            'end_date' => today()->addDays(19)->toDateString(),
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => today()->toDateString(),
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 1500,
+                'sold_at' => now()->toDateTimeString(),
+            ])
+            ->assertCreated();
+
+        $this->assertSame(MemberSubscription::STATUS_CANCELLED, $paused->fresh()->status);
+        $this->assertSame(today()->toDateString(), $member->currentMembership()->start_date->toDateString());
+    }
+
     public function test_membership_sale_requires_existing_member_selection(): void
     {
         $cashier = $this->createUserWithRole('manager', 'Cashier Ben');

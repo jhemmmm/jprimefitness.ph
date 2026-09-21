@@ -155,6 +155,7 @@
                               <label class="form-label">Start Date <span class="text-danger">*</span></label>
                               <input type="date" class="form-control" v-model="form.start_date" :class="{ 'is-invalid': formErrors.start_date }" />
                               <div class="invalid-feedback">{{ formErrors.start_date }}</div>
+                              <div v-if="form.member_current_end" class="form-text">Current plan ends {{ formatDate(form.member_current_end) }}; renewal starts the day after.</div>
                            </div>
                            <div class="col-12 col-md-6">
                               <label class="form-label">Notes</label>
@@ -767,7 +768,7 @@
 <script>
 import { Modal } from "bootstrap";
 import MultiSelect from "./vendor/MultiSelect.vue";
-import { formatDate, formatDateTime, nowTimestamp, todayDate, toDateTimeInputValue } from "../../dates";
+import { appDayjs, formatDate, formatDateTime, nowTimestamp, todayDate, toDateInputValue, toDateTimeInputValue } from "../../dates";
 import { printMembershipCard } from "../../print-membership-card";
 import { debounce } from "../../debounce";
 
@@ -839,6 +840,7 @@ export default {
             member_id: null,
             member_label: "",
             member_discount_type: "",
+            member_current_end: "",
             customer_name: "",
             customer_phone: "",
             membership_rate_plan_id: "",
@@ -1091,6 +1093,7 @@ export default {
             member_id: null,
             member_label: "",
             member_discount_type: "",
+            member_current_end: "",
             customer_name: "",
             customer_phone: "",
             membership_rate_plan_id: "",
@@ -1219,6 +1222,11 @@ export default {
                   name: member.name,
                   meta: [member.email, member.phone].filter(Boolean).join(" • "),
                   discount_type: member.profile?.discount_type || "",
+                  current_end: (member.member_subscriptions || [])
+                     .filter((s) => s.status === "active" && s.end_date)
+                     .map((s) => s.end_date)
+                     .sort()
+                     .pop() || "",
                }));
             })
             .catch(() => []);
@@ -1272,6 +1280,16 @@ export default {
       handleMemberSelect: function (member) {
          this.form.member_label = member?.name || "";
          this.form.member_discount_type = member?.discount_type || "";
+         this.form.member_current_end = member?.current_end || "";
+
+         // Renewal starts the day after the running plan ends; the server enforces the same floor.
+         if (this.form.member_current_end) {
+            var nextStart = toDateInputValue(appDayjs(this.form.member_current_end).add(1, "day"));
+
+            if (nextStart > this.form.start_date) {
+               this.form.start_date = nextStart;
+            }
+         }
       },
       findInventoryItem: function (inventoryItemId) {
          return this.context.inventory_items.find((item) => Number(item.id) === Number(inventoryItemId)) || null;
