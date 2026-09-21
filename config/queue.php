@@ -78,7 +78,7 @@ return [
         ],
 
         'background' => [
-            'driver' => 'background',
+            'driver' => 'sync',
         ],
 
         'failover' => [
