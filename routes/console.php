@@ -16,6 +16,10 @@ Schedule::command('panel:send-expiring-membership-notifications')
     ->dailyAt('08:00')
     ->withoutOverlapping();
 
+Schedule::command('panel:auto-checkout-attendance')
+    ->hourly()
+    ->withoutOverlapping();
+
 if (config('sync.role') === \App\Services\Sync\SyncRole::LOCAL) {
     // 5-minute lock TTL: long enough that a backlog drain won't double-fire,
     // short enough that a crashed worker self-recovers within a shift.
