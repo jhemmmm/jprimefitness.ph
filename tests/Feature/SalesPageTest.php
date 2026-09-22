@@ -7,6 +7,7 @@ use App\Models\CashDrawerSession;
 use App\Models\CashLedgerEntry;
 use App\Models\InventoryCategory;
 use App\Models\InventoryItem;
+use App\Models\MemberProfile;
 use App\Models\MemberPtPackage;
 use App\Models\MemberSubscription;
 use App\Models\PTProduct;
@@ -1002,6 +1003,138 @@ class SalesPageTest extends TestCase
 
         $this->assertSame(MemberPtPackage::STATUS_ACTIVE, $package->fresh()->status);
         $this->assertSame(SaleTransaction::STATUS_COMPLETED, SaleTransaction::findOrFail($transactionId)->status);
+    }
+
+    public function test_inventory_sale_applies_promo_percent_discount(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $item = InventoryItem::factory()->create([
+            'inventory_category_id' => InventoryCategory::factory()->create()->id,
+            'quantity' => 10,
+            'selling_price' => 95,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $response = $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [['inventory_item_id' => $item->id, 'quantity' => 2]],
+                'discount_percent' => 10,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 200,
+                'sold_at' => '2026-03-29 14:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('subtotal', 190)
+            ->assertJsonPath('total', 171)
+            ->assertJsonPath('change_amount', 29)
+            ->assertJsonPath('discount.type', 'promo')
+            ->assertJsonPath('discount.percent', 10)
+            ->assertJsonPath('discount.amount', 19);
+
+        $this->assertDatabaseHas('sale_transactions', ['id' => $response->json('id'), 'total' => 171]);
+    }
+
+    public function test_membership_uses_the_higher_of_id_discount_and_promo_percent(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $senior = $this->createUserWithRole('member', 'Member Lolo');
+        $senior->profile()->create(['discount_type' => MemberProfile::DISCOUNT_SENIOR]);
+        $ratePlan = $this->createRatePlan('1 Month', 30, ['price' => 1000]);
+
+        $payload = [
+            'type' => SaleTransaction::TYPE_MEMBERSHIP,
+            'member_id' => $senior->id,
+            'rate_plan_id' => $ratePlan->id,
+            'start_date' => '2026-04-01',
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'amount_received' => 1000,
+            'sold_at' => '2026-03-29 15:00:00',
+        ];
+
+        // 10% promo < 20% senior discount: statutory wins.
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', $payload + ['discount_percent' => 10])
+            ->assertCreated()
+            ->assertJsonPath('total', 800)
+            ->assertJsonPath('discount.type', MemberProfile::DISCOUNT_SENIOR)
+            ->assertJsonPath('discount.percent', 20);
+        $this->assertDatabaseHas('member_subscriptions', ['user_id' => $senior->id, 'sold_price' => 800]);
+
+        // 30% promo > 20% senior discount: promo wins, never both.
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', ['start_date' => '2026-05-01'] + $payload + ['discount_percent' => 30])
+            ->assertCreated()
+            ->assertJsonPath('total', 700)
+            ->assertJsonPath('discount.type', 'promo')
+            ->assertJsonPath('discount.percent', 30);
+        $this->assertDatabaseHas('member_subscriptions', ['user_id' => $senior->id, 'sold_price' => 700]);
+    }
+
+    public function test_pt_package_and_walk_in_sales_apply_promo_percent_discount(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Lou');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
+        $ptProduct = $this->createPtProduct('12 Sessions', 12, ['price' => 3600]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
+                'assigned_at' => '2026-03-29',
+                'discount_percent' => 10,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 3240,
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('subtotal', 3600)
+            ->assertJsonPath('total', 3240)
+            ->assertJsonPath('discount.type', 'promo');
+        $this->assertDatabaseHas('member_pt_packages', ['user_id' => $member->id, 'sold_price' => 3240]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_WALK_IN,
+                'customer_name' => 'Walk-in Carla',
+                'customer_phone' => '09170000000',
+                'amount_paid' => 150,
+                'discount_percent' => 10,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 135,
+                'sold_at' => '2026-03-29 17:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('subtotal', 150)
+            ->assertJsonPath('total', 135)
+            ->assertJsonPath('details.line_items.0.line_total', 150)
+            ->assertJsonPath('discount.amount', 15);
+    }
+
+    public function test_discount_percent_must_be_a_whole_number_between_0_and_100(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+
+        foreach ([101, -1, 12.5] as $percent) {
+            $this->actingAs($cashier)
+                ->postJson('/panel/sales', [
+                    'type' => SaleTransaction::TYPE_WALK_IN,
+                    'customer_name' => 'Walk-in Carla',
+                    'customer_phone' => '09170000000',
+                    'amount_paid' => 150,
+                    'discount_percent' => $percent,
+                    'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                    'amount_received' => 150,
+                    'sold_at' => '2026-03-29 17:00:00',
+                ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['discount_percent']);
+        }
+
+        $this->assertDatabaseCount('sale_transactions', 0);
     }
 
     /**

@@ -246,19 +246,24 @@
 
                         <div class="border-top mt-4 pt-3">
                            <div class="row g-3">
-                              <div class="col-12 col-md-4">
+                              <div class="col-12 col-md-3">
                                  <label class="form-label">Payment Method <span class="text-danger">*</span></label>
                                  <select class="form-select" v-model="form.payment_method" :class="{ 'is-invalid': formErrors.payment_method }">
                                     <option v-for="method in paymentMethods" :key="method.value" :value="method.value">{{ method.label }}</option>
                                  </select>
                                  <div class="invalid-feedback">{{ formErrors.payment_method }}</div>
                               </div>
-                              <div class="col-12 col-md-4">
+                              <div class="col-12 col-md-3">
+                                 <label class="form-label">Discount %</label>
+                                 <input type="number" min="0" max="100" step="1" class="form-control" v-model="form.discount_percent" :class="{ 'is-invalid': formErrors.discount_percent }" placeholder="0" />
+                                 <div class="invalid-feedback">{{ formErrors.discount_percent }}</div>
+                              </div>
+                              <div class="col-12 col-md-3">
                                  <label class="form-label">Amount Received <span class="text-danger">*</span></label>
                                  <input type="number" min="0" step="0.01" class="form-control" v-model="form.amount_received" :class="{ 'is-invalid': formErrors.amount_received }" />
                                  <div class="invalid-feedback">{{ formErrors.amount_received }}</div>
                               </div>
-                              <div class="col-12 col-md-4">
+                              <div class="col-12 col-md-3">
                                  <label class="form-label">Sold At <span class="text-danger">*</span></label>
                                  <input type="datetime-local" class="form-control" v-model="form.sold_at" :class="{ 'is-invalid': formErrors.sold_at }" />
                                  <div class="invalid-feedback">{{ formErrors.sold_at }}</div>
@@ -329,10 +334,10 @@
                      <div v-else-if="saleType === 'membership' && selectedMembershipPlan" class="rounded-3 bg-light p-3 mb-3">
                         <div class="fw-semibold">{{ selectedMembershipPlan.name }}</div>
                         <div class="small text-muted">{{ selectedMembershipPlan.duration_days }} day membership</div>
-                        <div class="small mt-2" v-if="memberDiscountActive">
+                        <div class="small mt-2" v-if="discount">
                            Price preview: <s class="text-muted">₱{{ $filters.formatMoney(selectedMembershipPlan.price) }}</s>
                            <strong class="ms-1">₱{{ $filters.formatMoney(summaryTotal) }}</strong>
-                           <span class="badge text-bg-danger ms-2">{{ memberDiscountLabel }} 20% off</span>
+                           <span class="badge text-bg-danger ms-2">{{ $filters.discountLabel(discount.type) }} {{ discount.percent }}% off</span>
                         </div>
                         <div class="small mt-2" v-else>
                            Price preview: <strong>₱{{ $filters.formatMoney(selectedMembershipPlan.price) }}</strong>
@@ -360,9 +365,9 @@
                            <span>Subtotal</span>
                            <span>₱{{ $filters.formatMoney(summarySubtotal) }}</span>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center small text-danger mb-1" v-if="memberDiscountActive">
-                           <span>{{ memberDiscountLabel }} discount (20%)</span>
-                           <span>−₱{{ $filters.formatMoney(memberDiscountAmount) }}</span>
+                        <div class="d-flex justify-content-between align-items-center small text-danger mb-1" v-if="discount">
+                           <span>{{ $filters.discountLabel(discount.type) }} discount ({{ discount.percent }}%)</span>
+                           <span>−₱{{ $filters.formatMoney(discount.amount) }}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center small text-muted mb-1">
                            <span>Amount Received</span>
@@ -840,6 +845,7 @@ export default {
             member_id: null,
             member_label: "",
             member_discount_type: "",
+            discount_percent: "",
             member_current_end: "",
             customer_name: "",
             customer_phone: "",
@@ -1035,12 +1041,6 @@ export default {
 
          return this.selectedWalkInPlan?.name || "Walk-in";
       },
-      memberDiscountActive: function () {
-         return this.saleType === "membership" && this.memberDiscountLabel !== "";
-      },
-      memberDiscountLabel: function () {
-         return this.$filters.discountLabel(this.form.member_discount_type);
-      },
       summarySubtotal: function () {
          if (this.saleType === "inventory") {
             return this.normalizedInventoryLines.reduce(function (total, line) {
@@ -1058,12 +1058,21 @@ export default {
 
          return parseFloat(this.form.amount_paid) || 0;
       },
-      memberDiscountAmount: function () {
-         if (!this.memberDiscountActive) return 0;
-         return Math.round(this.summarySubtotal * 0.2 * 100) / 100;
+      // Mirrors PosSaleService::resolveDiscount: ID discount or promo percent, whichever is higher.
+      discount: function () {
+         var idType = this.saleType === "membership" ? this.form.member_discount_type : "";
+         var idPercent = idType ? 20 : 0;
+         var promo = Math.min(Math.max(parseInt(this.form.discount_percent, 10) || 0, 0), 100);
+         var percent = Math.max(idPercent, promo);
+         if (!percent) return null;
+         return {
+            type: promo > idPercent ? "promo" : idType,
+            percent: percent,
+            amount: Math.round(this.summarySubtotal * percent) / 100,
+         };
       },
       summaryTotal: function () {
-         return Math.max(this.summarySubtotal - this.memberDiscountAmount, 0);
+         return Math.max(this.summarySubtotal - (this.discount ? this.discount.amount : 0), 0);
       },
       amountReceivedValue: function () {
          return parseFloat(this.form.amount_received) || 0;
@@ -1093,6 +1102,7 @@ export default {
             member_id: null,
             member_label: "",
             member_discount_type: "",
+            discount_percent: "",
             member_current_end: "",
             customer_name: "",
             customer_phone: "",
@@ -1326,6 +1336,7 @@ export default {
             type: this.saleType,
             payment_method: this.form.payment_method,
             amount_received: this.form.amount_received || null,
+            discount_percent: this.form.discount_percent || null,
             payment_reference: this.requiresPaymentReference ? this.form.payment_reference || null : null,
             sold_at: this.form.sold_at,
             notes: this.form.notes || null,

@@ -264,7 +264,9 @@ class PosSaleService
                 ];
             }
 
-            $saleTotal = round($saleTotal, 2);
+            $subtotal = round($saleTotal, 2);
+            $discount = $this->resolveDiscount($subtotal, $data);
+            $saleTotal = round($subtotal - ($discount['amount'] ?? 0), 2);
             $payment = $this->resolvePayment($saleTotal, $data);
 
             $saleTransaction = SaleTransaction::create([
@@ -278,7 +280,8 @@ class PosSaleService
                 'item_name' => count($lineItems) === 1 ? $lineItems[0]['name'] : count($lineItems).' inventory items',
                 'details' => [
                     'line_items' => $lineItems,
-                    'subtotal' => $saleTotal,
+                    'subtotal' => $subtotal,
+                    'discount' => $discount,
                     'payment' => $payment,
                     'notes' => $data['notes'] ?? null,
                 ],
@@ -321,8 +324,9 @@ class PosSaleService
             }
 
             $member = $this->resolveMember($data);
-            $discountType = $member->profile?->hasDiscount() ? $member->profile->discount_type : null;
-            $saleTotal = $this->applyMemberDiscount(round((float) $ratePlan->price, 2), $discountType);
+            $price = round((float) $ratePlan->price, 2);
+            $discount = $this->resolveDiscount($price, $data, $member);
+            $saleTotal = round($price - ($discount['amount'] ?? 0), 2);
 
             $subscription = $member->sellMembershipPlan($ratePlan->id, $data['start_date'], [
                 'sold_price' => $saleTotal,
@@ -337,6 +341,7 @@ class PosSaleService
                 $this->resolvePayment($saleTotal, $data),
                 $data['sold_at'],
                 $data['notes'] ?? null,
+                discount: $discount,
             );
 
             $saleCause = $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);
@@ -383,7 +388,9 @@ class PosSaleService
             }
 
             $member = $this->resolveMember($data);
-            $soldPrice = round((float) $ptProduct->price, 2);
+            $price = round((float) $ptProduct->price, 2);
+            $discount = $this->resolveDiscount($price, $data); // PT never auto-applied the ID discount; promo only
+            $soldPrice = round($price - ($discount['amount'] ?? 0), 2);
             $payment = $this->resolvePayment($soldPrice, $data);
 
             $package = $member->memberPtPackages()->create([
@@ -420,10 +427,11 @@ class PosSaleService
                         'description' => $ptProduct->session_count.' sessions',
                         'quantity' => 1,
                         'unit' => 'package',
-                        'unit_price' => $soldPrice,
-                        'line_total' => $soldPrice,
+                        'unit_price' => $price,
+                        'line_total' => $price,
                     ]],
-                    'subtotal' => $soldPrice,
+                    'subtotal' => $price,
+                    'discount' => $discount,
                     'payment' => $payment,
                     'notes' => $data['notes'] ?? null,
                 ],
@@ -468,7 +476,9 @@ class PosSaleService
                 }
             }
 
-            $saleTotal = round((float) $data['amount_paid'], 2);
+            $subtotal = round((float) $data['amount_paid'], 2);
+            $discount = $this->resolveDiscount($subtotal, $data);
+            $saleTotal = round($subtotal - ($discount['amount'] ?? 0), 2);
             $payment = $this->resolvePayment($saleTotal, $data);
 
             $saleTransaction = SaleTransaction::create([
@@ -488,10 +498,11 @@ class PosSaleService
                         'description' => $data['customer_phone'] ?? null,
                         'quantity' => 1,
                         'unit' => 'entry',
-                        'unit_price' => $saleTotal,
-                        'line_total' => $saleTotal,
+                        'unit_price' => $subtotal,
+                        'line_total' => $subtotal,
                     ]],
-                    'subtotal' => $saleTotal,
+                    'subtotal' => $subtotal,
+                    'discount' => $discount,
                     'payment' => $payment,
                     'notes' => $data['notes'] ?? null,
                 ],
@@ -522,13 +533,30 @@ class PosSaleService
         return $member;
     }
 
-    private function applyMemberDiscount(float $price, ?string $discountType): float
+    /**
+     * Pick the member's statutory ID discount or the cashier-entered promo percent,
+     * whichever is higher (RA 9994 / RA 10754: never both).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array{type:string, percent:int, amount:float}|null
+     */
+    private function resolveDiscount(float $subtotal, array $data, ?User $member = null): ?array
     {
-        if (! in_array($discountType, MemberProfile::discountTypes(), true)) {
-            return round($price, 2);
+        $idType = $member?->profile?->hasDiscount() ? $member->profile->discount_type : null;
+        $idPercent = $idType !== null ? MemberProfile::DISCOUNT_PERCENT : 0;
+        $promoPercent = (int) ($data['discount_percent'] ?? 0);
+
+        if ($idPercent === 0 && $promoPercent === 0) {
+            return null;
         }
 
-        return round($price * (100 - MemberProfile::DISCOUNT_PERCENT) / 100, 2);
+        [$type, $percent] = $promoPercent > $idPercent ? ['promo', $promoPercent] : [$idType, $idPercent];
+
+        return [
+            'type' => $type,
+            'percent' => $percent,
+            'amount' => round($subtotal * $percent / 100, 2),
+        ];
     }
 
     /**
@@ -753,6 +781,7 @@ class PosSaleService
             'item_name' => $saleTransaction->item_name,
             'payment_method' => $saleTransaction->payment_method,
             'total' => round((float) $saleTransaction->total, 2),
+            'discount' => data_get($saleTransaction->details, 'discount'),
             'status' => $saleTransaction->status,
             'void_reason' => $saleTransaction->void_reason,
             'voided_by' => $saleTransaction->voidedBy?->name,
@@ -930,11 +959,12 @@ class PosSaleService
         DateTimeInterface|string $soldAt,
         ?string $notes = null,
         ?string $source = null,
+        ?array $discount = null,
     ): SaleTransaction {
-        $discountType = $member->profile?->hasDiscount() ? $member->profile->discount_type : null;
         $originalPrice = round((float) $ratePlan->price, 2);
         $saleTotal = round($saleTotal, 2);
-        $discountAmount = round($originalPrice - $saleTotal, 2);
+        // Pending on-site flow passes no discount: fall back to the member's ID discount only.
+        $discount ??= $this->resolveDiscount($originalPrice, [], $member);
 
         $details = [
             'rate_plan_id' => $ratePlan->id,
@@ -950,11 +980,7 @@ class PosSaleService
                 'line_total' => $originalPrice,
             ]],
             'subtotal' => $originalPrice,
-            'discount' => $discountType !== null ? [
-                'type' => $discountType,
-                'percent' => MemberProfile::DISCOUNT_PERCENT,
-                'amount' => $discountAmount,
-            ] : null,
+            'discount' => $discount,
             'payment' => $payment,
             'notes' => $notes,
         ];

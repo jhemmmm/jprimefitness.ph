@@ -313,6 +313,7 @@ class SalesController extends Controller
             'sold_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'amount_received' => ['nullable', 'numeric', 'min:0'],
+            'discount_percent' => ['nullable', 'integer', 'min:0', 'max:100'],
             'payment_reference' => ['nullable', 'string', 'max:255'],
             'inventory_item_id' => ['nullable', 'integer', 'exists:inventory_items,id'],
             'quantity' => ['nullable', 'integer', 'min:1'],

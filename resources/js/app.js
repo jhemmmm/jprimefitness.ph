@@ -134,7 +134,8 @@ app.config.globalProperties.$filters = {
       return window.JPrime?.discountLabels || {};
    },
    discountLabel(type) {
-      return window.JPrime?.discountLabels?.[type] || "";
+      // ID types come from the server map; anything else (e.g. "promo") is capitalized.
+      return window.JPrime?.discountLabels?.[type] || this.capitalize(type);
    },
    capitalize: function (str) {
       return String(str ?? "")
