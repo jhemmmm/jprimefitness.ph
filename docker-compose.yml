@@ -10,9 +10,13 @@ services:
     working_dir: /var/www/html
     volumes:
       - ./:/var/www/html
+      # Mounted rather than baked in so tuning changes need a restart, not a rebuild.
+      - ./docker/php/custom.ini:/usr/local/etc/php/conf.d/custom.ini:ro
+      - ./docker/php/fpm-pool.conf:/usr/local/etc/php-fpm.d/zz-jprime.conf:ro
     environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
+      # APP_ENV and APP_DEBUG deliberately come from .env. Setting them here
+      # silently overrode the production .env, because Laravel's dotenv is
+      # immutable and real environment variables win.
       DB_HOST: mysql
       DB_PORT: 3306
       DB_DATABASE: ${DB_DATABASE:-jprimefitness.ph}
@@ -20,6 +24,10 @@ services:
       DB_PASSWORD: ${DB_APP_PASSWORD:-secret}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      # cloudflared reaches nginx from the docker bridge. Without trusting it,
+      # every visitor looks like the tunnel container and X-Forwarded-Proto is
+      # ignored, so Laravel treats an https request as plain http.
+      TRUSTED_PROXIES: ${TRUSTED_PROXIES:-172.16.0.0/12}
     depends_on:
       mysql:
         condition: service_healthy
@@ -87,6 +95,11 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: jprime-cloudflared
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    environment:
+      # QUIC wants a 7 MB UDP receive buffer; an unprivileged LXC caps it at
+      # 416 kB and the tunnel drops connections. Until net.core.rmem_max is
+      # raised on the Proxmox host, set TUNNEL_TRANSPORT_PROTOCOL=http2 in .env.
+      TUNNEL_TRANSPORT_PROTOCOL: ${TUNNEL_TRANSPORT_PROTOCOL:-quic}
     depends_on:
       - web
     restart: unless-stopped
