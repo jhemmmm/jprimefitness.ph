@@ -144,7 +144,16 @@ Run on the public cloud server.
 
 5. Restart PHP-FPM / queue workers so the new env is picked up.
 
-6. Confirm `/api/sync/heartbeat` exists. From any machine with the token:
+6. Make sure the scheduler is running. The compose stack ships a `scheduler` service (`php artisan schedule:work`) that ticks `routes/console.php`; without it `panel:auto-checkout-attendance`, `panel:expire-memberships`, `panel:send-expiring-membership-notifications` and `sync:prune` never run:
+
+    ```bash
+    docker compose up -d scheduler
+    docker logs jprime-scheduler   # "Running scheduled tasks every minute"
+    ```
+
+    Non-docker installs use the same crontab line as the local node (step 6 below).
+
+7. Confirm `/api/sync/heartbeat` exists. From any machine with the token:
 
     ```bash
     curl -X POST https://your-public-domain/api/sync/heartbeat \
@@ -155,7 +164,7 @@ Run on the public cloud server.
 
     Expect `{"ok":true,...}`.
 
-> Live runs only `sync:prune` (daily 03:30, trims outbox rows local has already pulled). Otherwise it's purely the receiver. The default `panel:expire-memberships` (00:05) and `panel:send-expiring-membership-notifications` (08:00) crons still run as before; in a two-node setup only the node with mail configured emails members.
+> Sync-wise, live runs only `sync:prune` (daily 03:30, trims outbox rows local has already pulled); otherwise it's purely the receiver. The `panel:*` schedules (`auto-checkout-attendance` hourly, `expire-memberships` 00:05, `send-expiring-membership-notifications` 08:00) run on whichever node has a scheduler, so live needs one too; in a two-node setup only the node with mail configured emails members.
 
 ---
 

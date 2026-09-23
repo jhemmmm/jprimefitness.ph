@@ -1,5 +1,6 @@
 services:
   app:
+    image: jprimefitnessph-app
     build:
       context: .
       dockerfile: Dockerfile
@@ -13,7 +14,7 @@ services:
       # Mounted rather than baked in so tuning changes need a restart, not a rebuild.
       - ./docker/php/custom.ini:/usr/local/etc/php/conf.d/custom.ini:ro
       - ./docker/php/fpm-pool.conf:/usr/local/etc/php-fpm.d/zz-jprime.conf:ro
-    environment:
+    environment: &app-env
       # APP_ENV and APP_DEBUG deliberately come from .env. Setting them here
       # silently overrode the production .env, because Laravel's dotenv is
       # immutable and real environment variables win.
@@ -33,6 +34,27 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+    networks:
+      - jprime
+
+  # Laravel's scheduler (routes/console.php). Without this nothing ticks the
+  # hourly/daily panel:* commands on live; sync:* schedules only register on local.
+  scheduler:
+    image: jprimefitnessph-app
+    container_name: jprime-scheduler
+    working_dir: /var/www/html
+    command: php artisan schedule:work
+    volumes:
+      - ./:/var/www/html
+    environment: *app-env
+    depends_on:
+      app:
+        condition: service_started
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
     networks:
       - jprime
 
