@@ -384,6 +384,52 @@ class SalesPageTest extends TestCase
         ]);
     }
 
+    public function test_removed_and_walk_in_plans_are_neither_offered_nor_accepted_for_membership(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $offered = $this->createRatePlan('Monthly', 30, ['price' => 1499]);
+        $removed = $this->createRatePlan('Old Monthly', 30, ['price' => null]); // Pricing "delete" nulls the price
+        $walkIn = $this->createRatePlan('Daily Pass', 1, ['price' => 150, 'is_walk_in_only' => true]);
+        $inactive = $this->createRatePlan('Retired', 30, ['price' => 1299, 'is_active' => false]);
+
+        $this->actingAs($cashier)
+            ->getJson('/panel/sales/context')
+            ->assertOk()
+            ->assertJsonCount(1, 'options.membership_rates')
+            ->assertJsonPath('options.membership_rates.0.id', $offered->id)
+            ->assertJsonPath('options.walk_in_rates.0.id', $walkIn->id);
+
+        foreach ([$removed, $walkIn, $inactive] as $plan) {
+            $this->actingAs($cashier)
+                ->postJson('/panel/sales', [
+                    'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                    'member_id' => $member->id,
+                    'rate_plan_id' => $plan->id,
+                    'start_date' => '2026-04-01',
+                    'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                    'amount_received' => 5000,
+                    'sold_at' => '2026-03-29 15:00:00',
+                ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('rate_plan_id');
+        }
+
+        $this->assertDatabaseCount('member_subscriptions', 0);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $offered->id,
+                'start_date' => '2026-04-01',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 1499,
+                'sold_at' => '2026-03-29 15:00:00',
+            ])
+            ->assertCreated();
+    }
+
     public function test_early_renewal_queues_after_current_plan_without_losing_paid_days(): void
     {
         $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
@@ -927,6 +973,37 @@ class SalesPageTest extends TestCase
             ->assertOk();
 
         $this->assertSame(MemberSubscription::STATUS_CANCELLED, $subscription->fresh()->status);
+    }
+
+    public function test_voiding_a_membership_sale_records_the_void_reason_on_the_subscription(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1499]);
+
+        $saleId = $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => '2026-04-01',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 1499,
+                'sold_at' => '2026-03-29 15:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $this->actingAs($cashier)
+            ->postJson("/panel/sales/{$saleId}/void", ['reason' => 'Refunded at the counter.'])
+            ->assertOk();
+
+        $subscription = MemberSubscription::where('user_id', $member->id)->firstOrFail();
+
+        $this->assertSame(MemberSubscription::STATUS_CANCELLED, $subscription->status);
+        $this->assertSame('Refunded at the counter.', $subscription->cancellation_reason);
+        $this->assertSame($cashier->id, $subscription->cancelled_by);
+        $this->assertNotNull($subscription->cancelled_at);
     }
 
     public function test_voiding_unused_pt_package_sale_cancels_linked_package(): void

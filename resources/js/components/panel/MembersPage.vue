@@ -298,12 +298,6 @@
                         <input type="text" class="form-control" v-model="form.address" :class="{ 'is-invalid': formErrors.address }" placeholder="Street, Barangay, City" />
                         <div class="invalid-feedback" v-if="formErrors.address">{{ formErrors.address }}</div>
                      </div>
-                     <div class="col-md-6" v-if="modalMode === 'add'">
-                        <label class="form-label form-label-sm">Password <span class="text-danger">*</span></label>
-                        <input type="password" class="form-control" v-model="form.password" :class="{ 'is-invalid': formErrors.password }" />
-                        <div class="invalid-feedback" v-if="formErrors.password">{{ formErrors.password }}</div>
-                        <div class="form-text" v-else>At least 8 characters with upper and lower case letters and a symbol.</div>
-                     </div>
                      <div class="col-md">
                         <label class="form-label form-label-sm">Status</label>
                         <select class="form-select flex-grow-1" v-model="form.status">
@@ -357,26 +351,6 @@
                      </div>
                   </div>
 
-                  <!-- Membership Plan -->
-                  <div class="plan-section rounded-3 p-3">
-                     <div class="form-section-header form-section-header--plan mb-3">
-                        <i class="bi bi-tag-fill text-danger"></i>
-                        Membership Plan
-                     </div>
-                     <div class="row g-3">
-                        <div class="col-md">
-                           <label class="form-label form-label-sm">Rate Plan</label>
-                           <select class="form-select" v-model="form.rate_plan_id">
-                              <option disabled value="">Select a plan...</option>
-                              <option v-for="p in ratePlansData" :key="p.id" :value="p.id">{{ p.name }}</option>
-                           </select>
-                        </div>
-                        <div class="col-md-6" v-if="form.rate_plan_id">
-                           <label class="form-label form-label-sm">Start Date</label>
-                           <input type="date" class="form-control" v-model="form.start_date" />
-                        </div>
-                     </div>
-                  </div>
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -394,7 +368,8 @@
 <script>
 import { Modal } from "bootstrap";
 import MultiSelect from "./vendor/MultiSelect.vue";
-import { formatDate, toDateInputValue } from "../../dates";
+import { formatDate } from "../../dates";
+import { firstErrors } from "../../http";
 import { debounce } from "../../debounce";
 
 export default {
@@ -443,7 +418,6 @@ export default {
             email: "",
             phone: "",
             address: "",
-            password: "",
             status: "active",
             date_of_birth: "",
             gender: "",
@@ -451,8 +425,6 @@ export default {
             emergency_contact_phone: "",
             notes: "",
             discount_type: "",
-            rate_plan_id: "",
-            start_date: toDateInputValue(),
          };
       },
 
@@ -503,14 +475,12 @@ export default {
          this.pageError = "";
          this.formError = "";
          this.formErrors = {};
-         var plan = this.getCurrentMembership(member);
          this.form = {
             id: member.id,
             name: member.name || "",
             email: member.email || "",
             phone: member.phone || "",
             address: member.address || "",
-            password: "",
             status: member.status || "active",
             date_of_birth: (member.profile && member.profile.date_of_birth) || "",
             gender: (member.profile && member.profile.gender) || "",
@@ -518,8 +488,6 @@ export default {
             emergency_contact_phone: (member.profile && member.profile.emergency_contact_phone) || "",
             notes: (member.profile && member.profile.notes) || "",
             discount_type: (member.profile && member.profile.discount_type) || "",
-            rate_plan_id: plan ? plan.rate_plan_id : "",
-            start_date: plan ? toDateInputValue(plan.start_date) : toDateInputValue(),
          };
          this.memberModal.show();
       },
@@ -538,12 +506,7 @@ export default {
             })
             .catch((err) => {
                if (err.response && err.response.status === 422) {
-                  var errors = err.response.data.errors || {};
-                  this.formErrors = Object.fromEntries(
-                     Object.entries(errors).map(function (e) {
-                        return [e[0], Array.isArray(e[1]) ? e[1][0] : e[1]];
-                     }),
-                  );
+                  this.formErrors = firstErrors(err.response.data.errors);
                } else {
                   this.formError = "Something went wrong. Please try again.";
                }

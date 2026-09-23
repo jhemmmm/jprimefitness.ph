@@ -107,6 +107,7 @@ class SystemActivityExpansionTest extends TestCase
             SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE,
             SystemActivity::SUBJECT_ATTENDANCE,
             SystemActivity::SUBJECT_SALE_TRANSACTION,
+            SystemActivity::SUBJECT_KIOSK_PAYMENT,
             SystemActivity::SUBJECT_INVENTORY_ITEM,
             SystemActivity::SUBJECT_RATE_PLAN,
             SystemActivity::SUBJECT_PT_PRODUCT,
@@ -359,9 +360,6 @@ class SystemActivityExpansionTest extends TestCase
     {
         $manager = $this->createUserWithRole('admin', 'Admin Nia'); // reads system activity (admin-only)
         $coach = $this->createUserWithRole('coach', 'Coach Rey');
-        $planA = $this->createRatePlan('Monthly', 30, [
-            'price' => 1500,
-        ]);
         $planB = $this->createRatePlan('Quarterly', 90, [
             'price' => 3900,
         ]);
@@ -378,10 +376,7 @@ class SystemActivityExpansionTest extends TestCase
                 'date_of_birth' => '1990-01-01',
                 'emergency_contact_name' => 'Next of Kin',
                 'emergency_contact_phone' => '09170000001',
-                'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
-                'rate_plan_id' => $planA->id,
-                'start_date' => '2026-04-01',
             ])
             ->assertCreated();
 
@@ -397,17 +392,21 @@ class SystemActivityExpansionTest extends TestCase
                 'phone' => '09170000100',
                 'address' => '12 Rizal St, Naga City',
                 'status' => User::STATUS_ACTIVE,
-                'rate_plan_id' => $planA->id,
-                'start_date' => '2026-04-01',
             ])
             ->assertOk();
 
+        // A plan is issued by the POS, which is what records the subscription 'created' event.
         $this->actingAs($manager)
-            ->putJson("/panel/members/{$member->id}/membership", [
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
                 'rate_plan_id' => $planB->id,
                 'start_date' => '2026-04-15',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 3900,
+                'sold_at' => '2026-04-15 09:00:00',
             ])
-            ->assertOk();
+            ->assertCreated();
 
         $this->actingAs($manager)
             ->putJson("/panel/members/{$member->id}/membership/status", [
@@ -464,7 +463,7 @@ class SystemActivityExpansionTest extends TestCase
             ->pluck('event')
             ->all();
 
-        $this->assertSame(['created', 'plan_changed', 'status_updated'], $membershipEvents);
+        $this->assertSame(['created', 'status_updated'], $membershipEvents);
 
         $this->assertSame(
             ['created'],

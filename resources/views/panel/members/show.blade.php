@@ -3,5 +3,5 @@
 @section('title', $memberName . ' - Member')
 
 @section('content')
-    <member-detail-page :member='@json($member)' :rate-plans-data='@json($ratePlans)'></member-detail-page>
+    <member-detail-page :member='@json($member)'></member-detail-page>
 @endsection

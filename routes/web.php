@@ -102,10 +102,10 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
         Route::get('/members/{member}/attendance', [MembersController::class, 'attendance'])->name('members.attendance')->whereNumber('member')->middleware('permission:manage attendance');
     });
 
-    // Editing members (management): details/settings, change/pause/cancel a membership, cancel a PT package.
+    // Editing members (management): details/settings, pause/cancel a membership, cancel a PT package.
+    // Issuing or changing a plan is a paid action and lives in the POS, not here.
     Route::middleware('permission:edit members')->group(function () {
         Route::put('/members/{member}', [MembersController::class, 'update'])->name('members.update')->whereNumber('member');
-        Route::put('/members/{member}/membership', [MembersController::class, 'updateMembership'])->name('members.membership.update')->whereNumber('member');
         Route::put('/members/{member}/membership/status', [MembersController::class, 'updateMembershipStatus'])->name('members.membership.status')->whereNumber('member');
         Route::post('/members/{member}/pt-packages/{memberPtPackage}/cancel', [MembersController::class, 'cancelPtPackage'])->name('members.pt-packages.cancel')->whereNumber('member')->whereNumber('memberPtPackage');
     });

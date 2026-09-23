@@ -19,9 +19,7 @@ use App\Services\PosSaleService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 
 class MembersController extends Controller
 {
@@ -36,12 +34,6 @@ class MembersController extends Controller
         private PosSaleService $posSaleService,
         private SystemActivityService $systemActivityService,
     ) {}
-
-    /** Mirrors RatePlan::scopeMembership(): no removed, inactive or walk-in-only plans. */
-    private function membershipPlanRule(): \Illuminate\Validation\Rules\Exists
-    {
-        return Rule::exists('rate_plans', 'id')->where(fn ($q) => $q->where('is_active', true)->whereNotNull('price')->where('is_walk_in_only', false));
-    }
 
     /**
      * Contact-detail rules shared by store() and update(). Required for new members;
@@ -135,7 +127,8 @@ class MembersController extends Controller
     }
 
     /**
-     * Create a member record.
+     * Create a member record. Identity only: a membership plan is paid for, so it is
+     * issued through the POS (PosSaleService::sellMembership) and never from here.
      *
      * @return \Illuminate\Http\JsonResponse
      */
@@ -144,7 +137,6 @@ class MembersController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', Rule::unique('users', 'email')->withoutTrashed()],
-            'password' => ['required', 'string', Password::defaults()],
             'status' => [
                 'required',
                 Rule::in([
@@ -154,8 +146,6 @@ class MembersController extends Controller
                 ]),
             ],
             ...$this->personRules(),
-            'rate_plan_id' => ['required', $this->membershipPlanRule()],
-            'start_date' => ['nullable', 'date'],
         ]);
 
         $member = User::create([
@@ -163,7 +153,7 @@ class MembersController extends Controller
             'email' => $data['email'],
             'phone' => $data['phone'],
             'address' => $data['address'],
-            'password' => Hash::make($data['password']),
+            // Members have no member-facing login, so they get no password. Hash::check(null) is false.
             'status' => $data['status'],
         ]);
 
@@ -178,12 +168,6 @@ class MembersController extends Controller
             'discount_type' => $data['discount_type'] ?? null,
         ]);
 
-        $subscription = $member->attachPlan(
-            (int) $data['rate_plan_id'],
-            $data['start_date'] ?? now()->toDateString()
-        );
-        $member = $member->fresh();
-
         $this->systemActivityService->recordSubjectEvent(
             SystemActivity::SUBJECT_MEMBER,
             $member->id,
@@ -194,17 +178,6 @@ class MembersController extends Controller
             auth()->user()?->name,
             now(),
         );
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
-            $subscription->id,
-            'created',
-            $this->membershipSystemActivitySnapshot($subscription->fresh(['ratePlan', 'member'])),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            now(),
-        );
-        $this->membershipQrService->sendEmail($subscription);
 
         return response()->json($this->memberPayload($member, detailed: true), 201);
     }
@@ -264,41 +237,6 @@ class MembersController extends Controller
     }
 
     /**
-     * Update a member membership.
-     *
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function updateMembership(Request $request, User $member): JsonResponse
-    {
-        abort_unless($member->hasRole('member'), 404);
-
-        $data = $request->validate([
-            'rate_plan_id' => ['required', $this->membershipPlanRule()],
-            'start_date' => ['required', 'date'],
-        ]);
-
-        $membership = $member->changeMembershipPlan((int) $data['rate_plan_id'], $data['start_date']);
-        $membershipWasCreated = $membership->wasRecentlyCreated;
-
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
-            $membership->id,
-            'plan_changed',
-            $this->membershipSystemActivitySnapshot($membership->fresh(['ratePlan', 'member'])),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
-            now(),
-        );
-
-        if ($membershipWasCreated) {
-            $this->membershipQrService->sendEmail($membership);
-        }
-
-        return response()->json($this->memberPayload($member->fresh(), detailed: true));
-    }
-
-    /**
      * Update a member membership status.
      *
      * @return \Illuminate\Http\JsonResponse
@@ -316,6 +254,13 @@ class MembersController extends Controller
                     MemberSubscription::STATUS_CANCELLED,
                 ]),
             ],
+            // Cancelling turns a paying member away, so it records why — same bar as a pending-payment
+            // cancellation or a sale void. Pausing and resuming are reversible and need no note.
+            'reason' => [
+                Rule::requiredIf(fn () => $request->input('status') === MemberSubscription::STATUS_CANCELLED),
+                'string',
+                'max:2000',
+            ],
         ]);
 
         $membershipToUpdate = $member->currentMembership();
@@ -324,7 +269,18 @@ class MembersController extends Controller
             return response()->json(['message' => 'No current membership found.'], 422);
         }
 
-        $member->updateCurrentMembershipStatus($data['status']);
+        $isCancellation = $data['status'] === MemberSubscription::STATUS_CANCELLED;
+        $actor = auth()->user();
+
+        $membershipToUpdate->update(array_merge(
+            ['status' => $data['status']],
+            $isCancellation ? [
+                'cancellation_reason' => $data['reason'],
+                'cancelled_by' => $actor?->id,
+                'cancelled_at' => now(),
+            ] : [],
+        ));
+
         $membership = $membershipToUpdate->fresh(['ratePlan', 'member']);
 
         $this->systemActivityService->recordSubjectEvent(
@@ -332,9 +288,9 @@ class MembersController extends Controller
             $membership->id,
             'status_updated',
             $this->membershipSystemActivitySnapshot($membership),
-            [],
-            auth()->id(),
-            auth()->user()?->name,
+            $isCancellation ? ['reason' => $data['reason']] : [],
+            $actor?->id,
+            $actor?->name,
             now(),
         );
 
@@ -490,11 +446,7 @@ class MembersController extends Controller
                 ]),
             ],
             ...$this->personRules($member),
-            'rate_plan_id' => ['nullable', $this->membershipPlanRule()],
-            'start_date' => ['nullable', 'date'],
         ]);
-
-        $previousMembership = $member->currentMembership()?->fresh();
 
         $member->update([
             'name' => $data['name'],
@@ -516,10 +468,6 @@ class MembersController extends Controller
             ]
         );
 
-        $member->syncRatePlan(
-            $data['rate_plan_id'] ?? null,
-            $data['start_date'] ?? now()->toDateString()
-        );
         $member = $member->fresh();
 
         $this->systemActivityService->recordSubjectEvent(
@@ -532,26 +480,6 @@ class MembersController extends Controller
             auth()->user()?->name,
             now(),
         );
-
-        $currentMembership = $member->currentMembership();
-
-        if ($currentMembership && (
-            ! $previousMembership
-            || (int) $previousMembership->id !== (int) $currentMembership->id
-            || (int) $previousMembership->rate_plan_id !== (int) $currentMembership->rate_plan_id
-            || optional($previousMembership->start_date)->toDateString() !== optional($currentMembership->start_date)->toDateString()
-        )) {
-            $this->systemActivityService->recordSubjectEvent(
-                SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
-                $currentMembership->id,
-                'plan_changed',
-                $this->membershipSystemActivitySnapshot($currentMembership->fresh(['ratePlan', 'member'])),
-                [],
-                auth()->id(),
-                auth()->user()?->name,
-                now(),
-            );
-        }
 
         return response()->json($this->memberPayload($member, detailed: true));
     }
@@ -627,15 +555,6 @@ class MembersController extends Controller
             'created_at' => $subscription->created_at?->toISOString(),
             'sold_price' => round((float) $subscription->sold_price, 2),
             'qr_url' => route('panel.members.memberships.qr', [$subscription->user_id, $subscription->id]),
-            'action_state' => [
-                'is_locked' => false,
-                'can_change_plan' => true,
-                'can_change_status' => in_array($subscription->status, [
-                        MemberSubscription::STATUS_ACTIVE,
-                        MemberSubscription::STATUS_PAUSED,
-                    ], true),
-                'reason' => null,
-            ],
         ];
     }
 

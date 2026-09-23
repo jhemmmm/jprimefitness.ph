@@ -1900,22 +1900,7 @@ $badge-palette: (
     width: 80px;
 }
 
-// ── Members - plan section & view modal ──────────────────────────────────────
-
-.plan-section {
-    background: rgba(220, 53, 69, 0.04);
-    border: 1px solid rgba(220, 53, 69, 0.12);
-    margin-bottom: 0.5rem;
-
-    [data-bs-theme="dark"] & {
-        background: rgba(220, 53, 69, 0.08);
-        border-color: rgba(220, 53, 69, 0.22);
-    }
-}
-
-.form-section-header--plan {
-    border-bottom-color: rgba(220, 53, 69, 0.15);
-}
+// ── Members - view modal ─────────────────────────────────────────────────────
 
 .modal-section-label {
     text-transform: uppercase;

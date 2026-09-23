@@ -57,63 +57,43 @@ class MembersAccessTest extends TestCase
             ->assertSeeText($member->name);
     }
 
-    public function test_manager_can_change_membership_for_a_member(): void
+    public function test_membership_plans_can_no_longer_be_assigned_from_the_member_pages(): void
     {
         $manager = $this->createUserWithRole('manager');
         $member = $this->createMember();
-        $currentPlan = $this->createRatePlan('Current Plan', 30);
-        $replacementPlan = $this->createRatePlan('Replacement Plan', 90);
+        $held = $this->createRatePlan('Monthly', 30);
+        $smuggled = $this->createRatePlan('Quarterly', 90);
 
-        $subscription = $member->memberSubscriptions()->create([
-            'rate_plan_id' => $currentPlan->id,
+        // Give the member a real plan, so a swap would be visible if update() still honoured it.
+        $existing = $member->memberSubscriptions()->create([
+            'rate_plan_id' => $held->id,
             'start_date' => '2026-03-01',
             'end_date' => '2026-03-30',
             'status' => MemberSubscription::STATUS_ACTIVE,
         ]);
 
+        // A plan is paid for, so it is issued through the POS only. The old endpoint is gone,
+        // and the member update endpoint ignores a smuggled rate_plan_id rather than acting on it.
         $this->actingAs($manager)
-            ->putJson("/panel/members/{$member->id}/membership", [
-                'rate_plan_id' => $replacementPlan->id,
+            ->putJson("/panel/members/{$member->id}/membership", ['rate_plan_id' => $smuggled->id, 'start_date' => '2026-04-01'])
+            ->assertNotFound();
+
+        $this->actingAs($manager)
+            ->putJson("/panel/members/{$member->id}", [
+                'name' => $member->name,
+                'email' => $member->email,
+                'status' => User::STATUS_ACTIVE,
+                'rate_plan_id' => $smuggled->id,
                 'start_date' => '2026-04-01',
             ])
-            ->assertOk()
-            ->assertJsonPath('member_subscriptions.0.rate_plan.id', $replacementPlan->id)
-            ->assertJsonPath('member_subscriptions.0.status', MemberSubscription::STATUS_ACTIVE);
-
-        $this->assertDatabaseHas('member_subscriptions', [
-            'id' => $subscription->id,
-            'status' => MemberSubscription::STATUS_CANCELLED,
-        ]);
-
-        $this->assertDatabaseHas('member_subscriptions', [
-            'user_id' => $member->id,
-            'rate_plan_id' => $replacementPlan->id,
-            'status' => MemberSubscription::STATUS_ACTIVE,
-        ]);
-    }
-
-    public function test_removed_and_walk_in_plans_are_neither_offered_nor_accepted_for_membership(): void
-    {
-        $manager = $this->createUserWithRole('manager');
-        $member = $this->createMember();
-        $offered = $this->createRatePlan('Monthly', 30);
-        $removed = tap($this->createRatePlan('Old Monthly', 30))->update(['price' => null]); // Pricing "delete" nulls the price
-        $walkIn = tap($this->createRatePlan('Daily Pass', 1))->update(['is_walk_in_only' => true]);
-        $inactive = tap($this->createRatePlan('Retired', 30))->update(['is_active' => false]);
-
-        $page = $this->actingAs($manager)->get("/panel/members/{$member->id}")->assertOk();
-        $page->assertSee('Monthly')->assertDontSee('Old Monthly')->assertDontSee('Daily Pass')->assertDontSee('Retired');
-
-        foreach ([$removed, $walkIn, $inactive] as $plan) {
-            $this->actingAs($manager)
-                ->putJson("/panel/members/{$member->id}/membership", ['rate_plan_id' => $plan->id, 'start_date' => '2026-04-01'])
-                ->assertUnprocessable()
-                ->assertJsonValidationErrors('rate_plan_id');
-        }
-
-        $this->actingAs($manager)
-            ->putJson("/panel/members/{$member->id}/membership", ['rate_plan_id' => $offered->id, 'start_date' => '2026-04-01'])
             ->assertOk();
+
+        $existing->refresh();
+
+        $this->assertSame($held->id, $existing->rate_plan_id);
+        $this->assertSame('2026-03-01', $existing->start_date->toDateString());
+        $this->assertSame(MemberSubscription::STATUS_ACTIVE, $existing->status);
+        $this->assertSame(1, $member->memberSubscriptions()->count());
     }
 
     public function test_manager_can_update_membership_status_for_a_member(): void
@@ -142,7 +122,7 @@ class MembersAccessTest extends TestCase
         ]);
     }
 
-    public function test_changing_a_paused_membership_plan_keeps_it_paused(): void
+    public function test_cancelling_a_membership_requires_and_records_a_reason(): void
     {
         $manager = $this->createUserWithRole('manager');
         $member = $this->createMember();
@@ -152,56 +132,45 @@ class MembersAccessTest extends TestCase
             'rate_plan_id' => $plan->id,
             'start_date' => '2026-03-01',
             'end_date' => '2026-03-30',
-            'status' => MemberSubscription::STATUS_PAUSED,
+            'status' => MemberSubscription::STATUS_ACTIVE,
         ]);
 
         $this->actingAs($manager)
-            ->putJson("/panel/members/{$member->id}/membership", [
-                'rate_plan_id' => $plan->id,
-                'start_date' => '2026-04-15',
+            ->putJson("/panel/members/{$member->id}/membership/status", ['status' => MemberSubscription::STATUS_CANCELLED])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('reason');
+
+        $this->assertSame(MemberSubscription::STATUS_ACTIVE, $subscription->fresh()->status);
+
+        // Pausing is reversible, so it needs no note.
+        $this->actingAs($manager)
+            ->putJson("/panel/members/{$member->id}/membership/status", ['status' => MemberSubscription::STATUS_PAUSED])
+            ->assertOk();
+
+        $this->actingAs($manager)
+            ->putJson("/panel/members/{$member->id}/membership/status", [
+                'status' => MemberSubscription::STATUS_CANCELLED,
+                'reason' => 'Member moved away.',
             ])
             ->assertOk();
 
         $subscription->refresh();
 
-        $this->assertSame(MemberSubscription::STATUS_PAUSED, $subscription->status);
-        $this->assertSame('2026-04-15', $subscription->start_date->toDateString());
-        $this->assertSame('2026-05-14', $subscription->end_date?->toDateString());
-        $this->assertSame(1, $member->memberSubscriptions()->count());
-    }
-
-    public function test_member_detail_page_includes_editable_membership_action_state(): void
-    {
-        $manager = $this->createUserWithRole('manager');
-        $member = $this->createMember();
-        $plan = $this->createRatePlan('Monthly', 30);
-
-        $member->memberSubscriptions()->create([
-            'rate_plan_id' => $plan->id,
-            'sold_price' => 2200,
-            'start_date' => '2026-04-01',
-            'end_date' => '2026-04-30',
-            'status' => MemberSubscription::STATUS_ACTIVE,
-        ]);
-
-        $this->actingAs($manager)
-            ->get("/panel/members/{$member->id}")
-            ->assertOk()
-            ->assertSee('"action_state":{"is_locked":false,"can_change_plan":true,"can_change_status":true,"reason":null}', false);
+        $this->assertSame(MemberSubscription::STATUS_CANCELLED, $subscription->status);
+        $this->assertSame('Member moved away.', $subscription->cancellation_reason);
+        $this->assertNotNull($subscription->cancelled_by);
+        $this->assertNotNull($subscription->cancelled_at);
     }
 
     public function test_member_creation_requires_contact_details(): void
     {
         $manager = $this->createUserWithRole('manager');
-        $plan = $this->createRatePlan('Monthly', 30);
 
         $this->actingAs($manager)
             ->postJson('/panel/members', [
                 'name' => 'New Member',
                 'email' => 'new-member@example.com',
-                'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
-                'rate_plan_id' => $plan->id,
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['phone', 'address', 'date_of_birth', 'emergency_contact_name', 'emergency_contact_phone']);
@@ -227,10 +196,9 @@ class MembersAccessTest extends TestCase
             ->assertJsonValidationErrors(['phone', 'date_of_birth']);
     }
 
-    public function test_manager_can_create_member(): void
+    public function test_manager_can_create_member_without_a_password_or_a_plan(): void
     {
         $manager = $this->createUserWithRole('manager');
-        $plan = $this->createRatePlan('Monthly', 30);
 
         $this->actingAs($manager)
             ->postJson('/panel/members', [
@@ -241,26 +209,25 @@ class MembersAccessTest extends TestCase
                 'date_of_birth' => '1990-01-01',
                 'emergency_contact_name' => 'Next of Kin',
                 'emergency_contact_phone' => '09170000001',
-                'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
-                'rate_plan_id' => $plan->id,
-                'start_date' => '2026-04-01',
             ])
             ->assertCreated()
             ->assertJsonPath('name', 'New Member')
             ->assertJsonPath('address', '12 Rizal St, Naga City')
-            ->assertJsonPath('member_subscriptions.0.rate_plan.id', $plan->id);
+            ->assertJsonPath('member_subscriptions', []);
 
         $member = User::query()->where('email', 'new-member@example.com')->firstOrFail();
 
         $this->assertTrue($member->hasRole('member'));
-        $this->assertNotNull($member->currentMembership());
+        // Identity only: the plan is sold at the POS, so nothing is issued here.
+        $this->assertDatabaseCount('member_subscriptions', 0);
+        // No member-facing login, so no password at all.
+        $this->assertNull($member->password);
     }
 
     public function test_manager_can_reuse_email_from_a_soft_deleted_member(): void
     {
         $manager = $this->createUserWithRole('manager');
-        $plan = $this->createRatePlan('Monthly', 30);
 
         $archivedMember = $this->createMember();
         $archivedMember->update(['email' => 'archived-member@example.com']);
@@ -275,10 +242,7 @@ class MembersAccessTest extends TestCase
                 'date_of_birth' => '1990-01-01',
                 'emergency_contact_name' => 'Next of Kin',
                 'emergency_contact_phone' => '09170000001',
-                'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
-                'rate_plan_id' => $plan->id,
-                'start_date' => '2026-04-01',
             ])
             ->assertCreated()
             ->assertJsonPath('email', 'archived-member@example.com');

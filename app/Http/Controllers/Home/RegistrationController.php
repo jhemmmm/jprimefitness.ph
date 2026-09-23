@@ -20,9 +20,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -80,7 +78,7 @@ class RegistrationController extends Controller
                 'email' => $data['email'],
                 'phone' => $data['phone'],
                 'address' => $data['address'],
-                'password' => Hash::make(Str::random(40)),
+                // Members have no member-facing login; same as the panel path in MembersController::store().
                 'status' => User::STATUS_INACTIVE,
             ]);
 

@@ -106,45 +106,16 @@ class User extends Authenticatable
         return $this->hasMany(MemberPtPackage::class)->orderByDesc('assigned_at');
     }
 
-    public function attachPlan(int $ratePlanId, string $startDate, array $attributes = []): MemberSubscription
+    private function attachPlan(int $ratePlanId, string $startDate, array $attributes = []): MemberSubscription
     {
         $plan = RatePlan::findOrFail($ratePlanId);
-        $subscription = $this->memberSubscriptions()->create(array_merge([
+
+        return $this->memberSubscriptions()->create(array_merge([
             'rate_plan_id' => $plan->id,
             'status' => MemberSubscription::STATUS_ACTIVE,
             'start_date' => $startDate,
             'end_date' => $this->membershipEndDate($plan, $startDate),
         ], $attributes));
-
-        return $subscription;
-    }
-
-    public function syncRatePlan(?int $ratePlanId, string $startDate, array $attributes = []): void
-    {
-        if (! $ratePlanId) {
-            return;
-        }
-
-        $activePlan = $this->currentMembership();
-        $plan = RatePlan::findOrFail($ratePlanId);
-        $endDate = $this->membershipEndDate($plan, $startDate);
-
-        if ($activePlan && (int) $activePlan->rate_plan_id === $ratePlanId) {
-            $activePlan->update(array_merge([
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-            ], $attributes));
-
-            return;
-        }
-
-        if ($activePlan) {
-            $activePlan->update([
-                'status' => MemberSubscription::STATUS_CANCELLED,
-            ]);
-        }
-
-        $this->attachPlan($ratePlanId, $startDate, $attributes);
     }
 
     public function currentMembership(): ?MemberSubscription
@@ -164,31 +135,7 @@ class User extends Authenticatable
         return $dayAfter->max(Carbon::today())->toDateString();
     }
 
-    public function changeMembershipPlan(int $ratePlanId, string $startDate, array $attributes = []): MemberSubscription
-    {
-        $currentPlan = $this->currentMembership();
-        $plan = RatePlan::findOrFail($ratePlanId);
-        $endDate = $this->membershipEndDate($plan, $startDate);
-
-        if ($currentPlan && (int) $currentPlan->rate_plan_id === $ratePlanId) {
-            $currentPlan->update(array_merge([
-                'start_date' => $startDate,
-                'end_date' => $endDate,
-                'status' => $currentPlan->status,
-            ], $attributes));
-
-            return $currentPlan->fresh();
-        }
-
-        if ($currentPlan) {
-            $currentPlan->update([
-                'status' => MemberSubscription::STATUS_CANCELLED,
-            ]);
-        }
-
-        return $this->attachPlan($ratePlanId, $startDate, $attributes);
-    }
-
+    /** The only way a plan is issued: through a POS sale, so every plan has a transaction behind it. */
     public function sellMembershipPlan(int $ratePlanId, string $startDate, array $attributes = []): MemberSubscription
     {
         $currentPlan = $this->currentMembership();
@@ -197,25 +144,17 @@ class User extends Authenticatable
             // Renewal: queue behind the running plan so the member keeps every paid day.
             $startDate = Carbon::parse($startDate)->max($this->nextMembershipStartDate())->toDateString();
         } elseif ($currentPlan) {
+            // A paused plan here may be an unpaid on-site registration still sitting in the
+            // pending-payments queue; say why it went away instead of dropping it silently.
             $currentPlan->update([
                 'status' => MemberSubscription::STATUS_CANCELLED,
+                'pending_payment_method' => null,
+                'cancellation_reason' => 'Superseded by a new membership sale.',
+                'cancelled_at' => now(),
             ]);
         }
 
         return $this->attachPlan($ratePlanId, $startDate, $attributes);
-    }
-
-    public function updateCurrentMembershipStatus(string $status): void
-    {
-        $currentPlan = $this->currentMembership();
-
-        if (! $currentPlan) {
-            return;
-        }
-
-        $currentPlan->update([
-            'status' => $status,
-        ]);
     }
 
     /**

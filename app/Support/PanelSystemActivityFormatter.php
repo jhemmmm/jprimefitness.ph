@@ -62,6 +62,7 @@ class PanelSystemActivityFormatter
             SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => sprintf('PT Session Usage #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
             SystemActivity::SUBJECT_ATTENDANCE => sprintf('Attendance #%d - %s', $subjectId, $snapshot['name'] ?? 'Attendance Record'),
             SystemActivity::SUBJECT_SALE_TRANSACTION => sprintf('Sale #%d - %s', $subjectId, $snapshot['customer_name'] ?? ($snapshot['item_name'] ?? 'Transaction')),
+            SystemActivity::SUBJECT_KIOSK_PAYMENT => sprintf('Kiosk Payment #%d - %s', $subjectId, $snapshot['name'] ?? ($snapshot['reference'] ?? 'Kiosk Payment')),
             SystemActivity::SUBJECT_INVENTORY_ITEM => sprintf('Inventory Item #%d - %s', $subjectId, $snapshot['name'] ?? 'Unnamed Item'),
             SystemActivity::SUBJECT_RATE_PLAN => sprintf('Rate Plan #%d - %s', $subjectId, $snapshot['name'] ?? 'Rate Plan'),
             SystemActivity::SUBJECT_PT_PRODUCT => sprintf('PT Product #%d - %s', $subjectId, $snapshot['name'] ?? 'PT Product'),
@@ -134,6 +135,7 @@ class PanelSystemActivityFormatter
                 'voided' => 'Sale voided',
                 default => 'Sale created',
             },
+            SystemActivity::SUBJECT_KIOSK_PAYMENT => 'Kiosk payment cancelled',
             SystemActivity::SUBJECT_INVENTORY_ITEM => match ($event) {
                 'created' => 'Inventory item created',
                 'deleted' => 'Inventory item deleted',
@@ -175,6 +177,7 @@ class PanelSystemActivityFormatter
             SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => $this->ptSessionUsageMessage($snapshot),
             SystemActivity::SUBJECT_ATTENDANCE => $this->attendanceMessage($event, $snapshot),
             SystemActivity::SUBJECT_SALE_TRANSACTION => $this->saleMessage($event, $snapshot),
+            SystemActivity::SUBJECT_KIOSK_PAYMENT => $this->kioskPaymentMessage($snapshot, $metadata),
             SystemActivity::SUBJECT_INVENTORY_ITEM => $this->inventoryMessage($event, $snapshot, $metadata),
             SystemActivity::SUBJECT_RATE_PLAN => $this->ratePlanMessage($event, $snapshot),
             SystemActivity::SUBJECT_PT_PRODUCT => $this->ptProductMessage($event, $snapshot),
@@ -333,6 +336,20 @@ class PanelSystemActivityFormatter
     /**
      * @param  array<string, mixed>  $snapshot
      */
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, mixed>  $metadata
+     */
+    private function kioskPaymentMessage(array $snapshot, array $metadata): string
+    {
+        return sprintf(
+            'Pending kiosk payment %s for %s was cancelled. Reason: %s',
+            $snapshot['reference'] ?? 'unknown',
+            $snapshot['name'] ?? 'a walk-in',
+            $metadata['reason'] ?? 'not given',
+        );
+    }
+
     private function businessProfileMessage(string $event, array $snapshot): string
     {
         $name = (string) ($snapshot['name'] ?? 'The business profile');

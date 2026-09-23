@@ -15,26 +15,21 @@
          </div>
       </div>
 
+      <!-- Plans are sold, not assigned: issuing or renewing one happens in Sales. -->
       <div class="d-flex flex-wrap justify-content-end gap-2 mb-3" v-if="canManageMembership">
-         <button class="btn btn-danger btn-sm" @click="openPlanModal" :disabled="savingPlan || isCurrentMembershipLocked">
-            <i class="bi bi-arrow-repeat me-1"></i>
-            {{ currentMembership ? "Change Plan" : "Assign Plan" }}
-         </button>
-         <button v-if="currentMembership && currentMembership.status === 'active'" class="btn btn-outline-warning btn-sm" @click="updateStatus('paused')" :disabled="savingStatus || isCurrentMembershipLocked">
+         <button v-if="currentMembership && currentMembership.status === 'active'" class="btn btn-outline-warning btn-sm" @click="updateStatus('paused')" :disabled="savingStatus">
             <span class="spinner-border spinner-border-sm me-1" v-if="savingStatus"></span>
             Pause
          </button>
-         <button v-if="currentMembership && currentMembership.status === 'paused'" class="btn btn-outline-success btn-sm" @click="updateStatus('active')" :disabled="savingStatus || isCurrentMembershipLocked">
+         <button v-if="currentMembership && currentMembership.status === 'paused'" class="btn btn-outline-success btn-sm" @click="updateStatus('active')" :disabled="savingStatus">
             <span class="spinner-border spinner-border-sm me-1" v-if="savingStatus"></span>
             Resume
          </button>
-         <button v-if="currentMembership && ['active', 'paused'].includes(currentMembership.status)" class="btn btn-outline-danger btn-sm" @click="updateStatus('cancelled')" :disabled="savingStatus || isCurrentMembershipLocked">
+         <button v-if="currentMembership && ['active', 'paused'].includes(currentMembership.status)" class="btn btn-outline-danger btn-sm" @click="openCancelModal" :disabled="savingStatus">
             <span class="spinner-border spinner-border-sm me-1" v-if="savingStatus"></span>
             Cancel
          </button>
       </div>
-
-      <div v-if="membershipLockReason" class="alert alert-warning py-2 small mb-4"><i class="bi bi-lock me-1"></i>{{ membershipLockReason }}</div>
 
       <div class="row g-3 mb-4">
          <div class="col-12">
@@ -62,40 +57,7 @@
                      <div class="fw-semibold">{{ formatDateTime(currentMembership.created_at) }}</div>
                   </div>
                </div>
-               <div v-else class="text-muted small mt-3">Assign a new plan to start tracking membership activity here.</div>
-            </div>
-         </div>
-      </div>
-
-      <div class="modal fade" tabindex="-1" ref="planModal">
-         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-               <div class="modal-header">
-                  <h5 class="modal-title fw-bold">{{ currentMembership ? "Change Membership Plan" : "Assign Membership Plan" }}</h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-               </div>
-               <div class="modal-body">
-                  <div class="row g-3">
-                     <div class="col-12">
-                        <label class="form-label form-label-sm fw-semibold">Plan</label>
-                        <select class="form-select" v-model="form.rate_plan_id">
-                           <option disabled value="">Select a plan...</option>
-                           <option v-for="plan in ratePlansData" :key="plan.id" :value="plan.id">{{ plan.name }}</option>
-                        </select>
-                     </div>
-                     <div class="col-12">
-                        <label class="form-label form-label-sm fw-semibold">Start Date</label>
-                        <input type="date" class="form-control" v-model="form.start_date" />
-                     </div>
-                  </div>
-               </div>
-               <div class="modal-footer">
-                  <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-                  <button type="button" class="btn btn-danger btn-sm" @click="savePlanChange" :disabled="savingPlan || !form.rate_plan_id || isCurrentMembershipLocked">
-                     <span class="spinner-border spinner-border-sm me-1" v-if="savingPlan"></span>
-                     {{ currentMembership ? "Change Plan" : "Assign Plan" }}
-                  </button>
-               </div>
+               <div v-else class="text-muted small mt-3">Sell a membership plan in Sales to start tracking membership activity here.</div>
             </div>
          </div>
       </div>
@@ -153,6 +115,36 @@
          </div>
       </div>
 
+      <div class="modal fade" tabindex="-1" ref="cancelMembershipModal">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">Cancel Membership</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" :disabled="savingStatus"></button>
+               </div>
+               <div class="modal-body">
+                  <div v-if="cancelError" class="alert alert-danger py-2 small">{{ cancelError }}</div>
+                  <p class="small mb-3">
+                     Cancel <strong>{{ currentMembership?.rate_plan?.name || "this membership" }}</strong> for
+                     <strong>{{ member.name }}</strong>? They will be turned away at the kiosk from now on.
+                  </p>
+                  <div>
+                     <label class="form-label">Reason <span class="text-danger">*</span></label>
+                     <textarea class="form-control" rows="3" v-model="cancelReason" :class="{ 'is-invalid': cancelErrors.reason }" placeholder="Enter the reason this membership is being cancelled"></textarea>
+                     <div class="invalid-feedback" v-if="cancelErrors.reason">{{ cancelErrors.reason }}</div>
+                  </div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" :disabled="savingStatus">Back</button>
+                  <button type="button" class="btn btn-danger px-4" @click="confirmCancel" :disabled="savingStatus || !cancelReason.trim()">
+                     <span v-if="savingStatus" class="spinner-border spinner-border-sm me-1"></span>
+                     Cancel Membership
+                  </button>
+               </div>
+            </div>
+         </div>
+      </div>
+
       <div class="modal fade" tabindex="-1" ref="membershipQrModal">
          <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
@@ -188,74 +180,41 @@
 
 <script>
 import { Modal } from "bootstrap";
-import { formatDate, formatDateTime, toDateInputValue } from "../../../dates";
+import { formatDate, formatDateTime } from "../../../dates";
+import { firstErrors } from "../../../http";
 import { printMembershipCard } from "../../../print-membership-card";
 
 export default {
    props: {
       member: { type: Object, required: true },
-      ratePlansData: { type: Array, default: () => [] },
    },
 
    emits: ["updated"],
 
    data: function () {
       return {
-         savingPlan: false,
          savingStatus: false,
          saved: false,
          generalError: "",
-         planModalInst: null,
          qrModalInst: null,
+         cancelModalInst: null,
+         cancelReason: "",
+         cancelError: "",
+         cancelErrors: {},
          loadingQr: false,
          selectedQr: null,
          qrError: "",
-         form: {
-            rate_plan_id: "",
-            start_date: toDateInputValue(),
-         },
       };
    },
 
    mounted: function () {
-      this.planModalInst = new Modal(this.$refs.planModal);
       this.qrModalInst = new Modal(this.$refs.membershipQrModal);
-   },
-
-   watch: {
-      member: {
-         immediate: true,
-         handler: function () {
-           this.form = {
-               rate_plan_id: this.currentMembership?.rate_plan_id || "",
-               start_date: this.currentMembership?.start_date || toDateInputValue(),
-            };
-         },
-      },
+      this.cancelModalInst = new Modal(this.$refs.cancelMembershipModal);
    },
 
    computed: {
       currentMembership: function () {
          return this.memberships.find((membership) => ["active", "paused"].includes(membership.status)) || null;
-      },
-
-      currentMembershipActionState: function () {
-         return (
-            this.currentMembership?.action_state || {
-               is_locked: false,
-               can_change_plan: true,
-               can_change_status: true,
-               reason: "",
-            }
-         );
-      },
-
-      isCurrentMembershipLocked: function () {
-         return Boolean(this.currentMembershipActionState.is_locked);
-      },
-
-      membershipLockReason: function () {
-         return this.currentMembershipActionState.reason || "";
       },
 
       canManageMembership: function () {
@@ -296,58 +255,44 @@ export default {
    methods: {
       formatDate,
       formatDateTime,
-      openPlanModal: function () {
-         if (this.isCurrentMembershipLocked) {
-            this.generalError = this.membershipLockReason;
-            return;
-         }
-
-         this.generalError = "";
-         this.form = {
-            rate_plan_id: this.currentMembership?.rate_plan_id || "",
-            start_date: this.currentMembership?.start_date || toDateInputValue(),
-         };
-         this.planModalInst.show();
+      openCancelModal: function () {
+         this.cancelReason = "";
+         this.cancelError = "";
+         this.cancelErrors = {};
+         this.cancelModalInst.show();
       },
 
-      savePlanChange: function () {
-         if (this.isCurrentMembershipLocked) {
-            this.generalError = this.membershipLockReason;
-            return;
-         }
-
-         this.savingPlan = true;
-         this.saved = false;
-         this.generalError = "";
-         axios
-            .put(`/panel/members/${this.member.id}/membership`, this.form)
-            .then((res) => {
-               this.saved = true;
-               this.$emit("updated", res.data);
-               this.planModalInst.hide();
-               setTimeout(() => (this.saved = false), 3000);
-            })
-            .catch((err) => (this.generalError = err.response?.data?.message || "Failed to update membership plan."))
-            .finally(() => (this.savingPlan = false));
+      confirmCancel: function () {
+         this.cancelError = "";
+         this.cancelErrors = {};
+         this.updateStatus("cancelled", this.cancelReason);
       },
 
-      updateStatus: function (status) {
-         if (this.isCurrentMembershipLocked) {
-            this.generalError = this.membershipLockReason;
-            return;
-         }
-
+      updateStatus: function (status, reason) {
          this.savingStatus = true;
          this.saved = false;
          this.generalError = "";
          axios
-            .put(`/panel/members/${this.member.id}/membership/status`, { status })
+            .put(`/panel/members/${this.member.id}/membership/status`, { status, reason })
             .then((res) => {
                this.saved = true;
+               this.cancelModalInst.hide();
                this.$emit("updated", res.data);
                setTimeout(() => (this.saved = false), 3000);
             })
-            .catch((err) => (this.generalError = err.response?.data?.message || "Failed to update membership status."))
+            .catch((err) => {
+               if (err.response?.status === 422) {
+                  // Hold the modal open so a typed reason survives a validation bounce.
+                  this.cancelErrors = firstErrors(err.response.data.errors);
+                  if (!this.cancelErrors.reason) {
+                     this.cancelError = err.response.data.message || "Failed to update membership status.";
+                  }
+                  return;
+               }
+
+               this.cancelModalInst.hide();
+               this.generalError = err.response?.data?.message || "Failed to update membership status.";
+            })
             .finally(() => (this.savingStatus = false));
       },
 

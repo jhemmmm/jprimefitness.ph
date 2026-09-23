@@ -26,6 +26,7 @@ class SystemActivitySubjectRegistry
             ['value' => SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE, 'label' => 'PT Session Usage'],
             ['value' => SystemActivity::SUBJECT_ATTENDANCE, 'label' => 'Attendance'],
             ['value' => SystemActivity::SUBJECT_SALE_TRANSACTION, 'label' => 'Sales'],
+            ['value' => SystemActivity::SUBJECT_KIOSK_PAYMENT, 'label' => 'Kiosk Payments'],
             ['value' => SystemActivity::SUBJECT_INVENTORY_ITEM, 'label' => 'Inventory'],
             ['value' => SystemActivity::SUBJECT_RATE_PLAN, 'label' => 'Rate Plans'],
             ['value' => SystemActivity::SUBJECT_PT_PRODUCT, 'label' => 'PT Products'],

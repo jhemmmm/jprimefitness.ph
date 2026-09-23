@@ -9,6 +9,7 @@ use App\Models\MemberProfile;
 use App\Models\MemberSubscription;
 use App\Models\RatePlan;
 use App\Models\SaleTransaction;
+use App\Models\SystemActivity;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Carbon;
@@ -69,29 +70,10 @@ class PanelKioskPaymentsControllerTest extends TestCase
             'expires_at' => Carbon::now()->subSecond(),
         ]);
 
-        $plan = RatePlan::create([
-            'name' => 'Monthly',
-            'duration_days' => 30,
-            'price' => 1500,
-            'is_active' => true,
-            'is_walk_in_only' => false,
-        ]);
-        $member = User::create([
-            'name' => 'Pending Patty',
-            'email' => 'pending.patty@example.com',
-            'phone' => '09170001111',
-            'password' => bcrypt('secret'),
-            'status' => User::STATUS_INACTIVE,
-        ]);
-        $member->assignRole('member');
-        $pendingMembership = $member->memberSubscriptions()->create([
-            'rate_plan_id' => $plan->id,
-            'sold_price' => 1500,
-            'start_date' => Carbon::now()->toDateString(),
+        $pendingMembership = $this->makePendingMembership('pending.patty@example.com', [
             'end_date' => Carbon::now()->addDays(29)->toDateString(),
-            'status' => MemberSubscription::STATUS_PAUSED,
-            'pending_payment_method' => MemberSubscription::PENDING_PAYMENT_ON_SITE,
         ]);
+        $pendingMembership->member->update(['name' => 'Pending Patty', 'phone' => '09170001111']);
 
         $response = $this->actingAs($this->staff())
             ->getJson('/panel/sales/pending-payments')
@@ -195,22 +177,8 @@ class PanelKioskPaymentsControllerTest extends TestCase
     {
         Mail::fake();
 
-        $plan = RatePlan::create([
-            'name' => 'Monthly',
-            'duration_days' => 30,
-            'price' => 1500,
-            'is_active' => true,
-            'is_walk_in_only' => false,
-        ]);
-        $member = User::factory()->create(['status' => User::STATUS_INACTIVE]);
-        $member->assignRole('member');
-        $subscription = $member->memberSubscriptions()->create([
-            'rate_plan_id' => $plan->id,
-            'sold_price' => 1500,
-            'start_date' => now()->toDateString(),
-            'status' => MemberSubscription::STATUS_PAUSED,
-            'pending_payment_method' => MemberSubscription::PENDING_PAYMENT_ON_SITE,
-        ]);
+        $subscription = $this->makePendingMembership('rollback.member@example.com');
+        $member = $subscription->member;
 
         $this->drawerSession->forceFill([
             'is_open' => null,
@@ -229,6 +197,37 @@ class PanelKioskPaymentsControllerTest extends TestCase
         $this->assertSame(MemberSubscription::STATUS_PAUSED, $subscription->fresh()->status);
         $this->assertSame(MemberSubscription::PENDING_PAYMENT_ON_SITE, $subscription->fresh()->pending_payment_method);
         $this->assertDatabaseCount('sale_transactions', 0);
+    }
+
+    public function test_cancelling_a_pending_membership_records_the_reason(): void
+    {
+        $subscription = $this->makePendingMembership('cancel.member@example.com');
+
+        $this->actingAs($this->staff())
+            ->postJson("/panel/sales/pending-memberships/{$subscription->id}/cancel")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('reason');
+
+        $this->assertSame(MemberSubscription::STATUS_PAUSED, $subscription->fresh()->status);
+
+        $this->actingAs($this->staff())
+            ->postJson("/panel/sales/pending-memberships/{$subscription->id}/cancel", [
+                'reason' => 'Walked out without paying.',
+            ])
+            ->assertOk();
+
+        $subscription->refresh();
+
+        $this->assertSame(MemberSubscription::STATUS_CANCELLED, $subscription->status);
+        $this->assertSame('Walked out without paying.', $subscription->cancellation_reason);
+        $this->assertNotNull($subscription->cancelled_by);
+        $this->assertNotNull($subscription->cancelled_at);
+
+        $this->assertDatabaseHas('system_activities', [
+            'subject_type' => SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
+            'subject_id' => $subscription->id,
+            'event' => 'cancelled',
+        ]);
     }
 
     public function test_confirm_rejects_online_payment(): void
@@ -271,11 +270,38 @@ class PanelKioskPaymentsControllerTest extends TestCase
         ]);
 
         $this->actingAs($this->staff())
-            ->postJson('/panel/kiosk-payments/'.$payment->reference.'/cancel')
+            ->postJson('/panel/kiosk-payments/'.$payment->reference.'/cancel', [
+                'reason' => 'Customer left before paying.',
+            ])
             ->assertOk();
 
-        $this->assertSame(KioskPayment::STATUS_CANCELLED, $payment->fresh()->status);
+        $payment->refresh();
+
+        $this->assertSame(KioskPayment::STATUS_CANCELLED, $payment->status);
+        $this->assertSame('Customer left before paying.', $payment->cancellation_reason);
+        $this->assertNotNull($payment->cancelled_by);
+        $this->assertDatabaseHas('system_activities', [
+            'subject_type' => SystemActivity::SUBJECT_KIOSK_PAYMENT,
+            'subject_id' => $payment->id,
+            'event' => 'cancelled',
+        ]);
         $this->assertSame(0, SaleTransaction::query()->count());
+    }
+
+    public function test_cancel_requires_a_reason_and_leaves_the_payment_pending(): void
+    {
+        $payment = $this->makePayment('kio_no_reason', [
+            'status' => KioskPayment::STATUS_PENDING,
+            'paymongo_payment_intent_id' => null,
+            'expires_at' => Carbon::now()->addMinutes(30),
+        ]);
+
+        $this->actingAs($this->staff())
+            ->postJson('/panel/kiosk-payments/'.$payment->reference.'/cancel', ['reason' => '   '])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('reason');
+
+        $this->assertSame(KioskPayment::STATUS_PENDING, $payment->fresh()->status);
     }
 
     public function test_pwd_discount_is_accepted_and_priced_like_senior(): void
@@ -322,6 +348,31 @@ class PanelKioskPaymentsControllerTest extends TestCase
     /**
      * @param  array<string, mixed>  $overrides
      */
+    private function makePendingMembership(string $email, array $overrides = []): MemberSubscription
+    {
+        $plan = RatePlan::create([
+            'name' => 'Monthly',
+            'duration_days' => 30,
+            'price' => 1500,
+            'is_active' => true,
+            'is_walk_in_only' => false,
+        ]);
+
+        $member = User::factory()->create([
+            'email' => $email,
+            'status' => User::STATUS_INACTIVE,
+        ]);
+        $member->assignRole('member');
+
+        return $member->memberSubscriptions()->create(array_merge([
+            'rate_plan_id' => $plan->id,
+            'sold_price' => 1500,
+            'start_date' => Carbon::now()->toDateString(),
+            'status' => MemberSubscription::STATUS_PAUSED,
+            'pending_payment_method' => MemberSubscription::PENDING_PAYMENT_ON_SITE,
+        ], $overrides));
+    }
+
     private function makePayment(string $reference, array $overrides = []): KioskPayment
     {
         return KioskPayment::create(array_merge([

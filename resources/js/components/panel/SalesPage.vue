@@ -660,16 +660,24 @@
                   <button type="button" class="btn-close" data-bs-dismiss="modal" :disabled="busyPendingKey === pendingTarget?.key"></button>
                </div>
                <div class="modal-body" v-if="pendingTarget">
-                  <p class="mb-2" v-if="pendingAction === 'cancel'">
-                     <span v-if="pendingTarget.kind === 'membership'">
-                        Cancel the pending registration for <strong>{{ pendingTarget.name }}</strong
-                        >? You can re-register them later if they return.
-                     </span>
-                     <span v-else
-                        >Cancel the pending walk-in for <strong>{{ pendingTarget.name }}</strong
-                        >? No sale will be recorded.</span
-                     >
-                  </p>
+                  <div v-if="pendingError" class="alert alert-danger py-2 small">{{ pendingError }}</div>
+                  <template v-if="pendingAction === 'cancel'">
+                     <p class="mb-3">
+                        <span v-if="pendingTarget.kind === 'membership'">
+                           Cancel the pending registration for <strong>{{ pendingTarget.name }}</strong
+                           >? You can re-register them later if they return.
+                        </span>
+                        <span v-else
+                           >Cancel the pending walk-in for <strong>{{ pendingTarget.name }}</strong
+                           >? No sale will be recorded.</span
+                        >
+                     </p>
+                     <div>
+                        <label class="form-label">Reason <span class="text-danger">*</span></label>
+                        <textarea class="form-control" rows="3" v-model="pendingForm.reason" :class="{ 'is-invalid': pendingErrors.reason }" placeholder="Enter the reason this payment is being cancelled"></textarea>
+                        <div class="invalid-feedback" v-if="pendingErrors.reason">{{ pendingErrors.reason }}</div>
+                     </div>
+                  </template>
                   <template v-else>
                      <p class="mb-2">
                         Confirm payment of <strong>₱{{ $filters.formatMoney(pendingTarget.amount) }}</strong> from <strong>{{ pendingTarget.name }}</strong>
@@ -698,7 +706,7 @@
                </div>
                <div class="modal-footer">
                   <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" :disabled="busyPendingKey === pendingTarget?.key">Back</button>
-                  <button type="button" :class="['btn px-4', pendingAction === 'cancel' ? 'btn-outline-danger' : 'btn-danger']" @click="executePendingAction" :disabled="busyPendingKey === pendingTarget?.key">
+                  <button type="button" :class="['btn px-4', pendingAction === 'cancel' ? 'btn-outline-danger' : 'btn-danger']" @click="executePendingAction" :disabled="busyPendingKey === pendingTarget?.key || (pendingAction === 'cancel' && !pendingForm.reason.trim())">
                      <span v-if="busyPendingKey === pendingTarget?.key" class="spinner-border spinner-border-sm me-1"></span>
                      {{ pendingLabels.button }}
                   </button>
@@ -774,6 +782,7 @@
 import { Modal } from "bootstrap";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import { appDayjs, formatDate, formatDateTime, nowTimestamp, todayDate, toDateInputValue, toDateTimeInputValue } from "../../dates";
+import { firstErrors } from "../../http";
 import { printMembershipCard } from "../../print-membership-card";
 import { debounce } from "../../debounce";
 
@@ -879,7 +888,10 @@ export default {
          pendingForm: {
             payment_method: "cash",
             payment_reference: "",
+            reason: "",
          },
+         pendingError: "",
+         pendingErrors: {},
       };
    },
    mounted: function () {
@@ -1397,11 +1409,7 @@ export default {
             .catch((error) => {
                this.markDrawerClosed(error);
                if (error.response?.status === 422) {
-                  this.formErrors = Object.fromEntries(
-                     Object.entries(error.response.data.errors || {}).map(function ([field, messages]) {
-                        return [field, Array.isArray(messages) ? messages[0] : messages];
-                     }),
-                  );
+                  this.formErrors = firstErrors(error.response.data.errors);
                   return;
                }
 
@@ -1480,11 +1488,7 @@ export default {
             .catch((error) => {
                this.markDrawerClosed(error);
                if (error.response?.status === 422) {
-                  this.voidErrors = Object.fromEntries(
-                     Object.entries(error.response.data.errors || {}).map(function ([field, messages]) {
-                        return [field, Array.isArray(messages) ? messages[0] : messages];
-                     }),
-                  );
+                  this.voidErrors = firstErrors(error.response.data.errors);
                   return;
                }
 
@@ -1519,6 +1523,9 @@ export default {
          if (action === "confirm" && !this.canRecordSales) return;
          this.pendingAction = action;
          this.pendingTarget = row;
+         this.pendingError = "";
+         this.pendingErrors = {};
+         this.pendingForm.reason = "";
          if (action === "confirm" && row.requires_payment_method) {
             this.pendingForm.payment_method = "cash";
             this.pendingForm.payment_reference = "";
@@ -1532,14 +1539,18 @@ export default {
          if (action === "confirm" && !this.canRecordSales) return;
 
          this.busyPendingKey = row.key;
+         this.pendingError = "";
+         this.pendingErrors = {};
          var url = action === "confirm" ? row.confirm_url : row.cancel_url;
-         var payload =
-            action === "confirm" && row.requires_payment_method
-               ? {
-                    payment_method: this.pendingForm.payment_method,
-                    payment_reference: this.pendingForm.payment_reference || null,
-                 }
-               : {};
+         var payload = {};
+         if (action === "cancel") {
+            payload = { reason: this.pendingForm.reason };
+         } else if (row.requires_payment_method) {
+            payload = {
+               payment_method: this.pendingForm.payment_method,
+               payment_reference: this.pendingForm.payment_reference || null,
+            };
+         }
 
          axios
             .post(url, payload)
@@ -1554,6 +1565,14 @@ export default {
             })
             .catch((error) => {
                this.markDrawerClosed(error);
+               if (error.response?.status === 422 && action === "cancel") {
+                  // Keep the modal open so a typed note survives a validation bounce.
+                  this.pendingErrors = firstErrors(error.response.data.errors);
+                  if (!this.pendingErrors.reason) {
+                     this.pendingError = error.response.data.message || "Failed to cancel payment.";
+                  }
+                  return;
+               }
                this.pageError = error.response?.data?.message || (action === "confirm" ? "Failed to confirm payment." : "Failed to cancel payment.");
                this.pendingPaymentModal?.hide();
             })

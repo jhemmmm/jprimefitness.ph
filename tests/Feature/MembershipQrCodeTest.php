@@ -105,14 +105,13 @@ class MembershipQrCodeTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_member_creation_generates_qr_and_sends_email(): void
+    public function test_member_creation_issues_no_plan_and_sends_no_qr(): void
     {
         Mail::fake();
 
         $manager = $this->createUserWithRole('manager', 'Manager Ana');
-        $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1499]);
 
-        $response = $this->actingAs($manager)
+        $this->actingAs($manager)
             ->postJson('/panel/members', [
                 'name' => 'Member Lina',
                 'email' => 'lina@example.com',
@@ -121,45 +120,14 @@ class MembershipQrCodeTest extends TestCase
                 'emergency_contact_phone' => '09170000001',
                 'phone' => '09171234567',
                 'address' => '12 Rizal St, Naga City',
-                'password' => 'Password123!',
                 'status' => User::STATUS_ACTIVE,
-                'rate_plan_id' => $ratePlan->id,
-                'start_date' => '2026-05-01',
             ])
             ->assertCreated()
-            ->assertJsonPath('member_subscriptions.0.rate_plan_id', $ratePlan->id);
+            ->assertJsonPath('member_subscriptions', []);
 
-        $subscription = MemberSubscription::findOrFail($response->json('member_subscriptions.0.id'));
-
-        $this->assertNotEmpty($subscription->qr_payload);
-        $this->assertNotEmpty($response->json('member_subscriptions.0.qr_url'));
-
-        Mail::assertQueued(MembershipQrCodeMail::class, 1);
-    }
-
-    public function test_member_detail_membership_assignment_generates_qr_and_sends_email(): void
-    {
-        Mail::fake();
-
-        $manager = $this->createUserWithRole('manager', 'Manager Ana');
-        $member = $this->createUserWithRole('member', 'Member Rene');
-        $member->update(['email' => 'rene@example.com']);
-        $ratePlan = $this->createRatePlan('Quarterly', 90, ['price' => 3999]);
-
-        $response = $this->actingAs($manager)
-            ->putJson("/panel/members/{$member->id}/membership", [
-                'rate_plan_id' => $ratePlan->id,
-                'start_date' => '2026-05-01',
-            ])
-            ->assertOk()
-            ->assertJsonPath('member_subscriptions.0.rate_plan_id', $ratePlan->id);
-
-        $subscription = MemberSubscription::findOrFail($response->json('member_subscriptions.0.id'));
-
-        $this->assertNotEmpty($subscription->qr_payload);
-        $this->assertNotEmpty($response->json('member_subscriptions.0.qr_url'));
-
-        Mail::assertQueued(MembershipQrCodeMail::class, 1);
+        // The QR is the membership credential, so it is issued by the sale, not by signup.
+        $this->assertDatabaseCount('member_subscriptions', 0);
+        Mail::assertNothingQueued();
     }
 
     public function test_panel_qr_endpoints_return_svg_data_uri(): void

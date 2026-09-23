@@ -10,6 +10,7 @@ use App\Models\SaleTransaction;
 use App\Models\SystemActivity;
 use App\Models\User;
 use App\Services\MembershipQrService;
+use App\Services\PosSaleService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Spatie\Permission\Models\Role;
@@ -356,6 +357,43 @@ class KioskAttendanceTest extends TestCase
         $membership = $this->createActiveMembership('Paused Member', [
             'status' => MemberSubscription::STATUS_PAUSED,
         ]);
+
+        $this->postJson('/api/kiosk/attendance', [
+            'type' => 'member',
+            'status' => 'success',
+            'action' => 'time_in',
+            'qr_payload' => $membership->qr_payload,
+        ], ['X-Kiosk-Token' => 'test-kiosk-token'])
+            ->assertOk()
+            ->assertJsonPath('ok', false)
+            ->assertJsonPath('reason', 'membership_inactive');
+
+        $this->assertDatabaseCount('attendances', 0);
+    }
+
+    public function test_member_time_in_rejects_membership_cancelled_by_a_sale_void(): void
+    {
+        // Voiding a membership sale writes STATUS_CANCELLED (there is no "voided" status),
+        // so this pins the whole refund -> denied-at-the-door chain.
+        $membership = $this->createActiveMembership('Refunded Member');
+        $cashier = User::factory()->create(['status' => User::STATUS_ACTIVE]);
+
+        $sale = SaleTransaction::create([
+            'type' => SaleTransaction::TYPE_MEMBERSHIP,
+            'member_id' => $membership->user_id,
+            'processed_by' => $cashier->id,
+            'customer_name' => $membership->member->name,
+            'item_name' => 'Refunded Member Plan',
+            'total' => 1500,
+            // Non-cash keeps the void off the cash drawer, which is not what this test is about.
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+            'sold_at' => '2026-05-01 09:00:00',
+            'details' => ['subscription_id' => $membership->id],
+        ]);
+
+        app(PosSaleService::class)->voidSale($sale, $cashier, 'Refunded at the counter.');
+
+        $this->assertSame(MemberSubscription::STATUS_CANCELLED, $membership->fresh()->status);
 
         $this->postJson('/api/kiosk/attendance', [
             'type' => 'member',

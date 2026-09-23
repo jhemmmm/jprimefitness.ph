@@ -35,6 +35,9 @@ class KioskPayment extends Model
         'base_amount',
         'discount_type',
         'status',
+        'cancellation_reason',
+        'cancelled_by',
+        'cancelled_at',
         'qr_data',
         'paymongo_payment_intent_id',
         'expires_at',
@@ -48,6 +51,7 @@ class KioskPayment extends Model
         'expires_at' => 'datetime',
         'paid_at' => 'datetime',
         'consumed_at' => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
 
     public function isExpired(): bool

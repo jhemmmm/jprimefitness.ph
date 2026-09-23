@@ -171,7 +171,7 @@ class PosSaleService
 
             match ($transaction->type) {
                 SaleTransaction::TYPE_INVENTORY => $this->reverseInventorySale($transaction),
-                SaleTransaction::TYPE_MEMBERSHIP => $this->reverseMembershipSale($transaction),
+                SaleTransaction::TYPE_MEMBERSHIP => $this->reverseMembershipSale($transaction, $voidedBy, $reason),
                 SaleTransaction::TYPE_PT_PACKAGE => $this->reversePtPackageSale($transaction, $voidedBy, $reason),
                 SaleTransaction::TYPE_WALK_IN => null,
                 default => abort(409, 'This sale type cannot be voided.'),
@@ -311,10 +311,8 @@ class PosSaleService
     {
         return DB::transaction(function () use ($data, $processedBy) {
             $ratePlan = RatePlan::query()
+                ->membership()
                 ->whereKey((int) $data['rate_plan_id'])
-                ->where('is_active', true)
-                ->where('is_walk_in_only', false)
-                ->whereNotNull('price')
                 ->first();
 
             if (! $ratePlan) {
@@ -594,7 +592,7 @@ class PosSaleService
      *
      * @return void
      */
-    private function reverseMembershipSale(SaleTransaction $saleTransaction): void
+    private function reverseMembershipSale(SaleTransaction $saleTransaction, User $voidedBy, string $reason): void
     {
         $subscriptionId = (int) data_get($saleTransaction->details, 'subscription_id');
 
@@ -613,6 +611,9 @@ class PosSaleService
         $subscription->forceFill([
             'status' => MemberSubscription::STATUS_CANCELLED,
             'pending_payment_method' => null,
+            'cancellation_reason' => $reason,
+            'cancelled_by' => $voidedBy->id,
+            'cancelled_at' => now(),
         ])->save();
     }
 

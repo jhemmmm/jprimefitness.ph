@@ -219,11 +219,12 @@ class SalesController extends Controller
             'payment_reference' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $this->ensureMembershipPendingOnSite($subscription);
-
         $actor = auth()->user();
 
         $transaction = DB::transaction(function () use ($subscription, $data, $actor) {
+            $subscription = MemberSubscription::query()->lockForUpdate()->findOrFail($subscription->id);
+            $this->ensureMembershipPendingOnSite($subscription);
+
             $activated = $this->memberActivationService->activate($subscription, [
                 'source' => 'panel_pending_payment_confirmation',
                 'payment_method' => $data['payment_method'],
@@ -247,31 +248,43 @@ class SalesController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function cancelPendingMembership(MemberSubscription $subscription): JsonResponse
+    public function cancelPendingMembership(Request $request, MemberSubscription $subscription): JsonResponse
     {
-        $this->ensureMembershipPendingOnSite($subscription);
-
-        $subscription->update([
-            'status' => MemberSubscription::STATUS_CANCELLED,
-            'pending_payment_method' => null,
-        ]);
-
         $actor = auth()->user();
 
-        $this->systemActivityService->recordSubjectEvent(
-            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
-            $subscription->id,
-            'cancelled',
-            [
-                'subscription_id' => $subscription->id,
-                'user_id' => $subscription->user_id,
-                'plan_name' => $subscription->ratePlan?->name,
-            ],
-            ['source' => 'panel_pending_payment_cancellation'],
-            $actor?->id,
-            $actor?->name,
-            now(),
-        );
+        // Locked and guarded inside the transaction so a concurrent confirm() cannot record a
+        // paid sale that this cancel then overwrites, leaving a paid member locked out.
+        DB::transaction(function () use ($request, $subscription, $actor): void {
+            $subscription = MemberSubscription::query()->lockForUpdate()->findOrFail($subscription->id);
+            $this->ensureMembershipPendingOnSite($subscription);
+
+            $data = $request->validate([
+                'reason' => ['required', 'string', 'max:2000'],
+            ]);
+
+            $subscription->update([
+                'status' => MemberSubscription::STATUS_CANCELLED,
+                'pending_payment_method' => null,
+                'cancellation_reason' => $data['reason'],
+                'cancelled_by' => $actor?->id,
+                'cancelled_at' => now(),
+            ]);
+
+            $this->systemActivityService->recordSubjectEvent(
+                SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION,
+                $subscription->id,
+                'cancelled',
+                [
+                    'subscription_id' => $subscription->id,
+                    'user_id' => $subscription->user_id,
+                    'plan_name' => $subscription->ratePlan?->name,
+                ],
+                ['source' => 'panel_pending_payment_cancellation', 'reason' => $data['reason']],
+                $actor?->id,
+                $actor?->name,
+                now(),
+            );
+        });
 
         return response()->json(['ok' => true]);
     }
