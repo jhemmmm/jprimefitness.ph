@@ -122,6 +122,10 @@ services:
       # 416 kB and the tunnel drops connections. Until net.core.rmem_max is
       # raised on the Proxmox host, set TUNNEL_TRANSPORT_PROTOCOL=http2 in .env.
       TUNNEL_TRANSPORT_PROTOCOL: ${TUNNEL_TRANSPORT_PROTOCOL:-quic}
+      # Empty = global (nearest edges). Set TUNNEL_REGION=us in .env to pin the
+      # tunnel to US data centres, e.g. while Cloudflare's APAC edges are degraded;
+      # our ISP hands traffic to LAX anyway, so it costs little.
+      TUNNEL_REGION: ${TUNNEL_REGION:-}
     depends_on:
       - web
     restart: unless-stopped
