@@ -23,4 +23,15 @@ class AuthenticatedLoginRedirectTest extends TestCase
             ->get('/login')
             ->assertRedirect('/panel/dashboard');
     }
+
+    public function test_logout_redirects_to_login_page(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/logout')
+            ->assertRedirect('/login');
+
+        $this->assertGuest();
+    }
 }
