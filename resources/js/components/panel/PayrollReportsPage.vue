@@ -426,7 +426,7 @@ import PayrollStatusBreakdownChart from "./charts/PayrollStatusBreakdownChart.vu
 import PayrollTrendChart from "./charts/PayrollTrendChart.vue";
 import MultiSelect from "./vendor/MultiSelect.vue";
 import dateRangePresets from "../../mixins/dateRangePresets";
-import { formatDate } from "../../dates";
+import { formatDate, todayDate } from "../../dates";
 import { debounce } from "../../debounce";
 
 export default {
@@ -659,10 +659,10 @@ export default {
          };
       },
       defaultDateFrom: function () {
-         return "";
+         return todayDate();
       },
       defaultDateTo: function () {
-         return "";
+         return todayDate();
       },
       applyRangePreset: function (key) {
          if (this.activeRangeKey === key) {

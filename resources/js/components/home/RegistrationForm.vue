@@ -101,7 +101,7 @@
                <p class="text-muted small mb-3" v-if="renew">{{ initialDiscount ? "Your discount on file is applied automatically - " : "Discounted renewals are " }}paid at the front desk so staff can check your ID.</p>
                <p class="text-muted small mb-3" v-else>Saved to your profile and applied to renewals automatically.</p>
                <div class="row g-3 mb-3">
-                  <div class="col-6 col-md-3" v-for="option in discountOptions" :key="option.value">
+                  <div class="col-6" v-for="option in discountOptions" :key="option.value">
                      <label class="payment-option h-100" :class="{ 'is-active': form.discount_type === option.value }">
                         <input type="radio" v-model="form.discount_type" :value="option.value" @change="onDiscountChange" />
                         <div>

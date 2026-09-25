@@ -282,6 +282,11 @@ body.panel-body {
 // ─── Main Content ─────────────────────────────────────────────────────────────
 .panel-main {
     flex: 1;
+    // Flex items default to min-width:auto, so any wide intrinsic content (a
+    // nowrap table, a long unbroken string) widened the whole main column and
+    // the phone had to zoom out. Cap it at the viewport; wide content then
+    // scrolls inside its own .table-responsive instead.
+    min-width: 0;
     margin-left: $sidebar-width;
     display: flex;
     flex-direction: column;

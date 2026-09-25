@@ -4,7 +4,7 @@
 
       <div class="row g-3 mb-4">
          <template v-if="loading">
-            <div class="col-4" v-for="i in 3" :key="'sk-s-' + i">
+            <div class="col-md-4" v-for="i in 3" :key="'sk-s-' + i">
                <div class="stat-card">
                   <div class="skeleton-box rounded-circle flex-shrink-0" style="width: 40px; height: 40px"></div>
                   <div class="stat-card-body">
@@ -15,7 +15,7 @@
             </div>
          </template>
          <template v-else>
-            <div class="col-4" v-for="stat in statCards" :key="stat.label">
+            <div class="col-md-4" v-for="stat in statCards" :key="stat.label">
                <div class="stat-card">
                   <div class="stat-card-icon"><i class="bi" :class="stat.icon"></i></div>
                   <div class="stat-card-body">
@@ -92,7 +92,7 @@
             </div>
             <div class="member-card-footer">
                <span v-if="record.checked_out_at" class="text-muted small"><i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(record.checked_out_at) }}</span>
-               <button v-if="!record.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(record)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+               <button v-if="!record.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(record)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-auto" @click="confirmDelete(record)"><i class="bi bi-trash"></i></button>
             </div>
          </div>
