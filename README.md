@@ -164,7 +164,7 @@ Run on the public cloud server.
 
     Expect `{"ok":true,...}`.
 
-> Sync-wise, live runs only `sync:prune` (daily 03:30, trims outbox rows local has already pulled); otherwise it's purely the receiver. The `panel:*` schedules (`auto-checkout-attendance` hourly, `expire-memberships` 00:05, `send-expiring-membership-notifications` 08:00) run on whichever node has a scheduler, so live needs one too; in a two-node setup only the node with mail configured emails members.
+> Sync-wise, live runs only `sync:prune` (daily 03:30, trims outbox rows local has already pulled); otherwise it's purely the receiver. The `panel:*` schedules (`auto-checkout-attendance` hourly, `expire-memberships` 00:05, `send-expiring-membership-notifications` 08:00) run on whichever node has a scheduler, so live needs one too; both nodes keep SMTP configured: local sends front-desk mail (QR code, activation), while the expiry emails from those two schedules are sent by live only (local skips them) so members are not emailed twice.
 
 ---
 
@@ -273,7 +273,7 @@ There is a small window where one side has the old token and the other has the n
 
 ## Failure modes worth knowing
 
-- **A new member registers offline:** local creates the User + MemberSubscription with a UUID and a locally-generated QR. They can immediately walk in. When the link returns, those rows push up to live. The activation email cannot send while offline; once live receives the subscription it can send the email itself if mail is configured there.
+- **A new member registers offline:** local creates the User + MemberSubscription with a UUID and a locally-generated QR. They can immediately walk in. When the link returns, those rows push up to live. The activation email is queued on local and goes out once the link returns; live does not re-send it when the subscription syncs.
 - **Online membership purchase via PayMongo while local is offline:** PayMongo webhook lands on live, subscription activates on live. Local picks it up on the next `sync:pull`. Until then, the kiosk QR scan for that member won't work - they're not in the local DB yet.
 - **Concurrent edits to the same row from both sides within the same second:** last-write-wins on `updated_at`. The losing edit is preserved in `system_activities` for manual recovery. In practice this is rare for a single gym.
 - **Inventory stock decrement during outage:** stock changes are applied locally as part of the sale transaction. When sync resumes, the live row receives the new stock count via last-write-wins. If admin also edited stock on live during the outage with a newer timestamp, admin's value wins - review the conflict log.

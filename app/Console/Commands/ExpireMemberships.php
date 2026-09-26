@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\MembershipExpiryMail;
 use App\Models\MemberSubscription;
+use App\Services\Sync\SyncRole;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -30,7 +31,8 @@ class ExpireMemberships extends Command
                     // the other before it has had its turn to mail the member.
                     $subscription->forceFill(['status' => MemberSubscription::STATUS_EXPIRED])->saveQuietly();
 
-                    if ($subscription->member?->email && ! $subscription->hasRenewal()) {
+                    // Both nodes share one SMTP account; live alone mails expiry so members aren't emailed twice.
+                    if (config('sync.role') !== SyncRole::LOCAL && $subscription->member?->email && ! $subscription->hasRenewal()) {
                         Mail::to($subscription->member->email)->queue(new MembershipExpiryMail($subscription->member, $subscription));
                     }
 

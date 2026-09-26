@@ -6,6 +6,7 @@ use App\Mail\MembershipExpiryMail;
 use App\Models\MemberSubscription;
 use App\Notifications\MembershipExpiringNotification;
 use App\Services\NotificationRecipientResolver;
+use App\Services\Sync\SyncRole;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
@@ -81,8 +82,9 @@ class SendExpiringMembershipNotifications extends Command
                         ),
                     );
 
-                    // paused rows still get the staff notice, but an unpaid sign-up is not a membership to renew
-                    if ($member->email && $subscription->pending_payment_method === null && ! $subscription->hasRenewal()) {
+                    // paused rows still get the staff notice, but an unpaid sign-up is not a membership to renew;
+                    // live alone mails expiry since both nodes share one SMTP account
+                    if (config('sync.role') !== SyncRole::LOCAL && $member->email && $subscription->pending_payment_method === null && ! $subscription->hasRenewal()) {
                         Mail::to($member->email)->queue(new MembershipExpiryMail($member, $subscription, $daysRemaining));
                     }
 

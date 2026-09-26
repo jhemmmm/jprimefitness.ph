@@ -39,7 +39,7 @@ Route::post('/renew', [RegistrationController::class, 'renew'])->middleware(['si
 Route::get('/register/success', [RegistrationController::class, 'success'])->name('register.success');
 Route::get('/register/cancelled', [RegistrationController::class, 'cancelled'])->name('register.cancelled');
 
-Route::post('/contact', [ContactController::class, 'store'])->name('contact');
+Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:5,1')->name('contact');
 
 Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(function () {
     // Permission matrix lives in database/seeders/RoleSeeder.php; each block below maps to one permission.

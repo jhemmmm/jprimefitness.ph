@@ -7,6 +7,7 @@ use App\Models\BusinessProfile;
 use App\Models\MemberSubscription;
 use App\Models\RatePlan;
 use App\Models\User;
+use App\Services\Sync\SyncRole;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
@@ -61,6 +62,28 @@ class ExpireMembershipsTest extends TestCase
         // re-running is a no-op: the row is no longer active
         $this->artisan('panel:expire-memberships')->assertExitCode(0);
         Mail::assertQueuedCount(1);
+
+        $this->travelBack();
+    }
+
+    public function test_the_local_node_expires_memberships_and_leaves_the_email_to_live(): void
+    {
+        Mail::fake();
+        config(['sync.role' => SyncRole::LOCAL]);
+        $this->travelTo(Carbon::parse('2026-05-01 00:05:00'));
+
+        $ratePlan = RatePlan::create(['name' => 'Monthly', 'duration_days' => 30, 'price' => 1500, 'is_active' => true]);
+        $member = User::factory()->create(['email' => 'noel@example.test', 'status' => User::STATUS_ACTIVE]);
+        $member->assignRole('member');
+        $ended = $member->memberSubscriptions()->create(['rate_plan_id' => $ratePlan->id, 'sold_price' => 1500, 'start_date' => '2026-04-01', 'end_date' => '2026-04-30', 'status' => MemberSubscription::STATUS_ACTIVE]);
+        $expiring = $member->memberSubscriptions()->create(['rate_plan_id' => $ratePlan->id, 'sold_price' => 1500, 'start_date' => '2026-04-05', 'end_date' => '2026-05-04', 'status' => MemberSubscription::STATUS_ACTIVE]);
+
+        $this->artisan('panel:expire-memberships')->assertExitCode(0);
+        $this->artisan('panel:send-expiring-membership-notifications')->assertExitCode(0);
+
+        $this->assertSame(MemberSubscription::STATUS_EXPIRED, $ended->fresh()->status);
+        $this->assertNotNull($expiring->fresh()->expiration_notification_sent_for_date);
+        Mail::assertNothingQueued();
 
         $this->travelBack();
     }
