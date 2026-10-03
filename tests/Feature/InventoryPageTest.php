@@ -1,0 +1,303 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\InventoryCategory;
+use App\Models\InventoryItem;
+use App\Models\User;
+use Database\Seeders\InventoryCategorySeeder;
+use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+class InventoryPageTest extends TestCase
+{
+    use LazilyRefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        Role::findOrCreate('super admin');
+        Role::findOrCreate('admin');
+        Role::findOrCreate('manager');
+        Role::findOrCreate('staff');
+    }
+
+    public function test_inventory_page_loads_for_panel_users(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Mia');
+
+        $this->actingAs($manager)
+            ->get('/panel/inventory')
+            ->assertOk()
+            ->assertSee('inventory-page', false);
+    }
+
+    public function test_inventory_default_categories_are_seeded_explicitly(): void
+    {
+        $this->assertDatabaseCount('inventory_categories', 0);
+
+        $this->seed(InventoryCategorySeeder::class);
+
+        $this->assertDatabaseHas('inventory_categories', [
+            'slug' => 'equipment',
+            'name' => 'Equipment',
+        ]);
+
+        $this->assertDatabaseHas('inventory_categories', [
+            'slug' => 'cleaning-supplies',
+            'name' => 'Cleaning Supplies',
+        ]);
+    }
+
+    public function test_inventory_list_reports_stats_for_the_business(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
+        $drinkCategory = InventoryCategory::factory()->create(['name' => 'Drinks']);
+        $supplementCategory = InventoryCategory::factory()->create(['name' => 'Supplements']);
+
+        InventoryItem::factory()->create([
+            'inventory_category_id' => $drinkCategory->id,
+            'name' => 'Bottled Water',
+            'quantity' => 12,
+            'low_stock_threshold' => 5,
+        ]);
+        InventoryItem::factory()->create([
+            'inventory_category_id' => $supplementCategory->id,
+            'name' => 'Protein Shake',
+            'quantity' => 2,
+            'low_stock_threshold' => 5,
+        ]);
+        InventoryItem::factory()->create([
+            'inventory_category_id' => $supplementCategory->id,
+            'name' => 'Towel',
+            'quantity' => 0,
+            'low_stock_threshold' => 3,
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->getJson('/panel/inventory/list')
+            ->assertOk()
+            ->assertJsonPath('stats.total', 3)
+            ->assertJsonPath('stats.low_stock', 1)
+            ->assertJsonPath('stats.out_of_stock', 1);
+
+        $names = collect($response->json('inventory.data'))->pluck('name')->all();
+        $firstItem = $response->json('inventory.data.0');
+
+        $this->assertSame(['Bottled Water', 'Protein Shake', 'Towel'], $names);
+        $this->assertIsArray($firstItem);
+    }
+
+    public function test_inventory_list_can_be_filtered_by_category(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
+        $drinkCategory = InventoryCategory::factory()->create(['name' => 'Drinks']);
+        $supplementCategory = InventoryCategory::factory()->create(['name' => 'Supplements']);
+
+        InventoryItem::factory()->create([
+            'inventory_category_id' => $drinkCategory->id,
+            'name' => 'Bottled Water',
+        ]);
+        InventoryItem::factory()->create([
+            'inventory_category_id' => $supplementCategory->id,
+            'name' => 'Whey Protein',
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->getJson('/panel/inventory/list?category='.$drinkCategory->id)
+            ->assertOk()
+            ->assertJsonPath('stats.total', 1);
+
+        $names = collect($response->json('inventory.data'))->pluck('name')->all();
+
+        $this->assertSame(['Bottled Water'], $names);
+    }
+
+    public function test_staff_can_create_update_and_delete_inventory_items(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
+        $category = InventoryCategory::factory()->create(['name' => 'Equipment']);
+
+        $createResponse = $this->actingAs($manager)
+            ->postJson('/panel/inventory', [
+                'inventory_category_id' => $category->id,
+                'name' => 'Yoga Mat',
+                'sku' => null,
+                'unit' => 'pcs',
+                'quantity' => 8,
+                'low_stock_threshold' => 3,
+                'cost_price' => 550,
+                'selling_price' => 899,
+                'status' => InventoryItem::STATUS_ACTIVE,
+                'notes' => 'Top shelf display',
+                'last_restocked_at' => '2026-03-20 10:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('name', 'Yoga Mat')
+            ->assertJsonPath('category.id', $category->id);
+
+        $itemId = $createResponse->json('id');
+
+        $this->actingAs($manager)
+            ->putJson("/panel/inventory/{$itemId}", [
+                'inventory_category_id' => $category->id,
+                'name' => 'Yoga Mat',
+                'sku' => null,
+                'unit' => 'pcs',
+                'quantity' => 2,
+                'low_stock_threshold' => 3,
+                'cost_price' => 550,
+                'selling_price' => 899,
+                'status' => InventoryItem::STATUS_ACTIVE,
+                'notes' => 'Moved near the cashier',
+                'last_restocked_at' => '2026-03-21 09:30:00',
+            ])
+            ->assertOk()
+            ->assertJsonPath('quantity', '2.00')
+            ->assertJsonPath('is_low_stock', true);
+
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $itemId,
+            'inventory_category_id' => $category->id,
+            'quantity' => 2,
+            'notes' => 'Moved near the cashier',
+        ]);
+
+        $this->actingAs($manager)
+            ->deleteJson("/panel/inventory/{$itemId}")
+            ->assertNoContent();
+
+        $this->assertSoftDeleted('inventory_items', [
+            'id' => $itemId,
+        ]);
+    }
+
+    public function test_staff_can_reuse_sku_from_a_soft_deleted_inventory_item(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
+        $category = InventoryCategory::factory()->create(['name' => 'Equipment']);
+
+        $archivedItem = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Archived Yoga Mat',
+            'sku' => 'MAT-001',
+        ]);
+        $archivedItem->delete();
+
+        $this->actingAs($manager)
+            ->postJson('/panel/inventory', [
+                'inventory_category_id' => $category->id,
+                'name' => 'Yoga Mat',
+                'sku' => 'MAT-001',
+                'unit' => 'pcs',
+                'quantity' => 8,
+                'low_stock_threshold' => 3,
+                'cost_price' => 550,
+                'selling_price' => 899,
+                'status' => InventoryItem::STATUS_ACTIVE,
+                'notes' => 'Restocked',
+                'last_restocked_at' => '2026-03-20 10:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('sku', 'MAT-001');
+
+        $this->assertSoftDeleted('inventory_items', [
+            'id' => $archivedItem->id,
+        ]);
+        $this->assertDatabaseHas('inventory_items', [
+            'sku' => 'MAT-001',
+            'deleted_at' => null,
+        ]);
+    }
+
+    public function test_inventory_requires_category_but_not_sku_or_prices(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
+        $category = InventoryCategory::factory()->create(['name' => 'Equipment']);
+
+        $this->actingAs($manager)
+            ->postJson('/panel/inventory', [
+                'name' => 'Foam Roller',
+                'sku' => null,
+                'unit' => 'pcs',
+                'quantity' => 5,
+                'low_stock_threshold' => 2,
+                'status' => InventoryItem::STATUS_ACTIVE,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['inventory_category_id']);
+
+        $this->actingAs($manager)
+            ->postJson('/panel/inventory', [
+                'inventory_category_id' => $category->id,
+                'name' => 'Foam Roller',
+                'sku' => null,
+                'unit' => 'pcs',
+                'quantity' => 5,
+                'low_stock_threshold' => 2,
+                'status' => InventoryItem::STATUS_ACTIVE,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('sku', null)
+            ->assertJsonPath('cost_price', null)
+            ->assertJsonPath('selling_price', null)
+            ->assertJsonPath('category.id', $category->id);
+    }
+
+    public function test_edit_modal_zero_price_values_remain_persisted_on_save(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Ben');
+        $category = InventoryCategory::factory()->create(['name' => 'Supplies']);
+        $item = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Complimentary Towel',
+            'cost_price' => 0,
+            'selling_price' => 0,
+            'notes' => 'Original note',
+        ]);
+
+        $this->actingAs($manager)
+            ->putJson("/panel/inventory/{$item->id}", [
+                'inventory_category_id' => $category->id,
+                'name' => 'Complimentary Towel',
+                'sku' => $item->sku,
+                'unit' => $item->unit,
+                'quantity' => $item->quantity,
+                'low_stock_threshold' => $item->low_stock_threshold,
+                'cost_price' => 0,
+                'selling_price' => 0,
+                'status' => $item->status,
+                'notes' => 'Updated note',
+            ])
+            ->assertOk()
+            ->assertJsonPath('cost_price', '0.00')
+            ->assertJsonPath('selling_price', '0.00');
+
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $item->id,
+            'cost_price' => 0,
+            'selling_price' => 0,
+            'notes' => 'Updated note',
+        ]);
+    }
+
+    private function createUserWithRole(string $role, string $name): User
+    {
+        $user = User::factory()->withEmployeeProfile([
+            'daily_rate' => 500,
+            'pay_frequency' => 'semi_monthly',
+        ])->create([
+            'name' => $name,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+
+        $user->assignRole($role);
+
+        return $user;
+    }
+}

@@ -1,0 +1,523 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\BusinessProfile;
+use App\Models\CashDrawerSession;
+use App\Models\CashLedgerEntry;
+use App\Models\Payroll;
+use App\Models\Payout;
+use App\Models\SaleTransaction;
+use App\Models\SystemActivity;
+use App\Models\User;
+use App\Services\CashDrawerService;
+use App\Services\PosSaleService;
+use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+class CashDrawerTest extends TestCase
+{
+    use LazilyRefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        Role::findOrCreate('manager');
+        Role::findOrCreate('staff');
+
+        BusinessProfile::factory()->create([
+            'name' => 'JPrime Fitness',
+        ]);
+    }
+
+    public function test_management_can_open_session_and_double_open_is_rejected(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+
+        $this->actingAs($manager)
+            ->postJson('/panel/cash-drawer/open', ['opening_float' => 1000])
+            ->assertCreated();
+
+        $this->assertDatabaseHas('cash_drawer_sessions', [
+            'is_open' => true,
+            'opening_float' => '1000.00',
+            'opened_by' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->postJson('/panel/cash-drawer/open', ['opening_float' => 500])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['opening_float']);
+    }
+
+    public function test_cash_sale_creates_in_entry_attached_to_open_session(): void
+    {
+        $session = CashDrawerSession::factory()->create();
+
+        $sale = SaleTransaction::factory()->create([
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'total' => 350,
+        ]);
+
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'session_id' => $session->id,
+            'type' => CashLedgerEntry::TYPE_SALE,
+            'amount' => '350.00',
+            'source_type' => 'sale_transaction',
+            'source_id' => $sale->id,
+        ]);
+    }
+
+    public function test_non_cash_sale_creates_no_entry(): void
+    {
+        CashDrawerSession::factory()->create();
+
+        SaleTransaction::factory()->create([
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+        ]);
+
+        $this->assertDatabaseCount('cash_ledger_entries', 0);
+    }
+
+    public function test_voiding_cash_sale_creates_reversal_and_original_entry_remains(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+        CashDrawerSession::factory()->create();
+
+        $sale = SaleTransaction::factory()->create([
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'total' => 350,
+        ]);
+
+        app(PosSaleService::class)->voidSale($sale, $manager, 'Wrong item');
+
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'type' => CashLedgerEntry::TYPE_SALE,
+            'source_id' => $sale->id,
+            'amount' => '350.00',
+        ]);
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'type' => CashLedgerEntry::TYPE_SALE_VOID,
+            'source_id' => $sale->id,
+            'amount' => '-350.00',
+        ]);
+    }
+
+    public function test_cash_payout_creates_out_entry_and_bank_transfer_does_not(): void
+    {
+        CashDrawerSession::factory()->create();
+        $manager = $this->createUserWithRole('manager');
+        $employee = $this->createUserWithRole('staff');
+
+        $payroll = Payroll::create([
+            'employee_id' => $employee->id,
+            'pay_frequency' => 'semi_monthly',
+            'period_start' => '2026-07-01',
+            'period_end' => '2026-07-15',
+            'gross_amount' => 4000,
+            'withholding_tax' => 0,
+            'manual_deductions' => 0,
+            'net_amount' => 4000,
+            'status' => Payroll::STATUS_APPROVED,
+            'generated_by' => $manager->id,
+            'approved_by' => $manager->id,
+            'approved_at' => now(),
+        ]);
+
+        $cashPayout = $payroll->payouts()->create([
+            'employee_id' => $employee->id,
+            'amount' => 1500,
+            'method' => Payout::METHOD_CASH,
+            'released_by' => $manager->id,
+            'paid_at' => now(),
+        ]);
+        $payroll->payouts()->create([
+            'employee_id' => $employee->id,
+            'amount' => 500,
+            'method' => Payout::METHOD_BANK_TRANSFER,
+            'released_by' => $manager->id,
+            'paid_at' => now(),
+        ]);
+
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'type' => CashLedgerEntry::TYPE_PAYOUT,
+            'source_type' => 'payout',
+            'source_id' => $cashPayout->id,
+            'amount' => '-1500.00',
+        ]);
+        $this->assertSame(1, CashLedgerEntry::query()->where('type', CashLedgerEntry::TYPE_PAYOUT)->count());
+    }
+
+    public function test_sale_without_open_session_is_recorded_but_excluded_from_expected_cash(): void
+    {
+        SaleTransaction::factory()->create([
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'total' => 200,
+        ]);
+
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'type' => CashLedgerEntry::TYPE_SALE,
+            'session_id' => null,
+        ]);
+
+        $session = CashDrawerSession::factory()->create(['opening_float' => 1000]);
+
+        $this->assertSame(1000.0, app(CashDrawerService::class)->expectedCash($session));
+    }
+
+    public function test_close_session_math_and_suggested_next_float(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+
+        $this->actingAs($manager)
+            ->postJson('/panel/cash-drawer/open', ['opening_float' => 1000])
+            ->assertCreated();
+
+        SaleTransaction::factory()->create([
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'total' => 350,
+        ]);
+
+        $this->actingAs($manager)
+            ->postJson('/panel/cash-drawer/expenses', [
+                'category' => 'supplies',
+                'description' => 'Cleaning supplies',
+                'amount' => 200,
+            ])
+            ->assertCreated();
+
+        $response = $this->actingAs($manager)
+            ->postJson('/panel/cash-drawer/close', [
+                'counted_cash' => 1100,
+                'deposited_amount' => 1000,
+                'deposit_reference' => 'DEP-001',
+            ])
+            ->assertOk()
+            ->assertJsonPath('expected_cash', 1150)
+            ->assertJsonPath('counted_cash', 1100)
+            ->assertJsonPath('over_short', -50)
+            ->assertJsonPath('deposited_amount', 1000);
+
+        $this->assertDatabaseHas('cash_drawer_sessions', [
+            'id' => $response->json('id'),
+            'is_open' => null,
+            'expected_cash' => '1150.00',
+            'over_short' => '-50.00',
+        ]);
+
+        $this->actingAs($manager)
+            ->getJson('/panel/cash-drawer/data')
+            ->assertOk()
+            ->assertJsonPath('session', null)
+            ->assertJsonPath('suggested_float', 100);
+    }
+
+    public function test_cash_and_online_expenses_are_auditable_but_only_cash_changes_reconciliation(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+        $session = CashDrawerSession::factory()->create([
+            'opening_float' => 1000,
+            'opened_by' => $manager->id,
+        ]);
+
+        $cashResponse = $this->actingAs($manager)
+            ->postJson('/panel/cash-drawer/expenses', [
+                'category' => 'supplies',
+                'payment_method' => CashLedgerEntry::PAYMENT_METHOD_CASH,
+                'description' => 'Cleaning supplies',
+                'amount' => 200,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('payment_method', CashLedgerEntry::PAYMENT_METHOD_CASH)
+            ->assertJsonPath('payment_method_label', 'Cash')
+            ->assertJsonPath('affects_cash', true);
+
+        $onlineResponse = $this->actingAs($manager)
+            ->postJson('/panel/cash-drawer/expenses', [
+                'category' => 'utilities',
+                'payment_method' => CashLedgerEntry::PAYMENT_METHOD_ONLINE_PAYMENT,
+                'description' => 'Electric bill',
+                'amount' => 300,
+            ])
+            ->assertCreated()
+            ->assertJsonPath('payment_method', CashLedgerEntry::PAYMENT_METHOD_ONLINE_PAYMENT)
+            ->assertJsonPath('payment_method_label', 'Online Payment')
+            ->assertJsonPath('affects_cash', false);
+
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'id' => $cashResponse->json('id'),
+            'session_id' => $session->id,
+            'payment_method' => CashLedgerEntry::PAYMENT_METHOD_CASH,
+            'amount' => '-200.00',
+        ]);
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'id' => $onlineResponse->json('id'),
+            'session_id' => $session->id,
+            'payment_method' => CashLedgerEntry::PAYMENT_METHOD_ONLINE_PAYMENT,
+            'amount' => '-300.00',
+        ]);
+
+        $this->actingAs($manager)
+            ->getJson('/panel/cash-drawer/data')
+            ->assertOk()
+            ->assertJsonPath('session.cash_out', 200)
+            ->assertJsonPath('session.expected_cash', 800);
+
+        $activity = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_CASH_LEDGER_ENTRY)
+            ->where('subject_id', $onlineResponse->json('id'))
+            ->firstOrFail();
+
+        $this->assertSame(CashLedgerEntry::PAYMENT_METHOD_ONLINE_PAYMENT, $activity->metadata['payment_method']);
+    }
+
+    public function test_expenses_require_an_open_drawer_and_failed_receipt_is_removed(): void
+    {
+        Storage::fake();
+
+        $manager = $this->createUserWithRole('manager');
+
+        foreach (CashLedgerEntry::supportedPaymentMethods() as $paymentMethod) {
+            $this->actingAs($manager)
+                ->post('/panel/cash-drawer/expenses', [
+                    'category' => 'utilities',
+                    'payment_method' => $paymentMethod,
+                    'description' => 'Electric bill',
+                    'amount' => 2500,
+                    'receipt' => UploadedFile::fake()->image($paymentMethod.'.jpg'),
+                ], ['Accept' => 'application/json'])
+                ->assertConflict()
+                ->assertJsonPath('message', 'Open the cash drawer before recording an expense.');
+        }
+
+        $this->assertDatabaseCount('cash_ledger_entries', 0);
+        $this->assertSame([], Storage::allFiles('cash-receipts'));
+    }
+
+    public function test_management_can_review_closed_drawer_history_with_open_and_close_details(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+        $openingEmployee = $this->createUserWithRole('staff');
+
+        $olderSession = CashDrawerSession::factory()->closed()->create([
+            'opened_by' => $manager->id,
+            'closed_by' => $manager->id,
+            'opened_at' => '2026-08-06 08:00:00',
+            'closed_at' => '2026-08-06 18:00:00',
+        ]);
+
+        $newerSession = CashDrawerSession::factory()->closed()->create([
+            'opened_by' => $openingEmployee->id,
+            'closed_by' => $manager->id,
+            'opened_at' => '2026-08-08 20:30:00',
+            'closed_at' => '2026-08-09 08:30:00',
+            'expected_cash' => 2750,
+            'counted_cash' => 2725,
+            'over_short' => -25,
+            'deposited_amount' => 2000,
+            'deposit_reference' => 'DEP-20260807',
+        ]);
+
+        CashDrawerSession::factory()->create([
+            'opened_by' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->getJson('/panel/cash-drawer/sessions')
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('total', 2)
+            ->assertJsonPath('data.0.id', $newerSession->id)
+            ->assertJsonPath('data.0.opened_at', $newerSession->opened_at->toIso8601String())
+            ->assertJsonPath('data.0.closed_at', $newerSession->closed_at->toIso8601String())
+            ->assertJsonPath('data.0.opened_by_name', $openingEmployee->name)
+            ->assertJsonPath('data.0.closed_by_name', $manager->name)
+            ->assertJsonPath('data.0.over_short', -25)
+            ->assertJsonPath('data.0.deposit_reference', 'DEP-20260807')
+            ->assertJsonPath('data.1.id', $olderSession->id);
+    }
+
+    public function test_expense_requires_valid_category_and_positive_amount(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+
+        $this->actingAs($manager)
+            ->postJson('/panel/cash-drawer/expenses', [
+                'category' => 'invalid-category',
+                'description' => 'Something',
+                'amount' => 0,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['category', 'amount']);
+    }
+
+    public function test_expense_rejects_an_invalid_payment_method(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+        CashDrawerSession::factory()->create(['opened_by' => $manager->id]);
+
+        $this->actingAs($manager)
+            ->postJson('/panel/cash-drawer/expenses', [
+                'category' => 'utilities',
+                'payment_method' => 'credit',
+                'description' => 'Electric bill',
+                'amount' => 2500,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['payment_method']);
+    }
+
+    public function test_kiosk_style_cash_sale_without_processor_creates_entry(): void
+    {
+        CashDrawerSession::factory()->create();
+
+        $sale = SaleTransaction::factory()->create([
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'processed_by' => null,
+            'total' => 60,
+        ]);
+
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'type' => CashLedgerEntry::TYPE_SALE,
+            'source_id' => $sale->id,
+            'recorded_by' => null,
+        ]);
+    }
+
+    public function test_staff_is_forbidden_from_all_cash_drawer_routes(): void
+    {
+        $staff = $this->createUserWithRole('staff');
+        CashDrawerSession::factory()->create();
+
+        $this->actingAs($staff)->get('/panel/cash-drawer')->assertForbidden();
+        $this->actingAs($staff)->getJson('/panel/cash-drawer/status')->assertForbidden();
+        $this->actingAs($staff)->getJson('/panel/cash-drawer/data')->assertForbidden();
+        $this->actingAs($staff)->postJson('/panel/cash-drawer/open', ['opening_float' => 100])->assertForbidden();
+        $this->actingAs($staff)->postJson('/panel/cash-drawer/expenses', [])->assertForbidden();
+        $this->actingAs($staff)->postJson('/panel/cash-drawer/close', [])->assertForbidden();
+        $this->actingAs($staff)->getJson('/panel/cash-drawer/sessions')->assertForbidden();
+        $this->actingAs($staff)->getJson('/panel/cash-drawer/entries')->assertForbidden();
+        $this->actingAs($staff)->getJson('/panel/cash-drawer/expense-summary')->assertForbidden();
+    }
+
+    public function test_source_entry_recording_is_idempotent(): void
+    {
+        $service = app(CashDrawerService::class);
+
+        $service->recordSourceEntry(CashLedgerEntry::TYPE_SALE, 350, 'sale_transaction', 99, 'Sale', null, now());
+        $service->recordSourceEntry(CashLedgerEntry::TYPE_SALE, 350, 'sale_transaction', 99, 'Sale', null, now());
+
+        $this->assertDatabaseCount('cash_ledger_entries', 1);
+    }
+
+    public function test_expense_summary_groups_by_category(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+
+        CashLedgerEntry::factory()->create(['category' => 'supplies', 'amount' => -200, 'recorded_by' => $manager->id]);
+        CashLedgerEntry::factory()->create(['category' => 'supplies', 'amount' => -100, 'recorded_by' => $manager->id]);
+        CashLedgerEntry::factory()->create([
+            'category' => 'rent',
+            'payment_method' => CashLedgerEntry::PAYMENT_METHOD_ONLINE_PAYMENT,
+            'amount' => -5000,
+            'recorded_by' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->getJson('/panel/cash-drawer/expense-summary?month='.now()->format('Y-m'))
+            ->assertOk()
+            ->assertJsonPath('total', 5300)
+            ->assertJsonPath('categories.0.category', 'rent')
+            ->assertJsonPath('categories.0.total', 5000)
+            ->assertJsonPath('categories.1.category', 'supplies')
+            ->assertJsonPath('categories.1.total', 300)
+            ->assertJsonCount(3, 'entries.data')
+            ->assertJsonPath('entries.data.0.recorded_by_name', $manager->name)
+            ->assertJsonPath('entries.total', 3);
+    }
+
+    public function test_expense_receipt_image_is_stored_and_served_to_management_only(): void
+    {
+        Storage::fake();
+
+        $manager = $this->createUserWithRole('manager');
+        $staff = $this->createUserWithRole('staff');
+        CashDrawerSession::factory()->create(['opened_by' => $manager->id]);
+
+        $response = $this->actingAs($manager)
+            ->post('/panel/cash-drawer/expenses', [
+                'category' => 'utilities',
+                'description' => 'Electric bill',
+                'amount' => 2500,
+                'receipt' => UploadedFile::fake()->image('bill.jpg'),
+            ])
+            ->assertCreated();
+
+        $entryId = $response->json('id');
+        $entry = CashLedgerEntry::findOrFail($entryId);
+
+        $this->assertNotNull($entry->receipt_path);
+        Storage::assertExists($entry->receipt_path);
+        $this->assertSame(route('panel.cash-drawer.entries.receipt', $entry), $response->json('receipt_url'));
+
+        $this->actingAs($manager)->get("/panel/cash-drawer/entries/{$entryId}/receipt")->assertOk();
+        $this->actingAs($staff)->get("/panel/cash-drawer/entries/{$entryId}/receipt")->assertForbidden();
+    }
+
+    public function test_expense_rejects_non_image_receipt(): void
+    {
+        Storage::fake();
+
+        $manager = $this->createUserWithRole('manager');
+
+        $this->actingAs($manager)
+            ->withHeader('Accept', 'application/json')
+            ->post('/panel/cash-drawer/expenses', [
+                'category' => 'utilities',
+                'description' => 'Electric bill',
+                'amount' => 2500,
+                'receipt' => UploadedFile::fake()->create('bill.pdf', 100, 'application/pdf'),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['receipt']);
+    }
+
+    public function test_disabled_feature_hides_routes_and_stops_recording(): void
+    {
+        config(['jprime.cash_drawer' => false]);
+
+        $manager = $this->createUserWithRole('manager');
+
+        $this->actingAs($manager)->get('/panel/cash-drawer')->assertNotFound();
+        $this->actingAs($manager)->postJson('/panel/cash-drawer/open', ['opening_float' => 1000])->assertNotFound();
+        $this->actingAs($manager)
+            ->getJson('/panel/cash-drawer/status')
+            ->assertOk()
+            ->assertJson([
+                'enabled' => false,
+                'is_open' => false,
+                'opened_at' => null,
+            ]);
+
+        SaleTransaction::factory()->create([
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+        ]);
+
+        $this->assertDatabaseCount('cash_ledger_entries', 0);
+    }
+
+    private function createUserWithRole(string $role): User
+    {
+        $user = User::factory()->create(['status' => User::STATUS_ACTIVE]);
+        $user->assignRole($role);
+
+        return $user;
+    }
+}

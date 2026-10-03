@@ -1,0 +1,112 @@
+name: Release bundle
+
+# Builds a deployable zip (vendor/ + public/build/ included, dev tooling and
+# local state excluded) and attaches it to the GitHub release for v* tags.
+# A manual run uploads the same bundle as a workflow artifact instead.
+# tools/build-app-bundle.sh mirrors these steps for local builds; keep the
+# exclusion lists in sync.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    name: Build deployable bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, dom, fileinfo, gd, zip, sqlite3, pdo_sqlite, curl, openssl, tokenizer, xml, intl
+          tools: composer:v2
+          coverage: none
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install PHP dependencies (production only)
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Remove dev-only build artifacts
+        run: |
+          rm -f public/hot
+          rm -f bootstrap/cache/*.php
+
+      - name: Resolve bundle name
+        id: bundle
+        run: |
+          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
+            version="${GITHUB_REF_NAME}"
+          else
+            version="${GITHUB_SHA::7}"
+          fi
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "zip=jprimefitness.ph-${version}.zip" >> "${GITHUB_OUTPUT}"
+
+      - name: Ensure runtime directories exist
+        run: |
+          for dir in storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/app/public storage/app/private bootstrap/cache; do
+            mkdir -p "${dir}"
+            [ -e "${dir}/.gitignore" ] || printf '*\n!.gitignore\n' > "${dir}/.gitignore"
+          done
+
+      - name: Build zip and checksum
+        env:
+          ZIP_NAME: ${{ steps.bundle.outputs.zip }}
+        run: |
+          mkdir -p dist
+          zip -r -q "dist/${ZIP_NAME}" . \
+            -x '.git/*' '.github/*' '.agents/*' '.codex/*' '.claude/*' '.vscode/*' \
+               'tests/*' 'node_modules/*' \
+               'storage/app/hikvision-sdk/*' 'storage/app/public/*' 'storage/app/private/*' \
+               'storage/logs/*' 'storage/framework/cache/data/*' 'storage/framework/sessions/*' 'storage/framework/views/*' \
+               '.env' '.env.*' 'docker/*' 'docker-compose.yml' 'Dockerfile' \
+               'graphify-out/*' '.graphify*' '.phpunit.result.cache' '_ide_helper.php' 'boost.json' 'LEAN-CTX.md' \
+               'public/hot' 'bootstrap/cache/*.php' 'public/storage' 'public/storage/*' 'database/*.sqlite' 'dist/*'
+          # .env.* is excluded above; .env.example is the one that belongs in the bundle.
+          zip -q "dist/${ZIP_NAME}" .env.example
+          # Keep the (empty) runtime directories with their .gitignore placeholders.
+          for dir in storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs storage/app/public storage/app/private bootstrap/cache; do
+            zip -q "dist/${ZIP_NAME}" "${dir}/" "${dir}/.gitignore"
+          done
+          (cd dist && sha256sum "${ZIP_NAME}" > "${ZIP_NAME}.sha256")
+          unzip -l "dist/${ZIP_NAME}" | tail -n 1
+          cat "dist/${ZIP_NAME}.sha256"
+
+      - name: Publish release assets
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/${{ steps.bundle.outputs.zip }}
+            dist/${{ steps.bundle.outputs.zip }}.sha256
+
+      - name: Upload workflow artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.bundle.outputs.zip }}
+          path: |
+            dist/${{ steps.bundle.outputs.zip }}
+            dist/${{ steps.bundle.outputs.zip }}.sha256
+          if-no-files-found: error

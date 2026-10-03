@@ -1,0 +1,684 @@
+<?php
+
+namespace App\Support;
+
+use App\Models\SystemActivity;
+use App\Models\SaleTransaction;
+use Illuminate\Support\Str;
+
+class PanelSystemActivityFormatter
+{
+    private const SUBJECT_LABEL_MAX_LENGTH = 255;
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, mixed>  $metadata
+     * @return array{
+     *     subject_type: string,
+     *     subject_id: int,
+     *     subject_label: string,
+     *     event: string,
+     *     title: string,
+     *     message: string,
+     *     metadata: array<string, mixed>
+     * }
+     */
+    public function format(
+        string $subjectType,
+        int $subjectId,
+        string $event,
+        array $snapshot = [],
+        array $metadata = [],
+    ): array {
+        $normalizedEvent = trim($event) !== '' ? $event : 'updated';
+
+        return [
+            'subject_type' => $subjectType,
+            'subject_id' => $subjectId,
+            'subject_label' => $this->subjectLabel($subjectType, $subjectId, $snapshot),
+            'event' => $normalizedEvent,
+            'title' => $this->title($subjectType, $normalizedEvent),
+            'message' => $this->message($subjectType, $normalizedEvent, $snapshot, $metadata),
+            'metadata' => $this->metadata($subjectType, $snapshot, $metadata),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function subjectLabel(string $subjectType, int $subjectId, array $snapshot): string
+    {
+        $label = match ($subjectType) {
+            SystemActivity::SUBJECT_BUSINESS_PROFILE => (string) ($snapshot['name'] ?? 'Business Profile'),
+            SystemActivity::SUBJECT_ROLE => sprintf('Role - %s', ucwords((string) ($snapshot['name'] ?? 'Unknown Role'))),
+            SystemActivity::SUBJECT_EMPLOYEE => sprintf('Employee #%d - %s', $subjectId, $snapshot['name'] ?? 'Unknown Employee'),
+            SystemActivity::SUBJECT_PAYROLL => sprintf('Payroll #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
+            SystemActivity::SUBJECT_PAYOUT => sprintf('Payout #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
+            SystemActivity::SUBJECT_CASH_ADVANCE => sprintf('Cash Advance #%d - %s', $subjectId, $snapshot['employee_name'] ?? 'Unknown Employee'),
+            SystemActivity::SUBJECT_CASH_LEDGER_ENTRY => sprintf('Expense #%d - %s', $subjectId, $snapshot['description'] ?? 'Recorded Expense'),
+            SystemActivity::SUBJECT_MEMBER => sprintf('Member #%d - %s', $subjectId, $snapshot['name'] ?? 'Unknown Member'),
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => sprintf('Membership #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => sprintf('PT Package #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => sprintf('PT Session Usage #%d - %s', $subjectId, $snapshot['member_name'] ?? 'Unknown Member'),
+            SystemActivity::SUBJECT_ATTENDANCE => sprintf('Attendance #%d - %s', $subjectId, $snapshot['name'] ?? 'Attendance Record'),
+            SystemActivity::SUBJECT_SALE_TRANSACTION => sprintf('Sale #%d - %s', $subjectId, $snapshot['customer_name'] ?? ($snapshot['item_name'] ?? 'Transaction')),
+            SystemActivity::SUBJECT_KIOSK_PAYMENT => sprintf('Kiosk Payment #%d - %s', $subjectId, $snapshot['name'] ?? ($snapshot['reference'] ?? 'Kiosk Payment')),
+            SystemActivity::SUBJECT_INVENTORY_ITEM => sprintf('Inventory Item #%d - %s', $subjectId, $snapshot['name'] ?? 'Unnamed Item'),
+            SystemActivity::SUBJECT_RATE_PLAN => sprintf('Rate Plan #%d - %s', $subjectId, $snapshot['name'] ?? 'Rate Plan'),
+            SystemActivity::SUBJECT_PT_PRODUCT => sprintf('PT Product #%d - %s', $subjectId, $snapshot['name'] ?? 'PT Product'),
+            default => sprintf('Activity #%d', $subjectId),
+        };
+
+        if (Str::length($label) <= self::SUBJECT_LABEL_MAX_LENGTH) {
+            return $label;
+        }
+
+        return Str::limit($label, self::SUBJECT_LABEL_MAX_LENGTH - 3, '...');
+    }
+
+    private function title(string $subjectType, string $event): string
+    {
+        return match ($subjectType) {
+            SystemActivity::SUBJECT_BUSINESS_PROFILE => 'Business profile updated',
+            SystemActivity::SUBJECT_ROLE => match ($event) {
+                'created' => 'Role created',
+                'deleted' => 'Role deleted',
+                default => 'Role permissions updated',
+            },
+            SystemActivity::SUBJECT_EMPLOYEE => match ($event) {
+                'created' => 'Employee created',
+                'deleted' => 'Employee deleted',
+                'restored' => 'Employee restored',
+                'biometric_enrollment_started' => 'Employee fingerprint enrollment started',
+                'biometric_enrolled' => 'Employee fingerprint enrolled',
+                'biometric_removed' => 'Employee fingerprint removed',
+                'biometric_failed' => 'Employee fingerprint enrollment failed',
+                default => 'Employee updated',
+            },
+            SystemActivity::SUBJECT_PAYROLL => match ($event) {
+                'created' => 'Payroll created',
+                'approved' => 'Payroll approved',
+                'cancelled' => 'Payroll cancelled',
+                default => 'Payroll updated',
+            },
+            SystemActivity::SUBJECT_PAYOUT => 'Payout created',
+            SystemActivity::SUBJECT_CASH_ADVANCE => match ($event) {
+                'voided' => 'Cash advance voided',
+                default => 'Cash advance recorded',
+            },
+            SystemActivity::SUBJECT_CASH_LEDGER_ENTRY => 'Expense recorded',
+            SystemActivity::SUBJECT_MEMBER => match ($event) {
+                'created' => 'Member created',
+                default => 'Member updated',
+            },
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => match ($event) {
+                'created' => 'Membership created',
+                'plan_changed' => 'Membership plan changed',
+                'status_updated' => 'Membership status updated',
+                'manager_assigned' => 'Membership manager assigned',
+                default => 'Membership updated',
+            },
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => match ($event) {
+                'assigned' => 'PT package assigned',
+                'cancelled' => 'PT package cancelled',
+                default => 'PT package created',
+            },
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => 'PT session usage recorded',
+            SystemActivity::SUBJECT_ATTENDANCE => match ($event) {
+                'checked_in' => 'Attendance checked in',
+                'checked_out' => 'Attendance checked out',
+                'deleted' => 'Attendance deleted',
+                'restored' => 'Attendance restored',
+                default => 'Attendance updated',
+            },
+            SystemActivity::SUBJECT_SALE_TRANSACTION => match ($event) {
+                'voided' => 'Sale voided',
+                default => 'Sale created',
+            },
+            SystemActivity::SUBJECT_KIOSK_PAYMENT => 'Kiosk payment cancelled',
+            SystemActivity::SUBJECT_INVENTORY_ITEM => match ($event) {
+                'created' => 'Inventory item created',
+                'deleted' => 'Inventory item deleted',
+                'restored' => 'Inventory item restored',
+                'stock_deducted' => 'Inventory stock deducted',
+                default => 'Inventory item updated',
+            },
+            SystemActivity::SUBJECT_RATE_PLAN => match ($event) {
+                'configured' => 'Rate plan configured',
+                'removed' => 'Rate plan removed',
+                default => 'Rate plan updated',
+            },
+            SystemActivity::SUBJECT_PT_PRODUCT => match ($event) {
+                'configured' => 'PT product configured',
+                'removed' => 'PT product removed',
+                default => 'PT product updated',
+            },
+            default => 'Activity recorded',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, mixed>  $metadata
+     */
+    private function message(string $subjectType, string $event, array $snapshot, array $metadata): string
+    {
+        return match ($subjectType) {
+            SystemActivity::SUBJECT_BUSINESS_PROFILE => $this->businessProfileMessage($event, $snapshot),
+            SystemActivity::SUBJECT_ROLE => $this->roleMessage($event, $snapshot, $metadata),
+            SystemActivity::SUBJECT_EMPLOYEE => $this->employeeMessage($event, $snapshot),
+            SystemActivity::SUBJECT_PAYROLL => $this->payrollMessage($event, $snapshot),
+            SystemActivity::SUBJECT_PAYOUT => $this->payoutMessage($snapshot),
+            SystemActivity::SUBJECT_CASH_ADVANCE => $this->cashAdvanceMessage($event, $snapshot),
+            SystemActivity::SUBJECT_CASH_LEDGER_ENTRY => $this->cashLedgerMessage($snapshot),
+            SystemActivity::SUBJECT_MEMBER => $this->memberMessage($event, $snapshot),
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => $this->membershipMessage($event, $snapshot),
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => $this->ptPackageMessage($event, $snapshot),
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => $this->ptSessionUsageMessage($snapshot),
+            SystemActivity::SUBJECT_ATTENDANCE => $this->attendanceMessage($event, $snapshot),
+            SystemActivity::SUBJECT_SALE_TRANSACTION => $this->saleMessage($event, $snapshot),
+            SystemActivity::SUBJECT_KIOSK_PAYMENT => $this->kioskPaymentMessage($snapshot, $metadata),
+            SystemActivity::SUBJECT_INVENTORY_ITEM => $this->inventoryMessage($event, $snapshot, $metadata),
+            SystemActivity::SUBJECT_RATE_PLAN => $this->ratePlanMessage($event, $snapshot),
+            SystemActivity::SUBJECT_PT_PRODUCT => $this->ptProductMessage($event, $snapshot),
+            default => 'A system activity was recorded.',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, mixed>  $metadata
+     * @return array<string, mixed>
+     */
+    private function metadata(string $subjectType, array $snapshot, array $metadata): array
+    {
+        $base = match ($subjectType) {
+            SystemActivity::SUBJECT_BUSINESS_PROFILE => [
+                'business_profile_id' => $snapshot['id'] ?? null,
+                'business_name' => $snapshot['name'] ?? null,
+            ],
+            SystemActivity::SUBJECT_EMPLOYEE => [
+                'employee_id' => $snapshot['id'] ?? null,
+                'employee_name' => $snapshot['name'] ?? null,
+                'status' => $snapshot['status'] ?? null,
+                'role_names' => $snapshot['role_names'] ?? null,
+                'daily_rate' => $this->nullableMoney($snapshot['daily_rate'] ?? null),
+                'pay_frequency' => $snapshot['pay_frequency'] ?? null,
+                'sss_covered' => $snapshot['sss_covered'] ?? null,
+                'sss_employee_share' => $this->nullableMoney($snapshot['sss_employee_share'] ?? null),
+                'sss_employer_share' => $this->nullableMoney($snapshot['sss_employer_share'] ?? null),
+                'philhealth_covered' => $snapshot['philhealth_covered'] ?? null,
+                'philhealth_employee_share' => $this->nullableMoney($snapshot['philhealth_employee_share'] ?? null),
+                'philhealth_employer_share' => $this->nullableMoney($snapshot['philhealth_employer_share'] ?? null),
+                'pagibig_covered' => $snapshot['pagibig_covered'] ?? null,
+                'pagibig_employee_share' => $this->nullableMoney($snapshot['pagibig_employee_share'] ?? null),
+                'pagibig_employer_share' => $this->nullableMoney($snapshot['pagibig_employer_share'] ?? null),
+                'biometric_status' => $snapshot['biometric_status'] ?? null,
+                'biometric_fingerprint_id' => $snapshot['biometric_fingerprint_id'] ?? null,
+                'biometric_enrolled_at' => $snapshot['biometric_enrolled_at'] ?? null,
+            ],
+            SystemActivity::SUBJECT_PAYROLL => [
+                'employee_id' => $snapshot['employee_id'] ?? null,
+                'employee_name' => $snapshot['employee_name'] ?? null,
+                'period_start' => $snapshot['period_start'] ?? null,
+                'period_end' => $snapshot['period_end'] ?? null,
+                'withholding_tax' => $this->nullableMoney($snapshot['withholding_tax'] ?? null),
+                'employee_contributions' => $snapshot['employee_contributions'] ?? null,
+                'employee_contributions_total' => $this->nullableMoney($snapshot['employee_contributions_total'] ?? null),
+                'employer_contributions' => $snapshot['employer_contributions'] ?? null,
+                'employer_contributions_total' => $this->nullableMoney($snapshot['employer_contributions_total'] ?? null),
+                'net_amount' => $this->nullableMoney($snapshot['net_amount'] ?? null),
+                'status' => $snapshot['status'] ?? null,
+            ],
+            SystemActivity::SUBJECT_PAYOUT => [
+                'employee_id' => $snapshot['employee_id'] ?? null,
+                'employee_name' => $snapshot['employee_name'] ?? null,
+                'payroll_id' => $snapshot['payroll_id'] ?? null,
+                'payroll_period' => $snapshot['payroll_period'] ?? null,
+                'amount' => $this->nullableMoney($snapshot['amount'] ?? null),
+                'method' => $snapshot['method'] ?? null,
+            ],
+            SystemActivity::SUBJECT_CASH_ADVANCE => [
+                'employee_id' => $snapshot['employee_id'] ?? null,
+                'employee_name' => $snapshot['employee_name'] ?? null,
+                'amount' => $this->nullableMoney($snapshot['amount'] ?? null),
+                'method' => $snapshot['method'] ?? null,
+                'void_reason' => $snapshot['void_reason'] ?? null,
+            ],
+            SystemActivity::SUBJECT_CASH_LEDGER_ENTRY => [
+                'entry_type' => $snapshot['type'] ?? null,
+                'category' => $snapshot['category'] ?? null,
+                'payment_method' => $snapshot['payment_method'] ?? null,
+                'amount' => $this->nullableMoney($snapshot['amount'] ?? null),
+                'description' => $snapshot['description'] ?? null,
+            ],
+            SystemActivity::SUBJECT_MEMBER => [
+                'member_id' => $snapshot['id'] ?? null,
+                'member_name' => $snapshot['name'] ?? null,
+                'status' => $snapshot['status'] ?? null,
+                'email' => $snapshot['email'] ?? null,
+            ],
+            SystemActivity::SUBJECT_MEMBER_SUBSCRIPTION => [
+                'member_id' => $snapshot['member_id'] ?? null,
+                'member_name' => $snapshot['member_name'] ?? null,
+                'rate_plan_id' => $snapshot['rate_plan_id'] ?? null,
+                'rate_plan_name' => $snapshot['rate_plan_name'] ?? null,
+                'status' => $snapshot['status'] ?? null,
+                'start_date' => $snapshot['start_date'] ?? null,
+                'end_date' => $snapshot['end_date'] ?? null,
+            ],
+            SystemActivity::SUBJECT_MEMBER_PT_PACKAGE => [
+                'member_id' => $snapshot['member_id'] ?? null,
+                'member_name' => $snapshot['member_name'] ?? null,
+                'pt_product_id' => $snapshot['pt_product_id'] ?? null,
+                'product_name' => $snapshot['product_name'] ?? null,
+                'coach_id' => $snapshot['coach_id'] ?? null,
+                'coach_name' => $snapshot['coach_name'] ?? null,
+                'total_sessions' => $snapshot['total_sessions'] ?? null,
+                'remaining_sessions' => $snapshot['remaining_sessions'] ?? null,
+                'assigned_at' => $snapshot['assigned_at'] ?? null,
+            ],
+            SystemActivity::SUBJECT_MEMBER_PT_SESSION_USAGE => [
+                'member_id' => $snapshot['member_id'] ?? null,
+                'member_name' => $snapshot['member_name'] ?? null,
+                'package_id' => $snapshot['package_id'] ?? null,
+                'sessions_used' => $snapshot['sessions_used'] ?? null,
+                'remaining_sessions' => $snapshot['remaining_sessions'] ?? null,
+                'used_at' => $snapshot['used_at'] ?? null,
+                'coach_id' => $snapshot['coach_id'] ?? null,
+                'coach_name' => $snapshot['coach_name'] ?? null,
+            ],
+            SystemActivity::SUBJECT_ATTENDANCE => [
+                'user_id' => $snapshot['user_id'] ?? null,
+                'name' => $snapshot['name'] ?? null,
+                'attendee_type' => $snapshot['attendee_type'] ?? null,
+                'checked_in_at' => $snapshot['checked_in_at'] ?? null,
+                'checked_out_at' => $snapshot['checked_out_at'] ?? null,
+                'source' => $snapshot['source'] ?? null,
+                'source_device_serial' => $snapshot['source_device_serial'] ?? null,
+            ],
+            SystemActivity::SUBJECT_SALE_TRANSACTION => [
+                'sale_type' => $snapshot['type'] ?? null,
+                'customer_name' => $snapshot['customer_name'] ?? null,
+                'item_name' => $snapshot['item_name'] ?? null,
+                'payment_method' => $snapshot['payment_method'] ?? null,
+                'member_id' => $snapshot['member_id'] ?? null,
+                'total' => $this->nullableMoney($snapshot['total'] ?? null),
+                'status' => $snapshot['status'] ?? null,
+                'void_reason' => $snapshot['void_reason'] ?? null,
+                'voided_by' => $snapshot['voided_by'] ?? null,
+                'voided_at' => $snapshot['voided_at'] ?? null,
+            ],
+            SystemActivity::SUBJECT_INVENTORY_ITEM => [
+                'inventory_name' => $snapshot['name'] ?? null,
+                'category_name' => $snapshot['category_name'] ?? null,
+                'quantity' => $this->nullableNumber($snapshot['quantity'] ?? null),
+                'unit' => $snapshot['unit'] ?? null,
+                'deducted_quantity' => $this->nullableNumber($snapshot['deducted_quantity'] ?? null),
+                'remaining_quantity' => $this->nullableNumber($snapshot['remaining_quantity'] ?? null),
+            ],
+            SystemActivity::SUBJECT_RATE_PLAN => [
+                'rate_plan_name' => $snapshot['name'] ?? null,
+                'duration_days' => $snapshot['duration_days'] ?? null,
+                'price' => $this->nullableMoney($snapshot['price'] ?? null),
+            ],
+            SystemActivity::SUBJECT_PT_PRODUCT => [
+                'pt_product_name' => $snapshot['name'] ?? null,
+                'session_count' => $snapshot['session_count'] ?? null,
+                'price' => $this->nullableMoney($snapshot['price'] ?? null),
+            ],
+            default => [],
+        };
+
+        return $this->cleanMetadata([...$base, ...$metadata]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, mixed>  $metadata
+     */
+    private function kioskPaymentMessage(array $snapshot, array $metadata): string
+    {
+        return sprintf(
+            'Pending kiosk payment %s for %s was cancelled. Reason: %s',
+            $snapshot['reference'] ?? 'unknown',
+            $snapshot['name'] ?? 'a walk-in',
+            $metadata['reason'] ?? 'not given',
+        );
+    }
+
+    private function businessProfileMessage(string $event, array $snapshot): string
+    {
+        $name = (string) ($snapshot['name'] ?? 'The business profile');
+
+        return $name.' was updated.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, mixed>  $metadata
+     */
+    private function roleMessage(string $event, array $snapshot, array $metadata): string
+    {
+        $name = ucwords((string) ($snapshot['name'] ?? 'Unknown role'));
+        $list = fn (array $permissions) => $permissions ? implode(', ', $permissions) : 'nothing';
+
+        return match ($event) {
+            'created' => sprintf('%s role was created with: %s.', $name, $list($snapshot['permissions'] ?? [])),
+            'deleted' => sprintf('%s role was deleted.', $name),
+            default => sprintf('%s role was updated. Granted: %s. Revoked: %s.', $name, $list($metadata['granted'] ?? []), $list($metadata['revoked'] ?? [])),
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function employeeMessage(string $event, array $snapshot): string
+    {
+        $name = (string) ($snapshot['name'] ?? 'The employee');
+        $roles = $snapshot['role_names'] ?? [];
+        $roleSuffix = is_array($roles) && $roles !== [] ? ' Roles: '.implode(', ', $roles).'.' : '';
+
+        return match ($event) {
+            'created' => $name.' was added as an employee.'.$roleSuffix,
+            'deleted' => $name.' was deleted from the employee list.',
+            'restored' => $name.' was restored to the employee list.'.$roleSuffix,
+            'biometric_enrollment_started' => 'Fingerprint enrollment started for '.$name.'.',
+            'biometric_enrolled' => 'A fingerprint was enrolled for '.$name.'.',
+            'biometric_removed' => 'The enrolled fingerprint for '.$name.' was removed.',
+            'biometric_failed' => 'Fingerprint enrollment failed for '.$name.'.',
+            default => $name.' was updated.'.$roleSuffix,
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function payrollMessage(string $event, array $snapshot): string
+    {
+        $employeeName = (string) ($snapshot['employee_name'] ?? 'Unknown Employee');
+        $period = $this->periodLabel($snapshot['period_start'] ?? null, $snapshot['period_end'] ?? null);
+        $netAmount = $this->currency((float) ($snapshot['net_amount'] ?? 0));
+
+        return match ($event) {
+            'created' => 'A payroll for '.$employeeName.' covering '.$period.' with net pay of '.$netAmount.' was created.',
+            'approved' => 'The payroll for '.$employeeName.' covering '.$period.' was approved.',
+            'cancelled' => 'The payroll for '.$employeeName.' covering '.$period.' was cancelled.',
+            default => 'The payroll for '.$employeeName.' covering '.$period.' was updated.',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function payoutMessage(array $snapshot): string
+    {
+        $employeeName = (string) ($snapshot['employee_name'] ?? 'Unknown Employee');
+        $amount = $this->currency((float) ($snapshot['amount'] ?? 0));
+        $method = $this->paymentMethodLabel((string) ($snapshot['method'] ?? ''));
+        $period = (string) ($snapshot['payroll_period'] ?? 'the linked payroll');
+
+        return 'A '.$method.' payout of '.$amount.' was recorded for '.$employeeName.' on '.$period.'.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function cashAdvanceMessage(string $event, array $snapshot): string
+    {
+        $employeeName = (string) ($snapshot['employee_name'] ?? 'Unknown Employee');
+        $amount = $this->currency((float) ($snapshot['amount'] ?? 0));
+        $method = $this->paymentMethodLabel((string) ($snapshot['method'] ?? ''));
+
+        if ($event === 'voided') {
+            $reason = (string) ($snapshot['void_reason'] ?? '');
+
+            return 'A '.$method.' cash advance of '.$amount.' for '.$employeeName.' was voided'.($reason !== '' ? ': '.$reason : '.');
+        }
+
+        return 'A '.$method.' cash advance of '.$amount.' was recorded for '.$employeeName.'.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function cashLedgerMessage(array $snapshot): string
+    {
+        $amount = $this->currency(abs((float) ($snapshot['amount'] ?? 0)));
+        $method = $this->paymentMethodLabel((string) ($snapshot['payment_method'] ?? 'cash'));
+        $description = (string) ($snapshot['description'] ?? 'an expense');
+
+        return 'A '.$method.' expense of '.$amount.' was recorded for '.$description.'.';
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function memberMessage(string $event, array $snapshot): string
+    {
+        $name = (string) ($snapshot['name'] ?? 'The member');
+
+        return match ($event) {
+            'created' => $name.' was added as a member.',
+            default => $name.' was updated.',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function membershipMessage(string $event, array $snapshot): string
+    {
+        $memberName = (string) ($snapshot['member_name'] ?? 'Unknown Member');
+        $planName = (string) ($snapshot['rate_plan_name'] ?? 'membership plan');
+        $managerName = (string) ($snapshot['manager_name'] ?? 'No manager');
+        $status = (string) ($snapshot['status'] ?? 'unknown');
+
+        return match ($event) {
+            'created' => $memberName.' received a new '.$planName.' membership.',
+            'plan_changed' => $memberName."'s membership was changed to ".$planName.'.',
+            'status_updated' => $memberName."'s membership status was updated to ".$status.'.',
+            'manager_assigned' => $managerName.' was assigned to '.$memberName."'s membership.",
+            default => $memberName."'s membership was updated.",
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function ptPackageMessage(string $event, array $snapshot): string
+    {
+        $memberName = (string) ($snapshot['member_name'] ?? 'Unknown Member');
+        $productName = (string) ($snapshot['product_name'] ?? 'PT package');
+        $sessions = (int) ($snapshot['total_sessions'] ?? 0);
+
+        return match ($event) {
+            'assigned' => sprintf('%s was assigned the %s package with %d sessions.', $memberName, $productName, $sessions),
+            'cancelled' => sprintf('%s\'s %s package was cancelled.', $memberName, $productName),
+            default => sprintf('A %s package with %d sessions was created for %s.', $productName, $sessions, $memberName),
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function ptSessionUsageMessage(array $snapshot): string
+    {
+        $memberName = (string) ($snapshot['member_name'] ?? 'Unknown Member');
+        $sessionsUsed = (int) ($snapshot['sessions_used'] ?? 0);
+        $remainingSessions = (int) ($snapshot['remaining_sessions'] ?? 0);
+
+        return sprintf(
+            '%d PT session(s) were recorded for %s. Remaining sessions: %d.',
+            $sessionsUsed,
+            $memberName,
+            $remainingSessions
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function attendanceMessage(string $event, array $snapshot): string
+    {
+        $name = (string) ($snapshot['name'] ?? 'This attendee');
+
+        return match ($event) {
+            'checked_in' => $name.' was checked in.',
+            'checked_out' => $name.' was checked out.',
+            'deleted' => $name."'s attendance record was deleted.",
+            'restored' => $name."'s attendance record was restored.",
+            default => $name."'s attendance record was updated.",
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function saleMessage(string $event, array $snapshot): string
+    {
+        $saleType = $this->saleTypeLabel((string) ($snapshot['type'] ?? ''));
+        $itemName = (string) ($snapshot['item_name'] ?? 'item');
+        $customerName = (string) ($snapshot['customer_name'] ?? 'Unknown Customer');
+        $total = $this->currency((float) ($snapshot['total'] ?? 0));
+
+        if ($event === 'voided') {
+            $reason = trim((string) ($snapshot['void_reason'] ?? 'No reason provided.'));
+
+            return sprintf('A %s sale for %s worth %s was voided for %s. Reason: %s', $saleType, $itemName, $total, $customerName, $reason);
+        }
+
+        return sprintf('A %s sale for %s worth %s was recorded for %s.', $saleType, $itemName, $total, $customerName);
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<string, mixed>  $metadata
+     */
+    private function inventoryMessage(string $event, array $snapshot, array $metadata): string
+    {
+        $name = (string) ($snapshot['name'] ?? 'Inventory item');
+        $quantity = $this->number((float) ($snapshot['quantity'] ?? 0));
+        $unit = (string) ($snapshot['unit'] ?? 'unit');
+
+        return match ($event) {
+            'created' => sprintf('%s was added to inventory with %s %s on hand.', $name, $quantity, $unit),
+            'deleted' => $name.' was deleted from inventory.',
+            'restored' => sprintf('%s was restored to inventory with %s %s on hand.', $name, $quantity, $unit),
+            'stock_deducted' => sprintf(
+                '%s %s of %s were deducted from inventory. Remaining stock: %s %s.',
+                $this->number((float) ($metadata['deducted_quantity'] ?? $snapshot['deducted_quantity'] ?? 0)),
+                $unit,
+                $name,
+                $this->number((float) ($metadata['remaining_quantity'] ?? $snapshot['remaining_quantity'] ?? 0)),
+                $unit,
+            ),
+            default => $name.' was updated in inventory.',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function ratePlanMessage(string $event, array $snapshot): string
+    {
+        $name = (string) ($snapshot['name'] ?? 'Rate plan');
+        $price = $this->currency((float) ($snapshot['price'] ?? 0));
+
+        return match ($event) {
+            'configured' => $name.' was configured at '.$price.'.',
+            'removed' => $name.' pricing was removed.',
+            default => $name.' pricing was updated to '.$price.'.',
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function ptProductMessage(string $event, array $snapshot): string
+    {
+        $name = (string) ($snapshot['name'] ?? 'PT product');
+        $price = $this->currency((float) ($snapshot['price'] ?? 0));
+
+        return match ($event) {
+            'configured' => $name.' was configured at '.$price.'.',
+            'removed' => $name.' pricing was removed.',
+            default => $name.' pricing was updated to '.$price.'.',
+        };
+    }
+
+    private function periodLabel(mixed $periodStart, mixed $periodEnd): string
+    {
+        if ($periodStart && $periodEnd) {
+            return (string) $periodStart.' - '.(string) $periodEnd;
+        }
+
+        return 'the selected payroll period';
+    }
+
+    private function saleTypeLabel(string $saleType): string
+    {
+        return match ($saleType) {
+            SaleTransaction::TYPE_INVENTORY => 'inventory',
+            SaleTransaction::TYPE_MEMBERSHIP => 'membership',
+            SaleTransaction::TYPE_PT_PACKAGE => 'PT package',
+            SaleTransaction::TYPE_WALK_IN => 'walk-in',
+            default => 'sale',
+        };
+    }
+
+    private function paymentMethodLabel(string $paymentMethod): string
+    {
+        return match ($paymentMethod) {
+            SaleTransaction::PAYMENT_METHOD_BANK_TRANSFER => 'bank transfer',
+            SaleTransaction::PAYMENT_METHOD_ONLINE_PAYMENT => 'online payment',
+            default => str($paymentMethod)->replace('_', ' ')->lower()->toString(),
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     * @return array<string, mixed>
+     */
+    private function cleanMetadata(array $metadata): array
+    {
+        return array_filter($metadata, static function (mixed $value): bool {
+            if (is_array($value)) {
+                return $value !== [];
+            }
+
+            return $value !== null && $value !== '';
+        });
+    }
+
+    private function currency(float $amount): string
+    {
+        return 'PHP '.number_format($amount, 2);
+    }
+
+    private function number(float $value): string
+    {
+        return number_format($value, floor($value) === $value ? 0 : 2, '.', ',');
+    }
+
+    private function nullableMoney(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return round((float) $value, 2);
+    }
+
+    private function nullableNumber(mixed $value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return round((float) $value, 2);
+    }
+}

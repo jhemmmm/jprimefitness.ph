@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>@yield('title', 'JPrime Fitness')</title>
+    <link rel="dns-prefetch" href="//fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=Nunito:400,600,700,800,900|Oswald:400,500,600,700" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="msapplication-TileImage" content="/ms-icon-144x144.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <script>
+        window.JPrime = window.JPrime || {};
+        window.JPrime.timezone = @js(config('app.timezone'));
+        window.JPrime.recaptchaSiteKey = @js(config('services.recaptcha.site_key'));
+        window.JPrime.discountLabels = @json(\App\Models\MemberProfile::DISCOUNT_LABELS);
+    </script>
+
+    @if (config('services.recaptcha.site_key'))
+        <script src="https://www.google.com/recaptcha/api.js?render={{ config('services.recaptcha.site_key') }}" defer></script>
+    @endif
+
+    <!-- App Styles & Scripts (Vite) -->
+    @vite(['resources/sass/app.scss', 'resources/js/app.js'])
+
+    @stack('styles')
+</head>
+
+<body>
+    {{-- Navbar --}}
+    <nav class="navbar navbar-expand-lg navbar-dark jprime-navbar fixed-top">
+        <div class="container">
+
+            {{-- Logo --}}
+            <a class="navbar-brand jprime-logo fw-bold fs-5 text-white text-decoration-none" href="/">
+                <img src="{{ asset('logo.png') }}" alt="" />JPrime <span class="text-danger">Fitness</span>
+            </a>
+
+            {{-- Mobile Toggle --}}
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse"
+                data-bs-target="#mainNavbar" aria-controls="mainNavbar" aria-expanded="false"
+                aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            {{-- Nav Links --}}
+            <div class="collapse navbar-collapse" id="mainNavbar">
+                <ul class="navbar-nav ms-auto me-lg-3">
+                    <li class="nav-item"><a class="nav-link" href="/#about">The Gym</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/#pricing">Rates</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/#membership">Membership</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/#contact">Contact</a></li>
+                </ul>
+                <a href="/#register" class="btn btn-primary px-4 mt-3 mt-lg-0">Join Now</a>
+            </div>
+
+        </div>
+    </nav>
+
+    {{-- Page Content --}}
+    <main id="app">
+        @yield('content')
+    </main>
+
+    {{-- Footer --}}
+    @php
+        $bp = $businessProfile ?? \App\Models\BusinessProfile::current();
+        $footerAddress = collect([$bp->address, $bp->city, $bp->province])
+            ->filter()
+            ->join(', ');
+        $footerHours = $bp->formattedOperatingHours() ?? 'Hours to be announced';
+        $footerPlace = collect([$bp->city, $bp->province])
+            ->filter()
+            ->join(', ');
+    @endphp
+    <footer class="jprime-footer bg-dark text-white pt-5">
+        <div class="container">
+            <div class="row g-4 pb-4">
+                {{-- Brand --}}
+                <div class="col-lg-4 col-md-6">
+                    <span class="jprime-logo fw-bold text-white fs-5">
+                        <img src="{{ asset('logo.png') }}" alt="JPrime Fitness Logo" />JPrime <span class="text-danger">Fitness</span>
+                    </span>
+                    <p class="text-white-50 small mt-3 mb-3" style="max-width: 320px;">
+                        Independent gym{{ $footerPlace ? ' in ' . $footerPlace : '' }}.
+                    </p>
+                    @if ($bp->social_links)
+                        <div class="d-flex gap-2">
+                            @foreach ($bp->social_links as $network => $url)
+                                <a href="{{ $url }}" target="_blank" rel="noopener" class="footer-social" aria-label="{{ \App\Models\BusinessProfile::SOCIAL_NETWORKS[$network] ?? $network }}"><i class="bi bi-{{ $network }}"></i></a>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Quick Links --}}
+                <div class="col-lg-2 col-md-6 col-6">
+                    <h6 class="footer-heading">Explore</h6>
+                    <ul class="footer-links">
+                        <li><a href="/">Home</a></li>
+                        <li><a href="/#about">The Gym</a></li>
+                        <li><a href="/#pricing">Rates</a></li>
+                        <li><a href="/#membership">Membership</a></li>
+                        <li><a href="/#register">Join</a></li>
+                        <li><a href="/#contact">Contact</a></li>
+                        <li><a href="/terms">Terms &amp; Conditions</a></li>
+                    </ul>
+                </div>
+
+                {{-- Visit --}}
+                <div class="col-lg-3 col-md-6 col-6">
+                    <h6 class="footer-heading">Visit Us</h6>
+                    <ul class="footer-info">
+                        <li>
+                            <i class="bi bi-geo-alt-fill text-danger"></i>
+                            <span>{{ $footerAddress ?: 'Address coming soon' }}</span>
+                        </li>
+                        <li>
+                            <i class="bi bi-clock-fill text-danger"></i>
+                            <span>{{ $footerHours }}</span>
+                        </li>
+                    </ul>
+                </div>
+
+                {{-- Get In Touch --}}
+                <div class="col-lg-3 col-md-6">
+                    <h6 class="footer-heading">Get in Touch</h6>
+                    <ul class="footer-info">
+                        <li>
+                            <i class="bi bi-envelope-fill text-danger"></i>
+                            <a href="mailto:hello@jprimefitness.ph">hello@jprimefitness.ph</a>
+                        </li>
+                        <li>
+                            <i class="bi bi-chat-dots-fill text-danger"></i>
+                            <a href="/#contact">Send us a message</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="footer-bottom py-3">
+                <div class="text-white-50 small">
+                    &copy; {{ now()->year }} {{ $bp->name }}. All rights reserved.
+                </div>
+            </div>
+        </div>
+    </footer>
+    @stack('scripts')
+</body>
+
+</html>

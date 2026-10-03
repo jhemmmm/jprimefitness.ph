@@ -1,0 +1,194 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\SyncsToOutbox;
+use Carbon\Carbon;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use LaravelAndVueJS\Traits\LaravelPermissionToVueJS;
+use Spatie\Permission\Traits\HasRoles;
+
+#[Fillable([
+    'name',
+    'status',
+    'email',
+    'password',
+    'phone',
+    'photo_url',
+    'address',
+])]
+#[Hidden(['password', 'remember_token'])]
+class User extends Authenticatable
+{
+    /** @use HasFactory<UserFactory> */
+    use HasFactory, HasRoles, LaravelPermissionToVueJS, Notifiable, SoftDeletes, SyncsToOutbox;
+
+    public const STATUS_ACTIVE = 'active';
+
+    public const STATUS_INACTIVE = 'inactive';
+
+    public const STATUS_SUSPENDED = 'suspended';
+
+    /**
+     * Roles that are never employees: `super admin` and `admin` are administrators, `member` is a gym member.
+     */
+    public const NON_EMPLOYEE_ROLES = ['super admin', 'admin', 'member'];
+
+    /**
+     * Users holding any employee role (see Role::scopeEmployee), optionally excluding some roles.
+     * whereHas instead of Spatie's role() scope, which re-resolves each role name with its own query.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
+     * @param  array<int, string>  $except
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    public function scopeEmployees($query, array $except = [])
+    {
+        return $query->whereHas('roles', fn ($roles) => $roles->employee()->whereNotIn('name', $except));
+    }
+
+    /**
+     * Whether the user holds a management role (super admin, admin, or manager).
+     */
+    public function isManagement(): bool
+    {
+        return $this->hasAnyRole(['super admin', 'admin', 'manager']);
+    }
+
+    /**
+     * Active users holding the coach role. Uses whereHas instead of the
+     * Spatie role() scope so it does not throw when the role is absent
+     * (fresh installs, tests).
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<User>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    public function scopeActiveCoaches($query)
+    {
+        return $query
+            ->whereHas('roles', fn ($roles) => $roles->where('name', 'coach'))
+            ->where('status', self::STATUS_ACTIVE);
+    }
+
+    public function profile(): HasOne
+    {
+        return $this->hasOne(MemberProfile::class);
+    }
+
+    public function employeeProfile(): HasOne
+    {
+        return $this->hasOne(EmployeeProfile::class);
+    }
+
+    public function ratePlans(): BelongsToMany
+    {
+        return $this->belongsToMany(RatePlan::class, 'member_subscriptions')
+            ->withPivot(['start_date', 'end_date', 'status'])
+            ->withTimestamps();
+    }
+
+    public function memberSubscriptions(): HasMany
+    {
+        return $this->hasMany(MemberSubscription::class);
+    }
+
+    public function memberPtPackages(): HasMany
+    {
+        return $this->hasMany(MemberPtPackage::class)->orderByDesc('assigned_at');
+    }
+
+    private function attachPlan(int $ratePlanId, string $startDate, array $attributes = []): MemberSubscription
+    {
+        $plan = RatePlan::findOrFail($ratePlanId);
+
+        return $this->memberSubscriptions()->create(array_merge([
+            'rate_plan_id' => $plan->id,
+            'status' => MemberSubscription::STATUS_ACTIVE,
+            'start_date' => $startDate,
+            'end_date' => $this->membershipEndDate($plan, $startDate),
+        ], $attributes));
+    }
+
+    public function currentMembership(): ?MemberSubscription
+    {
+        return MemberSubscription::currentOf($this->memberSubscriptions()->orderByDesc('start_date')->get());
+    }
+
+    /**
+     * Day after the latest active membership ends, so a renewal loses no paid days;
+     * today when nothing is running.
+     */
+    public function nextMembershipStartDate(): string
+    {
+        $currentEnd = $this->memberSubscriptions()->where('status', MemberSubscription::STATUS_ACTIVE)->max('end_date');
+        $dayAfter = $currentEnd ? Carbon::parse($currentEnd)->addDay() : Carbon::today();
+
+        return $dayAfter->max(Carbon::today())->toDateString();
+    }
+
+    /** The only way a plan is issued: through a POS sale, so every plan has a transaction behind it. */
+    public function sellMembershipPlan(int $ratePlanId, string $startDate, array $attributes = []): MemberSubscription
+    {
+        $currentPlan = $this->currentMembership();
+
+        if ($currentPlan?->status === MemberSubscription::STATUS_ACTIVE && $currentPlan->end_date) {
+            // Renewal: queue behind the running plan so the member keeps every paid day.
+            $startDate = Carbon::parse($startDate)->max($this->nextMembershipStartDate())->toDateString();
+        } elseif ($currentPlan) {
+            // A paused plan here may be an unpaid on-site registration still sitting in the
+            // pending-payments queue; say why it went away instead of dropping it silently.
+            $currentPlan->update([
+                'status' => MemberSubscription::STATUS_CANCELLED,
+                'pending_payment_method' => null,
+                'cancellation_reason' => 'Superseded by a new membership sale.',
+                'cancelled_at' => now(),
+            ]);
+        }
+
+        return $this->attachPlan($ratePlanId, $startDate, $attributes);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    public function payrolls(): HasMany
+    {
+        return $this->hasMany(Payroll::class, 'employee_id');
+    }
+
+    public function payouts(): HasMany
+    {
+        return $this->hasMany(Payout::class, 'employee_id');
+    }
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'deleted_at' => 'datetime',
+        ];
+    }
+
+    private function membershipEndDate(RatePlan $plan, string $startDate): ?string
+    {
+        if ($plan->duration_days <= 1) {
+            return null;
+        }
+
+        return Carbon::parse($startDate)
+            ->addDays($plan->duration_days - 1)
+            ->toDateString();
+    }
+}

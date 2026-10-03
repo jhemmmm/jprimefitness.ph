@@ -1,0 +1,130 @@
+<template>
+   <div>
+      <div class="d-flex align-items-center justify-content-between mb-4">
+         <div>
+            <h4 class="panel-page-title mb-0">{{ canManage ? "Employee Details" : "My Record" }}</h4>
+            <div class="text-muted small">Overview, activity, payroll, payouts{{ canManage ? ", and settings" : "" }}</div>
+         </div>
+         <a href="/panel/employees" class="btn btn-outline-secondary" v-if="canManage"><i class="bi bi-arrow-left me-1"></i> Back</a>
+      </div>
+
+      <div class="panel-card p-4 mb-4">
+         <div class="d-flex align-items-start gap-3 flex-wrap">
+            <div class="member-avatar employee-avatar-xl flex-shrink-0">{{ $filters.getNameInitials(localEmployee.name) }}</div>
+            <div class="flex-grow-1 min-w-0">
+               <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                  <h4 class="fw-bold mb-0">{{ localEmployee.name }}</h4>
+                  <span v-for="role in localEmployee.roles || []" :key="role.id" :class="['m-badge', $filters.roleBadge(role.name)]">
+                     {{ $filters.capitalize(role.name) }}
+                  </span>
+                  <span :class="['m-badge', $filters.statusBadge(localEmployee.status)]">{{ $filters.capitalize(localEmployee.status) }}</span>
+               </div>
+               <div class="d-flex gap-3 flex-wrap small text-muted">
+                  <span v-if="localEmployee.email"><i class="bi bi-envelope me-1"></i>{{ localEmployee.email }}</span>
+                  <span v-if="localEmployee.phone"><i class="bi bi-telephone me-1"></i>{{ localEmployee.phone }}</span>
+                  <span v-if="localEmployee.address"><i class="bi bi-house me-1"></i>{{ localEmployee.address }}</span>
+                  <span v-if="localEmployee.employee_profile?.hired_at"><i class="bi bi-person-check me-1"></i>Hired {{ formatDate(localEmployee.employee_profile.hired_at) }}</span>
+                  <span v-if="localEmployee.employee_profile?.daily_rate > 0">
+                     <i class="bi bi-currency-exchange me-1"></i>₱{{ $filters.formatMoney(localEmployee.employee_profile.daily_rate) }}/day
+                  </span>
+                  <span v-if="localEmployee.employee_profile?.pay_frequency">
+                     <i class="bi bi-calendar2-week me-1"></i>{{ $filters.capitalize(localEmployee.employee_profile.pay_frequency) }}
+                  </span>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      <ul class="nav nav-tabs mb-0" style="border-bottom: none">
+         <li class="nav-item" v-for="tab in visibleTabs" :key="tab.key">
+            <button class="nav-link" :class="{ active: activeTab === tab.key }" @click="activeTab = tab.key"><i class="bi me-1" :class="tab.icon"></i>{{ tab.label }}</button>
+         </li>
+      </ul>
+      <div class="panel-card" style="border-top-left-radius: 0">
+         <component :is="activeComponent" :employee="localEmployee" :roles-data="rolesData" @updated="onEmployeeUpdated" />
+      </div>
+   </div>
+</template>
+
+<script>
+import { formatDate } from "../../dates";
+import EmployeeInformationPage from "./vendor/EmployeeInformationPage.vue";
+import EmployeeAttendancePage from "./vendor/EmployeeAttendancePage.vue";
+import EmployeePayrollPage from "./vendor/EmployeePayrollPage.vue";
+import EmployeePayoutPage from "./vendor/EmployeePayoutPage.vue";
+import EmployeeCashAdvancePage from "./vendor/EmployeeCashAdvancePage.vue";
+import EmployeeSchedulePage from "./vendor/EmployeeSchedulePage.vue";
+import EmployeeSettingsPage from "./vendor/EmployeeSettingsPage.vue";
+
+export default {
+   components: {
+      EmployeeInformationPage,
+      EmployeeAttendancePage,
+      EmployeePayrollPage,
+      EmployeePayoutPage,
+      EmployeeCashAdvancePage,
+      EmployeeSchedulePage,
+      EmployeeSettingsPage,
+   },
+
+   props: {
+      employee: { type: Object, required: true },
+      rolesData: { type: Array, default: () => [] },
+   },
+
+   data: function () {
+      return {
+         localEmployee: { ...this.employee },
+         activeTab: new URLSearchParams(window.location.search).get("tab") || "information",
+         tabs: [
+            { key: "information", label: "Information", icon: "bi-person-vcard" },
+            { key: "attendance", label: "Attendance", icon: "bi-calendar-check" },
+            { key: "schedule", label: "Schedule", icon: "bi-calendar-week" },
+            { key: "payroll", label: "Payrolls", icon: "bi-receipt" },
+            { key: "payout", label: "Payouts", icon: "bi-cash-stack" },
+            { key: "cash-advance", label: "Cash Advances", icon: "bi-cash-coin" },
+            { key: "settings", label: "Settings", icon: "bi-gear" },
+         ],
+      };
+   },
+
+   mounted: function () {
+      if (!this.visibleTabs.some((tab) => tab.key === this.activeTab)) {
+         this.activeTab = "information";
+      }
+   },
+
+   computed: {
+      canManage: function () {
+         return this.can("manage employees");
+      },
+      visibleTabs: function () {
+         if (this.canManage) {
+            return this.tabs;
+         }
+
+         return this.tabs.filter(function (tab) {
+            return tab.key !== "settings";
+         });
+      },
+      activeComponent: function () {
+         return {
+            information: "EmployeeInformationPage",
+            attendance: "EmployeeAttendancePage",
+            schedule: "EmployeeSchedulePage",
+            payroll: "EmployeePayrollPage",
+            payout: "EmployeePayoutPage",
+            "cash-advance": "EmployeeCashAdvancePage",
+            settings: "EmployeeSettingsPage",
+         }[this.activeTab];
+      },
+   },
+
+   methods: {
+      formatDate,
+      onEmployeeUpdated: function (updated) {
+         this.localEmployee = { ...this.localEmployee, ...updated };
+      },
+   },
+};
+</script>

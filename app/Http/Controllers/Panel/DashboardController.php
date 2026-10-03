@@ -1,0 +1,409 @@
+<?php
+
+namespace App\Http\Controllers\Panel;
+
+use App\Http\Controllers\Controller;
+use App\Models\Attendance;
+use App\Models\MemberSubscription;
+use App\Models\Payout;
+use App\Models\Payroll;
+use App\Models\SaleTransaction;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class DashboardController extends Controller
+{
+    /**
+     * Display the dashboard page: the ops dashboard for management,
+     * the self-scoped "My Dashboard" for staff and coaches.
+     *
+     * @return \Illuminate\Contracts\View\View
+     */
+    public function index(): View
+    {
+        return auth()->user()->can('view dashboard')
+            ? view('panel.dashboard')
+            : view('panel.my-dashboard');
+    }
+
+    /**
+     * Return dashboard data for the current user.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function data(Request $request): JsonResponse
+    {
+        return response()->json($this->dashboardPayload());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dashboardPayload(): array
+    {
+        $user = auth()->user();
+        $canViewFinancialData = $user->isManagement();
+        $todayStart = now()->startOfDay();
+        $todayEnd = now()->endOfDay();
+        $monthStart = now()->startOfMonth();
+        $monthEnd = now()->endOfDay();
+
+        $payload = [
+            'permissions' => [
+                'can_view_financial_data' => $canViewFinancialData,
+            ],
+            'operations' => [
+                'current_occupancy' => Attendance::query()->whereNull('checked_out_at')->count(),
+                'today_check_ins' => Attendance::query()->whereBetween('checked_in_at', [$todayStart, $todayEnd])->count(),
+            ],
+            'stats_row_1' => array_merge([
+                'total_members' => $this->totalMembers(),
+                'check_ins_today' => $this->todayCheckInCount($todayStart, $todayEnd),
+            ], $canViewFinancialData ? [
+                'revenue_today' => $this->revenueForWindow($todayStart, $todayEnd),
+                'revenue_this_month' => $this->revenueForWindow($monthStart, $monthEnd),
+            ] : []),
+            'stats_row_2' => array_merge([
+                'active_trainers' => $this->activeTrainerCount(),
+                'active_employees' => $this->activeEmployeeCount(),
+                'guest_check_ins_today' => $this->guestCheckInCountForWindow($todayStart, $todayEnd),
+            ], $canViewFinancialData ? [
+                'pending_payroll_balance' => $this->pendingPayrollBalance(),
+            ] : []),
+            'peak_hours' => $this->peakHours($monthStart, $monthEnd),
+            'check_ins_today' => $this->checkInsToday($todayStart, $todayEnd),
+            'trainers' => $this->trainers(),
+            'recent_members' => $this->recentMembers(),
+            'recent_sales' => $this->recentSales(),
+            'expiring_memberships' => $this->expiringMemberships($todayStart, now()->copy()->addDays(7)->endOfDay()),
+        ];
+
+        if ($canViewFinancialData) {
+            $payload['pending_payrolls'] = $this->pendingPayrolls();
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Count registered members.
+     *
+     * @return int
+     */
+    private function totalMembers(): int
+    {
+        return User::role('member')->count();
+    }
+
+    /**
+     * Count active trainers.
+     *
+     * @return int
+     */
+    private function activeTrainerCount(): int
+    {
+        return User::query()->activeCoaches()->count();
+    }
+
+    /**
+     * Count active employees.
+     *
+     * @return int
+     */
+    private function activeEmployeeCount(): int
+    {
+        // Coaches are counted separately as "Active Trainers".
+        return User::employees(['coach'])
+            ->where('status', User::STATUS_ACTIVE)
+            ->count();
+    }
+
+    /**
+     * Count check-ins inside the given window.
+     *
+     * @return int
+     */
+    private function todayCheckInCount(\DateTimeInterface $start, \DateTimeInterface $end): int
+    {
+        return Attendance::query()
+            ->whereBetween('checked_in_at', [$start, $end])
+            ->count();
+    }
+
+    /**
+     * Count guest check-ins inside the given window.
+     *
+     * @return int
+     */
+    private function guestCheckInCountForWindow(\DateTimeInterface $start, \DateTimeInterface $end): int
+    {
+        return Attendance::query()
+            ->where('attendee_type', Attendance::TYPE_WALK_IN)
+            ->whereBetween('checked_in_at', [$start, $end])
+            ->count();
+    }
+
+    /**
+     * Calculate sales revenue inside the given window.
+     *
+     * @return float
+     */
+    private function revenueForWindow(\DateTimeInterface $start, \DateTimeInterface $end): float
+    {
+        return round((float) SaleTransaction::query()
+            ->completed()
+            ->whereBetween('sold_at', [$start, $end])
+            ->sum('total'), 2);
+    }
+
+    /**
+     * @return array<int, array<string, int|string>>
+     */
+    private function peakHours(\DateTimeInterface $start, \DateTimeInterface $end): array
+    {
+        $rows = Attendance::query()
+            ->whereBetween('checked_in_at', [$start, $end])
+            ->get(['checked_in_at'])
+            ->map(fn (Attendance $attendance) => $attendance->checked_in_at ? (int) $attendance->checked_in_at->format('H') : null)
+            ->filter(fn (?int $hour) => $hour !== null)
+            ->countBy();
+
+        return collect(range(0, 23))
+            ->map(function (int $hour) use ($rows): array {
+                $hourSlot = str_pad((string) $hour, 2, '0', STR_PAD_LEFT).':00';
+
+                return [
+                    'hour_number' => $hour,
+                    'hour_slot' => $hourSlot,
+                    'label' => now()->copy()->startOfDay()->addHours($hour)->format('g A'),
+                    'check_in_count' => (int) ($rows->get($hour) ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function checkInsToday(\DateTimeInterface $start, \DateTimeInterface $end): array
+    {
+        return Attendance::query()
+            ->whereBetween('checked_in_at', [$start, $end])
+            ->with([
+                'user.memberSubscriptions' => fn ($query) => $query
+                    ->with(['ratePlan:id,name'])
+                    ->whereIn('status', [MemberSubscription::STATUS_ACTIVE, MemberSubscription::STATUS_PAUSED])
+                    ->orderByDesc('start_date'),
+                'user.roles',
+            ])
+            ->orderByDesc('checked_in_at')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get()
+            ->map(function (Attendance $attendance): array {
+                $membership = $this->loadedCurrentMembership($attendance->user);
+
+                return [
+                    'id' => $attendance->id,
+                    'name' => $attendance->name,
+                    'attendee_type' => $attendance->attendee_type,
+                    'attendee_type_label' => $this->attendanceTypeLabel($attendance->attendee_type),
+                    // an employee's roles render as badges in place of the type; nothing goes in Plan / Rate
+                    'roles' => $attendance->attendee_type === Attendance::TYPE_EMPLOYEE
+                        ? ($attendance->user?->roles->pluck('name')->all() ?? [])
+                        : [],
+                    'plan_or_rate' => match ($attendance->attendee_type) {
+                        Attendance::TYPE_MEMBER => $membership?->ratePlan?->name ?? 'Membership',
+                        Attendance::TYPE_WALK_IN => 'Walk-in',
+                        default => '',
+                    },
+                    'checked_in_at' => $attendance->checked_in_at?->toISOString(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function trainers(): array
+    {
+        return User::query()
+            ->activeCoaches()
+            ->orderBy('name')
+            ->limit(6)
+            ->get()
+            ->map(fn (User $trainer) => [
+                'id' => $trainer->id,
+                'name' => $trainer->name,
+                'status' => $trainer->status,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentMembers(): array
+    {
+        return User::role('member')
+            ->with([
+                'memberSubscriptions' => fn ($query) => $query
+                    ->with(['ratePlan:id,name'])
+                    ->orderByDesc('start_date'),
+            ])
+            ->orderByDesc('created_at')
+            ->limit(8)
+            ->get()
+            ->map(function (User $member): array {
+                $membership = $this->loadedCurrentMembership($member);
+
+                return [
+                    'id' => $member->id,
+                    'name' => $member->name,
+                    'plan_name' => $membership?->ratePlan?->name ?? '-',
+                    'status' => $member->status,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentSales(): array
+    {
+        return SaleTransaction::query()
+            ->completed()
+            ->with(['member:id,name'])
+            ->orderByDesc('sold_at')
+            ->orderByDesc('id')
+            ->limit(8)
+            ->get()
+            ->map(fn (SaleTransaction $sale) => [
+                'id' => $sale->id,
+                'customer_name' => $sale->customer_name ?: $sale->member?->name ?: 'Walk-in Customer',
+                'item_name' => $sale->item_name ?: str($sale->type)->replace('_', ' ')->title()->toString(),
+                'total' => round((float) $sale->total, 2),
+                'sold_at' => $sale->sold_at?->toISOString(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function expiringMemberships(\DateTimeInterface $start, \DateTimeInterface $end): array
+    {
+        return MemberSubscription::query()
+            ->whereIn('status', [MemberSubscription::STATUS_ACTIVE, MemberSubscription::STATUS_PAUSED])
+            ->whereNotNull('end_date')
+            ->whereBetween('end_date', [$start->format('Y-m-d'), $end->format('Y-m-d')])
+            ->with(['member:id,name,status', 'ratePlan:id,name'])
+            ->orderBy('end_date')
+            ->limit(8)
+            ->get()
+            ->map(fn (MemberSubscription $subscription) => [
+                'id' => $subscription->id,
+                'member_name' => $subscription->member?->name,
+                'plan_name' => $subscription->ratePlan?->name,
+                'end_date' => $subscription->end_date?->toDateString(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function pendingPayrolls(): array
+    {
+        return Payroll::query()
+            ->whereIn('status', [Payroll::STATUS_APPROVED, Payroll::STATUS_PARTIALLY_PAID])
+            ->with([
+                'employee:id,name',
+                'employee.roles',
+            ])
+            ->withSum('payouts as total_paid', 'amount')
+            ->orderByDesc('period_end')
+            ->orderByDesc('id')
+            ->limit(25)
+            ->get()
+            ->map(function (Payroll $payroll): array {
+                $totalPaid = round((float) ($payroll->total_paid ?? 0), 2);
+                $outstandingBalance = round(max(0, (float) $payroll->net_amount - $totalPaid), 2);
+
+                return [
+                    'id' => $payroll->id,
+                    'employee_name' => $payroll->employee?->name,
+                    'employee_role' => $payroll->employee?->roles?->pluck('name')->first() ?? 'Employee',
+                    'status' => $payroll->status,
+                    'net_amount' => round((float) $payroll->net_amount, 2),
+                    'outstanding_balance' => $outstandingBalance,
+                    'period_label' => $payroll->period_start?->format('Y-m-d').' – '.$payroll->period_end?->format('Y-m-d'),
+                ];
+            })
+            ->filter(fn (array $payroll) => $payroll['outstanding_balance'] > 0)
+            ->take(8)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Calculate the outstanding approved payroll balance.
+     *
+     * @return float
+     */
+    private function pendingPayrollBalance(): float
+    {
+        $netPayroll = (float) Payroll::query()
+            ->whereIn('status', [Payroll::STATUS_APPROVED, Payroll::STATUS_PARTIALLY_PAID])
+            ->sum('net_amount');
+        $totalPaid = (float) Payout::query()
+            ->join('payrolls', 'payrolls.id', '=', 'payouts.payroll_id')
+            ->whereIn('payrolls.status', [Payroll::STATUS_APPROVED, Payroll::STATUS_PARTIALLY_PAID])
+            ->sum('payouts.amount');
+
+        return round(max(0, $netPayroll - $totalPaid), 2);
+    }
+
+    /**
+     * Return the loaded current membership for a user.
+     *
+     * @return ?\App\Models\MemberSubscription
+     */
+    private function loadedCurrentMembership(?User $user): ?MemberSubscription
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        if (! $user->relationLoaded('memberSubscriptions')) {
+            return $user->currentMembership();
+        }
+
+        return MemberSubscription::currentOf($user->memberSubscriptions);
+    }
+
+    /**
+     * Return the display label for an attendance type.
+     *
+     * @return string
+     */
+    private function attendanceTypeLabel(string $type): string
+    {
+        return match ($type) {
+            Attendance::TYPE_MEMBER => 'Member',
+            Attendance::TYPE_WALK_IN => 'Walk-in',
+            Attendance::TYPE_EMPLOYEE => 'Employee',
+            default => str($type)->replace('_', ' ')->title()->toString(),
+        };
+    }
+}

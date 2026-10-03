@@ -1,0 +1,668 @@
+<template>
+   <div class="attendance-reports-page">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+         <div>
+            <h4 class="panel-page-title mb-0">Attendance Reports</h4>
+            <p class="text-muted small mb-0">Review attendance trends, active check-ins, and attendee activity.</p>
+         </div>
+      </div>
+      <div class="panel-card mb-4">
+         <div class="panel-card-header">
+            <div>
+               <div class="panel-card-title">Filters</div>
+               <div class="panel-card-sub">Use the date range and attendee type to refine this report.</div>
+            </div>
+            <div class="d-none d-md-flex align-items-center gap-2">
+               <span class="text-muted small">{{ activeRangeLabel }}</span>
+            </div>
+         </div>
+         <div class="p-3 p-md-4">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+               <button
+                  v-for="preset in rangePresets"
+                  :key="preset.key"
+                  type="button"
+                  class="btn btn-sm"
+                  :class="activeRangeKey === preset.key ? 'btn-danger' : 'btn-outline-secondary'"
+                  @click="applyRangePreset(preset.key)"
+               >
+                  {{ preset.label }}
+               </button>
+            </div>
+
+            <div class="row g-3 align-items-end">
+               <div class="col-12 col-md-4">
+                  <label class="form-label">Date From</label>
+                  <input type="date" class="form-control" v-model="filters.date_from" @change="onDateChange" />
+               </div>
+               <div class="col-12 col-md-4">
+                  <label class="form-label">Date To</label>
+                  <input type="date" class="form-control" v-model="filters.date_to" @change="onDateChange" />
+               </div>
+               <div class="col-12 col-md-4">
+                  <label class="form-label">Attendee Type</label>
+                  <MultiSelect
+                     v-model="filters.type"
+                     :options="attendeeTypes"
+                     placeholder="All Types"
+                     @update:modelValue="fetchReport(1)"
+                  />
+               </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2 mt-3">
+               <button type="button" class="btn btn-danger btn-sm px-3" @click="fetchReport(detailPagination.current_page)" :disabled="loading">
+                  <i class="bi bi-arrow-repeat me-1"></i>
+                  Refresh
+               </button>
+               <a class="btn btn-outline-dark btn-sm px-3" :href="exportUrl">
+                  <i class="bi bi-file-earmark-excel me-1"></i>
+                  Export Excel
+               </a>
+            </div>
+
+            <div v-if="activeFilterChips.length > 0" class="d-flex flex-wrap gap-2 align-items-center mt-3 pt-3 border-top">
+               <span class="text-muted small">Active filters:</span>
+               <span v-for="chip in activeFilterChips" :key="chip.key" class="m-badge m-badge--plan d-inline-flex align-items-center gap-1">
+                  {{ chip.label }}
+                  <button type="button" class="btn-close btn-close-sm ms-1" style="font-size: 0.55rem" aria-label="Clear" @click="clearChip(chip)"></button>
+               </span>
+               <button type="button" class="btn btn-link btn-sm text-danger px-2 py-0 ms-1" @click="resetFilters">Clear all</button>
+            </div>
+         </div>
+      </div>
+
+         <div v-if="pageError" class="alert alert-danger py-2 small mb-3">{{ pageError }}</div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-6 col-xl" v-for="stat in statCards" :key="stat.label">
+               <div class="stat-card h-100">
+                  <div class="stat-card-icon">
+                     <i class="bi" :class="stat.icon"></i>
+                  </div>
+                  <div class="stat-card-body">
+                     <div class="stat-card-label">{{ stat.label }}</div>
+                     <div class="stat-card-value" v-if="loading">
+                        <div class="skeleton-box" style="width: 72px; height: 18px"></div>
+                     </div>
+                     <div class="stat-card-value" v-else>{{ stat.value }}</div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-12">
+               <attendance-daily-trend-chart v-if="!loading && report.daily_trend.length > 0" :trend="report.daily_trend"></attendance-daily-trend-chart>
+               <div v-else class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div>
+                        <div class="panel-card-title">Attendance Trend</div>
+                        <div class="panel-card-sub">Daily check-ins and unique attendees for the current report filter</div>
+                     </div>
+                  </div>
+                  <div class="panel-card-body">
+                     <div v-if="loading">
+                        <div class="skeleton-box" style="width: 100%; height: 240px"></div>
+                     </div>
+                     <div v-else class="text-center py-5 text-muted">
+                        <i class="bi bi-activity empty-icon"></i>
+                        <p class="mt-2 mb-1">No attendance trend available for this filter.</p>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-12">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">Attendance by Type</div>
+                  </div>
+                  <div class="panel-card-body p-0">
+                     <div v-if="loading">
+                        <div class="p-3 d-none d-md-block">
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 3" :key="'type-sk-' + index"></div>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div class="member-card" v-for="index in 3" :key="'type-mobile-sk-' + index">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar">
+                                       <i class="bi bi-people-fill"></i>
+                                    </div>
+                                    <div>
+                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                       <div class="skeleton-box" style="width: 96px; height: 11px"></div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div v-else>
+                        <div class="table-responsive d-none d-md-block">
+                           <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
+                              <thead>
+                                 <tr>
+                                    <th>Type</th>
+                                    <th>Check-ins</th>
+                                    <th>Unique</th>
+                                    <th>Currently In</th>
+                                    <th class="text-end">Share</th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 <tr v-for="row in typeBreakdownWithShare" :key="row.type">
+                                    <td>
+                                       <span :class="['m-badge', $filters.roleBadge(row.type)]">{{ row.label }}</span>
+                                    </td>
+                                    <td>{{ row.check_in_count }}</td>
+                                    <td>{{ row.unique_attendees }}</td>
+                                    <td>{{ row.currently_in_count }}</td>
+                                    <td class="text-end text-muted small" style="min-width: 64px">{{ row.share }}%</td>
+                                 </tr>
+                              </tbody>
+                           </table>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div class="member-card" v-for="row in typeBreakdownWithShare" :key="'type-mobile-' + row.type">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar">
+                                       <i class="bi bi-people-fill"></i>
+                                    </div>
+                                    <div>
+                                       <div class="member-card-name">{{ row.label }}</div>
+                                       <div class="member-card-sub">{{ row.check_in_count }} check-in{{ row.check_in_count !== 1 ? "s" : "" }} &middot; {{ row.share }}%</div>
+                                    </div>
+                                 </div>
+                                 <span :class="['m-badge', $filters.roleBadge(row.type)]">{{ row.label }}</span>
+                              </div>
+                              <div class="member-card-footer">
+                                 <span>Unique {{ row.unique_attendees }}</span>
+                                 <span>Currently In {{ row.currently_in_count }}</span>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+         </div>
+
+         <div class="row g-3 mb-4">
+            <div class="col-12 col-xl-7">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">Daily Attendance Breakdown</div>
+                  </div>
+                  <div class="panel-card-body p-0">
+                     <div v-if="loading">
+                        <div class="p-3 d-none d-md-block">
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 5" :key="'trend-sk-' + index"></div>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div class="member-card" v-for="index in 4" :key="'trend-mobile-sk-' + index">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar">
+                                       <i class="bi bi-calendar3"></i>
+                                    </div>
+                                    <div>
+                                       <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                       <div class="skeleton-box" style="width: 96px; height: 11px"></div>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                     <div v-else-if="report.daily_trend.length === 0" class="text-center py-5 text-muted">
+                        <i class="bi bi-calendar3 empty-icon"></i>
+                        <p class="mt-2 mb-1">No attendance trend available for this filter.</p>
+                     </div>
+                     <div v-else>
+                        <div class="table-responsive d-none d-md-block">
+                           <table class="table table-striped align-middle mb-0 panel-table text-nowrap">
+                              <thead>
+                                 <tr>
+                                    <th>Date</th>
+                                    <th>Check-ins</th>
+                                    <th>Unique Attendees</th>
+                                 </tr>
+                              </thead>
+                              <tbody>
+                                 <tr v-for="row in report.daily_trend" :key="row.attendance_date">
+                                    <td>{{ formatDate(row.attendance_date) }}</td>
+                                    <td>{{ row.check_in_count }}</td>
+                                    <td>{{ row.unique_attendees }}</td>
+                                 </tr>
+                              </tbody>
+                           </table>
+                        </div>
+                        <div class="d-md-none p-3">
+                           <div class="member-card" v-for="row in report.daily_trend" :key="'trend-mobile-' + row.attendance_date">
+                              <div class="member-card-top">
+                                 <div class="member-card-identity">
+                                    <div class="member-avatar">
+                                       <i class="bi bi-calendar3"></i>
+                                    </div>
+                                    <div>
+                                       <div class="member-card-name">{{ formatDate(row.attendance_date) }}</div>
+                                       <div class="member-card-sub">{{ row.check_in_count }} check-in{{ row.check_in_count !== 1 ? "s" : "" }}</div>
+                                    </div>
+                                 </div>
+                              </div>
+                              <div class="member-card-footer">
+                                 <span>Unique {{ row.unique_attendees }}</span>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+
+            <div class="col-12 col-xl-5">
+               <div class="panel-card h-100">
+                  <div class="panel-card-header">
+                     <div class="panel-card-title">Busiest Check-in Hours</div>
+                     <span v-if="!loading && report.busiest_hours.length > 0" class="text-muted small">Top {{ report.busiest_hours.length }}</span>
+                  </div>
+                  <div class="panel-card-body p-0">
+                     <div v-if="loading">
+                        <div class="p-3">
+                           <div class="skeleton-box mb-2" style="width: 100%; height: 18px" v-for="index in 6" :key="'hour-sk-' + index"></div>
+                        </div>
+                     </div>
+                     <div v-else-if="report.busiest_hours.length === 0" class="text-center py-5 text-muted">
+                        <i class="bi bi-clock-history empty-icon"></i>
+                        <p class="mt-2 mb-1">No hourly check-in pattern available.</p>
+                     </div>
+                     <div v-else class="p-3">
+                        <div class="share-row" v-for="(row, index) in busiestHoursWithShare" :key="row.hour_slot">
+                           <div class="share-row-rank">{{ index + 1 }}</div>
+                           <div class="share-row-body">
+                              <div class="d-flex justify-content-between align-items-baseline gap-2">
+                                 <div class="share-row-name">{{ row.label }}</div>
+                                 <div class="fw-semibold text-nowrap">{{ row.check_in_count }} check-in{{ row.check_in_count !== 1 ? "s" : "" }}</div>
+                              </div>
+                              <div class="share-bar mt-1">
+                                 <div class="share-bar-fill" :style="{ width: row.share + '%' }"></div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
+         </div>
+
+         <div class="panel-card">
+            <div class="panel-card-header">
+               <div>
+                  <div class="panel-card-title">
+                     Attendance Records
+                     <span class="badge-count ms-1">{{ loading ? "-" : detailPagination.total }}</span>
+                  </div>
+                  <div class="panel-card-sub" v-if="!loading && detailPagination.total > 0">Showing {{ detailPagination.from }}–{{ detailPagination.to }} of {{ detailPagination.total }}</div>
+               </div>
+            </div>
+            <div class="panel-card-body p-0">
+               <div v-if="loading">
+                  <div class="p-3 d-none d-md-block">
+                     <div class="skeleton-box mb-2" style="width: 100%; height: 28px" v-for="index in 6" :key="'recent-sk-' + index"></div>
+                  </div>
+                  <div class="d-md-none p-3">
+                     <div class="member-card" v-for="index in 4" :key="'recent-mobile-sk-' + index">
+                        <div class="member-card-top">
+                           <div class="member-card-identity">
+                              <div class="member-avatar"></div>
+                              <div>
+                                 <div class="skeleton-box mb-1" style="width: 120px; height: 14px"></div>
+                                 <div class="skeleton-box" style="width: 96px; height: 11px"></div>
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               <div v-else-if="detailRows.length === 0" class="text-center py-5 text-muted">
+                  <i class="bi bi-calendar-check empty-icon"></i>
+                  <p class="mt-2 mb-1">No attendance records found for this filter.</p>
+               </div>
+               <div v-else>
+                  <div class="table-responsive d-none d-md-block">
+                     <table class="table table-hover table-striped align-middle mb-0 panel-table text-nowrap">
+                        <thead>
+                           <tr>
+                              <th>Name</th>
+                              <th>Type</th>
+                              <th>Checked In</th>
+                              <th>Checked Out</th>
+                              <th>Duration</th>
+                              <th>Status</th>
+                           </tr>
+                        </thead>
+                        <tbody>
+                           <tr v-for="record in detailRows" :key="record.id">
+                              <td>{{ record.name }}</td>
+                              <td>
+                                 <span :class="['m-badge', $filters.roleBadge(record.attendee_type)]">{{ record.attendee_type_label }}</span>
+                              </td>
+                              <td class="small text-muted">{{ formatDateTime(record.checked_in_at) }}</td>
+                              <td class="small text-muted">{{ record.checked_out_at ? formatDateTime(record.checked_out_at) : "-" }}</td>
+                              <td>{{ formatDuration(record.duration_minutes) }}</td>
+                              <td>
+                                 <span :class="['m-badge', $filters.statusBadge(record.is_currently_in ? 'active' : 'inactive')]">
+                                    {{ record.is_currently_in ? "Currently In" : "Checked Out" }}
+                                 </span>
+                              </td>
+                           </tr>
+                        </tbody>
+                     </table>
+                  </div>
+                  <div class="d-md-none p-3">
+                     <div class="member-card" v-for="record in detailRows" :key="'attendance-record-mobile-' + record.id">
+                        <div class="member-card-top">
+                           <div class="member-card-identity">
+                              <div class="member-avatar">
+                                 {{ $filters.getNameInitials(record.name) }}
+                              </div>
+                              <div>
+                                 <div class="member-card-name">{{ record.name }}</div>
+                                 <div class="member-card-sub">{{ record.attendee_type_label }}</div>
+                              </div>
+                           </div>
+                        </div>
+                        <div class="member-card-tags">
+                           <span :class="['m-badge', $filters.roleBadge(record.attendee_type)]">{{ record.attendee_type_label }}</span>
+                           <span :class="['m-badge', $filters.statusBadge(record.is_currently_in ? 'active' : 'inactive')]">
+                              {{ record.is_currently_in ? "Currently In" : "Checked Out" }}
+                           </span>
+                        </div>
+                        <div class="member-card-footer flex-column align-items-start gap-1">
+                           <span><i class="bi bi-box-arrow-in-right me-1"></i>{{ formatDateTime(record.checked_in_at) }}</span>
+                           <span v-if="record.checked_out_at"><i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(record.checked_out_at) }}</span>
+                           <span><i class="bi bi-clock me-1"></i>{{ formatDuration(record.duration_minutes) }}</span>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+               <div v-if="!loading && detailPagination.last_page > 1" class="d-flex justify-content-center py-3 border-top">
+                  <panel-pagination :links="detailPagination.links" :current-page="detailPagination.current_page" :last-page="detailPagination.last_page" aria-label="Attendance report pagination" @page-change="fetchReport" />
+               </div>
+            </div>
+         </div>
+   </div>
+</template>
+
+<script>
+import AttendanceDailyTrendChart from "./charts/AttendanceDailyTrendChart.vue";
+import MultiSelect from "./vendor/MultiSelect.vue";
+import dateRangePresets from "../../mixins/dateRangePresets";
+import { formatDate, formatDateTime, todayDate } from "../../dates";
+import { debounce } from "../../debounce";
+
+export default {
+   components: {
+      AttendanceDailyTrendChart,
+      MultiSelect,
+   },
+   mixins: [dateRangePresets],
+   props: {
+      businessProfile: {
+         type: Object,
+         default: function () {
+            return null;
+         },
+      },
+   },
+   data: function () {
+      return {
+         loading: false,
+         pageError: "",
+         filters: {
+            date_from: this.defaultDateFrom(),
+            date_to: this.defaultDateTo(),
+            type: [],
+         },
+         report: this.emptyReport(),
+      };
+   },
+   computed: {
+      attendeeTypes: function () {
+         return [
+            { value: "member", label: "Members" },
+            { value: "walk_in", label: "Walk-ins" },
+            { value: "employee", label: "Employees" },
+         ];
+      },
+      averageVisitLabel: function () {
+         return this.formatDuration(this.report.summary.average_visit_minutes);
+      },
+      activeFilterChips: function () {
+         const chips = [];
+
+         this.filters.type.forEach((value) => {
+            const match = this.attendeeTypes.find((option) => option.value === value);
+            chips.push({ key: `type:${value}`, group: "type", value: value, label: `Attendee: ${match ? match.label : value}` });
+         });
+
+         return chips;
+      },
+      hasNonDefaultFilters: function () {
+         return (
+            this.filters.type.length > 0 ||
+            this.filters.date_from !== this.defaultDateFrom() ||
+            this.filters.date_to !== this.defaultDateTo()
+         );
+      },
+      typeBreakdownWithShare: function () {
+         const total = this.report.summary.total_check_ins || 0;
+
+         return this.report.type_breakdown.map((row) => {
+            const share = total > 0 ? Math.round((row.check_in_count / total) * 100) : 0;
+
+            return { ...row, share };
+         });
+      },
+      busiestHoursWithShare: function () {
+         const max = this.report.busiest_hours.reduce((m, row) => Math.max(m, row.check_in_count || 0), 0);
+
+         return this.report.busiest_hours.map((row) => {
+            const share = max > 0 ? Math.round((row.check_in_count / max) * 100) : 0;
+
+            return { ...row, share };
+         });
+      },
+      detailPagination: function () {
+         return this.report.records || this.emptyPagination();
+      },
+      detailRows: function () {
+         return this.detailPagination.data || [];
+      },
+      exportUrl: function () {
+         const params = new URLSearchParams();
+         const reportFilters = this.report.filters || {};
+
+         if (reportFilters.date_from) {
+            params.append("date_from", reportFilters.date_from);
+         }
+         if (reportFilters.date_to) {
+            params.append("date_to", reportFilters.date_to);
+         }
+
+         const types = Array.isArray(reportFilters.type) ? reportFilters.type : reportFilters.type ? [reportFilters.type] : [];
+         types.forEach((value) => params.append("type[]", value));
+
+         return `/panel/reports/attendance/export${params.toString() ? `?${params.toString()}` : ""}`;
+      },
+      statCards: function () {
+         return [
+            {
+               label: "Total Check-ins",
+               value: this.report.summary.total_check_ins,
+               icon: "bi-calendar-check",
+            },
+            {
+               label: "Unique Attendees",
+               value: this.report.summary.unique_attendees,
+               icon: "bi-people-fill",
+            },
+            {
+               label: "Checked Out",
+               value: this.report.summary.checked_out_count,
+               icon: "bi-box-arrow-right",
+            },
+            {
+               label: "Currently In",
+               value: this.report.summary.currently_in_count,
+               icon: "bi-door-open-fill",
+            },
+            {
+               label: "Avg Visit",
+               value: this.averageVisitLabel,
+               icon: "bi-clock-history",
+            },
+         ];
+      },
+   },
+   mounted: function () {
+      this.fetchReport();
+   },
+   methods: {
+      onDateChange: debounce(function () {
+         if (this.filters.date_from && this.filters.date_to && this.filters.date_from > this.filters.date_to) {
+            this.pageError = 'The "to" date must be on or after the "from" date.';
+            return;
+         }
+         this.fetchReport(1);
+      }),
+
+      formatDate,
+      formatDateTime,
+      emptyReport: function () {
+         return {
+            filters: {
+               date_from: null,
+               date_to: null,
+               type: null,
+               type_label: null,
+            },
+            summary: {
+               total_check_ins: 0,
+               unique_attendees: 0,
+               checked_out_count: 0,
+               currently_in_count: 0,
+               average_visit_minutes: 0,
+            },
+            type_breakdown: [],
+            daily_trend: [],
+            busiest_hours: [],
+            records: this.emptyPagination(),
+         };
+      },
+      emptyPagination: function () {
+         return {
+            data: [],
+            current_page: 1,
+            per_page: 25,
+            total: 0,
+            last_page: 1,
+            from: 0,
+            to: 0,
+            links: [],
+         };
+      },
+      defaultDateFrom: function () {
+         return todayDate();
+      },
+      defaultDateTo: function () {
+         return todayDate();
+      },
+      applyRangePreset: function (key) {
+         if (this.activeRangeKey === key) {
+            return;
+         }
+
+         const bounds = this.rangeBoundsByKey[key];
+
+         if (!bounds) {
+            return;
+         }
+
+         this.filters.date_from = bounds.from;
+         this.filters.date_to = bounds.to;
+         this.fetchReport(1);
+      },
+      resetFilters: function () {
+         this.filters.date_from = this.defaultDateFrom();
+         this.filters.date_to = this.defaultDateTo();
+         this.filters.type = [];
+         this.fetchReport(1);
+      },
+      clearChip: function (chip) {
+         if (chip && chip.group && Array.isArray(this.filters[chip.group])) {
+            this.filters[chip.group] = this.filters[chip.group].filter((value) => value !== chip.value);
+         }
+
+         this.fetchReport(1);
+      },
+      buildParams: function (page = 1) {
+         return {
+            date_from: this.filters.date_from || undefined,
+            date_to: this.filters.date_to || undefined,
+            type: this.filters.type.length ? this.filters.type : undefined,
+            page: page,
+            per_page: this.detailPagination.per_page || 25,
+         };
+      },
+      fetchReport: function (page = 1) {
+         this.loading = true;
+         this.pageError = "";
+
+         axios
+            .get("/panel/reports/attendance/data", {
+               params: this.buildParams(page),
+            })
+            .then((response) => {
+               this.report = response.data;
+            })
+            .catch((error) => {
+               this.pageError = error.response?.data?.message || "Unable to load attendance reports right now.";
+               this.report = this.emptyReport();
+            })
+            .finally(() => {
+               this.loading = false;
+            });
+      },
+      formatDuration: function (minutes) {
+         if (!minutes && minutes !== 0) {
+            return "-";
+         }
+
+         const roundedMinutes = Math.round(parseFloat(minutes));
+         if (roundedMinutes <= 0) {
+            return "0 min";
+         }
+
+         const hours = Math.floor(roundedMinutes / 60);
+         const remainingMinutes = roundedMinutes % 60;
+
+         if (hours === 0) {
+            return `${remainingMinutes} min`;
+         }
+
+         if (remainingMinutes === 0) {
+            return `${hours} hr${hours > 1 ? "s" : ""}`;
+         }
+
+         return `${hours} hr${hours > 1 ? "s" : ""} ${remainingMinutes} min`;
+      },
+   },
+};
+</script>

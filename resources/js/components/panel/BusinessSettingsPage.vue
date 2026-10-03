@@ -1,0 +1,49 @@
+<template>
+   <div class="business-settings-page">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+         <div>
+            <h4 class="panel-page-title mb-0">Settings</h4>
+            <p class="text-muted small mb-0">Manage business profile details, payroll toggles, location, hours, amenities, social links, and roles &amp; permissions.</p>
+         </div>
+      </div>
+
+      <business-settings-form :profile="localProfile" @updated="onProfileUpdated" />
+   </div>
+</template>
+
+<script>
+import BusinessSettingsForm from "./vendor/BusinessSettingsForm.vue";
+
+export default {
+   components: {
+      BusinessSettingsForm,
+   },
+
+   props: {
+      profile: { type: Object, required: true },
+   },
+
+   data: function () {
+      return {
+         localProfile: { ...this.profile },
+      };
+   },
+
+   watch: {
+      profile: function (value) {
+         this.localProfile = { ...value };
+      },
+   },
+
+   methods: {
+      onProfileUpdated: function (updatedProfile) {
+         this.localProfile = { ...this.localProfile, ...updatedProfile };
+         globalThis.JPrime = globalThis.JPrime || {};
+         globalThis.JPrime.profile = {
+            ...(globalThis.JPrime.profile || {}),
+            ...updatedProfile,
+         };
+      },
+   },
+};
+</script>

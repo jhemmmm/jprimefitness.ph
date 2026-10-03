@@ -1,0 +1,1258 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\BusinessProfile;
+use App\Models\CashDrawerSession;
+use App\Models\CashLedgerEntry;
+use App\Models\InventoryCategory;
+use App\Models\InventoryItem;
+use App\Models\MemberProfile;
+use App\Models\MemberPtPackage;
+use App\Models\MemberSubscription;
+use App\Models\PTProduct;
+use App\Models\RatePlan;
+use App\Models\SaleTransaction;
+use App\Models\SystemActivity;
+use App\Models\User;
+use App\Providers\AppServiceProvider;
+use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+class SalesPageTest extends TestCase
+{
+    use LazilyRefreshDatabase;
+
+    private CashDrawerSession $drawerSession;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        Role::findOrCreate('super admin');
+        Role::findOrCreate('admin');
+        Role::findOrCreate('manager');
+        Role::findOrCreate('staff');
+        Role::findOrCreate('member');
+        Role::findOrCreate('coach');
+
+        BusinessProfile::factory()->create([
+            'name' => 'JPrime Fitness Naga',
+        ]);
+
+        $this->drawerSession = CashDrawerSession::factory()->create([
+            'opened_at' => '2026-01-01 08:00:00',
+        ]);
+    }
+
+    public function test_sales_page_loads_for_panel_users(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+
+        $this->actingAs($cashier)
+            ->get('/panel/sales')
+            ->assertOk()
+            ->assertSee('sales-page', false);
+    }
+
+    public function test_sales_context_returns_global_sellable_options(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
+        $inventoryItem = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Bottled Water',
+            'quantity' => 12,
+            'selling_price' => 35,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+        $ratePlan = $this->createRatePlan('Monthly', 30, [
+            'price' => 1499,
+        ]);
+        $ptProduct = $this->createPtProduct('12 Sessions', 12, [
+            'price' => 3600,
+        ]);
+
+        $this->actingAs($cashier)
+            ->getJson('/panel/sales/context')
+            ->assertOk()
+            ->assertJsonMissingPath('location')
+            ->assertJsonPath('options.inventory_items.0.id', $inventoryItem->id)
+            ->assertJsonPath('options.membership_rates.0.id', $ratePlan->id)
+            ->assertJsonPath('options.pt_rates.0.id', $ptProduct->id);
+    }
+
+    public function test_members_list_can_search_members_by_phone_for_sales_selection(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $member = $this->createUserWithRole('member', 'Member Zara');
+        $member->update([
+            'email' => 'zara@example.com',
+            'phone' => '09171234567',
+        ]);
+
+        $this->createUserWithRole('member', 'Member Outside')->update([
+            'email' => 'outside@example.com',
+            'phone' => '09179999999',
+        ]);
+
+        $this->actingAs($cashier)
+            ->getJson('/panel/members/list?search=09171234567')
+            ->assertOk()
+            ->assertJsonPath('members.data.0.id', $member->id)
+            ->assertJsonCount(1, 'members.data');
+    }
+
+    public function test_inventory_sale_supports_multiple_items_and_creates_a_receipt_ready_transaction(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
+        $sportsDrink = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Sports Drink',
+            'quantity' => 10,
+            'selling_price' => 55,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+        $water = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Bottled Water',
+            'quantity' => 20,
+            'selling_price' => 40,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $response = $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [
+                    [
+                        'inventory_item_id' => $sportsDrink->id,
+                        'quantity' => 2,
+                    ],
+                    [
+                        'inventory_item_id' => $water->id,
+                        'quantity' => 2,
+                    ],
+                ],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 200,
+                'sold_at' => '2026-03-29 14:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('type', SaleTransaction::TYPE_INVENTORY)
+            ->assertJsonPath('item_name', '2 inventory items')
+            ->assertJsonPath('total', 190)
+            ->assertJsonPath('amount_received', 200)
+            ->assertJsonPath('change_amount', 10);
+
+        $transactionId = $response->json('id');
+
+        $this->assertDatabaseHas('sale_transactions', [
+            'id' => $transactionId,
+            'type' => SaleTransaction::TYPE_INVENTORY,
+            'total' => 190,
+        ]);
+
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $sportsDrink->id,
+            'quantity' => 8,
+        ]);
+        $this->assertDatabaseHas('inventory_items', [
+            'id' => $water->id,
+            'quantity' => 18,
+        ]);
+
+        $this->assertSame(route('panel.sales.receipt', $transactionId), $response->json('receipt_url'));
+    }
+
+    public function test_closed_drawer_rejects_every_staff_pos_sale_type_without_side_effects(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $member = $this->createUserWithRole('member', 'Member Bea');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
+        $item = InventoryItem::factory()->create([
+            'name' => 'Sports Drink',
+            'quantity' => 10,
+            'selling_price' => 55,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+        $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1500]);
+        $ptProduct = $this->createPtProduct('8 Sessions', 8, ['price' => 2400]);
+
+        $this->drawerSession->forceFill([
+            'is_open' => null,
+            'closed_at' => now(),
+        ])->save();
+
+        $payloads = [
+            [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 2,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 110,
+                'payment_reference' => 'GCASH-001',
+                'sold_at' => now()->subMinute()->toDateTimeString(),
+            ],
+            [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => now()->toDateString(),
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 1500,
+                'sold_at' => now()->subMinute()->toDateTimeString(),
+            ],
+            [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
+                'assigned_at' => now()->toDateString(),
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 2400,
+                'sold_at' => now()->subMinute()->toDateTimeString(),
+            ],
+            [
+                'type' => SaleTransaction::TYPE_WALK_IN,
+                'customer_name' => 'Walk-in Guest',
+                'customer_phone' => '09170000000',
+                'amount_paid' => 175,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 175,
+                'sold_at' => now()->subMinute()->toDateTimeString(),
+            ],
+        ];
+
+        foreach ($payloads as $payload) {
+            $this->actingAs($cashier)
+                ->postJson('/panel/sales', $payload)
+                ->assertConflict()
+                ->assertJsonPath('message', 'Open the cash drawer before recording a sale.');
+        }
+
+        $this->assertDatabaseCount('sale_transactions', 0);
+        $this->assertDatabaseCount('member_subscriptions', 0);
+        $this->assertDatabaseCount('member_pt_packages', 0);
+        $this->assertSame(10.0, (float) $item->fresh()->quantity);
+    }
+
+    public function test_sale_time_must_fall_within_the_current_drawer_session(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $item = InventoryItem::factory()->create([
+            'name' => 'Sports Drink',
+            'quantity' => 10,
+            'selling_price' => 55,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 1,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 55,
+                'sold_at' => '2025-12-31 23:59:59',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['sold_at']);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 1,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 55,
+                'sold_at' => now()->addMinute()->toDateTimeString(),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['sold_at']);
+
+        $this->assertDatabaseCount('sale_transactions', 0);
+        $this->assertSame(10.0, (float) $item->fresh()->quantity);
+    }
+
+    public function test_disabled_cash_drawer_feature_allows_staff_sales_without_an_open_session(): void
+    {
+        config(['jprime.cash_drawer' => false]);
+
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $item = InventoryItem::factory()->create([
+            'name' => 'Sports Drink',
+            'quantity' => 10,
+            'selling_price' => 55,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $this->drawerSession->forceFill([
+            'is_open' => null,
+            'closed_at' => now(),
+        ])->save();
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 1,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 55,
+                'sold_at' => now()->toDateTimeString(),
+            ])
+            ->assertCreated();
+
+        $this->assertDatabaseCount('sale_transactions', 1);
+        $this->assertDatabaseCount('cash_ledger_entries', 0);
+    }
+
+    public function test_inventory_sale_requires_whole_number_quantities(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
+        $item = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Electrolyte Drink',
+            'quantity' => 10,
+            'selling_price' => 60,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 1.5,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 200,
+                'sold_at' => '2026-03-29 14:15:00',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['items.0.quantity']);
+    }
+
+    public function test_membership_sale_can_attach_to_existing_member_subscription_and_transaction(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $ratePlan = $this->createRatePlan('6 Months', 180, [
+            'price' => 4999.50,
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => '2026-04-01',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 5000,
+                'sold_at' => '2026-03-29 15:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('type', SaleTransaction::TYPE_MEMBERSHIP)
+            ->assertJsonPath('customer_name', 'Member Mia')
+            ->assertJsonPath('item_name', '6 Months')
+            ->assertJsonPath('change_amount', 0.5);
+
+        $subscription = MemberSubscription::where('user_id', $member->id)->firstOrFail();
+
+        $this->assertSame($ratePlan->id, $subscription->rate_plan_id);
+        $this->assertSame(MemberSubscription::STATUS_ACTIVE, $subscription->status);
+        $this->assertSame('2026-04-01', $subscription->start_date?->toDateString());
+
+        $this->assertDatabaseHas('sale_transactions', [
+            'member_id' => $member->id,
+            'type' => SaleTransaction::TYPE_MEMBERSHIP,
+            'total' => 4999.50,
+        ]);
+    }
+
+    public function test_removed_and_walk_in_plans_are_neither_offered_nor_accepted_for_membership(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $offered = $this->createRatePlan('Monthly', 30, ['price' => 1499]);
+        $removed = $this->createRatePlan('Old Monthly', 30, ['price' => null]); // Pricing "delete" nulls the price
+        $walkIn = $this->createRatePlan('Daily Pass', 1, ['price' => 150, 'is_walk_in_only' => true]);
+        $inactive = $this->createRatePlan('Retired', 30, ['price' => 1299, 'is_active' => false]);
+
+        $this->actingAs($cashier)
+            ->getJson('/panel/sales/context')
+            ->assertOk()
+            ->assertJsonCount(1, 'options.membership_rates')
+            ->assertJsonPath('options.membership_rates.0.id', $offered->id)
+            ->assertJsonPath('options.walk_in_rates.0.id', $walkIn->id);
+
+        foreach ([$removed, $walkIn, $inactive] as $plan) {
+            $this->actingAs($cashier)
+                ->postJson('/panel/sales', [
+                    'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                    'member_id' => $member->id,
+                    'rate_plan_id' => $plan->id,
+                    'start_date' => '2026-04-01',
+                    'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                    'amount_received' => 5000,
+                    'sold_at' => '2026-03-29 15:00:00',
+                ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('rate_plan_id');
+        }
+
+        $this->assertDatabaseCount('member_subscriptions', 0);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $offered->id,
+                'start_date' => '2026-04-01',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 1499,
+                'sold_at' => '2026-03-29 15:00:00',
+            ])
+            ->assertCreated();
+    }
+
+    public function test_early_renewal_queues_after_current_plan_without_losing_paid_days(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1500]);
+
+        $current = $member->memberSubscriptions()->create([
+            'rate_plan_id' => $ratePlan->id,
+            'status' => MemberSubscription::STATUS_ACTIVE,
+            'start_date' => today()->subDays(26)->toDateString(),
+            'end_date' => today()->addDays(3)->toDateString(),
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => today()->toDateString(),
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 1500,
+                'sold_at' => now()->toDateTimeString(),
+            ])
+            ->assertCreated();
+
+        $renewal = MemberSubscription::where('user_id', $member->id)->whereKeyNot($current->id)->firstOrFail();
+
+        $this->assertSame(MemberSubscription::STATUS_ACTIVE, $current->fresh()->status);
+        $this->assertSame(today()->addDays(4)->toDateString(), $renewal->start_date->toDateString());
+        $this->assertSame(today()->addDays(33)->toDateString(), $renewal->end_date->toDateString());
+        $this->assertTrue($member->currentMembership()->is($current));
+    }
+
+    public function test_membership_sale_replaces_paused_plan(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1500]);
+
+        $paused = $member->memberSubscriptions()->create([
+            'rate_plan_id' => $ratePlan->id,
+            'status' => MemberSubscription::STATUS_PAUSED,
+            'start_date' => today()->subDays(10)->toDateString(),
+            'end_date' => today()->addDays(19)->toDateString(),
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => today()->toDateString(),
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 1500,
+                'sold_at' => now()->toDateTimeString(),
+            ])
+            ->assertCreated();
+
+        $this->assertSame(MemberSubscription::STATUS_CANCELLED, $paused->fresh()->status);
+        $this->assertSame(today()->toDateString(), $member->currentMembership()->start_date->toDateString());
+    }
+
+    public function test_membership_sale_requires_existing_member_selection(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $ratePlan = $this->createRatePlan('Monthly', 30, [
+            'price' => 1499,
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_mode' => 'new',
+                'customer_name' => 'New Member Mia',
+                'customer_email' => 'mia@example.com',
+                'customer_phone' => '09171234567',
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => '2026-04-01',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 1500,
+                'sold_at' => '2026-03-29 15:00:00',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['member_id']);
+
+        $this->assertDatabaseMissing('users', [
+            'email' => 'mia@example.com',
+        ]);
+        $this->assertDatabaseCount('member_subscriptions', 0);
+        $this->assertDatabaseCount('sale_transactions', 0);
+    }
+
+    public function test_pt_package_sale_requires_a_coach(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Lou');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $ptProduct = $this->createPtProduct('24 Sessions', 24, [
+            'price' => 7200,
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'assigned_at' => '2026-03-29',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 7200,
+                'payment_reference' => 'GCASH-20260329-001',
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['coach_id']);
+
+        $this->assertDatabaseCount('member_pt_packages', 0);
+        $this->assertDatabaseCount('sale_transactions', 0);
+    }
+
+    public function test_pt_package_sale_rejects_a_non_coach_user(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Lou');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $ptProduct = $this->createPtProduct('24 Sessions', 24, [
+            'price' => 7200,
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'coach_id' => $cashier->id,
+                'assigned_at' => '2026-03-29',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 7200,
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['coach_id']);
+    }
+
+    public function test_pt_package_sale_stores_the_selling_coach(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Lou');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
+        $ptProduct = $this->createPtProduct('24 Sessions', 24, [
+            'price' => 7200,
+        ]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
+                'assigned_at' => '2026-03-29',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 7200,
+                'payment_reference' => 'GCASH-20260329-001',
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('type', SaleTransaction::TYPE_PT_PACKAGE)
+            ->assertJsonPath('customer_name', 'Member Zoe')
+            ->assertJsonPath('item_name', '24 Sessions');
+
+        $package = MemberPtPackage::where('user_id', $member->id)->firstOrFail();
+
+        $this->assertSame($coach->id, $package->coach_id);
+
+        $transaction = SaleTransaction::where('type', SaleTransaction::TYPE_PT_PACKAGE)->firstOrFail();
+
+        $this->assertSame($transaction->id, $package->sale_transaction_id);
+        $this->assertSame($coach->id, $transaction->details['coach_id']);
+        $this->assertSame('Coach Rey', $transaction->details['coach_name']);
+    }
+
+    public function test_sales_context_lists_active_coaches(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
+        $inactiveCoach = $this->createUserWithRole('coach', 'Coach Gone');
+        $inactiveCoach->update(['status' => User::STATUS_INACTIVE]);
+
+        $this->actingAs($cashier)
+            ->getJson('/panel/sales/context')
+            ->assertOk()
+            ->assertJsonCount(1, 'options.coaches')
+            ->assertJsonPath('options.coaches.0.id', $coach->id)
+            ->assertJsonPath('options.coaches.0.name', 'Coach Rey');
+    }
+
+    public function test_sales_page_no_longer_renders_new_member_sale_controls(): void
+    {
+        $component = file_get_contents(resource_path('js/components/panel/SalesPage.vue'));
+
+        $this->assertStringNotContainsString('New Member', $component);
+        $this->assertStringNotContainsString('member_mode', $component);
+        $this->assertStringNotContainsString('customer_email', $component);
+        $this->assertStringContainsString('Search Member', $component);
+    }
+
+    public function test_sale_transaction_history_survives_processor_deletion(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier June');
+        $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
+        $item = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Protein Shake',
+            'quantity' => 5,
+            'selling_price' => 120,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $transactionId = $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'inventory_item_id' => $item->id,
+                'quantity' => 1,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'sold_at' => '2026-03-29 19:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $cashier->delete();
+
+        $this->assertDatabaseHas('sale_transactions', [
+            'id' => $transactionId,
+        ]);
+
+        $transaction = SaleTransaction::findOrFail($transactionId);
+
+        $this->assertSame($cashier->id, $transaction->processed_by);
+        $this->assertNull($transaction->processedBy);
+    }
+
+    public function test_receipt_page_can_be_viewed_and_printed_by_staff(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Rae');
+        $transaction = SaleTransaction::create([
+            'processed_by' => $cashier->id,
+            'customer_name' => 'Customer Joy',
+            'item_name' => 'Monthly Membership',
+            'type' => SaleTransaction::TYPE_MEMBERSHIP,
+            'total' => 1500,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'sold_at' => '2026-03-29 17:00:00',
+            'details' => [
+                'line_items' => [[
+                    'name' => 'Monthly Membership',
+                    'description' => '30 day membership',
+                    'quantity' => 1,
+                    'unit' => 'plan',
+                    'unit_price' => 1500,
+                    'line_total' => 1500,
+                ]],
+                'payment' => [
+                    'amount_received' => 1500,
+                    'change_amount' => 0,
+                    'reference' => 'POS-123',
+                ],
+            ],
+        ]);
+
+        $this->actingAs($cashier)
+            ->get(route('panel.sales.receipt', $transaction))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_walk_in_sale_creates_transaction_and_history_is_global(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $otherCashier = $this->createUserWithRole('manager', 'Cashier Bea');
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_WALK_IN,
+                'customer_name' => 'Walk-in Carla',
+                'amount_paid' => 350,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 500,
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['customer_phone']);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_WALK_IN,
+                'customer_name' => 'Walk-in Carla',
+                'customer_phone' => '09170000000',
+                'amount_paid' => 350,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 500,
+                'sold_at' => '2026-03-29 17:00:00',
+            ])
+            ->assertCreated();
+
+        SaleTransaction::create([
+            'member_id' => null,
+            'type' => SaleTransaction::TYPE_WALK_IN,
+            'total' => 500,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'processed_by' => $otherCashier->id,
+            'sold_at' => '2026-03-29 18:00:00',
+            'customer_name' => 'Other Guest',
+            'item_name' => 'Walk-in',
+            'details' => [],
+        ]);
+
+        $this->assertDatabaseHas('sale_transactions', [
+            'type' => SaleTransaction::TYPE_WALK_IN,
+            'customer_name' => 'Walk-in Carla',
+            'total' => 350,
+        ]);
+
+        $response = $this->actingAs($cashier)
+            ->getJson('/panel/sales/history')
+            ->assertOk()
+            ->assertJsonPath('transactions.total', 2);
+
+        $customerNames = collect($response->json('transactions.data'))->pluck('customer_name')->all();
+
+        $this->assertContains('Walk-in Carla', $customerNames);
+        $this->assertContains('Other Guest', $customerNames);
+    }
+
+    public function test_manager_can_void_inventory_sale_with_reason_and_restore_stock(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
+        $item = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Protein Shake',
+            'quantity' => 10,
+            'selling_price' => 120,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $saleResponse = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 3,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 400,
+                'sold_at' => '2026-03-29 14:00:00',
+            ])
+            ->assertCreated();
+
+        $transactionId = $saleResponse->json('id');
+
+        $this->assertSame(route('panel.sales.void', $transactionId), $saleResponse->json('void_url'));
+
+        $this->assertSame('7.00', $item->fresh()->quantity);
+
+        $response = $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transactionId), [
+                'reason' => 'Wrong product was selected.',
+            ])
+            ->assertOk()
+            ->assertJsonPath('status', SaleTransaction::STATUS_VOIDED)
+            ->assertJsonPath('is_voided', true)
+            ->assertJsonPath('void_reason', 'Wrong product was selected.')
+            ->assertJsonPath('voided_by', 'Manager Sol')
+            ->assertJsonPath('void_url', null);
+
+        $this->assertSame($transactionId, $response->json('id'));
+        $this->assertSame('10.00', $item->fresh()->quantity);
+
+        $this->assertDatabaseHas('sale_transactions', [
+            'id' => $transactionId,
+            'status' => SaleTransaction::STATUS_VOIDED,
+            'void_reason' => 'Wrong product was selected.',
+            'voided_by' => $manager->id,
+        ]);
+
+        $activity = SystemActivity::query()
+            ->where('subject_type', SystemActivity::SUBJECT_SALE_TRANSACTION)
+            ->where('subject_id', $transactionId)
+            ->where('event', 'voided')
+            ->first();
+
+        $this->assertNotNull($activity);
+        $this->assertSame('Wrong product was selected.', $activity->metadata['void_reason'] ?? null);
+
+        $this->actingAs($manager)
+            ->getJson('/panel/sales/history')
+            ->assertOk()
+            ->assertJsonPath('transactions.data.0.id', $transactionId)
+            ->assertJsonPath('transactions.data.0.status', SaleTransaction::STATUS_VOIDED)
+            ->assertJsonPath('transactions.data.0.void_reason', 'Wrong product was selected.')
+            ->assertJsonPath('transactions.data.0.void_url', null);
+    }
+
+    public function test_https_app_url_forces_sales_void_link_to_https(): void
+    {
+        config(['app.url' => 'https://jprime.test']);
+
+        $forceHttpsScheme = new \ReflectionMethod(AppServiceProvider::class, 'forceHttpsUrlSchemeWhenConfigured');
+        $forceHttpsScheme->invoke(new AppServiceProvider(app()));
+
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $category = InventoryCategory::factory()->create(['name' => 'Drinks']);
+        $item = InventoryItem::factory()->create([
+            'inventory_category_id' => $category->id,
+            'name' => 'Protein Shake',
+            'quantity' => 10,
+            'selling_price' => 120,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $saleResponse = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 3,
+                ]],
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 400,
+                'sold_at' => '2026-03-29 14:00:00',
+            ])
+            ->assertCreated();
+
+        $this->assertStringStartsWith('https://jprime.test/panel/sales/', $saleResponse->json('void_url'));
+        $this->assertStringNotContainsString('http://', $saleResponse->json('void_url'));
+    }
+
+    public function test_void_reason_is_required_and_completed_sale_cannot_be_voided_twice(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $transaction = SaleTransaction::factory()->create([
+            'processed_by' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transaction), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['reason']);
+
+        $this->assertSame(SaleTransaction::STATUS_COMPLETED, $transaction->fresh()->status);
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transaction), [
+                'reason' => 'Duplicate transaction.',
+            ])
+            ->assertOk();
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transaction), [
+                'reason' => 'Trying again.',
+            ])
+            ->assertStatus(409);
+    }
+
+    public function test_cash_void_requires_an_open_drawer_while_non_cash_void_remains_available(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $item = InventoryItem::factory()->create([
+            'name' => 'Protein Shake',
+            'quantity' => 7,
+            'selling_price' => 120,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+        $cashSale = SaleTransaction::factory()->create([
+            'type' => SaleTransaction::TYPE_INVENTORY,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'processed_by' => $manager->id,
+            'details' => [
+                'line_items' => [[
+                    'inventory_item_id' => $item->id,
+                    'quantity' => 3,
+                ]],
+            ],
+        ]);
+        $nonCashSale = SaleTransaction::factory()->create([
+            'type' => SaleTransaction::TYPE_WALK_IN,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+            'processed_by' => $manager->id,
+        ]);
+
+        $this->drawerSession->forceFill([
+            'is_open' => null,
+            'closed_at' => now(),
+        ])->save();
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $cashSale), [
+                'reason' => 'Cash refund requested.',
+            ])
+            ->assertConflict()
+            ->assertJsonPath('message', 'Open the cash drawer before refunding a cash sale.');
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $nonCashSale), [
+                'reason' => 'Online payment reversed.',
+            ])
+            ->assertOk();
+
+        $this->assertSame(SaleTransaction::STATUS_COMPLETED, $cashSale->fresh()->status);
+        $this->assertSame(SaleTransaction::STATUS_VOIDED, $nonCashSale->fresh()->status);
+        $this->assertSame(7.0, (float) $item->fresh()->quantity);
+        $this->assertDatabaseMissing('cash_ledger_entries', [
+            'type' => CashLedgerEntry::TYPE_SALE_VOID,
+            'source_id' => $cashSale->id,
+        ]);
+    }
+
+    public function test_voiding_membership_sale_cancels_linked_subscription(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $ratePlan = $this->createRatePlan('Monthly', 30, [
+            'price' => 1500,
+        ]);
+
+        $transactionId = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => '2026-04-01',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 1500,
+                'sold_at' => '2026-03-29 15:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $subscription = MemberSubscription::where('user_id', $member->id)->firstOrFail();
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transactionId), [
+                'reason' => 'Membership payment was refunded.',
+            ])
+            ->assertOk();
+
+        $this->assertSame(MemberSubscription::STATUS_CANCELLED, $subscription->fresh()->status);
+    }
+
+    public function test_voiding_a_membership_sale_records_the_void_reason_on_the_subscription(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $member = $this->createUserWithRole('member', 'Member Mia');
+        $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1499]);
+
+        $saleId = $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_MEMBERSHIP,
+                'member_id' => $member->id,
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => '2026-04-01',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
+                'amount_received' => 1499,
+                'sold_at' => '2026-03-29 15:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $this->actingAs($cashier)
+            ->postJson("/panel/sales/{$saleId}/void", ['reason' => 'Refunded at the counter.'])
+            ->assertOk();
+
+        $subscription = MemberSubscription::where('user_id', $member->id)->firstOrFail();
+
+        $this->assertSame(MemberSubscription::STATUS_CANCELLED, $subscription->status);
+        $this->assertSame('Refunded at the counter.', $subscription->cancellation_reason);
+        $this->assertSame($cashier->id, $subscription->cancelled_by);
+        $this->assertNotNull($subscription->cancelled_at);
+    }
+
+    public function test_voiding_unused_pt_package_sale_cancels_linked_package(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
+        $ptProduct = $this->createPtProduct('12 Sessions', 12, [
+            'price' => 3600,
+        ]);
+
+        $transactionId = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
+                'assigned_at' => '2026-03-29',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 3600,
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $package = MemberPtPackage::where('user_id', $member->id)->firstOrFail();
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transactionId), [
+                'reason' => 'PT package sale was cancelled.',
+            ])
+            ->assertOk();
+
+        $package->refresh();
+
+        $this->assertSame(MemberPtPackage::STATUS_CANCELLED, $package->status);
+        $this->assertSame(12, (int) $package->remaining_sessions);
+        $this->assertSame('PT package sale was cancelled.', $package->cancellation_reason);
+        $this->assertSame($manager->id, $package->cancelled_by);
+        $this->assertNotNull($package->cancelled_at);
+    }
+
+    public function test_pt_package_sale_with_used_sessions_cannot_be_voided(): void
+    {
+        $manager = $this->createUserWithRole('manager', 'Manager Sol');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
+        $ptProduct = $this->createPtProduct('12 Sessions', 12, [
+            'price' => 3600,
+        ]);
+
+        $transactionId = $this->actingAs($manager)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
+                'assigned_at' => '2026-03-29',
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 3600,
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
+            ->assertCreated()
+            ->json('id');
+
+        $package = MemberPtPackage::where('user_id', $member->id)->firstOrFail();
+        $package->consumeSessions(1, '2026-03-30', $manager->id);
+
+        $this->actingAs($manager)
+            ->postJson(route('panel.sales.void', $transactionId), [
+                'reason' => 'PT package sale was cancelled.',
+            ])
+            ->assertStatus(409);
+
+        $this->assertSame(MemberPtPackage::STATUS_ACTIVE, $package->fresh()->status);
+        $this->assertSame(SaleTransaction::STATUS_COMPLETED, SaleTransaction::findOrFail($transactionId)->status);
+    }
+
+    public function test_inventory_sale_applies_promo_percent_discount(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+        $item = InventoryItem::factory()->create([
+            'inventory_category_id' => InventoryCategory::factory()->create()->id,
+            'quantity' => 10,
+            'selling_price' => 95,
+            'status' => InventoryItem::STATUS_ACTIVE,
+        ]);
+
+        $response = $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_INVENTORY,
+                'items' => [['inventory_item_id' => $item->id, 'quantity' => 2]],
+                'discount_percent' => 10,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 200,
+                'sold_at' => '2026-03-29 14:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('subtotal', 190)
+            ->assertJsonPath('total', 171)
+            ->assertJsonPath('change_amount', 29)
+            ->assertJsonPath('discount.type', 'promo')
+            ->assertJsonPath('discount.percent', 10)
+            ->assertJsonPath('discount.amount', 19);
+
+        $this->assertDatabaseHas('sale_transactions', ['id' => $response->json('id'), 'total' => 171]);
+    }
+
+    public function test_membership_uses_the_higher_of_id_discount_and_promo_percent(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $senior = $this->createUserWithRole('member', 'Member Lolo');
+        $senior->profile()->create(['discount_type' => MemberProfile::DISCOUNT_SENIOR]);
+        $ratePlan = $this->createRatePlan('1 Month', 30, ['price' => 1000]);
+
+        $payload = [
+            'type' => SaleTransaction::TYPE_MEMBERSHIP,
+            'member_id' => $senior->id,
+            'rate_plan_id' => $ratePlan->id,
+            'start_date' => '2026-04-01',
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'amount_received' => 1000,
+            'sold_at' => '2026-03-29 15:00:00',
+        ];
+
+        // 10% promo < 20% senior discount: statutory wins.
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', $payload + ['discount_percent' => 10])
+            ->assertCreated()
+            ->assertJsonPath('total', 800)
+            ->assertJsonPath('discount.type', MemberProfile::DISCOUNT_SENIOR)
+            ->assertJsonPath('discount.percent', 20);
+        $this->assertDatabaseHas('member_subscriptions', ['user_id' => $senior->id, 'sold_price' => 800]);
+
+        // 30% promo > 20% senior discount: promo wins, never both.
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', ['start_date' => '2026-05-01'] + $payload + ['discount_percent' => 30])
+            ->assertCreated()
+            ->assertJsonPath('total', 700)
+            ->assertJsonPath('discount.type', 'promo')
+            ->assertJsonPath('discount.percent', 30);
+        $this->assertDatabaseHas('member_subscriptions', ['user_id' => $senior->id, 'sold_price' => 700]);
+    }
+
+    public function test_pt_package_and_walk_in_sales_apply_promo_percent_discount(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Lou');
+        $member = $this->createUserWithRole('member', 'Member Zoe');
+        $coach = $this->createUserWithRole('coach', 'Coach Rey');
+        $ptProduct = $this->createPtProduct('12 Sessions', 12, ['price' => 3600]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_PT_PACKAGE,
+                'member_id' => $member->id,
+                'pt_product_id' => $ptProduct->id,
+                'coach_id' => $coach->id,
+                'assigned_at' => '2026-03-29',
+                'discount_percent' => 10,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 3240,
+                'sold_at' => '2026-03-29 16:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('subtotal', 3600)
+            ->assertJsonPath('total', 3240)
+            ->assertJsonPath('discount.type', 'promo');
+        $this->assertDatabaseHas('member_pt_packages', ['user_id' => $member->id, 'sold_price' => 3240]);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', [
+                'type' => SaleTransaction::TYPE_WALK_IN,
+                'customer_name' => 'Walk-in Carla',
+                'customer_phone' => '09170000000',
+                'amount_paid' => 150,
+                'discount_percent' => 10,
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                'amount_received' => 135,
+                'sold_at' => '2026-03-29 17:00:00',
+            ])
+            ->assertCreated()
+            ->assertJsonPath('subtotal', 150)
+            ->assertJsonPath('total', 135)
+            ->assertJsonPath('details.line_items.0.line_total', 150)
+            ->assertJsonPath('discount.amount', 15);
+    }
+
+    public function test_discount_percent_must_be_a_whole_number_between_0_and_100(): void
+    {
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ana');
+
+        foreach ([101, -1, 12.5] as $percent) {
+            $this->actingAs($cashier)
+                ->postJson('/panel/sales', [
+                    'type' => SaleTransaction::TYPE_WALK_IN,
+                    'customer_name' => 'Walk-in Carla',
+                    'customer_phone' => '09170000000',
+                    'amount_paid' => 150,
+                    'discount_percent' => $percent,
+                    'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+                    'amount_received' => 150,
+                    'sold_at' => '2026-03-29 17:00:00',
+                ])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors(['discount_percent']);
+        }
+
+        $this->assertDatabaseCount('sale_transactions', 0);
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createRatePlan(string $name, int $durationDays, array $attributes = []): RatePlan
+    {
+        return RatePlan::create(array_merge([
+            'name' => $name,
+            'duration_days' => $durationDays,
+            'description' => $name.' membership',
+            'is_active' => true,
+        ], $attributes));
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    private function createPtProduct(string $name, int $sessionCount, array $attributes = []): PTProduct
+    {
+        return PTProduct::create(array_merge([
+            'name' => $name,
+            'session_count' => $sessionCount,
+            'category' => PTProduct::CATEGORY_PACKAGE,
+            'description' => $name.' PT package',
+            'is_active' => true,
+        ], $attributes));
+    }
+
+    private function createUserWithRole(string $role, string $name): User
+    {
+        $user = User::factory()->withEmployeeProfile([
+            'daily_rate' => 500,
+            'pay_frequency' => 'semi_monthly',
+        ])->create([
+            'name' => $name,
+            'status' => User::STATUS_ACTIVE,
+        ]);
+
+        $user->assignRole($role);
+
+        return $user;
+    }
+}

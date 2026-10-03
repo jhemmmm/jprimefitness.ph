@@ -1,0 +1,7 @@
+{
+    "indentSize": 4,
+    "wrapLineLength": 500,
+    "wrapAttributes": "preserve",
+    "sortHtmlAttributes": "none",
+    "endOfLine": "lf"
+}

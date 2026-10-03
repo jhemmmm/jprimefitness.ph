@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <title>@yield('title', 'Panel') - JPrime Fitness Panel</title>
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800,900|nunito:400,600,700|oswald:400,500,600,700"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/android-icon-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ffffff">
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="msapplication-TileImage" content="/ms-icon-144x144.png">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    @php
+        $panelBusinessProfile = $businessProfile->panelShellPayload();
+        $panelUser = auth()->user();
+    @endphp
+    <script>
+        window.JPrime = window.JPrime || {};
+        window.JPrime.timezone = @js(config('app.timezone'));
+        window.JPrime.profile = @json($panelBusinessProfile);
+        window.JPrime.contributionMinimums = @json(\App\Models\EmployeeProfile::LEGAL_MINIMUM_CONTRIBUTIONS);
+        window.JPrime.employeeDetailColumns = @json(\App\Models\EmployeeProfile::DETAIL_COLUMNS);
+        window.JPrime.discountLabels = @json(\App\Models\MemberProfile::DISCOUNT_LABELS);
+        window.JPrime.roleColors = @json($roleColors);
+        window.JPrime.socialNetworks = @json(\App\Models\BusinessProfile::SOCIAL_NETWORKS);
+
+        const storedTheme = localStorage.getItem('panel-theme');
+        const theme = storedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        if (theme === 'dark') {
+            document.documentElement.setAttribute('data-bs-theme', 'dark');
+        }
+    </script>
+    @vite(['resources/sass/panel.scss', 'resources/js/app.js'])
+</head>
+
+<body class="panel-body">
+    {{-- Sidebar Overlay (mobile backdrop)  --}}
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="panel-wrapper" id="app">
+        {{-- Sidebar --}}
+        <aside class="panel-sidebar" id="panelSidebar">
+            {{-- Logo --}}
+            <div class="sidebar-logo">
+                <a href="{{ route('panel.dashboard') }}" class="sidebar-logo-inner">
+                    <div class="sidebar-logo-icon">
+                        <img src="{{ asset('logo.png') }}" alt="JPrime Fitness Logo" />
+                    </div>
+                    <div>
+                        <div class="sidebar-logo-text jprime-logo">JPrime <span class="text-danger">Fitness</span></div>
+                        <div class="sidebar-logo-sub">Panel Platform</div>
+                    </div>
+                </a>
+            </div>
+            {{-- Navigation --}}
+            <nav class="sidebar-nav">
+                {{-- Each block mirrors a permission from RoleSeeder::MATRIX; headings are wrapped with their items. --}}
+                {{-- Overview --}}
+                <div class="sidebar-menu-heading">Overview</div>
+                <div class="sidebar-nav-item">
+                    <a href="{{ route('panel.dashboard') }}" @class(['active' => request()->routeIs('panel.dashboard')])>
+                        <i class="bi bi-speedometer2"></i>
+                        <span class="sidebar-nav-label">Dashboard</span>
+                    </a>
+                </div>
+                @can('log pt sessions')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.pt-sessions.index') }}" @class(['active' => request()->routeIs('panel.pt-session*')])>
+                            <i class="bi bi-lightning-charge-fill"></i>
+                            <span class="sidebar-nav-label">PT Sessions</span>
+                        </a>
+                    </div>
+                @endcan
+
+                {{-- My Record: the user's own employee record, one page per section --}}
+                @if ($panelUser->employeeProfile)
+                    <div class="sidebar-menu-heading">My Record</div>
+                    @foreach (\App\Http\Controllers\Panel\MyRecordController::SECTIONS as $section => [$label, $icon])
+                        <div class="sidebar-nav-item">
+                            <a href="{{ route('panel.my.show', $section) }}" @class([
+                                'active' =>
+                                    request()->routeIs('panel.my.show') &&
+                                    request()->route('section') === $section,
+                            ])>
+                                <i class="bi {{ $icon }}"></i>
+                                <span class="sidebar-nav-label">{{ $label }}</span>
+                            </a>
+                        </div>
+                    @endforeach
+                @endif
+
+                {{-- Account --}}
+                <div class="sidebar-menu-heading">Account</div>
+                <div class="sidebar-nav-item">
+                    <a href="{{ route('panel.profile.edit') }}" @class(['active' => request()->routeIs('panel.profile.*')])>
+                        <i class="bi bi-person"></i>
+                        <span class="sidebar-nav-label">Profile</span>
+                    </a>
+                </div>
+
+                {{-- People --}}
+                @canany(['manage members', 'manage employees'])
+                    <div class="sidebar-menu-heading">People</div>
+                @endcanany
+                @can('manage members')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.members.index') }}" @class(['active' => request()->routeIs('panel.members.*')])>
+                            <i class="bi bi-people-fill"></i>
+                            <span class="sidebar-nav-label">Members</span>
+                        </a>
+                    </div>
+                @endcan
+                @can('manage employees')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.employees.index') }}" @class(['active' => request()->routeIs('panel.employees.*')])>
+                            <i class="bi bi-person-workspace"></i>
+                            <span class="sidebar-nav-label">Employees</span>
+                        </a>
+                    </div>
+                @endcan
+
+                {{-- Access --}}
+                @can('manage attendance')
+                    <div class="sidebar-menu-heading">Access</div>
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.attendance.index') }}" @class(['active' => request()->routeIs('panel.attendance.*')])>
+                            <i class="bi bi-door-open-fill"></i>
+                            <span class="sidebar-nav-label">Check-ins / Attendance</span>
+                        </a>
+                    </div>
+                @endcan
+
+                {{-- Sales --}}
+                @canany(['manage sales', 'manage pricing', 'manage cash drawer'])
+                    <div class="sidebar-menu-heading">Sales</div>
+                @endcanany
+                @can('manage sales')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.sales.index') }}" @class(['active' => request()->routeIs('panel.sales.*')])>
+                            <i class="bi bi-cash-coin"></i>
+                            <span class="sidebar-nav-label">Sales</span>
+                        </a>
+                    </div>
+                @endcan
+                @can('manage pricing')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.pricing.index') }}" @class(['active' => request()->routeIs('panel.pricing.*')])>
+                            <i class="bi bi-tag-fill"></i>
+                            <span class="sidebar-nav-label">Pricing & Rates</span>
+                        </a>
+                    </div>
+                @endcan
+                @if (config('jprime.cash_drawer') && $panelUser->can('manage cash drawer'))
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.cash-drawer.index') }}" @class(['active' => request()->routeIs('panel.cash-drawer.*')])>
+                            <i class="bi bi-safe-fill"></i>
+                            <span class="sidebar-nav-label">Cash Drawer</span>
+                        </a>
+                    </div>
+                @endif
+
+                {{-- Operations --}}
+                @can('manage inventory')
+                    <div class="sidebar-menu-heading">Operations</div>
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.inventory.index') }}" @class(['active' => request()->routeIs('panel.inventory.*')])>
+                            <i class="bi bi-box-seam-fill"></i>
+                            <span class="sidebar-nav-label">Inventory</span>
+                        </a>
+                    </div>
+                @endcan
+
+                {{-- Reports --}}
+                @can('view reports')
+                    <div class="sidebar-menu-heading">Reports</div>
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.reports.sales') }}" @class(['active' => request()->routeIs('panel.reports.sales*')])>
+                            <i class="bi bi-bar-chart-fill"></i>
+                            <span class="sidebar-nav-label">Sales Reports</span>
+                        </a>
+                    </div>
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.reports.attendance') }}" @class(['active' => request()->routeIs('panel.reports.attendance*')])>
+                            <i class="bi bi-clipboard2-data-fill"></i>
+                            <span class="sidebar-nav-label">Attendance Reports</span>
+                        </a>
+                    </div>
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.reports.payroll') }}" @class(['active' => request()->routeIs('panel.reports.payroll*')])>
+                            <i class="bi bi-receipt"></i>
+                            <span class="sidebar-nav-label">Payroll Reports</span>
+                        </a>
+                    </div>
+                @endcan
+
+                {{-- System --}}
+                @canany(['manage settings', 'view system activity'])
+                    <div class="sidebar-menu-heading">System</div>
+                @endcanany
+                @can('manage settings')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.business.settings') }}" @class(['active' => request()->routeIs('panel.business.settings*')])>
+                            <i class="bi bi-gear-fill"></i>
+                            <span class="sidebar-nav-label">Settings</span>
+                        </a>
+                    </div>
+                @endcan
+                @can('view system activity')
+                    <div class="sidebar-nav-item">
+                        <a href="{{ route('panel.system-activity') }}" @class(['active' => request()->routeIs('panel.system-activity*')])>
+                            <i class="bi bi-clock-history"></i>
+                            <span class="sidebar-nav-label">System Activity</span>
+                        </a>
+                    </div>
+                @endcan
+
+            </nav>
+
+            {{-- Appearance Toggle --}}
+            <div class="sidebar-appearance">
+                <label for="darkModeToggle" class="sidebar-appearance-icon-btn" title="Toggle appearance">
+                    <i class="bi bi-moon-fill"></i>
+                </label>
+                <div class="sidebar-appearance-label">
+                    <div>Appearance</div>
+                    <div>Light / Dark mode</div>
+                </div>
+                <div class="form-check form-switch mb-0 ms-auto sidebar-appearance-toggle">
+                    <input class="form-check-input" type="checkbox" role="switch" id="darkModeToggle"
+                        style="cursor: pointer;" />
+                </div>
+            </div>
+
+        </aside>
+
+        {{-- Main --}}
+        <div class="panel-main" id="panelMain">
+            {{-- Top Bar --}}
+            <header class="panel-topbar">
+                <button class="topbar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                    <i class="bi bi-list"></i>
+                </button>
+
+                <div class="topbar-title" title="@yield('title', 'Dashboard')">@yield('title', 'Dashboard')</div>
+
+                <div class="topbar-actions">
+                    <panel-notifications></panel-notifications>
+
+                    @can('manage members')
+                        <global-search></global-search>
+                    @endcan
+
+                    <div class="dropdown">
+                        <a class="topbar-user" href="#" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="topbar-avatar">
+                                @php
+                                    $name = Auth::user()->name ?? 'Admin';
+                                    $words = collect(explode(' ', trim($name)))
+                                        ->filter()
+                                        ->values();
+                                    $initials = $words->count() === 0 ? 'A' : ($words->count() === 1 ? strtoupper(substr($words[0], 0, 1)) : strtoupper(substr($words[0], 0, 1) . substr($words->last(), 0, 1)));
+                                @endphp
+                                {{ $initials }}
+                            </div>
+                            <div class="topbar-user-info">
+                                <div class="topbar-user-name">
+                                    {{ $name }}
+                                </div>
+                                <div class="text-capitalize topbar-user-role">
+                                    {{ $panelUser->roles->pluck('name')->implode(', ') }}
+                                </div>
+                            </div>
+                            <i class="bi bi-chevron-down ms-1 d-none d-md-inline"
+                                style="font-size: 0.65rem; color: #888;"></i>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0"
+                            style="min-width: 180px; font-size: 0.85rem;">
+                            <li><a class="dropdown-item" href="{{ route('panel.profile.edit') }}"><i class="bi bi-person me-2"></i>Profile</a>
+                            </li>
+                            @if ($panelUser->employeeProfile)
+                                <li><a class="dropdown-item" href="{{ route('panel.my.show', 'payroll') }}"><i class="bi bi-receipt me-2"></i>My Payroll</a>
+                                </li>
+                            @endif
+                            @can('manage settings')
+                                <li><a class="dropdown-item" href="{{ route('panel.settings') }}"><i class="bi bi-gear me-2"></i>Settings</a>
+                                </li>
+                            @endcan
+                            <li>
+                                <hr class="dropdown-divider" />
+                            </li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{{ route('logout') }}"
+                                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                    <i class="bi bi-box-arrow-right me-2"></i>Sign out
+                                </a>
+                            </li>
+                        </ul>
+                        <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+                            @csrf
+                        </form>
+                    </div>
+                </div>
+            </header>
+
+            {{-- Page Content --}}
+            <main class="panel-content">
+                @yield('content')
+            </main>
+
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        window.Laravel = {
+            jsPermissions: {!! auth()->user()->jsPermissions() !!},
+            user: {
+                id: {{ (int) auth()->id() }},
+                roles: {!! auth()->user()->roles->pluck('name')->toJson() !!}
+            }
+        }
+    </script>
+    @stack('scripts')
+</body>
+
+</html>

@@ -1,0 +1,224 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\Attendance;
+use App\Models\BusinessProfile;
+use App\Models\User;
+use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+class AttendanceReportsPageTest extends TestCase
+{
+    use LazilyRefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        Role::findOrCreate('super admin');
+        Role::findOrCreate('admin');
+        Role::findOrCreate('manager');
+        Role::findOrCreate('staff');
+        Role::findOrCreate('member');
+        Role::findOrCreate('coach');
+    }
+
+    public function test_attendance_reports_page_loads_for_panel_users(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
+
+        $this->actingAs($manager)
+            ->get('/panel/reports/attendance')
+            ->assertOk()
+            ->assertSee('attendance-reports-page', false)
+            ->assertSee('business-profile=', false);
+    }
+
+    public function test_attendance_reports_data_returns_summary_and_breakdowns(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
+        $member = $this->createUserWithRole('member', 'Member Joy');
+        $employee = $this->createUserWithRole('staff', 'Employee Ben');
+        Attendance::create([
+            'attendee_type' => Attendance::TYPE_MEMBER,
+            'user_id' => $member->id,
+            'name' => $member->name,
+            'checked_in_at' => '2026-03-02 08:00:00',
+            'checked_out_at' => '2026-03-02 09:00:00',
+            'recorded_by' => $manager->id,
+        ]);
+
+        Attendance::create([
+            'attendee_type' => Attendance::TYPE_EMPLOYEE,
+            'user_id' => $employee->id,
+            'name' => $employee->name,
+            'checked_in_at' => '2026-03-02 08:15:00',
+            'checked_out_at' => null,
+            'recorded_by' => $manager->id,
+        ]);
+
+        Attendance::create([
+            'attendee_type' => Attendance::TYPE_WALK_IN,
+            'name' => 'Walk-in Kai',
+            'checked_in_at' => '2026-03-03 11:00:00',
+            'checked_out_at' => '2026-03-03 11:30:00',
+            'recorded_by' => $manager->id,
+        ]);
+
+        Attendance::create([
+            'attendee_type' => Attendance::TYPE_WALK_IN,
+            'name' => 'Walk-in Lee',
+            'checked_in_at' => '2026-03-04 12:00:00',
+            'checked_out_at' => '2026-03-04 12:20:00',
+            'recorded_by' => $manager->id,
+        ]);
+
+        Attendance::create([
+            'attendee_type' => Attendance::TYPE_MEMBER,
+            'user_id' => $member->id,
+            'name' => $member->name,
+            'checked_in_at' => '2026-02-27 07:00:00',
+            'checked_out_at' => '2026-02-27 08:00:00',
+            'recorded_by' => $manager->id,
+        ]);
+
+        $response = $this->actingAs($manager)
+            ->getJson('/panel/reports/attendance/data?date_from=2026-03-01&date_to=2026-03-31')
+            ->assertOk();
+
+        $response->assertJsonMissingPath('scope.location');
+        $response->assertJsonMissingPath('location_breakdown');
+        $response->assertJsonPath('filters.date_from', '2026-03-01');
+        $response->assertJsonPath('filters.date_to', '2026-03-31');
+        $response->assertJsonPath('filters.type', []);
+        $response->assertJsonPath('summary.total_check_ins', 4);
+        $response->assertJsonPath('summary.unique_attendees', 4);
+        $response->assertJsonPath('summary.checked_out_count', 3);
+        $response->assertJsonPath('summary.currently_in_count', 1);
+        $response->assertJsonPath('summary.average_visit_minutes', 36.67);
+        $response->assertJsonPath('type_breakdown.0.type', Attendance::TYPE_MEMBER);
+        $response->assertJsonPath('type_breakdown.0.check_in_count', 1);
+        $response->assertJsonPath('type_breakdown.1.type', Attendance::TYPE_WALK_IN);
+        $response->assertJsonPath('type_breakdown.1.check_in_count', 2);
+        $response->assertJsonPath('type_breakdown.1.unique_attendees', 2);
+        $response->assertJsonPath('type_breakdown.2.type', Attendance::TYPE_EMPLOYEE);
+        $response->assertJsonPath('type_breakdown.2.currently_in_count', 1);
+        $response->assertJsonPath('daily_trend.0.attendance_date', '2026-03-02');
+        $response->assertJsonPath('daily_trend.0.check_in_count', 2);
+        $response->assertJsonPath('daily_trend.1.attendance_date', '2026-03-03');
+        $response->assertJsonPath('daily_trend.2.attendance_date', '2026-03-04');
+        $response->assertJsonPath('busiest_hours.0.hour_slot', '08:00');
+        $response->assertJsonPath('busiest_hours.0.check_in_count', 2);
+        $response->assertJsonPath('records.data.0.name', 'Walk-in Lee');
+        $response->assertJsonPath('records.data.1.name', 'Walk-in Kai');
+    }
+
+    public function test_attendance_reports_details_default_to_all_time_and_are_paginated(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
+
+        foreach ([
+            ['Recent Attendee', '2026-05-10 09:00:00'],
+            ['Middle Attendee', '2026-04-10 09:00:00'],
+            ['Old Attendee', '2026-01-10 09:00:00'],
+        ] as [$name, $checkedInAt]) {
+            Attendance::create([
+                'attendee_type' => Attendance::TYPE_WALK_IN,
+                'name' => $name,
+                'checked_in_at' => $checkedInAt,
+                'checked_out_at' => null,
+                'recorded_by' => $manager->id,
+            ]);
+        }
+
+        $response = $this->actingAs($manager)
+            ->getJson('/panel/reports/attendance/data?per_page=2')
+            ->assertOk();
+
+        $response->assertJsonPath('filters.date_from', null);
+        $response->assertJsonPath('filters.date_to', null);
+        $response->assertJsonPath('summary.total_check_ins', 3);
+        $response->assertJsonPath('records.current_page', 1);
+        $response->assertJsonPath('records.per_page', 2);
+        $response->assertJsonPath('records.total', 3);
+        $response->assertJsonPath('records.last_page', 2);
+        $response->assertJsonPath('records.data.0.name', 'Recent Attendee');
+        $response->assertJsonPath('records.data.1.name', 'Middle Attendee');
+
+        $this->actingAs($manager)
+            ->getJson('/panel/reports/attendance/data?per_page=2&page=2')
+            ->assertOk()
+            ->assertJsonPath('records.current_page', 2)
+            ->assertJsonPath('records.data.0.name', 'Old Attendee');
+    }
+
+    public function test_attendance_reports_can_be_exported_to_xlsx(): void
+    {
+        $this->setBusinessProfile('Naga');
+        $manager = $this->createUserWithRole('manager', 'Manager Ana');
+
+        Attendance::create([
+            'attendee_type' => Attendance::TYPE_MEMBER,
+            'name' => 'Member Joy',
+            'checked_in_at' => '2026-03-05 08:00:00',
+            'checked_out_at' => '2026-03-05 09:00:00',
+            'recorded_by' => $manager->id,
+        ]);
+
+        Attendance::create([
+            'attendee_type' => Attendance::TYPE_WALK_IN,
+            'name' => 'Old Walk-in',
+            'checked_in_at' => '2026-01-05 08:00:00',
+            'checked_out_at' => '2026-01-05 09:00:00',
+            'recorded_by' => $manager->id,
+        ]);
+
+        $this->freezeTime();
+        $response = $this->actingAs($manager)
+            ->get('/panel/reports/attendance/export');
+
+        $response->assertOk();
+        $response->assertDownload('attendance-report-'.now()->format('Ymd_His').'.xlsx');
+        $content = $this->xlsxText($response);
+
+        $this->assertStringContainsString('Attendance Report', $content);
+        $this->assertStringContainsString('Summary', $content);
+        $this->assertStringContainsString('Attendance by Type', $content);
+        $this->assertStringContainsString('Attendance Records', $content);
+        $this->assertStringContainsString('Member Joy', $content);
+        $this->assertStringContainsString('Old Walk-in', $content);
+        $this->assertStringNotContainsString('Location Totals', $content);
+        $this->assertStringContainsString('Naga', $content);
+        $this->assertStringContainsString('Mar 05, 2026 08:00 AM', $content); // local time, not UTC
+    }
+
+    private function setBusinessProfile(string $name): BusinessProfile
+    {
+        return BusinessProfile::factory()->create([
+            'name' => $name,
+            'city' => 'Naga City',
+            'province' => 'Camarines Sur',
+        ]);
+    }
+
+    private function createUserWithRole(string $role, string $name): User
+    {
+        $user = User::factory()->create([
+            'name' => $name,
+            'email' => str($name)->slug('-').'@example.com',
+            'status' => User::STATUS_ACTIVE,
+        ]);
+
+        $user->assignRole($role);
+
+        return $user;
+    }
+}

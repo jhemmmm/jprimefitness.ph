@@ -1,0 +1,689 @@
+<template>
+   <div class="p-3">
+      <div class="alert alert-success py-2 small" v-if="saved"><i class="bi bi-check-circle me-1"></i>PT package changes saved successfully.</div>
+      <div class="alert alert-danger py-2 small" v-if="generalError">{{ generalError }}</div>
+      <div class="alert alert-danger py-2 small" v-if="drawerStatusError">{{ drawerStatusError }}</div>
+      <div class="alert alert-warning py-2 small" v-if="!drawerStatusLoading && !canRecordSales">
+         <i class="bi bi-lock me-1"></i>The cash drawer is closed. Open it before selling a PT package or refunding a cash package sale.
+      </div>
+
+      <div class="row g-3 mb-4">
+         <div class="col-md-4" v-for="stat in statCards" :key="stat.label">
+            <div class="stat-card">
+               <div class="stat-card-icon"><i class="bi" :class="stat.icon"></i></div>
+               <div class="stat-card-body">
+                  <div class="stat-card-label">{{ stat.label }}</div>
+                  <div class="stat-card-value">{{ stat.value }}</div>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      <div class="d-flex flex-wrap justify-content-end gap-2 mb-4" v-if="canAllocatePackages">
+         <button v-if="canAllocatePackages" class="btn btn-danger btn-sm" @click="openPackageModal" :disabled="drawerStatusLoading || !canRecordSales" :title="canRecordSales ? '' : 'Open the cash drawer before recording a sale'"><i class="bi bi-plus-circle me-1"></i>Sell PT Package</button>
+         <button class="btn btn-outline-success btn-sm" @click="openUsageModal" :disabled="activePackages.length === 0"><i class="bi bi-check2-square me-1"></i>Log PT Session Use</button>
+      </div>
+
+      <div v-if="packages.length === 0" class="text-center py-5 text-muted">
+         <i class="bi bi-stopwatch fs-1 d-block mb-2 opacity-25"></i>
+         <div>No PT session packages found.</div>
+      </div>
+
+      <template v-else>
+         <div class="d-none d-md-block mb-4">
+            <table class="table table-striped table-hover align-middle mb-0">
+               <thead class="table-light">
+                  <tr>
+                     <th>Product</th>
+                     <th>Coach</th>
+                     <th>Balance</th>
+                     <th>Status</th>
+                     <th>Assigned</th>
+                     <th>Created By</th>
+                     <th class="text-end">Actions</th>
+                  </tr>
+               </thead>
+               <tbody>
+                  <tr v-for="pkg in packages" :key="pkg.id">
+                     <td>
+                        <div class="fw-semibold">{{ pkg.pt_product?.name || "-" }}</div>
+                        <div class="small text-muted" v-if="pkg.notes">{{ pkg.notes }}</div>
+                        <div class="small text-danger" v-if="pkg.cancellation_reason">Cancelled: {{ pkg.cancellation_reason }}</div>
+                     </td>
+                     <td class="small">{{ pkg.coach?.name || "-" }}</td>
+                     <td class="small">
+                        <span class="fw-semibold">{{ pkg.remaining_sessions }}</span>
+                        <span class="text-muted"> / {{ pkg.total_sessions }}</span>
+                     </td>
+                     <td>
+                        <span class="m-badge" :class="packageStatusClass(pkg.status)">{{ $filters.capitalize(pkg.status) }}</span>
+                     </td>
+                     <td class="small">
+                        <div>{{ formatDate(pkg.assigned_at) }}</div>
+                        <div class="text-muted" v-if="pkg.expires_at">Expires {{ formatDate(pkg.expires_at) }}</div>
+                        <a class="small" v-if="pkg.sale_transaction" :href="pkg.sale_transaction.receipt_url">{{ pkg.sale_transaction.receipt_number }}</a>
+                     </td>
+                     <td class="small text-muted">{{ pkg.created_by?.name || "-" }}</td>
+                     <td class="text-end">
+                        <button
+                           v-if="canCancelPackages && pkg.action_state?.can_cancel"
+                           type="button"
+                           class="btn btn-outline-danger btn-sm"
+                           @click="openCancelModal(pkg)"
+                           :disabled="!canCancelPackageNow(pkg)"
+                           :title="canCancelPackageNow(pkg) ? '' : 'Open the cash drawer before refunding a cash sale'"
+                        >
+                           {{ pkg.action_state.label }}
+                        </button>
+                        <span v-else-if="canCancelPackages && pkg.action_state?.reason" class="small text-muted" :title="pkg.action_state.reason">Unavailable</span>
+                     </td>
+                  </tr>
+               </tbody>
+            </table>
+         </div>
+
+         <div class="d-md-none mb-4">
+            <div class="member-card" v-for="pkg in packages" :key="'pt-' + pkg.id">
+               <div class="member-card-top">
+                  <div>
+                     <div class="fw-semibold">{{ pkg.pt_product?.name || "-" }}</div>
+                     <div class="text-muted small" v-if="pkg.coach?.name">Coach: {{ pkg.coach.name }}</div>
+                  </div>
+                  <span class="m-badge" :class="packageStatusClass(pkg.status)">{{ $filters.capitalize(pkg.status) }}</span>
+               </div>
+               <div class="member-card-footer">
+                  <span>{{ pkg.remaining_sessions }}/{{ pkg.total_sessions }} left</span>
+                  <span class="text-muted small">{{ formatDate(pkg.assigned_at) }}</span>
+               </div>
+               <div class="mt-2" v-if="pkg.sale_transaction">
+                  <a class="small" :href="pkg.sale_transaction.receipt_url">{{ pkg.sale_transaction.receipt_number }}</a>
+               </div>
+               <div class="small text-danger mt-1" v-if="pkg.cancellation_reason">Cancelled: {{ pkg.cancellation_reason }}</div>
+               <button
+                  v-if="canCancelPackages && pkg.action_state?.can_cancel"
+                  type="button"
+                  class="btn btn-outline-danger btn-sm mt-2 w-100"
+                  @click="openCancelModal(pkg)"
+                  :disabled="!canCancelPackageNow(pkg)"
+                  :title="canCancelPackageNow(pkg) ? '' : 'Open the cash drawer before refunding a cash sale'"
+               >
+                  {{ pkg.action_state.label }}
+               </button>
+            </div>
+         </div>
+
+         <div>
+            <div class="fw-semibold mb-3">Usage History</div>
+            <div v-if="usageEntries.length === 0" class="text-center py-4 text-muted border rounded">
+               <div>No PT session usage logged yet.</div>
+            </div>
+            <div v-else class="d-none d-md-block">
+               <table class="table table-striped table-hover align-middle mb-0">
+                  <thead class="table-light">
+                     <tr>
+                        <th>Used At</th>
+                        <th>Product</th>
+                        <th>Sessions</th>
+                        <th>Coach</th>
+                        <th>Confirmed By</th>
+                        <th>Recorded By</th>
+                     </tr>
+                  </thead>
+                  <tbody>
+                     <tr v-for="usage in usageEntries" :key="usage.id">
+                        <td class="small">{{ formatDateTime(usage.used_at) }}</td>
+                        <td>
+                           <div class="fw-semibold">{{ usage.package.pt_product?.name || "-" }}</div>
+                           <div class="small text-muted" v-if="usage.notes">{{ usage.notes }}</div>
+                        </td>
+                        <td class="small">{{ usage.sessions_used }}</td>
+                        <td class="small">{{ usage.coach?.name || usage.package.coach?.name || "-" }}</td>
+                        <td class="small">{{ usage.confirmed_by || "-" }}</td>
+                        <td class="small text-muted">{{ usage.recorded_by?.name || "-" }}</td>
+                     </tr>
+                  </tbody>
+               </table>
+            </div>
+
+            <div class="d-md-none">
+               <div class="member-card" v-for="usage in usageEntries" :key="'usage-' + usage.id">
+                  <div class="member-card-top">
+                     <div>
+                        <div class="fw-semibold">{{ usage.package.pt_product?.name || "-" }}</div>
+                        <div class="text-muted small">{{ formatDateTime(usage.used_at) }}</div>
+                     </div>
+                     <span class="m-badge m-badge--plan-active">{{ usage.sessions_used }} used</span>
+                  </div>
+                  <div class="member-card-footer">
+                     <span>{{ usage.coach?.name || usage.package.coach?.name || usage.confirmed_by || usage.recorded_by?.name || "-" }}</span>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </template>
+
+      <div class="modal fade" tabindex="-1" ref="packageModal">
+         <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">Sell PT Package</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+               </div>
+               <div class="modal-body">
+                  <div class="row g-3">
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm fw-semibold">PT Product</label>
+                        <select class="form-select" v-model="packageForm.pt_product_id" :class="{ 'is-invalid': packageErrors.pt_product_id }">
+                           <option disabled value="">Select a product...</option>
+                           <option v-for="product in availableProducts" :key="product.id" :value="product.id">{{ product.name }} ({{ product.session_count }} sessions)</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="packageErrors.pt_product_id">{{ packageErrors.pt_product_id }}</div>
+                        <div class="form-text" v-if="selectedPackageProduct">
+                           Price: ₱{{ $filters.formatMoney(selectedPackageProduct.pivot?.price || 0) }}
+                        </div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm fw-semibold">Coach <span class="text-danger">*</span></label>
+                        <select class="form-select" v-model="packageForm.coach_id" :class="{ 'is-invalid': packageErrors.coach_id }">
+                           <option value="">Select a coach...</option>
+                           <option v-for="coach in availablePackageCoaches" :key="coach.id" :value="coach.id">{{ coach.name }}</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="packageErrors.coach_id">{{ packageErrors.coach_id }}</div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm fw-semibold">Assigned Date</label>
+                        <input type="date" class="form-control" v-model="packageForm.assigned_at" :class="{ 'is-invalid': packageErrors.assigned_at }" />
+                        <div class="invalid-feedback" v-if="packageErrors.assigned_at">{{ packageErrors.assigned_at }}</div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm fw-semibold">Expires At</label>
+                        <input type="date" class="form-control" v-model="packageForm.expires_at" :class="{ 'is-invalid': packageErrors.expires_at }" />
+                        <div class="invalid-feedback" v-if="packageErrors.expires_at">{{ packageErrors.expires_at }}</div>
+                     </div>
+                     <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Payment Method <span class="text-danger">*</span></label>
+                        <select class="form-select" v-model="packageForm.payment_method" :class="{ 'is-invalid': packageErrors.payment_method }">
+                           <option v-for="method in paymentMethods" :key="method.value" :value="method.value">{{ method.label }}</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="packageErrors.payment_method">{{ packageErrors.payment_method }}</div>
+                     </div>
+                     <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Amount Received <span class="text-danger">*</span></label>
+                        <input type="number" min="0" step="0.01" class="form-control" v-model="packageForm.amount_received" :class="{ 'is-invalid': packageErrors.amount_received }" />
+                        <div class="invalid-feedback" v-if="packageErrors.amount_received">{{ packageErrors.amount_received }}</div>
+                     </div>
+                     <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Sold At <span class="text-danger">*</span></label>
+                        <input type="datetime-local" class="form-control" v-model="packageForm.sold_at" :class="{ 'is-invalid': packageErrors.sold_at }" />
+                        <div class="invalid-feedback" v-if="packageErrors.sold_at">{{ packageErrors.sold_at }}</div>
+                     </div>
+                     <div class="col-12" v-if="requiresPaymentReference">
+                        <label class="form-label form-label-sm fw-semibold">Payment Reference</label>
+                        <input type="text" class="form-control" v-model="packageForm.payment_reference" :class="{ 'is-invalid': packageErrors.payment_reference }" placeholder="Enter the payment reference" />
+                        <div class="invalid-feedback" v-if="packageErrors.payment_reference">{{ packageErrors.payment_reference }}</div>
+                     </div>
+                     <div class="col-12">
+                        <label class="form-label form-label-sm fw-semibold">Notes</label>
+                        <textarea class="form-control" rows="2" v-model="packageForm.notes" :class="{ 'is-invalid': packageErrors.notes }" placeholder="Optional sales or package notes"></textarea>
+                        <div class="invalid-feedback" v-if="packageErrors.notes">{{ packageErrors.notes }}</div>
+                     </div>
+                  </div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-danger btn-sm" @click="submitPackage" :disabled="savingPackage || !packageForm.pt_product_id || !packageForm.coach_id || !canRecordSales">
+                     <span class="spinner-border spinner-border-sm me-1" v-if="savingPackage"></span>
+                     Record Sale
+                  </button>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      <div class="modal fade" tabindex="-1" ref="usageModal">
+         <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">Log PT Session Use</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+               </div>
+               <div class="modal-body">
+                  <div class="row g-3">
+                     <div class="col-12">
+                        <label class="form-label form-label-sm fw-semibold">Active Package</label>
+                        <select class="form-select" v-model="usageForm.member_pt_package_id" :class="{ 'is-invalid': usageErrors.member_pt_package_id }">
+                           <option disabled value="">Select an active package...</option>
+                           <option v-for="pkg in activePackages" :key="pkg.id" :value="pkg.id">{{ pkg.pt_product?.name }} • {{ pkg.remaining_sessions }}/{{ pkg.total_sessions }} left</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="usageErrors.member_pt_package_id">{{ usageErrors.member_pt_package_id }}</div>
+                     </div>
+                     <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Sessions Used</label>
+                        <input type="number" min="1" class="form-control" v-model.number="usageForm.sessions_used" :class="{ 'is-invalid': usageErrors.sessions_used }" />
+                        <div class="invalid-feedback" v-if="usageErrors.sessions_used">{{ usageErrors.sessions_used }}</div>
+                     </div>
+                     <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Coach</label>
+                        <select class="form-select" v-model="usageForm.coach_id" :class="{ 'is-invalid': usageErrors.coach_id }">
+                           <option disabled value="">Use package coach...</option>
+                           <option v-for="coach in availableUsageCoaches" :key="coach.id" :value="coach.id">{{ coach.name }}</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="usageErrors.coach_id">{{ usageErrors.coach_id }}</div>
+                     </div>
+                     <div class="col-md-4">
+                        <label class="form-label form-label-sm fw-semibold">Used At</label>
+                        <input type="datetime-local" class="form-control" v-model="usageForm.used_at" :class="{ 'is-invalid': usageErrors.used_at }" />
+                        <div class="invalid-feedback" v-if="usageErrors.used_at">{{ usageErrors.used_at }}</div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm fw-semibold">Confirmed By</label>
+                        <input type="text" class="form-control" v-model="usageForm.confirmed_by" :class="{ 'is-invalid': usageErrors.confirmed_by }" placeholder="Member signature or confirmation" />
+                        <div class="invalid-feedback" v-if="usageErrors.confirmed_by">{{ usageErrors.confirmed_by }}</div>
+                     </div>
+                     <div class="col-md-6">
+                        <label class="form-label form-label-sm fw-semibold">Notes</label>
+                        <input type="text" class="form-control" v-model="usageForm.notes" :class="{ 'is-invalid': usageErrors.notes }" placeholder="Optional trainer/session note" />
+                        <div class="invalid-feedback" v-if="usageErrors.notes">{{ usageErrors.notes }}</div>
+                     </div>
+                  </div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                  <button type="button" class="btn btn-outline-success btn-sm" @click="submitUsage" :disabled="savingUsage || !usageForm.member_pt_package_id">
+                     <span class="spinner-border spinner-border-sm me-1" v-if="savingUsage"></span>
+                     Use Session
+                  </button>
+               </div>
+            </div>
+         </div>
+      </div>
+
+      <div class="modal fade" tabindex="-1" ref="cancelPackageModal">
+         <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+               <div class="modal-header">
+                  <h5 class="modal-title fw-bold">{{ cancelPackageTarget?.action_state?.label || "Cancel PT Package" }}</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+               </div>
+               <div class="modal-body">
+                  <p class="small text-muted">
+                     {{ cancelPackageTarget?.sale_transaction ? "This voids the sale and cancels the unused package." : "This cancels the unused package while preserving its history." }}
+                  </p>
+                  <label class="form-label form-label-sm fw-semibold">Reason <span class="text-danger">*</span></label>
+                  <textarea class="form-control" rows="3" v-model="cancelReason" :class="{ 'is-invalid': cancelErrors.reason }" placeholder="Explain why this package is being cancelled"></textarea>
+                  <div class="invalid-feedback" v-if="cancelErrors.reason">{{ cancelErrors.reason }}</div>
+               </div>
+               <div class="modal-footer">
+                  <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Keep Package</button>
+                  <button type="button" class="btn btn-danger btn-sm" @click="submitCancellation" :disabled="cancellingPackage || !cancelReason.trim() || !canCancelPackageNow(cancelPackageTarget)">
+                     <span class="spinner-border spinner-border-sm me-1" v-if="cancellingPackage"></span>
+                     Confirm
+                  </button>
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+</template>
+
+<script>
+import { Modal } from "bootstrap";
+import { formatDate, formatDateTime, toDateInputValue, toDateTimeInputValue } from "../../../dates";
+
+export default {
+   props: {
+      member: { type: Object, required: true },
+   },
+
+   emits: ["updated"],
+
+   data: function () {
+      return {
+         savingPackage: false,
+         savingUsage: false,
+         cancellingPackage: false,
+         saved: false,
+         generalError: "",
+         drawerStatusError: "",
+         drawerStatusLoading: true,
+         drawerStatus: {
+            enabled: true,
+            is_open: false,
+            opened_at: null,
+         },
+         drawerStatusTimer: null,
+         packageErrors: {},
+         usageErrors: {},
+         cancelErrors: {},
+         cancelPackageTarget: null,
+         cancelReason: "",
+         packageForm: {
+            pt_product_id: "",
+            coach_id: "",
+            assigned_at: toDateInputValue(),
+            expires_at: "",
+            payment_method: "cash",
+            amount_received: "",
+            payment_reference: "",
+            sold_at: toDateTimeInputValue(),
+            notes: "",
+         },
+         usageForm: {
+            member_pt_package_id: "",
+            coach_id: "",
+            sessions_used: 1,
+            used_at: toDateTimeInputValue(),
+            confirmed_by: "",
+            notes: "",
+         },
+         packageModalInst: null,
+         usageModalInst: null,
+         cancelPackageModalInst: null,
+         paymentMethods: [
+            { value: "cash", label: "Cash" },
+            { value: "gcash", label: "GCash" },
+            { value: "card", label: "Card" },
+            { value: "bank_transfer", label: "Bank Transfer" },
+         ],
+      };
+   },
+
+   mounted: function () {
+      this.packageModalInst = new Modal(this.$refs.packageModal);
+      this.usageModalInst = new Modal(this.$refs.usageModal);
+      this.cancelPackageModalInst = new Modal(this.$refs.cancelPackageModal);
+      this.fetchDrawerStatus();
+      this.drawerStatusTimer = setInterval(() => this.fetchDrawerStatus(), 15000);
+   },
+
+   watch: {
+      member: {
+         immediate: true,
+         handler: function () {
+            this.resetPackageForm();
+            this.resetUsageForm();
+         },
+      },
+      "packageForm.pt_product_id"() {
+         if (!this.availablePackageCoaches.some((coach) => coach.id === this.packageForm.coach_id)) {
+            this.packageForm.coach_id = "";
+         }
+
+         this.packageForm.amount_received = this.selectedPackageProduct ? Number(this.selectedPackageProduct.pivot?.price || 0).toFixed(2) : "";
+      },
+      "usageForm.member_pt_package_id"() {
+         if (this.selectedUsagePackage?.coach_id) {
+            this.usageForm.coach_id = this.selectedUsagePackage.coach_id;
+            return;
+         }
+
+         if (!this.availableUsageCoaches.some((coach) => coach.id === this.usageForm.coach_id)) {
+            this.usageForm.coach_id = "";
+         }
+      },
+   },
+
+   computed: {
+      availableProducts: function () {
+         return this.member.pt_products || [];
+      },
+
+      availableCoaches: function () {
+         return this.member.available_coaches || [];
+      },
+
+      availablePackageCoaches: function () {
+         return this.availableCoaches;
+      },
+
+      selectedPackageProduct: function () {
+         return this.availableProducts.find((product) => product.id === this.packageForm.pt_product_id) || null;
+      },
+
+      packages: function () {
+         return [...(this.member.member_pt_packages || [])].sort((left, right) => {
+            const leftDate = left.assigned_at || left.created_at || "";
+            const rightDate = right.assigned_at || right.created_at || "";
+            return String(rightDate).localeCompare(String(leftDate));
+         });
+      },
+
+      activePackages: function () {
+         return this.packages.filter((pkg) => pkg.status === "active" && Number(pkg.remaining_sessions) > 0);
+      },
+
+      selectedUsagePackage: function () {
+         return this.activePackages.find((pkg) => pkg.id === this.usageForm.member_pt_package_id) || null;
+      },
+
+      availableUsageCoaches: function () {
+         return this.availableCoaches;
+      },
+
+      requiresPaymentReference: function () {
+         return this.packageForm.payment_method !== "cash";
+      },
+
+      usageEntries: function () {
+         return this.packages.flatMap((pkg) => (pkg.usages || []).map((usage) => ({ ...usage, package: pkg }))).sort((left, right) => String(right.used_at || right.created_at || "").localeCompare(String(left.used_at || left.created_at || "")));
+      },
+
+      statCards: function () {
+         return [
+            { label: "Active Packages", value: this.activePackages.length, icon: "bi-box-seam" },
+            {
+               label: "Remaining Sessions",
+               value: this.activePackages.reduce((total, pkg) => total + Number(pkg.remaining_sessions || 0), 0),
+               icon: "bi-lightning-charge",
+            },
+            {
+               label: "Sessions Used",
+               value: this.usageEntries.reduce((total, usage) => total + Number(usage.sessions_used || 0), 0),
+               icon: "bi-activity",
+            },
+         ];
+      },
+
+      canAllocatePackages: function () {
+         return this.can("manage members");
+      },
+      canCancelPackages: function () {
+         return this.can("edit members");
+      },
+
+      canRecordSales: function () {
+         return !this.drawerStatus.enabled || this.drawerStatus.is_open;
+      },
+   },
+
+   methods: {
+      formatDate,
+      formatDateTime,
+      fetchDrawerStatus: function () {
+         this.drawerStatusError = "";
+
+         return axios
+            .get("/panel/cash-drawer/status")
+            .then((response) => {
+               this.drawerStatus = response.data;
+            })
+            .catch((error) => {
+               this.drawerStatus = { enabled: true, is_open: false, opened_at: null };
+               this.drawerStatusError = error.response?.data?.message || "Unable to verify whether the cash drawer is open.";
+            })
+            .finally(() => {
+               this.drawerStatusLoading = false;
+            });
+      },
+
+      markDrawerClosed: function (error) {
+         if (error.response?.status === 409 && String(error.response?.data?.message || "").includes("cash drawer")) {
+            this.drawerStatus = { ...this.drawerStatus, enabled: true, is_open: false, opened_at: null };
+            this.fetchDrawerStatus();
+         }
+      },
+
+      canCancelPackageNow: function (pkg) {
+         return !pkg?.sale_transaction || pkg.sale_transaction.payment_method !== "cash" || this.canRecordSales;
+      },
+      resetPackageForm: function () {
+         this.packageForm = {
+            pt_product_id: "",
+            coach_id: "",
+            assigned_at: toDateInputValue(),
+            expires_at: "",
+            payment_method: "cash",
+            amount_received: "",
+            payment_reference: "",
+            sold_at: toDateTimeInputValue(),
+            notes: "",
+         };
+
+         const firstProduct = this.availableProducts[0];
+         this.packageForm.pt_product_id = firstProduct ? firstProduct.id : "";
+      },
+
+      resetUsageForm: function () {
+         this.usageForm = {
+            member_pt_package_id: this.activePackages[0]?.id || "",
+            coach_id: this.activePackages[0]?.coach_id || "",
+            sessions_used: 1,
+            used_at: toDateTimeInputValue(),
+            confirmed_by: this.member.name || "",
+            notes: "",
+         };
+      },
+
+      openPackageModal: function () {
+         if (!this.canRecordSales) return;
+         this.generalError = "";
+         this.packageErrors = {};
+         this.resetPackageForm();
+         this.packageModalInst.show();
+      },
+
+      openUsageModal: function () {
+         this.generalError = "";
+         this.usageErrors = {};
+         this.resetUsageForm();
+         this.usageModalInst.show();
+      },
+
+      openCancelModal: function (pkg) {
+         if (!this.canCancelPackageNow(pkg)) return;
+         this.generalError = "";
+         this.cancelErrors = {};
+         this.cancelReason = "";
+         this.cancelPackageTarget = pkg;
+         this.cancelPackageModalInst.show();
+      },
+
+      normalizeErrors: function (errors) {
+         return Object.fromEntries(Object.entries(errors || {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
+      },
+
+      submitPackage: function () {
+         if (!this.canRecordSales) return;
+         this.savingPackage = true;
+         this.saved = false;
+         this.generalError = "";
+         this.packageErrors = {};
+
+         axios
+            .post(`/panel/members/${this.member.id}/pt-packages`, this.packageForm)
+            .then((res) => {
+               this.saved = true;
+               this.$emit("updated", res.data);
+               this.packageModalInst.hide();
+               this.resetPackageForm();
+               setTimeout(() => (this.saved = false), 3000);
+            })
+            .catch((err) => {
+               this.markDrawerClosed(err);
+               if (err.response?.status === 422) {
+                  this.packageErrors = this.normalizeErrors(err.response.data.errors);
+               } else {
+                  this.generalError = err.response?.data?.message || "Failed to sell PT package.";
+               }
+            })
+            .finally(() => (this.savingPackage = false));
+      },
+
+      submitUsage: function () {
+         this.savingUsage = true;
+         this.saved = false;
+         this.generalError = "";
+         this.usageErrors = {};
+
+         axios
+            .post(`/panel/members/${this.member.id}/pt-session-usages`, this.usageForm)
+            .then((res) => {
+               this.saved = true;
+               this.$emit("updated", res.data);
+               this.usageModalInst.hide();
+               this.resetUsageForm();
+               setTimeout(() => (this.saved = false), 3000);
+            })
+            .catch((err) => {
+               if (err.response?.status === 422) {
+                  this.usageErrors = this.normalizeErrors(err.response.data.errors);
+               } else {
+                  this.generalError = err.response?.data?.message || "Failed to log PT session usage.";
+               }
+            })
+            .finally(() => (this.savingUsage = false));
+      },
+
+      submitCancellation: function () {
+         if (!this.cancelPackageTarget) return;
+         if (!this.canCancelPackageNow(this.cancelPackageTarget)) return;
+
+         this.cancellingPackage = true;
+         this.saved = false;
+         this.generalError = "";
+         this.cancelErrors = {};
+
+         axios
+            .post(`/panel/members/${this.member.id}/pt-packages/${this.cancelPackageTarget.id}/cancel`, {
+               reason: this.cancelReason,
+            })
+            .then((res) => {
+               this.saved = true;
+               this.$emit("updated", res.data);
+               this.cancelPackageModalInst.hide();
+               this.cancelPackageTarget = null;
+               this.cancelReason = "";
+               setTimeout(() => (this.saved = false), 3000);
+            })
+            .catch((err) => {
+               this.markDrawerClosed(err);
+               if (err.response?.status === 422) {
+                  this.cancelErrors = this.normalizeErrors(err.response.data.errors);
+               } else {
+                  this.cancelErrors = {
+                     reason: err.response?.data?.message || "Failed to cancel PT package.",
+                  };
+               }
+            })
+            .finally(() => (this.cancellingPackage = false));
+      },
+
+      packageStatusClass: function (status) {
+         return (
+            {
+               active: "m-badge--plan-active",
+               consumed: "m-badge--plan-expired",
+               cancelled: "m-badge--plan-cancelled",
+            }[status] || "m-badge--plan-expired"
+         );
+      },
+   },
+
+   beforeUnmount: function () {
+      clearInterval(this.drawerStatusTimer);
+      this.packageModalInst?.dispose();
+      this.usageModalInst?.dispose();
+      this.cancelPackageModalInst?.dispose();
+   },
+};
+</script>
