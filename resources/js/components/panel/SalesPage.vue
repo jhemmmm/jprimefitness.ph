@@ -155,7 +155,9 @@
                               <label class="form-label">Start Date <span class="text-danger">*</span></label>
                               <input type="date" class="form-control" v-model="form.start_date" :class="{ 'is-invalid': formErrors.start_date }" />
                               <div class="invalid-feedback">{{ formErrors.start_date }}</div>
-                              <div v-if="form.member_current_end" class="form-text">Current plan ends {{ formatDate(form.member_current_end) }}; renewal starts the day after.</div>
+                              <div v-if="form.member_current_end" :class="['form-text', memberStartDateConflict ? 'text-danger' : '']">
+                                 Current plan ends {{ formatDate(form.member_current_end) }}. Select {{ formatDate(memberNextStartDate) }} or later for the new plan.
+                              </div>
                            </div>
                            <div class="col-12 col-md-6">
                               <label class="form-label">Notes</label>
@@ -1005,6 +1007,14 @@ export default {
       selectedMembershipPlan: function () {
          return this.context.membership_rates.find((plan) => Number(plan.id) === Number(this.form.membership_rate_plan_id)) || null;
       },
+      memberNextStartDate: function () {
+         if (!this.form.member_current_end) return "";
+         var dayAfterCurrent = toDateInputValue(appDayjs(this.form.member_current_end).add(1, "day"));
+         return dayAfterCurrent > todayDate() ? dayAfterCurrent : todayDate();
+      },
+      memberStartDateConflict: function () {
+         return Boolean(this.memberNextStartDate && this.form.start_date && this.form.start_date < this.memberNextStartDate);
+      },
       selectedPtProduct: function () {
          return this.context.pt_rates.find((ptRate) => Number(ptRate.id) === Number(this.form.pt_product_id)) || null;
       },
@@ -1320,15 +1330,6 @@ export default {
          this.form.member_label = member?.name || "";
          this.form.member_discount_type = member?.discount_type || "";
          this.form.member_current_end = member?.current_end || "";
-
-         // Renewal starts the day after the running plan ends; the server enforces the same floor.
-         if (this.form.member_current_end) {
-            var nextStart = toDateInputValue(appDayjs(this.form.member_current_end).add(1, "day"));
-
-            if (nextStart > this.form.start_date) {
-               this.form.start_date = nextStart;
-            }
-         }
       },
       findInventoryItem: function (inventoryItemId) {
          return this.context.inventory_items.find((item) => Number(item.id) === Number(inventoryItemId)) || null;

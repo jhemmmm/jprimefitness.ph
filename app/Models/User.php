@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Validation\ValidationException;
 use LaravelAndVueJS\Traits\LaravelPermissionToVueJS;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -141,8 +142,13 @@ class User extends Authenticatable
         $currentPlan = $this->currentMembership();
 
         if ($currentPlan?->status === MemberSubscription::STATUS_ACTIVE && $currentPlan->end_date) {
-            // Renewal: queue behind the running plan so the member keeps every paid day.
-            $startDate = Carbon::parse($startDate)->max($this->nextMembershipStartDate())->toDateString();
+            $nextStartDate = $this->nextMembershipStartDate();
+
+            if (Carbon::parse($startDate)->lt(Carbon::parse($nextStartDate))) {
+                throw ValidationException::withMessages([
+                    'start_date' => ["This member already has an active plan. Select {$nextStartDate} or a later start date."],
+                ]);
+            }
         } elseif ($currentPlan) {
             // A paused plan here may be an unpaid on-site registration still sitting in the
             // pending-payments queue; say why it went away instead of dropping it silently.

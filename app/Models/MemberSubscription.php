@@ -3,7 +3,10 @@
 namespace App\Models;
 
 use App\Models\Concerns\SyncsToOutbox;
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
+use DateTimeInterface;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -45,9 +48,26 @@ class MemberSubscription extends Model
         'end_date' => 'date',
         'sold_price' => 'decimal:2',
         'expiration_notification_sent_for_date' => 'date',
+        'cancelled_at' => 'datetime',
         'qr_generated_at' => 'datetime',
         'qr_emailed_at' => 'datetime',
     ];
+
+    /**
+     * Store cancellation timestamps in the application's database timezone.
+     *
+     * @return \Illuminate\Database\Eloquent\Casts\Attribute
+     */
+    protected function cancelledAt(): Attribute
+    {
+        return Attribute::make(
+            set: fn (DateTimeInterface|string|null $value): ?string => $value === null
+                ? null
+                : Carbon::parse($value, config('app.timezone'))
+                    ->setTimezone(config('app.timezone'))
+                    ->format($this->getDateFormat()),
+        );
+    }
 
     /**
      * The membership a member is on right now: the latest active/paused plan that

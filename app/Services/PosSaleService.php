@@ -323,6 +323,7 @@ class PosSaleService
             }
 
             $member = $this->resolveMember($data);
+            $member = User::query()->lockForUpdate()->findOrFail($member->id);
             $price = round((float) $ratePlan->price, 2);
             $discount = $this->resolveDiscount($price, $data, $member);
             $saleTotal = round($price - ($discount['amount'] ?? 0), 2);

@@ -430,7 +430,7 @@ class SalesPageTest extends TestCase
             ->assertCreated();
     }
 
-    public function test_early_renewal_queues_after_current_plan_without_losing_paid_days(): void
+    public function test_early_renewal_rejects_an_overlapping_start_date_then_uses_the_selected_date(): void
     {
         $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
         $member = $this->createUserWithRole('member', 'Member Mia');
@@ -443,16 +443,29 @@ class SalesPageTest extends TestCase
             'end_date' => today()->addDays(3)->toDateString(),
         ]);
 
+        $saleData = [
+            'type' => SaleTransaction::TYPE_MEMBERSHIP,
+            'member_id' => $member->id,
+            'rate_plan_id' => $ratePlan->id,
+            'start_date' => today()->toDateString(),
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'amount_received' => 1500,
+            'sold_at' => now()->toDateTimeString(),
+        ];
+
         $this->actingAs($cashier)
-            ->postJson('/panel/sales', [
-                'type' => SaleTransaction::TYPE_MEMBERSHIP,
-                'member_id' => $member->id,
-                'rate_plan_id' => $ratePlan->id,
-                'start_date' => today()->toDateString(),
-                'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
-                'amount_received' => 1500,
-                'sold_at' => now()->toDateTimeString(),
-            ])
+            ->postJson('/panel/sales', $saleData)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('start_date')
+            ->assertJsonPath('errors.start_date.0', 'This member already has an active plan. Select '.today()->addDays(4)->toDateString().' or a later start date.');
+
+        $this->assertDatabaseCount('member_subscriptions', 1);
+        $this->assertDatabaseCount('sale_transactions', 0);
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', array_merge($saleData, [
+                'start_date' => today()->addDays(4)->toDateString(),
+            ]))
             ->assertCreated();
 
         $renewal = MemberSubscription::where('user_id', $member->id)->whereKeyNot($current->id)->firstOrFail();
@@ -1123,7 +1136,7 @@ class SalesPageTest extends TestCase
             'type' => SaleTransaction::TYPE_MEMBERSHIP,
             'member_id' => $senior->id,
             'rate_plan_id' => $ratePlan->id,
-            'start_date' => '2026-04-01',
+            'start_date' => today()->toDateString(),
             'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
             'amount_received' => 1000,
             'sold_at' => '2026-03-29 15:00:00',
@@ -1140,7 +1153,7 @@ class SalesPageTest extends TestCase
 
         // 30% promo > 20% senior discount: promo wins, never both.
         $this->actingAs($cashier)
-            ->postJson('/panel/sales', ['start_date' => '2026-05-01'] + $payload + ['discount_percent' => 30])
+            ->postJson('/panel/sales', ['start_date' => today()->addDays(30)->toDateString()] + $payload + ['discount_percent' => 30])
             ->assertCreated()
             ->assertJsonPath('total', 700)
             ->assertJsonPath('discount.type', 'promo')
