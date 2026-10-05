@@ -49,8 +49,8 @@ class MembershipQrService
             return;
         }
 
-        // Mailable implements ShouldQueueAfterCommit - sent after the surrounding
-        // DB transaction commits, so POS/webhook flows aren't blocked on SMTP.
+        // The mailable queues after the transaction commits, when the subscription is readable.
+        // With the sync queue connection, SMTP still runs before the request returns.
         Mail::to($subscription->member->email)
             ->send(new MembershipQrCodeMail($subscription));
 
