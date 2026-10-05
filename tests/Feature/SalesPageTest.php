@@ -476,6 +476,47 @@ class SalesPageTest extends TestCase
         $this->assertTrue($member->currentMembership()->is($current));
     }
 
+    public function test_renewal_can_start_the_day_after_an_ended_plan_even_when_sold_later(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-05 21:45:00'));
+
+        $cashier = $this->createUserWithRole('manager', 'Cashier Ben');
+        $member = $this->createUserWithRole('member', 'Member Mark');
+        $ratePlan = $this->createRatePlan('Monthly', 30, ['price' => 1500]);
+
+        $ended = $member->memberSubscriptions()->create([
+            'rate_plan_id' => $ratePlan->id,
+            'status' => MemberSubscription::STATUS_ACTIVE,
+            'start_date' => '2026-08-16',
+            'end_date' => '2026-09-14',
+        ]);
+
+        $saleData = [
+            'type' => SaleTransaction::TYPE_MEMBERSHIP,
+            'member_id' => $member->id,
+            'rate_plan_id' => $ratePlan->id,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'amount_received' => 1500,
+            'sold_at' => now()->toDateTimeString(),
+        ];
+
+        $this->assertSame('2026-10-05', $member->nextMembershipStartDate());
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', ['start_date' => '2026-09-14'] + $saleData)
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.start_date.0', 'This member already has an active plan. Select 2026-09-15 or a later start date.');
+
+        $this->actingAs($cashier)
+            ->postJson('/panel/sales', ['start_date' => '2026-09-15'] + $saleData)
+            ->assertCreated();
+
+        $renewal = $member->memberSubscriptions()->whereKeyNot($ended->id)->firstOrFail();
+
+        $this->assertSame('2026-09-15', $renewal->start_date->toDateString());
+        $this->assertSame('2026-10-14', $renewal->end_date->toDateString());
+    }
+
     public function test_membership_sale_replaces_paused_plan(): void
     {
         $cashier = $this->createUserWithRole('manager', 'Cashier Ben');

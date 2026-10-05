@@ -87,4 +87,31 @@ class ExpireMembershipsTest extends TestCase
 
         $this->travelBack();
     }
+
+    public function test_email_failure_does_not_stop_the_remaining_memberships_from_expiring(): void
+    {
+        $this->travelTo(Carbon::parse('2026-10-05 00:05:00'));
+        Mail::shouldReceive('to')->twice()->andThrow(new \RuntimeException('Mail transport unavailable'));
+
+        $ratePlan = RatePlan::create(['name' => 'Monthly', 'duration_days' => 30, 'price' => 1500, 'is_active' => true]);
+        $subscriptions = collect();
+
+        foreach (['first@example.test', 'second@example.test'] as $email) {
+            $member = User::factory()->create(['email' => $email, 'status' => User::STATUS_ACTIVE]);
+            $subscriptions->push($member->memberSubscriptions()->create([
+                'rate_plan_id' => $ratePlan->id,
+                'start_date' => '2026-08-16',
+                'end_date' => '2026-09-14',
+                'status' => MemberSubscription::STATUS_ACTIVE,
+            ]));
+        }
+
+        $this->artisan('panel:expire-memberships')
+            ->expectsOutputToContain('Expired 2 membership(s).')
+            ->assertExitCode(0);
+
+        foreach ($subscriptions as $subscription) {
+            $this->assertSame(MemberSubscription::STATUS_EXPIRED, $subscription->fresh()->status);
+        }
+    }
 }

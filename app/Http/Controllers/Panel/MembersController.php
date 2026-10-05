@@ -549,7 +549,9 @@ class MembersController extends Controller
                 'name' => $subscription->ratePlan->name,
                 'duration_days' => $subscription->ratePlan->duration_days,
             ] : null,
-            'status' => $subscription->status,
+            'status' => $subscription->status === MemberSubscription::STATUS_ACTIVE && $subscription->isExpired(now())
+                ? MemberSubscription::STATUS_EXPIRED
+                : $subscription->status,
             'start_date' => $subscription->start_date?->toDateString(),
             'end_date' => $subscription->end_date?->toDateString(),
             'created_at' => $subscription->created_at?->toISOString(),

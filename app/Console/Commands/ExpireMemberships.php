@@ -9,6 +9,7 @@ use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 #[Signature('panel:expire-memberships')]
 #[Description('Mark active memberships past their end date as expired and email the member')]
@@ -33,7 +34,11 @@ class ExpireMemberships extends Command
 
                     // Both nodes share one SMTP account; live alone mails expiry so members aren't emailed twice.
                     if (config('sync.role') !== SyncRole::LOCAL && $subscription->member?->email && ! $subscription->hasRenewal()) {
-                        Mail::to($subscription->member->email)->queue(new MembershipExpiryMail($subscription->member, $subscription));
+                        try {
+                            Mail::to($subscription->member->email)->queue(new MembershipExpiryMail($subscription->member, $subscription));
+                        } catch (Throwable $exception) {
+                            report($exception);
+                        }
                     }
 
                     $expired++;

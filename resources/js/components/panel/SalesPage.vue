@@ -1009,8 +1009,7 @@ export default {
       },
       memberNextStartDate: function () {
          if (!this.form.member_current_end) return "";
-         var dayAfterCurrent = toDateInputValue(appDayjs(this.form.member_current_end).add(1, "day"));
-         return dayAfterCurrent > todayDate() ? dayAfterCurrent : todayDate();
+         return toDateInputValue(appDayjs(this.form.member_current_end).add(1, "day"));
       },
       memberStartDateConflict: function () {
          return Boolean(this.memberNextStartDate && this.form.start_date && this.form.start_date < this.memberNextStartDate);

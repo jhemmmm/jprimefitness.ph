@@ -14,7 +14,7 @@
             <div class="flex-grow-1 min-w-0">
                <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
                   <h4 class="fw-bold mb-0">{{ localMember.name }}</h4>
-                  <span :class="['m-badge', $filters.statusBadge(localMember.status)]">{{ $filters.capitalize(localMember.status) }}</span>
+                  <span :class="['m-badge', $filters.statusBadge(localMember.status)]">Account: {{ $filters.capitalize(localMember.status) }}</span>
                   <span v-if="activeMembership" :class="['m-badge', membershipStatusClass(activeMembership.status)]">
                      {{ activeMembership.rate_plan.name }}
                   </span>
@@ -98,10 +98,7 @@ export default {
             return null;
          }
 
-         return (
-            this.localMember.member_subscriptions.find((membership) => membership.status === "active" || membership.status === "paused") ||
-            this.localMember.member_subscriptions[0]
-         );
+         return this.localMember.member_subscriptions.find((membership) => membership.status === "active" || membership.status === "paused") || null;
       },
    },
 

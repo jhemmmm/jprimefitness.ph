@@ -95,7 +95,7 @@ export default {
             return null;
          }
 
-         return this.member.member_subscriptions.find((membership) => membership.status === "active" || membership.status === "paused") || this.member.member_subscriptions[0];
+         return this.member.member_subscriptions.find((membership) => membership.status === "active" || membership.status === "paused") || null;
       },
    },
 

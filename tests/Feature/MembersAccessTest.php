@@ -57,6 +57,28 @@ class MembersAccessTest extends TestCase
             ->assertSeeText($member->name);
     }
 
+    public function test_ended_active_plan_is_presented_as_expired_when_the_expiry_job_has_not_run(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-05 21:45:00'));
+
+        $manager = $this->createUserWithRole('manager');
+        $member = $this->createMember();
+        $ratePlan = $this->createRatePlan('Monthly', 30);
+        $subscription = $member->memberSubscriptions()->create([
+            'rate_plan_id' => $ratePlan->id,
+            'start_date' => '2026-08-16',
+            'end_date' => '2026-09-14',
+            'status' => MemberSubscription::STATUS_ACTIVE,
+        ]);
+
+        $this->actingAs($manager)
+            ->getJson('/panel/members/list')
+            ->assertOk()
+            ->assertJsonPath('members.data.0.member_subscriptions.0.status', MemberSubscription::STATUS_EXPIRED);
+
+        $this->assertSame(MemberSubscription::STATUS_ACTIVE, $subscription->fresh()->status);
+    }
+
     public function test_membership_plans_can_no_longer_be_assigned_from_the_member_pages(): void
     {
         $manager = $this->createUserWithRole('manager');

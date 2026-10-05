@@ -200,6 +200,31 @@ class RegistrationTest extends TestCase
         $this->assertDatabaseMissing('system_activities', ['subject_type' => SystemActivity::SUBJECT_MEMBER, 'subject_id' => $member->id]);
     }
 
+    public function test_public_renewal_without_a_date_starts_today_when_the_previous_plan_ended(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-05 21:45:00'));
+
+        $member = $this->createMember();
+        $member->memberSubscriptions()->create([
+            'rate_plan_id' => $this->plan->id,
+            'sold_price' => 1500,
+            'status' => MemberSubscription::STATUS_ACTIVE,
+            'start_date' => '2026-08-16',
+            'end_date' => '2026-09-14',
+        ]);
+
+        $this->postJson(URL::signedRoute('renew.store', ['email' => 'ana@example.com']), [
+            'rate_plan_id' => $this->plan->id,
+            'payment_method' => 'on_site',
+            'terms_accepted' => true,
+        ])->assertCreated();
+
+        $renewal = $member->memberSubscriptions()->latest('id')->firstOrFail();
+
+        $this->assertSame('2026-10-05', $renewal->start_date->toDateString());
+        $this->assertSame('2026-11-03', $renewal->end_date->toDateString());
+    }
+
     public function test_renewal_applies_the_discount_on_file_and_blocks_suspended_members(): void
     {
         $member = $this->createMember(['status' => User::STATUS_ACTIVE], ['discount_type' => 'student']);

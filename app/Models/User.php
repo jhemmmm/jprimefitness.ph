@@ -125,15 +125,15 @@ class User extends Authenticatable
     }
 
     /**
-     * Day after the latest active membership ends, so a renewal loses no paid days;
-     * today when nothing is running.
+     * Choose the next automatic renewal date without starting before today.
+     *
+     * @return string
      */
     public function nextMembershipStartDate(): string
     {
-        $currentEnd = $this->memberSubscriptions()->where('status', MemberSubscription::STATUS_ACTIVE)->max('end_date');
-        $dayAfter = $currentEnd ? Carbon::parse($currentEnd)->addDay() : Carbon::today();
-
-        return $dayAfter->max(Carbon::today())->toDateString();
+        return $this->earliestNonOverlappingMembershipStartDate()
+            ->max(Carbon::today())
+            ->toDateString();
     }
 
     /** The only way a plan is issued: through a POS sale, so every plan has a transaction behind it. */
@@ -142,7 +142,7 @@ class User extends Authenticatable
         $currentPlan = $this->currentMembership();
 
         if ($currentPlan?->status === MemberSubscription::STATUS_ACTIVE && $currentPlan->end_date) {
-            $nextStartDate = $this->nextMembershipStartDate();
+            $nextStartDate = $this->earliestNonOverlappingMembershipStartDate()->toDateString();
 
             if (Carbon::parse($startDate)->lt(Carbon::parse($nextStartDate))) {
                 throw ValidationException::withMessages([
@@ -161,6 +161,20 @@ class User extends Authenticatable
         }
 
         return $this->attachPlan($ratePlanId, $startDate, $attributes);
+    }
+
+    /**
+     * Find the first date outside the latest active plan, including past dates for explicit POS sales.
+     *
+     * @return \Carbon\Carbon
+     */
+    private function earliestNonOverlappingMembershipStartDate(): Carbon
+    {
+        $latestEnd = $this->memberSubscriptions()
+            ->where('status', MemberSubscription::STATUS_ACTIVE)
+            ->max('end_date');
+
+        return $latestEnd ? Carbon::parse($latestEnd)->addDay() : Carbon::today();
     }
 
     /**
