@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class AttendanceController extends Controller
@@ -77,9 +78,11 @@ class AttendanceController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
+        $this->authorizeAttendanceManagement($base['attendee_type']);
+
         $extra = match ($base['attendee_type']) {
             'walk_in' => $request->validate(['name' => ['required', 'string', 'max:150']]),
-            default => $this->validatedNamedUser($request),
+            default => $this->validatedNamedUser($request, $base['attendee_type']),
         };
 
         $attendance = Attendance::create(array_merge($base, $extra, [
@@ -101,6 +104,8 @@ class AttendanceController extends Controller
      */
     public function update(Request $request, Attendance $attendance): JsonResponse
     {
+        $this->authorizeAttendanceManagement($attendance->attendee_type);
+
         $data = $request->validate([
             'checked_in_at' => ['required', 'date'],
             'checked_out_at' => ['nullable', 'date', 'after:checked_in_at'],
@@ -126,6 +131,8 @@ class AttendanceController extends Controller
      */
     public function checkout(Attendance $attendance): JsonResponse
     {
+        $this->authorizeAttendanceManagement($attendance->attendee_type);
+
         if ($attendance->checked_out_at) {
             return response()->json(['message' => 'Already checked out.'], 422);
         }
@@ -143,6 +150,8 @@ class AttendanceController extends Controller
      */
     public function destroy(Attendance $attendance): JsonResponse
     {
+        $this->authorizeAttendanceManagement($attendance->attendee_type);
+
         $attendance->delete();
 
         return response()->json(null, 204);
@@ -151,7 +160,7 @@ class AttendanceController extends Controller
     /**
      * @return array{name:string, user_id:int}
      */
-    private function validatedNamedUser(Request $request): array
+    private function validatedNamedUser(Request $request, string $attendeeType): array
     {
         $data = $request->validate([
             'user_id' => ['required', 'exists:users,id'],
@@ -159,10 +168,36 @@ class AttendanceController extends Controller
 
         $user = User::findOrFail($data['user_id']);
 
+        $matchesAttendeeType = $attendeeType === Attendance::TYPE_MEMBER
+            ? $user->hasRole('member')
+            : ! $user->hasAnyRole(User::NON_EMPLOYEE_ROLES);
+
+        if (! $matchesAttendeeType) {
+            throw ValidationException::withMessages([
+                'user_id' => ['The selected user does not match the attendance type.'],
+            ]);
+        }
+
         return [
             'user_id' => $user->id,
             'name' => $user->name,
         ];
+    }
+
+    /**
+     * Ensure the current user can manage attendance for the given attendee type.
+     *
+     * @return void
+     */
+    private function authorizeAttendanceManagement(string $attendeeType): void
+    {
+        $permission = match ($attendeeType) {
+            Attendance::TYPE_MEMBER, Attendance::TYPE_WALK_IN => 'manage member attendance',
+            Attendance::TYPE_EMPLOYEE => 'manage employee attendance',
+            default => null,
+        };
+
+        abort_unless($permission !== null && auth()->user()->can($permission), 403);
     }
 
     /**

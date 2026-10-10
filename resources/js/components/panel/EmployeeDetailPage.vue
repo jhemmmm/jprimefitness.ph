@@ -99,12 +99,16 @@ export default {
          return this.can("manage employees");
       },
       visibleTabs: function () {
-         if (this.canManage) {
-            return this.tabs;
-         }
+         return this.tabs.filter((tab) => {
+            if (tab.key === "attendance") {
+               return this.localEmployee.id === window.Laravel.user.id || this.can("view attendance|manage member attendance|manage employee attendance");
+            }
 
-         return this.tabs.filter(function (tab) {
-            return tab.key !== "settings";
+            if (tab.key === "settings") {
+               return this.canManage;
+            }
+
+            return true;
          });
       },
       activeComponent: function () {

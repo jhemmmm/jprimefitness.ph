@@ -99,7 +99,7 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
         Route::post('/members/{member}/pt-session-usages', [MembersController::class, 'storePtSessionUsage'])->name('members.pt-session-usages.store')->whereNumber('member');
         Route::get('/members/{member}', [MembersController::class, 'show'])->name('members.show')->whereNumber('member');
         // A member's attendance history is attendance data.
-        Route::get('/members/{member}/attendance', [MembersController::class, 'attendance'])->name('members.attendance')->whereNumber('member')->middleware('permission:manage attendance');
+        Route::get('/members/{member}/attendance', [MembersController::class, 'attendance'])->name('members.attendance')->whereNumber('member')->middleware('permission:view attendance|manage member attendance|manage employee attendance');
     });
 
     // Editing members (management): details/settings, pause/cancel a membership, cancel a PT package.
@@ -178,9 +178,12 @@ Route::middleware(['auth', 'panel'])->prefix('panel')->name('panel.')->group(fun
     });
 
     // Attendance
-    Route::middleware('permission:manage attendance')->group(function () {
+    Route::middleware('permission:view attendance|manage member attendance|manage employee attendance')->group(function () {
         Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
         Route::get('/attendance/list', [AttendanceController::class, 'list'])->name('attendance.list');
+    });
+
+    Route::middleware('permission:manage member attendance|manage employee attendance')->group(function () {
         Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
         Route::put('/attendance/{attendance}', [AttendanceController::class, 'update'])->name('attendance.update')->whereNumber('attendance');
         Route::post('/attendance/{attendance}/checkout', [AttendanceController::class, 'checkout'])->name('attendance.checkout')->whereNumber('attendance');

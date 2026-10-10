@@ -8,7 +8,7 @@
             <h4 class="panel-page-title mb-0">Attendance</h4>
             <p class="text-muted small mb-0">Track check-ins for members, walk-ins, and employees</p>
          </div>
-         <button class="btn btn-danger px-3" @click="openAddModal">
+         <button v-if="canManageAnyAttendance" class="btn btn-danger px-3" @click="openAddModal">
             <i class="bi bi-person-check-fill me-1"></i>
             Log Attendance
          </button>
@@ -133,7 +133,7 @@
             <i class="bi bi-calendar-check empty-icon"></i>
             <p class="mt-2 mb-1">No attendance records found</p>
             <p class="small" v-if="hasActiveFilters">Try adjusting your filters</p>
-            <button class="btn btn-danger btn-sm mt-1" @click="openAddModal" v-else>Log first check-in</button>
+            <button class="btn btn-danger btn-sm mt-1" @click="openAddModal" v-else-if="canManageAnyAttendance">Log first check-in</button>
          </div>
 
          <!-- Data -->
@@ -184,9 +184,10 @@
                         <td class="text-muted small">{{ formatDateTime(r.checked_in_at) }}</td>
                         <td>
                            <span v-if="r.checked_out_at" class="text-muted small">{{ formatDateTime(r.checked_out_at) }}</span>
-                           <button v-else class="btn btn-sm btn-outline-success py-0 px-2" title="Check out now" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+                           <button v-else-if="canManageRecord(r)" class="btn btn-sm btn-outline-success py-0 px-2" title="Check out now" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+                           <span v-else class="text-muted small">—</span>
                         </td>
-                        <td>
+                        <td v-if="canManageRecord(r)">
                            <div class="d-flex gap-1">
                               <button class="btn btn-sm btn-outline-secondary" title="Edit" @click="openEditModal(r)">
                                  <i class="bi bi-pencil tbl-icon"></i>
@@ -196,6 +197,7 @@
                               </button>
                            </div>
                         </td>
+                        <td v-else></td>
                      </tr>
                   </tbody>
                </table>
@@ -221,19 +223,19 @@
                            <div class="member-card-name">{{ r.name }}</div>
                         </div>
                      </div>
-                     <div class="dropdown">
+                     <div class="dropdown" v-if="canManageRecord(r)">
                         <button class="btn-icon-sm" data-bs-toggle="dropdown" aria-expanded="false">
                            <i class="bi bi-three-dots-vertical"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
-                           <li v-if="!r.checked_out_at">
+                           <li v-if="!r.checked_out_at && canManageRecord(r)">
                               <a class="dropdown-item text-success" href="#" @click.prevent="doCheckout(r)"> <i class="bi bi-box-arrow-right me-2"></i>Check out </a>
                            </li>
-                           <li>
+                           <li v-if="canManageRecord(r)">
                               <a class="dropdown-item" href="#" @click.prevent="openEditModal(r)"> <i class="bi bi-pencil me-2"></i>Edit </a>
                            </li>
-                           <li><hr class="dropdown-divider" /></li>
-                           <li>
+                           <li v-if="canManageRecord(r)"><hr class="dropdown-divider" /></li>
+                           <li v-if="canManageRecord(r)">
                               <a class="dropdown-item text-danger" href="#" @click.prevent="confirmDelete(r)"> <i class="bi bi-trash me-2"></i>Delete </a>
                            </li>
                         </ul>
@@ -247,7 +249,7 @@
                   <div class="member-card-footer">
                      <span><i class="bi bi-box-arrow-in-right me-1"></i>{{ formatDateTime(r.checked_in_at) }}</span>
                      <span v-if="r.checked_out_at" class="text-muted small"> <i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(r.checked_out_at) }} </span>
-                     <button v-if="!r.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+                     <button v-if="!r.checked_out_at && canManageRecord(r)" class="btn btn-sm btn-outline-success py-0 px-2 ms-auto" @click="doCheckout(r)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
                   </div>
                   <div v-if="r.source_device_serial" class="small text-muted mt-2 px-1">Device {{ r.source_device_serial }}</div>
                </div>
@@ -496,6 +498,7 @@ export default {
       openAddModal: function () {
          this.modalMode = "add";
          this.form = this.emptyForm();
+         this.form.attendee_type = this.attendeeTypes[0]?.value || "member";
          this.pageError = "";
          this.formError = "";
          this.formErrors = {};
@@ -526,6 +529,8 @@ export default {
       },
 
       openEditModal: function (r) {
+         if (!this.canManageRecord(r)) return;
+
          this.modalMode = "edit";
          this.pageError = "";
          this.formError = "";
@@ -621,7 +626,19 @@ export default {
             { value: "member", label: "Member", icon: "bi-people-fill" },
             { value: "walk_in", label: "Walk-in", icon: "bi-person-plus-fill" },
             { value: "employee", label: "Employee", icon: "bi-person-workspace" },
-         ];
+         ].filter((type) => this.can(type.value === "employee" ? "manage employee attendance" : "manage member attendance"));
+      },
+
+      canManageAnyAttendance: function () {
+         return this.can("manage member attendance|manage employee attendance");
+      },
+
+      canManageRecord: function () {
+         return (record) => {
+            if (record.attendee_type === "employee") return this.can("manage employee attendance");
+            if (record.attendee_type === "member" || record.attendee_type === "walk_in") return this.can("manage member attendance");
+            return false;
+         };
       },
 
       attendeeAvatarClasses: function () {

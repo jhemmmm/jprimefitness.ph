@@ -35,7 +35,7 @@
             <input type="date" class="form-control" v-model="dateTo" @change="onDateChange" placeholder="To" />
          </div>
          <div class="col-md-6 text-end">
-            <button class="btn btn-danger btn-sm" @click="openLogModal"><i class="bi bi-plus-lg me-1"></i>Log Attendance</button>
+            <button v-if="canManage" class="btn btn-danger btn-sm" @click="openLogModal"><i class="bi bi-plus-lg me-1"></i>Log Attendance</button>
          </div>
       </div>
 
@@ -63,7 +63,8 @@
                   <td class="small">{{ formatDateTime(record.checked_in_at) }}</td>
                   <td>
                      <span v-if="record.checked_out_at" class="text-muted small">{{ formatDateTime(record.checked_out_at) }}</span>
-                     <button v-else class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(record)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+                     <button v-else-if="canManage" class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(record)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+                     <span v-else class="text-muted small">—</span>
                   </td>
                   <td>
                      <span :class="['m-badge', $filters.statusBadge(record.checked_out_at ? 'inactive' : 'active')]">
@@ -71,7 +72,7 @@
                      </span>
                   </td>
                   <td>
-                     <button class="btn btn-sm btn-outline-danger" title="Delete" @click="confirmDelete(record)">
+                     <button v-if="canManage" class="btn btn-sm btn-outline-danger" title="Delete" @click="confirmDelete(record)">
                         <i class="bi bi-trash tbl-icon"></i>
                      </button>
                   </td>
@@ -92,8 +93,8 @@
             </div>
             <div class="member-card-footer">
                <span v-if="record.checked_out_at" class="text-muted small"><i class="bi bi-box-arrow-right me-1"></i>{{ formatDateTime(record.checked_out_at) }}</span>
-               <button v-if="!record.checked_out_at" class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(record)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
-               <button class="btn btn-sm btn-outline-danger py-0 px-2 ms-auto" @click="confirmDelete(record)"><i class="bi bi-trash"></i></button>
+               <button v-if="!record.checked_out_at && canManage" class="btn btn-sm btn-outline-success py-0 px-2" @click="doCheckout(record)"><i class="bi bi-box-arrow-right me-1"></i>Check out</button>
+               <button v-if="canManage" class="btn btn-sm btn-outline-danger py-0 px-2 ms-auto" @click="confirmDelete(record)"><i class="bi bi-trash"></i></button>
             </div>
          </div>
       </div>
@@ -193,6 +194,9 @@ export default {
    },
 
    computed: {
+      canManage: function () {
+         return this.can("manage member attendance");
+      },
       statCards: function () {
          return [
             { label: "Total", value: this.stats.total, icon: "bi-calendar-check" },

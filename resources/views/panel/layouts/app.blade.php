@@ -130,7 +130,7 @@
                 @endcan
 
                 {{-- Access --}}
-                @can('manage attendance')
+                @canany(['view attendance', 'manage member attendance', 'manage employee attendance'])
                     <div class="sidebar-menu-heading">Access</div>
                     <div class="sidebar-nav-item">
                         <a href="{{ route('panel.attendance.index') }}" @class(['active' => request()->routeIs('panel.attendance.*')])>

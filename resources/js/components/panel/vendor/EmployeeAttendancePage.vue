@@ -222,7 +222,7 @@ export default {
 
    computed: {
       canManage: function () {
-         return this.can("manage employees");
+         return this.employee.id !== window.Laravel.user.id && this.can("manage employee attendance");
       },
       statCards: function () {
          return [

@@ -78,7 +78,7 @@ export default {
    computed: {
       visibleTabs: function () {
          return this.tabs.filter((tab) => {
-            if (tab.key === "attendance") return this.can("manage attendance");
+            if (tab.key === "attendance") return this.can("view attendance|manage member attendance|manage employee attendance");
             if (tab.key === "settings") return this.can("edit members");
             return true;
          });

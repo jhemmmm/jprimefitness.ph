@@ -327,6 +327,12 @@ class EmployeeController extends Controller
     {
         $this->authorizeSelfOrManager($employee);
 
+        $isSelfService = (int) $employee->id === (int) $request->user()->id;
+        abort_unless(
+            $isSelfService || $request->user()->canAny(['view attendance', 'manage member attendance', 'manage employee attendance']),
+            403
+        );
+
         $records = Attendance::query()
             ->where('user_id', $employee->id)
             ->when($request->filled('date_from'), fn ($query) => $query->whereDate('checked_in_at', '>=', $request->date_from))
