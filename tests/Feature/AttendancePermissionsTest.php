@@ -152,6 +152,28 @@ class AttendancePermissionsTest extends TestCase
         $this->assertDatabaseHas('permissions', ['name' => 'manage employee attendance']);
     }
 
+    public function test_super_admin_keeps_attendance_access_after_permission_split(): void
+    {
+        $superAdminRole = Role::findByName('super admin');
+        $permissions = [
+            'view attendance',
+            'manage member attendance',
+            'manage employee attendance',
+        ];
+
+        $superAdminRole->revokePermissionTo($permissions);
+
+        $migration = require database_path('migrations/2026_10_10_150658_restore_super_admin_attendance_permissions.php');
+        $migration->up();
+
+        $superAdmin = User::factory()->withEmployeeProfile()->create(['status' => User::STATUS_ACTIVE]);
+        $superAdmin->assignRole($superAdminRole->fresh());
+
+        $this->actingAs($superAdmin)->getJson('/panel/attendance/list')->assertOk();
+
+        $this->assertTrue($superAdminRole->fresh()->hasAllPermissions($permissions));
+    }
+
     /** @param list<string> $permissions */
     private function userWithPermissions(string $roleName, array $permissions): User
     {
