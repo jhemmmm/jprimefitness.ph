@@ -19,18 +19,14 @@ class SyncStateRepository
     {
         $now = now();
 
-        $updated = DB::table('sync_state')
-            ->where('key', $key)
-            ->update(['value' => $value, 'updated_at' => $now]);
-
-        if ($updated === 0) {
-            DB::table('sync_state')->insert([
-                'key' => $key,
-                'value' => $value,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-        }
+        // Atomic upsert: MySQL reports 0 affected rows for an UPDATE that changes
+        // nothing (same value within the same second), so update-then-insert
+        // collided on the primary key.
+        DB::table('sync_state')->upsert(
+            ['key' => $key, 'value' => $value, 'created_at' => $now, 'updated_at' => $now],
+            ['key'],
+            ['value', 'updated_at'],
+        );
     }
 
     public function getInt(string $key, int $default = 0): int

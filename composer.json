@@ -17,6 +17,7 @@
       "laravel/tinker": "^3.0",
       "laravel/ui": "^4.6",
       "phpoffice/phpspreadsheet": "^5.10",
+      "resend/resend-php": "^1.16",
       "spatie/browsershot": "^5.2",
       "spatie/laravel-pdf": "^2.4",
       "spatie/laravel-permission": "^7.2"
