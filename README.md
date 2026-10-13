@@ -164,7 +164,7 @@ Run on the public cloud server.
 
     Expect `{"ok":true,...}`.
 
-> Sync-wise, live runs only `sync:prune` (daily 03:30, trims outbox rows local has already pulled); otherwise it's purely the receiver. The `panel:*` schedules (`auto-checkout-attendance` hourly, `expire-memberships` 00:05, `send-expiring-membership-notifications` 08:00) run on whichever node has a scheduler, so live needs one too; both nodes keep SMTP configured: local sends front-desk mail (QR code, activation), while the expiry emails from those two schedules are sent by live only (local skips them) so members are not emailed twice.
+> Sync-wise, live runs only `sync:prune` (daily 03:30, trims outbox rows local has already pulled); otherwise it's purely the receiver. The `panel:*` schedules (`expire-memberships` 00:05, `send-expiring-membership-notifications` 08:00) run on whichever node has a scheduler, so live needs one too; `auto-checkout-attendance` (hourly) is scheduled on live only, because the gym PC is not on 24/7 and running it on both nodes logged each check-out twice - local gets the check-outs through `sync:pull`; both nodes keep SMTP configured: local sends front-desk mail (QR code, activation), while the expiry emails from those two schedules are sent by live only (local skips them) so members are not emailed twice.
 
 ---
 

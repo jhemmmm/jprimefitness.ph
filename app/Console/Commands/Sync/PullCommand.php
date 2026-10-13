@@ -63,15 +63,15 @@ class PullCommand extends Command
 
             // ponytail: the cursor stops at the first errored event so it is retried next tick;
             // a poison event stalls the pull until fixed. Park after N attempts if that ever bites.
-            foreach ($events as $i => $event) {
-                if ($acks[$i]['status'] === AckStatus::ERROR) {
+            foreach ($events as $index => $event) {
+                if ($acks[$index]['status'] === AckStatus::ERROR) {
                     $state->set('live_pull_cursor', (string) $cursor);
-                    $this->error("Event {$acks[$i]['event_id']} ({$event['entity_type']}) failed; cursor held at {$cursor}. Applied {$totalApplied}.");
+                    $this->error("Event {$acks[$index]['event_id']} ({$event['entity_type']}) failed; cursor held at {$cursor}. Applied {$totalApplied}.");
 
                     return self::FAILURE;
                 }
 
-                if (in_array($acks[$i]['status'], [AckStatus::OK, AckStatus::CONFLICT], true)) {
+                if (in_array($acks[$index]['status'], [AckStatus::OK, AckStatus::CONFLICT], true)) {
                     $totalApplied++;
                 }
 

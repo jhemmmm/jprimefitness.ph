@@ -48,6 +48,19 @@ class ErrorRetryAndPruneTest extends TestCase
         $this->assertSame(1, RatePlan::where('name', 'After')->count());
     }
 
+    public function test_pull_keeps_paging_a_backlog_until_the_batch_cap(): void
+    {
+        config(['sync.role' => 'local', 'sync.live_api_url' => 'https://live.test', 'sync.live_token' => 't']);
+        $plan = fn (int $sequence) => $this->event($sequence, ['uuid' => (string) Str::uuid(), 'name' => "Plan {$sequence}", 'duration_days' => 30, 'price' => 1, 'is_active' => true]);
+        $pages = [array_map($plan, [1, 2, 3]), array_map($plan, [4, 5, 6]), array_map($plan, [7])];
+        Http::fake(function () use (&$pages) {
+            return Http::response(['events' => array_shift($pages) ?? [], 'has_more' => true]);
+        });
+
+        // a 3-event page must count as one batch, not three
+        $this->artisan('sync:pull', ['--max-batches' => 2])->expectsOutputToContain('Cursor: 6')->assertSuccessful();
+    }
+
     public function test_live_prunes_outbox_rows_the_local_node_has_pulled(): void
     {
         config(['sync.role' => 'live', 'sync.node_id' => 'live']);

@@ -12,6 +12,7 @@ use App\Services\PosSaleService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -19,6 +20,9 @@ use Illuminate\Validation\ValidationException;
 
 class KioskAttendanceController extends Controller
 {
+    /** Mirrors KioskPaymentController: covers a double tap, shorter than refilling the walk-in form. */
+    private const DUPLICATE_WINDOW_SECONDS = 15;
+
     public function __construct(
         private MembershipQrAntiFraudService $membershipQrAntiFraudService,
         private PosSaleService $posSaleService,
@@ -73,7 +77,14 @@ class KioskAttendanceController extends Controller
             ]);
         }
 
-        $attendance = DB::transaction(function () use ($data, $occurredAt, $request) {
+        // Serialized per visitor so two posts for the same visit cannot both miss the duplicate check.
+        $lock = 'kiosk-walk-in:'.sha1(json_encode([$data['name'], $data['phone']]));
+
+        $attendance = Cache::lock($lock, 30)->block(10, fn () => DB::transaction(function () use ($data, $occurredAt, $request) {
+            if ($duplicate = $this->findDuplicateWalkIn($data, $occurredAt)) {
+                return $duplicate;
+            }
+
             $payment = $this->consumeOnlinePayment($data);
 
             $attendance = Attendance::create([
@@ -93,14 +104,41 @@ class KioskAttendanceController extends Controller
             }
 
             return $attendance;
-        });
+        }));
 
         return response()->json([
             'ok' => true,
             'attendance_id' => $attendance->id,
             'member_name' => null,
             'message' => $this->walkInSuccessMessage($data),
-        ], 201);
+        ], $attendance->wasRecentlyCreated ? 201 : 200);
+    }
+
+    /**
+     * The kiosk can post one visit twice: a double tap mounts its result screen twice, and its
+     * offline outbox re-sends a walk-in whose first response was lost. Same payment reference is
+     * the same visit whenever it arrives; otherwise same name + phone within a few seconds is.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function findDuplicateWalkIn(array $data, Carbon $occurredAt): ?Attendance
+    {
+        return Attendance::query()
+            ->where('attendee_type', Attendance::TYPE_WALK_IN)
+            ->where('source', Attendance::SOURCE_KIOSK)
+            ->where('name', $data['name'])
+            ->where('checked_in_at', '>=', $occurredAt->copy()->subDay())
+            ->get()
+            ->first(function (Attendance $existing) use ($data, $occurredAt): bool {
+                $notes = (array) json_decode((string) $existing->notes, true); // staff can overwrite notes with free text
+
+                if (! empty($data['payment_reference']) && ($notes['payment_reference'] ?? null) === $data['payment_reference']) {
+                    return true;
+                }
+
+                return ($notes['phone'] ?? null) === $data['phone']
+                    && abs($existing->checked_in_at->diffInSeconds($occurredAt)) <= self::DUPLICATE_WINDOW_SECONDS;
+            });
     }
 
     private function storeMember(Request $request): JsonResponse

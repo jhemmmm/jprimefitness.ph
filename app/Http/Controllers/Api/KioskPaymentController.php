@@ -10,6 +10,7 @@ use App\Services\PaymongoPaymentService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -17,6 +18,12 @@ use Throwable;
 
 class KioskPaymentController extends Controller
 {
+    /**
+     * Long enough to cover a double tap over a slow link, shorter than anyone can refill the
+     * walk-in form, so a deliberate second registration still gets its own payment.
+     */
+    private const DUPLICATE_WINDOW_SECONDS = 15;
+
     public function __construct(private PaymongoPaymentService $paymongoPaymentService) {}
 
     public function store(Request $request): JsonResponse
@@ -34,6 +41,29 @@ class KioskPaymentController extends Controller
         $method = $data['method'] ?? 'online';
         $discountType = $data['discount_type'] ?? null;
 
+        // A double tap on the kiosk mounts its payment screen twice, and each mount posts here.
+        // Identical requests are serialized and the first response replayed, so both screens
+        // share one payment (and one QR) instead of leaving a stray pending row behind.
+        $key = 'kiosk-payment:'.sha1(json_encode([$data['name'], $data['phone'], $method, $discountType]));
+        $created = false;
+
+        $body = Cache::lock($key.':lock', 30)->block(10, function () use ($key, $data, $method, $discountType, &$created): array {
+            return Cache::remember($key, self::DUPLICATE_WINDOW_SECONDS, function () use ($data, $method, $discountType, &$created): array {
+                $created = true;
+
+                return $this->createPayment($data, $method, $discountType);
+            });
+        });
+
+        return response()->json($body, $created ? 201 : 200);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private function createPayment(array $data, string $method, ?string $discountType): array
+    {
         $baseAmount = $this->resolveWalkInAmount();
         $amount = $discountType !== null
             ? MemberProfile::discountedPrice($baseAmount)
@@ -62,7 +92,7 @@ class KioskPaymentController extends Controller
 
         $qrImageUrl = $this->maybeAttachQrph($payment, $method);
 
-        return response()->json([
+        return [
             'reference' => $payment->reference,
             'method' => $payment->isOnline() ? 'online' : 'cash',
             'qr_data_url' => $payment->qr_data,
@@ -72,7 +102,7 @@ class KioskPaymentController extends Controller
             'discount_type' => $payment->discount_type,
             'discount_percent' => $discountType !== null ? MemberProfile::DISCOUNT_PERCENT : 0,
             'expires_at' => $payment->expires_at?->toIso8601String(),
-        ], 201);
+        ];
     }
 
     private function resolveWalkInAmount(): float

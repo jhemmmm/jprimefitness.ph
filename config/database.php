@@ -41,7 +41,10 @@ return [
             'busy_timeout' => filled(env('DB_BUSY_TIMEOUT')) ? env('DB_BUSY_TIMEOUT') : null,
             'journal_mode' => filled(env('DB_JOURNAL_MODE')) ? env('DB_JOURNAL_MODE') : null,
             'synchronous' => filled(env('DB_SYNCHRONOUS')) ? env('DB_SYNCHRONOUS') : null,
-            'transaction_mode' => 'DEFERRED',
+            // IMMEDIATE takes the write lock at BEGIN, where busy_timeout applies. A DEFERRED transaction
+            // that reads first and writes later fails at once with "database is locked" when another
+            // process (sync:pull/push, the scheduler, a kiosk request) wrote in between. Needs PHP 8.4+.
+            'transaction_mode' => 'IMMEDIATE',
         ],
 
         'mysql' => [

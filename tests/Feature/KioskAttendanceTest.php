@@ -239,6 +239,33 @@ class KioskAttendanceTest extends TestCase
         ]);
     }
 
+    public function test_a_walk_in_posted_twice_is_recorded_once(): void
+    {
+        $post = fn (array $extra = []) => $this->postJson('/api/kiosk/attendance', $extra + [
+            'type' => 'walk_in',
+            'status' => 'success',
+            'name' => 'Juan Dela Cruz',
+            'phone' => '+639171234567',
+            'payment_method' => 'counter',
+            'payment_status' => 'pending',
+            'payment_reference' => null,
+        ], ['X-Kiosk-Token' => 'test-kiosk-token']);
+
+        // double tap: the screen that got unmounted posts without a reference, the surviving one with it
+        $first = $post()->assertCreated();
+        $post(['payment_reference' => 'kio_20260503_juan'])->assertOk()
+            ->assertJsonPath('attendance_id', $first->json('attendance_id'));
+
+        // offline replay of a visit whose first response was lost: same reference, however late it arrives
+        $post(['name' => 'Maria Clara', 'payment_reference' => 'kio_20260503_maria'])->assertCreated();
+        Carbon::setTestNow('2026-05-03 09:30:00');
+        $post(['name' => 'Maria Clara', 'payment_reference' => 'kio_20260503_maria', 'occurred_at' => '2026-05-03T08:31:00+08:00'])->assertOk();
+
+        // the same visitor registering again later is a new visit
+        $post()->assertCreated();
+        $this->assertDatabaseCount('attendances', 3);
+    }
+
     public function test_walk_in_failed_does_not_create_attendance(): void
     {
         $response = $this->postJson('/api/kiosk/attendance', [

@@ -205,4 +205,26 @@ class KioskPaymentTest extends TestCase
             'X-Kiosk-Token' => 'test-kiosk-token',
         ])->assertNotFound();
     }
+
+    public function test_a_double_tapped_payment_request_reuses_the_first_payment(): void
+    {
+        Carbon::setTestNow('2026-05-03 12:00:00');
+        $post = fn (array $extra = []) => $this->postJson('/api/kiosk/payments', $extra + [
+            'name' => 'Juan Dela Cruz',
+            'phone' => '+639171234567',
+            'method' => 'cash',
+        ], ['X-Kiosk-Token' => 'test-kiosk-token']);
+
+        $first = $post()->assertCreated();
+        $post()->assertOk()->assertJsonPath('reference', $first->json('reference'));
+        $this->assertDatabaseCount('kiosk_payments', 1);
+
+        // another visitor, or the same one registering again later, still gets their own payment
+        $post(['name' => 'Maria Clara'])->assertCreated();
+        Carbon::setTestNow('2026-05-03 12:00:16');
+        $post()->assertCreated();
+        $this->assertDatabaseCount('kiosk_payments', 3);
+
+        Carbon::setTestNow();
+    }
 }

@@ -16,9 +16,15 @@ Schedule::command('panel:send-expiring-membership-notifications')
     ->dailyAt('08:00')
     ->withoutOverlapping();
 
-Schedule::command('panel:auto-checkout-attendance')
-    ->hourly()
-    ->withoutOverlapping();
+// Live owns auto-checkout: the gym PC is not on 24/7, and with both nodes running it every
+// check-out was logged twice (one activity per node). Local receives the result via sync:pull.
+// ponytail: while the gym is offline, a member who forgot to time out stays "already checked in"
+// on local until the link returns; staff can check them out by hand or run the command there.
+if (config('sync.role') !== \App\Services\Sync\SyncRole::LOCAL) {
+    Schedule::command('panel:auto-checkout-attendance')
+        ->hourly()
+        ->withoutOverlapping();
+}
 
 if (config('sync.role') === \App\Services\Sync\SyncRole::LOCAL) {
     // 5-minute lock TTL: long enough that a backlog drain won't double-fire,
