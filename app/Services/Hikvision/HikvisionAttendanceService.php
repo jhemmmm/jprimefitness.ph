@@ -78,7 +78,7 @@ class HikvisionAttendanceService
                 return $this->ignoredResponse($normalized, $latestAttendance);
             }
 
-            if ($latestAttendance && ! $latestAttendance->checked_out_at) {
+            if ($latestAttendance && ! $latestAttendance->checked_out_at && ! $this->isAbandoned($latestAttendance, $eventTime)) {
                 $latestAttendance->update([
                     'checked_out_at' => $eventTime,
                 ]);
@@ -122,17 +122,20 @@ class HikvisionAttendanceService
      */
     private function normalize(array $payload): array
     {
+        // The helper posts camelCase keys and only includes `raw` for JSON callbacks, so XML ones rely on the top-level keys.
         $raw = Arr::get($payload, 'raw', []);
         $accessEvent = is_array($raw) ? Arr::get($raw, 'AccessControllerEvent', []) : [];
         $employeeNo = trim((string) (
             Arr::get($payload, 'employee_no')
+            ?? Arr::get($payload, 'employeeNo')
             ?? Arr::get($accessEvent, 'employeeNoString')
             ?? ''
         ));
-        $eventType = (string) ($payload['event_type'] ?? Arr::get($raw, 'eventType') ?? 'AccessControllerEvent');
-        $occurredAt = (string) ($payload['occurred_at'] ?? Arr::get($raw, 'dateTime') ?? now()->toISOString());
+        $eventType = (string) ($payload['event_type'] ?? $payload['eventType'] ?? Arr::get($raw, 'eventType') ?? 'AccessControllerEvent');
+        $occurredAt = (string) ($payload['occurred_at'] ?? $payload['occurredAt'] ?? Arr::get($raw, 'dateTime') ?? now()->toISOString());
         $deviceSerial = trim((string) (
             Arr::get($payload, 'deviceSerial')
+            ?? Arr::get($payload, 'device_serial')
             ?? Arr::get($raw, 'deviceSerialNo')
             ?? Arr::get($payload, 'deviceSerialNo')
             ?? Arr::get($payload, 'device_ip')
@@ -140,16 +143,19 @@ class HikvisionAttendanceService
         ));
         $deviceName = trim((string) (
             Arr::get($payload, 'device_name')
+            ?? Arr::get($payload, 'deviceName')
             ?? Arr::get($accessEvent, 'deviceName')
             ?? $deviceSerial
         ));
         $eventSerialNo = (string) (
             Arr::get($payload, 'event_serial_no')
+            ?? Arr::get($payload, 'eventSerialNo')
             ?? Arr::get($accessEvent, 'serialNo')
             ?? sha1(json_encode($payload) ?: Str::uuid()->toString())
         );
         $eventSubType = (string) (
             Arr::get($payload, 'event_sub_type')
+            ?? Arr::get($payload, 'eventSubType')
             ?? Arr::get($accessEvent, 'subEventType')
             ?? ''
         );
@@ -203,11 +209,23 @@ class HikvisionAttendanceService
 
     private function shouldIgnoreStaleEvent(Attendance $attendance, Carbon $eventTime): bool
     {
-        if ($attendance->checked_in_at && $eventTime->lessThanOrEqualTo($attendance->checked_in_at)) {
-            return true;
-        }
+        // A repeat tap within the window (missed beep, finger re-placed) must not flip check-in into check-out.
+        $lastTap = $attendance->checked_out_at ?? $attendance->checked_in_at;
 
-        return $attendance->checked_out_at !== null
-            && $eventTime->lessThanOrEqualTo($attendance->checked_out_at);
+        return $lastTap && $eventTime->lessThanOrEqualTo(
+            $lastTap->copy()->addSeconds((int) config('jprime.hikvision_repeat_tap_seconds'))
+        );
+    }
+
+    /**
+     * An open attendance older than the longest shift is a forgotten time-out: the new tap starts a
+     * fresh check-in and the old row stays open for staff to fix, rather than paying hours nobody worked.
+     */
+    private function isAbandoned(Attendance $attendance, Carbon $eventTime): bool
+    {
+        return $attendance->checked_in_at
+            ->copy()
+            ->addHours((int) config('jprime.employee_max_shift_hours'))
+            ->lessThan($eventTime);
     }
 }

@@ -239,6 +239,72 @@ class HikvisionAttendanceSyncCommandTest extends TestCase
         $this->assertDatabaseCount('attendances', 1);
     }
 
+    public function test_repeat_tap_right_after_check_in_does_not_check_the_employee_out(): void
+    {
+        $profile = $this->enrolledEmployeeProfile();
+
+        $this->postCallback($this->forwardedPayload($profile->hikvision_employee_no, 186, '2026-04-14T07:00:00+08:00'))
+            ->assertJsonPath('action', 'check_in');
+
+        $this->postCallback($this->forwardedPayload($profile->hikvision_employee_no, 187, '2026-04-14T07:01:30+08:00'))
+            ->assertJsonPath('status', 'ignored');
+
+        $this->assertNull(Attendance::query()->sole()->checked_out_at);
+    }
+
+    public function test_tap_long_after_a_forgotten_time_out_starts_a_new_check_in(): void
+    {
+        $profile = $this->enrolledEmployeeProfile();
+
+        $this->postCallback($this->forwardedPayload($profile->hikvision_employee_no, 186, '2026-04-13T07:00:00+08:00'))
+            ->assertJsonPath('action', 'check_in');
+
+        $this->postCallback($this->forwardedPayload($profile->hikvision_employee_no, 187, '2026-04-14T07:00:00+08:00'))
+            ->assertJsonPath('action', 'check_in');
+
+        $this->assertSame(2, Attendance::query()->whereNull('checked_out_at')->count());
+    }
+
+    public function test_camel_case_helper_payload_without_raw_is_processed(): void
+    {
+        $profile = $this->enrolledEmployeeProfile();
+
+        // Shape the helper posts for XML callbacks: camelCase keys, no `raw`.
+        $this->postCallback([
+            'deviceSerial' => 'DS-K1A802AEF',
+            'employeeNo' => $profile->hikvision_employee_no,
+            'eventSerialNo' => 186,
+            'eventType' => 'AccessControllerEvent',
+            'eventSubType' => 38,
+            'occurredAt' => '2026-04-14T07:00:00+08:00',
+        ])->assertJsonPath('action', 'check_in');
+
+        $this->assertSame('DS-K1A802AEF', Attendance::query()->sole()->source_device_serial);
+    }
+
+    private function enrolledEmployeeProfile(): EmployeeProfile
+    {
+        $employee = User::factory()->create();
+
+        return EmployeeProfile::query()->create([
+            'user_id' => $employee->id,
+            'hikvision_employee_no' => $this->hikvisionEmployeeNo($employee->id),
+            'biometric_status' => EmployeeProfile::STATUS_ENROLLED,
+            'biometric_fingerprint_id' => 1,
+            'biometric_enrolled_at' => now(),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function postCallback(array $payload): \Illuminate\Testing\TestResponse
+    {
+        return $this->postJson('/api/biometric/hikvision/callback', $payload, [
+            'X-Biometric-Token' => 'forward-token',
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */

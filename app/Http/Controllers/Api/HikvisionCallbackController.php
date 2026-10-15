@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Hikvision\HikvisionAttendanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class HikvisionCallbackController extends Controller
@@ -17,7 +18,17 @@ class HikvisionCallbackController extends Controller
      */
     public function store(Request $request, HikvisionAttendanceService $hikvisionAttendanceService): JsonResponse
     {
-        $result = $hikvisionAttendanceService->ingest($this->payload($request));
+        $payload = $this->payload($request);
+
+        // Every tap is logged before filtering, so a missing attendance can be traced to "never arrived" vs "ignored".
+        Log::info('Received Hikvision attendance callback', [
+            'ip' => $request->ip(),
+            'query_params' => array_merge($request->query(), $request->query->has('token') ? ['token' => '[redacted]'] : []),
+            'headers' => array_merge($request->headers->all(), ['x-biometric-token' => ['[redacted]']]),
+            'payload' => $payload,
+        ]);
+
+        $result = $hikvisionAttendanceService->ingest($payload);
         $statusCode = $result['status'] === 'duplicate' ? 200 : 202;
 
         return response()->json([
