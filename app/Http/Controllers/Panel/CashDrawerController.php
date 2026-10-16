@@ -231,7 +231,7 @@ class CashDrawerController extends Controller
         $end = date('Y-m-t', strtotime($start));
 
         $expenses = CashLedgerEntry::query()
-            ->where('type', CashLedgerEntry::TYPE_EXPENSE)
+            ->whereIn('type', [CashLedgerEntry::TYPE_EXPENSE, CashLedgerEntry::TYPE_PAYOUT])
             ->whereDate('occurred_at', '>=', $start)
             ->whereDate('occurred_at', '<=', $end);
 

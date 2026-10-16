@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\BusinessProfile;
 use App\Models\CashAdvance;
+use App\Models\CashDrawerSession;
 use App\Models\CashLedgerEntry;
 use App\Models\Payroll;
 use App\Models\User;
@@ -63,6 +64,15 @@ class CashAdvanceTest extends TestCase
 
     public function test_cash_advance_paid_in_cash_hits_the_cash_ledger(): void
     {
+        $this->actingAs($this->manager)
+            ->postJson("/panel/employees/{$this->employee->id}/cash-advances", [
+                'amount' => 300,
+                'method' => 'cash',
+            ])
+            ->assertStatus(409);
+
+        CashDrawerSession::factory()->create();
+
         $this->actingAs($this->manager)
             ->postJson("/panel/employees/{$this->employee->id}/cash-advances", [
                 'amount' => 300,

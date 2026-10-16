@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\SyncsToOutbox;
+use App\Services\CashDrawerService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -64,15 +65,21 @@ class CashAdvance extends Model
      */
     public static function release(User $employee, float|string $amount, array $data): self
     {
-        return self::create([
-            'employee_id' => $employee->id,
-            'amount' => $amount,
-            'method' => $data['method'],
-            'reference_number' => $data['reference_number'] ?? null,
-            'released_by' => auth()->id(),
-            'notes' => $data['notes'] ?? null,
-            'paid_at' => $data['paid_at'] ?? now(),
-        ]);
+        return DB::transaction(function () use ($employee, $amount, $data): self {
+            if ($data['method'] === self::METHOD_CASH) {
+                app(CashDrawerService::class)->requireOpenSession('Open the cash drawer before releasing a cash advance.');
+            }
+
+            return self::create([
+                'employee_id' => $employee->id,
+                'amount' => $amount,
+                'method' => $data['method'],
+                'reference_number' => $data['reference_number'] ?? null,
+                'released_by' => auth()->id(),
+                'notes' => $data['notes'] ?? null,
+                'paid_at' => $data['paid_at'] ?? now(),
+            ]);
+        });
     }
 
     /**

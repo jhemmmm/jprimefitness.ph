@@ -239,7 +239,9 @@ class CashDrawerService
         int $sourceId,
         string $description,
         ?int $recordedById,
-        DateTimeInterface|string|null $occurredAt
+        DateTimeInterface|string|null $occurredAt,
+        string $paymentMethod = CashLedgerEntry::PAYMENT_METHOD_CASH,
+        ?string $category = null
     ): CashLedgerEntry {
         return CashLedgerEntry::firstOrCreate(
             [
@@ -249,7 +251,8 @@ class CashDrawerService
             ],
             [
                 'session_id' => $this->currentSession()?->id,
-                'payment_method' => CashLedgerEntry::PAYMENT_METHOD_CASH,
+                'payment_method' => $paymentMethod,
+                'category' => $category,
                 'amount' => round($signedAmount, 2),
                 'description' => $description,
                 'recorded_by' => $recordedById,

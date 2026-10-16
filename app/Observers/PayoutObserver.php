@@ -30,7 +30,8 @@ class PayoutObserver
             $payout->paid_at ?? now(),
         );
 
-        if (config('jprime.cash_drawer') && $payout->method === Payout::METHOD_CASH) {
+        // Every payout is a salary expense; affectsCash() keeps non-cash ones out of the drawer math.
+        if (config('jprime.cash_drawer')) {
             app(CashDrawerService::class)->recordSourceEntry(
                 CashLedgerEntry::TYPE_PAYOUT,
                 -round((float) $payout->amount, 2),
@@ -39,6 +40,8 @@ class PayoutObserver
                 'Payout '.($payout->employee?->name ?? 'Employee'),
                 $payout->released_by,
                 $payout->paid_at,
+                $payout->method,
+                'salary',
             );
         }
     }

@@ -30,6 +30,8 @@ class CashLedgerEntry extends Model
 
     public const PAYMENT_METHOD_ONLINE_PAYMENT = 'online_payment';
 
+    public const PAYMENT_METHOD_BANK_TRANSFER = 'bank_transfer';
+
     public const CATEGORIES = [
         'rent',
         'utilities',
@@ -87,6 +89,7 @@ class CashLedgerEntry extends Model
     {
         return match ($this->payment_method) {
             self::PAYMENT_METHOD_ONLINE_PAYMENT => 'Online Payment',
+            self::PAYMENT_METHOD_BANK_TRANSFER => 'Bank Transfer',
             default => 'Cash',
         };
     }

@@ -17,6 +17,7 @@ use App\Models\SaleTransaction;
 use App\Models\User;
 use App\Notifications\PayrollApprovedNotification;
 use App\Services\SystemActivityService;
+use App\Services\CashDrawerService;
 use App\Services\NotificationRecipientResolver;
 use App\Services\PayrollService;
 use Illuminate\Contracts\Support\Responsable;
@@ -41,6 +42,7 @@ class EmployeeController extends Controller
         private PayrollService $payrollService,
         private NotificationRecipientResolver $notificationRecipientResolver,
         private SystemActivityService $systemActivityService,
+        private CashDrawerService $cashDrawerService,
     ) {
         $this->middleware('can:manage employees')->except([
             'show', 'schedule', 'attendance', 'payrolls', 'payslip', 'payouts', 'payrollPayouts', 'cashAdvances',
@@ -829,15 +831,21 @@ class EmployeeController extends Controller
             'paid_at' => ['nullable', 'date'],
         ]);
 
-        $payout = $payroll->payouts()->create([
-            'employee_id' => $employee->id,
-            'amount' => $data['amount'],
-            'method' => $data['method'],
-            'reference_number' => $data['reference_number'] ?? null,
-            'released_by' => auth()->id(),
-            'notes' => $data['notes'] ?? null,
-            'paid_at' => $data['paid_at'] ?? now(),
-        ]);
+        $payout = DB::transaction(function () use ($payroll, $employee, $data): Payout {
+            if ($data['method'] === Payout::METHOD_CASH) {
+                $this->cashDrawerService->requireOpenSession('Open the cash drawer before releasing a cash payout.');
+            }
+
+            return $payroll->payouts()->create([
+                'employee_id' => $employee->id,
+                'amount' => $data['amount'],
+                'method' => $data['method'],
+                'reference_number' => $data['reference_number'] ?? null,
+                'released_by' => auth()->id(),
+                'notes' => $data['notes'] ?? null,
+                'paid_at' => $data['paid_at'] ?? now(),
+            ]);
+        });
 
         $this->payrollService->syncStatus($payroll);
         $payout = $payout->fresh(['payroll', 'releasedBy', 'employee:id,name']);

@@ -110,49 +110,59 @@ class CashDrawerTest extends TestCase
         ]);
     }
 
-    public function test_cash_payout_creates_out_entry_and_bank_transfer_does_not(): void
+    public function test_payouts_are_salary_expenses_but_only_cash_moves_the_drawer(): void
     {
-        CashDrawerSession::factory()->create();
+        $session = CashDrawerSession::factory()->create(['opening_float' => 5000]);
         $manager = $this->createUserWithRole('manager');
-        $employee = $this->createUserWithRole('staff');
+        $payroll = $this->approvedPayroll($manager);
 
-        $payroll = Payroll::create([
-            'employee_id' => $employee->id,
-            'pay_frequency' => 'semi_monthly',
-            'period_start' => '2026-07-01',
-            'period_end' => '2026-07-15',
-            'gross_amount' => 4000,
-            'withholding_tax' => 0,
-            'manual_deductions' => 0,
-            'net_amount' => 4000,
-            'status' => Payroll::STATUS_APPROVED,
-            'generated_by' => $manager->id,
-            'approved_by' => $manager->id,
-            'approved_at' => now(),
-        ]);
-
-        $cashPayout = $payroll->payouts()->create([
-            'employee_id' => $employee->id,
-            'amount' => 1500,
-            'method' => Payout::METHOD_CASH,
-            'released_by' => $manager->id,
-            'paid_at' => now(),
-        ]);
-        $payroll->payouts()->create([
-            'employee_id' => $employee->id,
-            'amount' => 500,
-            'method' => Payout::METHOD_BANK_TRANSFER,
-            'released_by' => $manager->id,
-            'paid_at' => now(),
-        ]);
+        $this->actingAs($manager)
+            ->postJson("/panel/employees/{$payroll->employee_id}/payrolls/{$payroll->id}/payouts", ['amount' => 1500, 'method' => Payout::METHOD_CASH])
+            ->assertCreated();
+        $this->actingAs($manager)
+            ->postJson("/panel/employees/{$payroll->employee_id}/payrolls/{$payroll->id}/payouts", ['amount' => 500, 'method' => Payout::METHOD_BANK_TRANSFER])
+            ->assertCreated();
 
         $this->assertDatabaseHas('cash_ledger_entries', [
             'type' => CashLedgerEntry::TYPE_PAYOUT,
-            'source_type' => 'payout',
-            'source_id' => $cashPayout->id,
+            'category' => 'salary',
+            'payment_method' => CashLedgerEntry::PAYMENT_METHOD_CASH,
             'amount' => '-1500.00',
+            'session_id' => $session->id,
         ]);
-        $this->assertSame(1, CashLedgerEntry::query()->where('type', CashLedgerEntry::TYPE_PAYOUT)->count());
+        $this->assertDatabaseHas('cash_ledger_entries', [
+            'type' => CashLedgerEntry::TYPE_PAYOUT,
+            'category' => 'salary',
+            'payment_method' => CashLedgerEntry::PAYMENT_METHOD_BANK_TRANSFER,
+            'amount' => '-500.00',
+        ]);
+        $this->assertSame(3500.0, app(CashDrawerService::class)->expectedCash($session));
+
+        $this->actingAs($manager)
+            ->getJson('/panel/cash-drawer/expense-summary?month='.now()->format('Y-m'))
+            ->assertOk()
+            ->assertJsonPath('total', 2000)
+            ->assertJsonPath('categories.0.category', 'salary')
+            ->assertJsonPath('entries.total', 2);
+    }
+
+    public function test_cash_payout_requires_an_open_drawer_but_bank_transfer_does_not(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+        $payroll = $this->approvedPayroll($manager);
+        $url = "/panel/employees/{$payroll->employee_id}/payrolls/{$payroll->id}/payouts";
+
+        $this->actingAs($manager)
+            ->postJson($url, ['amount' => 1500, 'method' => Payout::METHOD_CASH])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'Open the cash drawer before releasing a cash payout.');
+
+        $this->assertDatabaseCount('payouts', 0);
+        $this->assertDatabaseCount('cash_ledger_entries', 0);
+
+        $this->actingAs($manager)
+            ->postJson($url, ['amount' => 1500, 'method' => Payout::METHOD_BANK_TRANSFER])
+            ->assertCreated();
     }
 
     public function test_sale_without_open_session_is_recorded_but_excluded_from_expected_cash(): void
@@ -519,5 +529,25 @@ class CashDrawerTest extends TestCase
         $user->assignRole($role);
 
         return $user;
+    }
+
+    private function approvedPayroll(User $manager): Payroll
+    {
+        $employee = $this->createUserWithRole('staff');
+
+        return Payroll::create([
+            'employee_id' => $employee->id,
+            'pay_frequency' => 'semi_monthly',
+            'period_start' => '2026-07-01',
+            'period_end' => '2026-07-15',
+            'gross_amount' => 4000,
+            'withholding_tax' => 0,
+            'manual_deductions' => 0,
+            'net_amount' => 4000,
+            'status' => Payroll::STATUS_APPROVED,
+            'generated_by' => $manager->id,
+            'approved_by' => $manager->id,
+            'approved_at' => now(),
+        ]);
     }
 }
