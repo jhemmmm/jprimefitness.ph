@@ -378,7 +378,7 @@
                   <div class="doc-box" v-if="payrollGovernmentContributionsEnabled && !employeeIsEnrolled">
                      <div class="doc-box-heading">Government Contributions</div>
                      <div class="text-muted small">
-                        <i class="bi bi-info-circle me-1"></i>None applied — this employee isn't enrolled in SSS, PhilHealth, or Pag-IBIG.
+                        <i class="bi bi-info-circle me-1"></i>None applied. This employee isn't enrolled in SSS, PhilHealth, or Pag-IBIG.
                         <a :href="`/panel/employees/${employee.id}?tab=settings`">Enable coverage in Settings</a>, then reopen this payroll.
                      </div>
                   </div>
@@ -427,9 +427,11 @@ export default {
 
    watch: {
       "form.period_start"() {
+         this.resuggestGross();
          this.queueSuggestionFetch();
       },
       "form.period_end"() {
+         this.resuggestGross();
          this.queueSuggestionFetch();
       },
       "form.gross_amount"() {
@@ -565,6 +567,13 @@ export default {
       applyContributionState: function (payload) {
          this.form.employee_contributions = payload.employee_contributions || {};
          this.form.employee_contributions_total = Number(payload.employee_contributions_total || 0);
+      },
+      resuggestGross: function () {
+         // New payroll + new period: take gross from the new attendance instead of keeping
+         // the previous period's total (which would show up as a manual adjustment).
+         if (this.payroll) return;
+         this.form.gross_amount = "";
+         this.shouldAutofillSuggestedAmounts = true;
       },
       queueSuggestionFetch: function () {
          if (!this.form.period_start || !this.form.period_end) {

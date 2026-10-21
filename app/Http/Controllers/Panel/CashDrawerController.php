@@ -224,16 +224,21 @@ class CashDrawerController extends Controller
     {
         $data = $request->validate([
             'month' => ['nullable', 'date_format:Y-m'],
+            'category' => ['nullable', Rule::in(CashLedgerEntry::CATEGORIES)],
+            'payment_method' => ['nullable', Rule::in([...CashLedgerEntry::supportedPaymentMethods(), CashLedgerEntry::PAYMENT_METHOD_BANK_TRANSFER])],
         ]);
 
         $month = $data['month'] ?? now()->format('Y-m');
         $start = $month.'-01';
         $end = date('Y-m-t', strtotime($start));
 
+        // Payment method narrows the totals and the list; category narrows only the list,
+        // so the category tiles keep showing the whole month to compare against.
         $expenses = CashLedgerEntry::query()
             ->whereIn('type', [CashLedgerEntry::TYPE_EXPENSE, CashLedgerEntry::TYPE_PAYOUT])
             ->whereDate('occurred_at', '>=', $start)
-            ->whereDate('occurred_at', '<=', $end);
+            ->whereDate('occurred_at', '<=', $end)
+            ->when($data['payment_method'] ?? null, fn ($query, $method) => $query->where('payment_method', $method));
 
         $rows = (clone $expenses)
             ->selectRaw('category, SUM(amount) as total')
@@ -246,7 +251,11 @@ class CashDrawerController extends Controller
             ])
             ->values();
 
-        $entries = $expenses->with('recordedBy:id,name')->orderByDesc('occurred_at')->paginate(20);
+        $entries = $expenses
+            ->when($data['category'] ?? null, fn ($query, $category) => $query->where('category', $category))
+            ->with('recordedBy:id,name')
+            ->orderByDesc('occurred_at')
+            ->paginate(20);
         $entries->getCollection()->transform(fn (CashLedgerEntry $entry) => $this->serializeEntry($entry));
 
         return response()->json([

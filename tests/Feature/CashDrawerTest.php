@@ -75,6 +75,26 @@ class CashDrawerTest extends TestCase
         ]);
     }
 
+    public function test_sale_in_the_same_minute_the_drawer_opened_is_accepted(): void
+    {
+        $this->travelTo('2026-05-03 09:00:45');
+        CashDrawerSession::factory()->create(['opened_at' => '2026-05-03 09:00:30']);
+        $manager = $this->createUserWithRole('manager');
+
+        $sale = fn (string $soldAt) => $this->actingAs($manager)->postJson('/panel/sales', [
+            'type' => SaleTransaction::TYPE_WALK_IN,
+            'customer_name' => 'Juan Dela Cruz',
+            'customer_phone' => '09171234567',
+            'amount_paid' => 120,
+            'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
+            'amount_received' => 120,
+            'sold_at' => $soldAt,
+        ]);
+
+        $sale('2026-05-03 09:00')->assertCreated();
+        $sale('2026-05-03 08:59')->assertStatus(422)->assertJsonValidationErrors(['sold_at']);
+    }
+
     public function test_non_cash_sale_creates_no_entry(): void
     {
         CashDrawerSession::factory()->create();
@@ -451,6 +471,43 @@ class CashDrawerTest extends TestCase
             ->assertJsonCount(3, 'entries.data')
             ->assertJsonPath('entries.data.0.recorded_by_name', $manager->name)
             ->assertJsonPath('entries.total', 3);
+    }
+
+    public function test_expense_summary_filters_by_payment_method_and_category(): void
+    {
+        $manager = $this->createUserWithRole('manager');
+
+        CashLedgerEntry::factory()->create(['category' => 'supplies', 'amount' => -200, 'recorded_by' => $manager->id]);
+        CashLedgerEntry::factory()->create(['category' => 'utilities', 'amount' => -800, 'recorded_by' => $manager->id]);
+        CashLedgerEntry::factory()->create([
+            'category' => 'rent',
+            'payment_method' => CashLedgerEntry::PAYMENT_METHOD_ONLINE_PAYMENT,
+            'amount' => -5000,
+            'recorded_by' => $manager->id,
+        ]);
+        $url = '/panel/cash-drawer/expense-summary?month='.now()->format('Y-m');
+
+        // Payment method narrows totals and entries.
+        $this->actingAs($manager)
+            ->getJson($url.'&payment_method=cash')
+            ->assertOk()
+            ->assertJsonPath('total', 1000)
+            ->assertJsonCount(2, 'categories')
+            ->assertJsonPath('entries.total', 2);
+
+        // Category narrows only the entries; tiles still show the whole month.
+        $this->actingAs($manager)
+            ->getJson($url.'&category=utilities')
+            ->assertOk()
+            ->assertJsonPath('total', 6000)
+            ->assertJsonCount(3, 'categories')
+            ->assertJsonPath('entries.total', 1)
+            ->assertJsonPath('entries.data.0.category', 'utilities');
+
+        $this->actingAs($manager)
+            ->getJson($url.'&category=bogus')
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['category']);
     }
 
     public function test_expense_receipt_image_is_stored_and_served_to_management_only(): void

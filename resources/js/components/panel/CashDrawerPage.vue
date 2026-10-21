@@ -258,21 +258,44 @@
 
       <!-- Expense summary -->
       <div class="panel-card">
-         <div class="panel-card-header flex-column flex-sm-row align-items-sm-center">
-            <div>
-               <div class="panel-card-title">Expenses by Category</div>
-               <div class="panel-card-sub">Monthly expenses across cash and online payments</div>
+         <div class="panel-card-header flex-column flex-lg-row align-items-lg-center">
+            <div class="d-flex align-items-center gap-3">
+               <div class="history-heading-icon" aria-hidden="true"><i class="bi bi-pie-chart"></i></div>
+               <div>
+                  <div class="panel-card-title">Expenses by Category</div>
+                  <div class="panel-card-sub">Monthly expenses across cash, online and bank payments</div>
+               </div>
             </div>
-            <input type="month" class="form-control form-control-sm expense-month" v-model="expenseMonth" aria-label="Expense summary month" @change="fetchExpenseSummary(1)" />
+            <div class="expense-filters">
+               <input type="month" class="form-control form-control-sm" v-model="expenseMonth" aria-label="Expense summary month" @change="fetchExpenseSummary(1)" />
+               <select class="form-select form-select-sm" v-model="expenseCategory" aria-label="Expense category" @change="fetchExpenseSummary(1)">
+                  <option value="">All categories</option>
+                  <option v-for="cat in categories" :key="'expense-filter-' + cat" :value="cat">{{ $filters.capitalize(cat) }}</option>
+               </select>
+               <select class="form-select form-select-sm" v-model="expensePaymentMethod" aria-label="Expense payment method" @change="fetchExpenseSummary(1)">
+                  <option value="">All payment methods</option>
+                  <option value="cash">Cash</option>
+                  <option value="online_payment">Online Payment</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+               </select>
+            </div>
          </div>
          <div class="panel-card-body">
-            <div v-if="expenseSummary.categories.length === 0" class="text-center py-4 text-muted small">No expenses recorded this month.</div>
+            <div v-if="expenseSummary.categories.length === 0" class="text-center py-4 text-muted small">No expenses match these filters.</div>
             <template v-else>
                <div class="expense-summary-grid">
-                  <div v-for="row in expenseSummary.categories" :key="row.category" class="expense-summary-item">
+                  <button
+                     v-for="row in expenseSummary.categories"
+                     :key="row.category"
+                     type="button"
+                     :class="['expense-summary-item', { 'is-active': expenseCategory === row.category }]"
+                     :aria-pressed="expenseCategory === row.category ? 'true' : 'false'"
+                     :title="expenseCategory === row.category ? 'Show all categories' : 'Show only ' + $filters.capitalize(row.category)"
+                     @click="toggleExpenseCategory(row.category)"
+                  >
                      <span class="text-muted small">{{ $filters.capitalize(row.category) }}</span>
                      <span class="fw-bold text-danger">₱{{ $filters.formatMoney(row.total) }}</span>
-                  </div>
+                  </button>
                </div>
                <div class="d-flex justify-content-between align-items-center pt-3 mt-3 border-top fw-bold">
                   <span>Monthly Total</span>
@@ -536,7 +559,7 @@
 
 <script>
 import { Modal } from "bootstrap";
-import { daysBetween, formatDate, formatTime } from "../../dates";
+import { daysBetween, formatDate, formatTime, todayDate } from "../../dates";
 import CashLedgerEntriesTable from "./vendor/CashLedgerEntriesTable.vue";
 
 export default {
@@ -560,7 +583,9 @@ export default {
          selectedSessionLoading: false,
          selectedSessionError: "",
          selectedEntriesPagination: { currentPage: 1, lastPage: 1, links: [], total: 0 },
-         expenseMonth: new Date().toISOString().slice(0, 7),
+         expenseMonth: todayDate().slice(0, 7),
+         expenseCategory: "",
+         expensePaymentMethod: "",
          expenseSummary: { categories: [], total: 0, entries: { data: [], current_page: 1, last_page: 1, links: [] } },
          openForm: { opening_float: "", notes: "" },
          openError: "",
@@ -701,9 +726,14 @@ export default {
             .finally(() => (this.selectedSessionLoading = false));
       },
       fetchExpenseSummary: function (page = 1) {
-         axios.get("/panel/cash-drawer/expense-summary", { params: { month: this.expenseMonth, page } }).then((res) => {
+         const params = { month: this.expenseMonth, category: this.expenseCategory || undefined, payment_method: this.expensePaymentMethod || undefined, page };
+         axios.get("/panel/cash-drawer/expense-summary", { params }).then((res) => {
             this.expenseSummary = res.data;
          });
+      },
+      toggleExpenseCategory: function (category) {
+         this.expenseCategory = this.expenseCategory === category ? "" : category;
+         this.fetchExpenseSummary(1);
       },
       openOpenModal: function () {
          this.openForm = { opening_float: this.suggestedFloat !== null ? this.suggestedFloat : "", notes: "" };
@@ -1006,7 +1036,13 @@ export default {
    border-radius: var(--bs-border-radius);
 }
 
-.expense-month {
+.expense-filters {
+   display: flex;
+   flex-wrap: wrap;
+   gap: 0.5rem;
+}
+
+.expense-filters > * {
    width: auto;
    min-width: 10rem;
 }
@@ -1026,6 +1062,18 @@ export default {
    border: 1px solid var(--bs-border-color);
    border-radius: var(--bs-border-radius);
    background: var(--bs-tertiary-bg);
+   color: inherit;
+   text-align: left;
+   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.expense-summary-item:hover,
+.expense-summary-item.is-active {
+   border-color: var(--bs-danger);
+}
+
+.expense-summary-item.is-active {
+   box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.2);
 }
 
 .session-detail-summary {
@@ -1098,7 +1146,8 @@ export default {
 }
 
 @media (max-width: 767.98px) {
-   .expense-month {
+   .expense-filters,
+   .expense-filters > * {
       width: 100%;
    }
 

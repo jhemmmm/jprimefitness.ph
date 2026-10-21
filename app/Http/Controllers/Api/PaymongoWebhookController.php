@@ -59,16 +59,32 @@ class PaymongoWebhookController extends Controller
 
     private function activateSubscription(int $subscriptionId, ?string $eventId): JsonResponse
     {
-        $subscription = MemberSubscription::with(['member', 'ratePlan'])->find($subscriptionId);
+        $found = DB::transaction(function () use ($subscriptionId, $eventId): bool {
+            $subscription = MemberSubscription::query()->lockForUpdate()->find($subscriptionId);
 
-        if (! $subscription) {
+            if (! $subscription) {
+                return false;
+            }
+
+            // Only a still-pending online sign-up is money to record. Replays, and the paired
+            // payment.paid / checkout_session.payment.paid events, find it already activated.
+            $paidOnline = $subscription->pending_payment_method === MemberSubscription::PENDING_PAYMENT_ONLINE;
+
+            $activated = $this->memberActivationService->activate($subscription, [
+                'source' => 'paymongo_webhook',
+                'paymongo_event_id' => $eventId,
+            ]);
+
+            if ($paidOnline && $activated->status === MemberSubscription::STATUS_ACTIVE) {
+                $this->posSaleService->recordOnlineMembershipSale($activated, $eventId);
+            }
+
+            return true;
+        });
+
+        if (! $found) {
             return response()->json(['ok' => true, 'ignored' => 'subscription_not_found']);
         }
-
-        $this->memberActivationService->activate($subscription, [
-            'source' => 'paymongo_webhook',
-            'paymongo_event_id' => $eventId,
-        ]);
 
         return response()->json(['ok' => true]);
     }

@@ -228,7 +228,9 @@ class RegistrationController extends Controller
             [
                 'subscription_id' => $subscription->id,
                 'user_id' => $user->id,
+                'member_name' => $user->name,
                 'plan_name' => $plan->name,
+                'rate_plan_name' => $plan->name,
                 'start_date' => $subscription->start_date?->toDateString(),
                 'end_date' => $subscription->end_date?->toDateString(),
                 'status' => $subscription->status,

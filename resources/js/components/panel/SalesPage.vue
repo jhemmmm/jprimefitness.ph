@@ -412,7 +412,7 @@
             </div>
             <div class="p-3">
                <div v-if="!pendingPayments.length" class="text-muted small text-center py-3">No pending payments awaiting confirmation.</div>
-               <div v-else class="table-responsive">
+               <div v-else class="table-responsive d-none d-md-block">
                   <table class="table table-sm align-middle mb-0">
                      <thead>
                         <tr class="text-muted small">
@@ -450,7 +450,7 @@
                               </div>
                            </td>
                            <td class="small text-muted">{{ formatDateTime(row.created_at) }}</td>
-                           <td class="text-end">
+                           <td class="text-end text-nowrap">
                               <button type="button" class="btn btn-sm btn-danger me-1" @click="openPendingAction(row, 'confirm')" :disabled="busyPendingKey === row.key || drawerStatusLoading || !canRecordSales" :title="canRecordSales ? '' : 'Open the cash drawer before confirming a sale'">
                                  {{ row.requires_payment_method ? "Confirm Payment" : "Confirm Cash" }}
                               </button>
@@ -459,6 +459,37 @@
                         </tr>
                      </tbody>
                   </table>
+               </div>
+               <div v-if="pendingPayments.length" class="d-md-none">
+                  <div class="member-card" v-for="row in pendingPayments" :key="'mobile-pending-' + row.key">
+                     <div class="member-card-top">
+                        <div class="member-card-identity">
+                           <div class="member-avatar">{{ $filters.getNameInitials(row.name) }}</div>
+                           <div>
+                              <div class="member-card-name">
+                                 <a v-if="row.subject_url" :href="row.subject_url" class="text-decoration-none">{{ row.name }}</a>
+                                 <span v-else>{{ row.name }}</span>
+                              </div>
+                              <div class="member-card-sub">{{ row.contact || "-" }}</div>
+                           </div>
+                        </div>
+                     </div>
+                     <div class="member-card-tags">
+                        <span :class="['m-badge', row.kind === 'membership' ? 'm-badge--active' : 'm-badge--open']">{{ row.kind === "membership" ? "Membership" : "Walk-in" }}</span>
+                        <span class="m-badge m-badge--active">₱{{ $filters.formatMoney(row.amount) }}</span>
+                        <span v-if="row.discount_type" class="m-badge m-badge--cancelled">{{ $filters.discountLabel(row.discount_type) }} −{{ row.discount_percent }}%</span>
+                     </div>
+                     <div class="small text-muted mt-2">
+                        <div>{{ row.item_label }}<span v-if="row.detail"> · {{ row.detail }}</span></div>
+                        <div>{{ formatDateTime(row.created_at) }}</div>
+                     </div>
+                     <div class="d-flex gap-2 mt-3">
+                        <button type="button" class="btn btn-sm btn-danger flex-fill" @click="openPendingAction(row, 'confirm')" :disabled="busyPendingKey === row.key || drawerStatusLoading || !canRecordSales" :title="canRecordSales ? '' : 'Open the cash drawer before confirming a sale'">
+                           {{ row.requires_payment_method ? "Confirm Payment" : "Confirm Cash" }}
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" @click="openPendingAction(row, 'cancel')" :disabled="busyPendingKey === row.key">Cancel</button>
+                     </div>
+                  </div>
                </div>
             </div>
          </div>

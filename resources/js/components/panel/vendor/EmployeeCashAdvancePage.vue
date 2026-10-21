@@ -3,13 +3,13 @@
       <div class="alert alert-danger py-2 small" v-if="pageError">{{ pageError }}</div>
 
       <!-- Summary -->
-      <div class="d-flex align-items-center justify-content-between mb-3">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
          <template v-if="loading">
             <div class="skeleton-box" style="height: 14px; width: 80px"></div>
          </template>
          <template v-else>
             <div class="text-muted small">{{ advances.length }} cash advance{{ advances.length !== 1 ? "s" : "" }}</div>
-            <div class="d-flex gap-3 align-items-center">
+            <div class="d-flex flex-wrap gap-2 gap-md-3 align-items-center">
                <div class="fw-semibold small" v-if="advances.length">Total: ₱{{ $filters.formatMoney(totalAdvanced) }}</div>
                <div class="fw-semibold small text-danger" v-if="totalOutstanding > 0">Outstanding: ₱{{ $filters.formatMoney(totalOutstanding) }}</div>
                <button class="btn btn-primary btn-sm" v-if="canManage" @click="openModal()"><i class="bi bi-plus-lg me-1"></i>Record Advance</button>
@@ -27,8 +27,8 @@
             </div>
          </div>
          <div v-if="requests.length === 0" class="text-muted small border rounded p-3">No cash advance requests yet. Use <strong>Request Advance</strong> to ask your manager for one.</div>
-         <div class="table-responsive" v-else>
-            <table class="table table-striped align-middle mb-0">
+         <div class="table-responsive d-none d-md-block" v-if="requests.length">
+            <table class="table table-striped table-hover align-middle mb-0">
                <thead class="table-light">
                   <tr>
                      <th>Requested</th>
@@ -64,6 +64,29 @@
                   </tr>
                </tbody>
             </table>
+         </div>
+         <div class="d-md-none" v-if="requests.length">
+            <div class="member-card" v-for="r in requests" :key="'req-mobile-' + r.id">
+               <div class="member-card-top">
+                  <div>
+                     <div class="fw-semibold small">₱{{ $filters.formatMoney(r.amount) }}</div>
+                     <div class="small text-muted">{{ r.reason }}</div>
+                  </div>
+                  <span class="m-badge" :class="$filters.statusBadge(r.status)">{{ $filters.capitalize(r.status) }}</span>
+               </div>
+               <div class="member-card-footer">
+                  <span class="text-muted small"><i class="bi bi-clock me-1"></i>{{ formatDateTime(r.requested_at) }}</span>
+                  <span class="text-muted small" v-if="r.reviewed_at"><i class="bi bi-person-check me-1"></i>{{ r.reviewed_by_name || "-" }}</span>
+               </div>
+               <div class="text-danger small mt-1" v-if="r.status === 'rejected' && r.review_note">{{ r.review_note }}</div>
+               <div class="d-flex gap-2 mt-3" v-if="r.status === 'pending' && (isSelf || canManage)">
+                  <button type="button" class="btn btn-sm btn-outline-secondary flex-fill" v-if="isSelf" :disabled="reviewing" @click="withdrawRequest(r)">Withdraw</button>
+                  <template v-else>
+                     <button type="button" class="btn btn-sm btn-success flex-fill" @click="openModal(r)"><i class="bi bi-check-lg me-1"></i>Approve</button>
+                     <button type="button" class="btn btn-sm btn-outline-danger flex-fill" @click="openRejectModal(r)"><i class="bi bi-x-lg me-1"></i>Reject</button>
+                  </template>
+               </div>
+            </div>
          </div>
       </div>
 
@@ -150,7 +173,7 @@
                </div>
                <div class="modal-body">
                   <div class="alert alert-danger py-2 small" v-if="formError">{{ formError }}</div>
-                  <div class="alert alert-warning py-2 small" v-if="approvingRequest">Approving the request for <strong>₱{{ $filters.formatMoney(approvingRequest.amount) }}</strong> — "{{ approvingRequest.reason }}". Recording it releases the money and adds it as a payroll deduction.</div>
+                  <div class="alert alert-warning py-2 small" v-if="approvingRequest">Approving the request for <strong>₱{{ $filters.formatMoney(approvingRequest.amount) }}</strong> for "{{ approvingRequest.reason }}". Recording it releases the money and adds it as a payroll deduction.</div>
                   <div class="row g-3">
                      <div class="col-md-6">
                         <label class="form-label form-label-sm">Amount (₱) <span class="text-danger">*</span></label>

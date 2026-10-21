@@ -72,6 +72,7 @@ class MemberActivationService
                 'user_id' => $member->id,
                 'member_name' => $member->name,
                 'plan_name' => $subscription->ratePlan?->name,
+                'rate_plan_name' => $subscription->ratePlan?->name,
             ],
             array_merge(['source' => 'activation_service'], $auditMetadata),
         );

@@ -950,19 +950,61 @@ class PosSaleService
     }
 
     /**
+     * Record the sale for a membership paid online at registration (PayMongo webhook): no cashier
+     * and not cash, so no drawer. One sale per subscription - the uuid is derived from it, so a
+     * replayed webhook (or the same sale arriving via sync) cannot count the payment twice.
+     */
+    public function recordOnlineMembershipSale(MemberSubscription $subscription, ?string $paymentReference = null): ?SaleTransaction
+    {
+        $uuid = Uuid::uuid5(Uuid::NAMESPACE_URL, 'jprime:online-membership-sale:'.$subscription->uuid)->toString();
+
+        if ($existing = SaleTransaction::query()->where('uuid', $uuid)->first()) {
+            return $existing;
+        }
+
+        $subscription->loadMissing(['member.profile', 'ratePlan']);
+
+        if (! $subscription->member || ! $subscription->ratePlan) {
+            return null;
+        }
+
+        $saleTotal = round((float) $subscription->sold_price, 2);
+
+        return $this->createMembershipSaleTransaction(
+            $subscription->member,
+            $subscription->ratePlan,
+            $subscription,
+            null,
+            $saleTotal,
+            [
+                'payment_method' => SaleTransaction::PAYMENT_METHOD_ONLINE_PAYMENT,
+                'amount_received' => $saleTotal,
+                'change_amount' => 0.0,
+                'reference' => $paymentReference,
+            ],
+            Carbon::now(),
+            null,
+            'online_registration',
+            null,
+            $uuid,
+        );
+    }
+
+    /**
      * @param  array{payment_method:string, amount_received:float, change_amount:float, reference:?string}  $payment
      */
     private function createMembershipSaleTransaction(
         User $member,
         RatePlan $ratePlan,
         MemberSubscription $subscription,
-        User $processedBy,
+        ?User $processedBy,
         float $saleTotal,
         array $payment,
         DateTimeInterface|string $soldAt,
         ?string $notes = null,
         ?string $source = null,
         ?array $discount = null,
+        ?string $uuid = null,
     ): SaleTransaction {
         $originalPrice = round((float) $ratePlan->price, 2);
         $saleTotal = round($saleTotal, 2);
@@ -992,17 +1034,23 @@ class PosSaleService
             $details = ['source' => $source] + $details;
         }
 
-        return SaleTransaction::create([
+        $attributes = [
             'member_id' => $member->id,
             'type' => SaleTransaction::TYPE_MEMBERSHIP,
             'total' => $saleTotal,
             'payment_method' => $payment['payment_method'],
-            'processed_by' => $processedBy->id,
+            'processed_by' => $processedBy?->id,
             'sold_at' => $soldAt,
             'customer_name' => $member->name,
             'item_name' => $ratePlan->name,
             'details' => $details,
-        ]);
+        ];
+
+        if ($uuid !== null) {
+            $attributes['uuid'] = $uuid;
+        }
+
+        return SaleTransaction::forceCreate($attributes);
     }
 
     public function recordKioskWalkInSale(KioskPayment $payment, ?User $processedBy = null): SaleTransaction
@@ -1113,7 +1161,9 @@ class PosSaleService
 
         $saleTime = Carbon::parse($soldAt);
 
-        if ($saleTime->lt($session->opened_at) || $saleTime->gt(now())) {
+        // The POS "Sold At" field has minute precision, so a sale rung up in the same minute the
+        // drawer was opened (e.g. 09:00 vs opened 09:00:30) still belongs to this session.
+        if ($saleTime->lt($session->opened_at->copy()->startOfMinute()) || $saleTime->gt(now())) {
             throw ValidationException::withMessages([
                 'sold_at' => ['The sale date and time must be within the current cash drawer session.'],
             ]);

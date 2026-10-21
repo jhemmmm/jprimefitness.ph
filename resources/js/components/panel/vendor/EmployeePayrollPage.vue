@@ -77,7 +77,7 @@
                            {{ p.manual_gross_adjustment_amount > 0 ? "+" : "-" }}₱{{ $filters.formatMoney(Math.abs(Number(p.manual_gross_adjustment_amount || 0))) }}
                         </div>
                         <div class="text-muted" style="font-size: 0.75rem" v-if="p.employee_contributions_total > 0">
-                           Gov't contributions (employee): ₱{{ $filters.formatMoney(p.employee_contributions_total) }} — {{ formatContributionSummary(p.employee_contributions) }}
+                           Gov't contributions (employee): ₱{{ $filters.formatMoney(p.employee_contributions_total) }} ({{ formatContributionSummary(p.employee_contributions) }})
                         </div>
                      </td>
                      <td class="text-end small">₱{{ $filters.formatMoney(p.gross_amount) }}</td>

@@ -66,7 +66,7 @@
                      </div>
                      <div class="col-md-6">
                         <label class="form-label small fw-semibold">Contact phone <span class="text-danger">*</span></label>
-                        <input v-model="form.emergency_contact_phone" type="tel" class="form-control rounded-1" :class="{ 'is-invalid': errors.emergency_contact_phone }" />
+                        <input v-model="form.emergency_contact_phone" type="tel" class="form-control rounded-1" :class="{ 'is-invalid': errors.emergency_contact_phone }" placeholder="0917..." />
                         <div class="invalid-feedback" v-if="errors.emergency_contact_phone">{{ errors.emergency_contact_phone[0] }}</div>
                      </div>
                   </div>
@@ -86,7 +86,7 @@
                   <template v-if="!renew">
                      <div class="col-md-5">
                         <label class="form-label small fw-semibold">Preferred start date</label>
-                        <input v-model="form.preferred_start_date" type="date" class="form-control rounded-1" :class="{ 'is-invalid': errors.preferred_start_date }" />
+                        <input v-model="form.preferred_start_date" type="date" :min="today" class="form-control rounded-1" :class="{ 'is-invalid': errors.preferred_start_date }" />
                         <div class="invalid-feedback" v-if="errors.preferred_start_date">{{ errors.preferred_start_date[0] }}</div>
                      </div>
                      <div class="col-12">
@@ -188,6 +188,7 @@
 <script>
 import { Modal } from "bootstrap";
 import { getRecaptchaToken } from "../../recaptcha";
+import { todayDate } from "../../dates";
 
 // Public sign-up form. `renew` hides the personal-info fields: POST /register then
 // matches the email to the existing member and only creates the new subscription.
@@ -202,6 +203,7 @@ export default {
    data: function () {
       return {
          form: this.emptyForm(),
+         today: todayDate(),
          submitting: false,
          success: null,
          bannerError: null,
