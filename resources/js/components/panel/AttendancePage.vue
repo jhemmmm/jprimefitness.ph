@@ -167,6 +167,8 @@
                               </div>
                               <div>
                                  <div class="member-name">{{ r.name }}</div>
+                                 <div class="small text-muted" v-if="r.phone"><i class="bi bi-telephone me-1"></i>{{ r.phone }}</div>
+                                 <div class="small text-muted" v-if="r.emergency_contact_name || r.emergency_contact_phone"><i class="bi bi-heart-pulse me-1"></i>{{ [r.emergency_contact_name, r.emergency_contact_phone].filter(Boolean).join(" · ") }}</div>
                               </div>
                            </div>
                         </td>
@@ -221,6 +223,8 @@
                         </div>
                         <div>
                            <div class="member-card-name">{{ r.name }}</div>
+                           <div class="member-card-sub" v-if="r.phone"><i class="bi bi-telephone me-1"></i>{{ r.phone }}</div>
+                           <div class="member-card-sub" v-if="r.emergency_contact_name || r.emergency_contact_phone"><i class="bi bi-heart-pulse me-1"></i>{{ [r.emergency_contact_name, r.emergency_contact_phone].filter(Boolean).join(" · ") }}</div>
                         </div>
                      </div>
                      <div class="dropdown" v-if="canManageRecord(r)">
@@ -310,6 +314,21 @@
                            <label class="form-label form-label-sm">Name <span class="text-danger">*</span></label>
                            <input type="text" class="form-control" v-model="form.name" :class="{ 'is-invalid': formErrors.name }" placeholder="e.g. Carlo Dela Cruz" />
                            <div class="invalid-feedback" v-if="formErrors.name">{{ formErrors.name }}</div>
+                        </div>
+                        <div class="col-md-4">
+                           <label class="form-label form-label-sm">Contact Number <span class="text-danger" v-if="modalMode === 'add'">*</span></label>
+                           <input type="tel" class="form-control" v-model="form.phone" :class="{ 'is-invalid': formErrors.phone }" placeholder="09171234567" />
+                           <div class="invalid-feedback" v-if="formErrors.phone">{{ formErrors.phone }}</div>
+                        </div>
+                        <div class="col-md-4">
+                           <label class="form-label form-label-sm">Emergency Contact Name <span class="text-danger" v-if="modalMode === 'add'">*</span></label>
+                           <input type="text" class="form-control" v-model="form.emergency_contact_name" :class="{ 'is-invalid': formErrors.emergency_contact_name }" />
+                           <div class="invalid-feedback" v-if="formErrors.emergency_contact_name">{{ formErrors.emergency_contact_name }}</div>
+                        </div>
+                        <div class="col-md-4">
+                           <label class="form-label form-label-sm">Emergency Contact Number <span class="text-danger" v-if="modalMode === 'add'">*</span></label>
+                           <input type="tel" class="form-control" v-model="form.emergency_contact_phone" :class="{ 'is-invalid': formErrors.emergency_contact_phone }" placeholder="09171234567" />
+                           <div class="invalid-feedback" v-if="formErrors.emergency_contact_phone">{{ formErrors.emergency_contact_phone }}</div>
                         </div>
                      </template>
 
@@ -424,6 +443,9 @@ export default {
             attendee_type: "member",
             user_id: "",
             name: "",
+            phone: "",
+            emergency_contact_name: "",
+            emergency_contact_phone: "",
             checked_in_at: toDateTimeInputValue(),
             checked_out_at: "",
             notes: "",
@@ -493,6 +515,9 @@ export default {
          this.form.attendee_type = type;
          this.form.user_id = "";
          this.form.name = "";
+         this.form.phone = "";
+         this.form.emergency_contact_name = "";
+         this.form.emergency_contact_phone = "";
       },
 
       openAddModal: function () {
@@ -540,6 +565,9 @@ export default {
             attendee_type: r.attendee_type,
             user_id: r.user_id || "",
             name: r.name || "",
+            phone: r.phone || "",
+            emergency_contact_name: r.emergency_contact_name || "",
+            emergency_contact_phone: r.emergency_contact_phone || "",
             checked_in_at: toDateTimeInputValue(r.checked_in_at),
             checked_out_at: r.checked_out_at ? toDateTimeInputValue(r.checked_out_at) : "",
             notes: r.notes || "",
@@ -591,7 +619,14 @@ export default {
 
          const payload = { ...this.form };
          if (!payload.checked_out_at) delete payload.checked_out_at;
-         if (payload.attendee_type !== "walk_in") delete payload.name;
+         if (payload.attendee_type !== "walk_in") {
+            delete payload.name;
+            delete payload.phone;
+            delete payload.emergency_contact_name;
+            delete payload.emergency_contact_phone;
+         } else {
+            ["phone", "emergency_contact_name", "emergency_contact_phone"].forEach((key) => (payload[key] = payload[key] || null));
+         }
 
          axios[method](url, payload)
             .then(() => {

@@ -46,6 +46,8 @@ class KioskAttendanceTest extends TestCase
             'status' => 'success',
             'name' => 'Juan Dela Cruz',
             'phone' => '+639171234567',
+            'emergency_contact_name' => 'Maria Dela Cruz',
+            'emergency_contact_phone' => '09181111111',
             'payment_method' => 'counter',
             'payment_status' => 'pending',
             'payment_reference' => null,
@@ -61,6 +63,9 @@ class KioskAttendanceTest extends TestCase
             'name' => 'Juan Dela Cruz',
             'source' => Attendance::SOURCE_KIOSK,
             'user_id' => null,
+            'phone' => '+639171234567',
+            'emergency_contact_name' => 'Maria Dela Cruz',
+            'emergency_contact_phone' => '09181111111',
         ]);
 
         $row = Attendance::where('name', 'Juan Dela Cruz')->firstOrFail();

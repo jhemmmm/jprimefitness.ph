@@ -336,6 +336,8 @@ class SalesController extends Controller
             'member_id' => ['nullable', 'integer', 'exists:users,id'],
             'customer_name' => ['nullable', 'string', 'max:255'],
             'customer_phone' => ['nullable', 'string', 'max:50'],
+            'emergency_contact_name' => ['nullable', 'string', 'max:150'],
+            'emergency_contact_phone' => ['nullable', 'string', 'max:50'],
             'rate_plan_id' => ['nullable', 'integer', 'exists:rate_plans,id'],
             'pt_product_id' => ['nullable', 'integer', 'exists:pt_products,id'],
             'coach_id' => ['nullable', 'integer', 'exists:users,id'],
@@ -411,6 +413,14 @@ class SalesController extends Controller
 
             if (empty($validated['customer_phone'])) {
                 $errors['customer_phone'][] = 'Enter the walk-in customer phone.';
+            }
+
+            if (empty($validated['emergency_contact_name'])) {
+                $errors['emergency_contact_name'][] = 'Enter the emergency contact name.';
+            }
+
+            if (empty($validated['emergency_contact_phone'])) {
+                $errors['emergency_contact_phone'][] = 'Enter the emergency contact number.';
             }
 
             if (! array_key_exists('amount_paid', $validated) || $validated['amount_paid'] === null || $validated['amount_paid'] === '') {

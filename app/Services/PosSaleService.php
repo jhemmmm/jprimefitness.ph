@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Attendance;
 use App\Models\CashDrawerSession;
 use App\Models\InventoryItem;
 use App\Models\KioskPayment;
@@ -493,6 +494,8 @@ class PosSaleService
                 'details' => [
                     'rate_plan_id' => $ratePlan?->id,
                     'phone' => $data['customer_phone'] ?? null,
+                    'emergency_contact_name' => $data['emergency_contact_name'] ?? null,
+                    'emergency_contact_phone' => $data['emergency_contact_phone'] ?? null,
                     'line_items' => [[
                         'name' => $ratePlan?->name ?: 'Walk-in',
                         'description' => $data['customer_phone'] ?? null,
@@ -506,6 +509,18 @@ class PosSaleService
                     'payment' => $payment,
                     'notes' => $data['notes'] ?? null,
                 ],
+            ]);
+
+            // A counter walk-in is a visit too; the kiosk logs its own, this covers the Sales page.
+            Attendance::create([
+                'attendee_type' => Attendance::TYPE_WALK_IN,
+                'name' => $saleTransaction->customer_name,
+                'phone' => $data['customer_phone'] ?? null,
+                'emergency_contact_name' => $data['emergency_contact_name'] ?? null,
+                'emergency_contact_phone' => $data['emergency_contact_phone'] ?? null,
+                'checked_in_at' => $saleTransaction->sold_at,
+                'recorded_by' => $processedBy->id,
+                'source' => Attendance::SOURCE_MANUAL,
             ]);
 
             $this->recordSaleTransactionSystemActivity($saleTransaction, $processedBy);

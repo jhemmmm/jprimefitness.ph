@@ -71,8 +71,27 @@ class AttendancePermissionsTest extends TestCase
         $this->actingAs($manager)->postJson('/panel/attendance', [
             'attendee_type' => Attendance::TYPE_WALK_IN,
             'name' => 'Walk-in Guest',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['phone', 'emergency_contact_name', 'emergency_contact_phone']);
+        $walkInId = $this->actingAs($manager)->postJson('/panel/attendance', [
+            'attendee_type' => Attendance::TYPE_WALK_IN,
+            'name' => 'Walk-in Guest',
+            'phone' => '09170000000',
+            'emergency_contact_name' => 'Maria Dela Cruz',
+            'emergency_contact_phone' => '09181111111',
             'checked_in_at' => now()->subHour()->toISOString(),
-        ])->assertCreated();
+        ])->assertCreated()
+            ->assertJsonPath('phone', '09170000000')
+            ->assertJsonPath('emergency_contact_name', 'Maria Dela Cruz')
+            ->assertJsonPath('emergency_contact_phone', '09181111111')
+            ->json('id');
+        // Walk-ins logged before contact details existed stay editable without them.
+        $this->actingAs($manager)->putJson("/panel/attendance/{$walkInId}", [
+            'name' => 'Walk-in Guest',
+            'phone' => null,
+            'emergency_contact_name' => null,
+            'emergency_contact_phone' => null,
+            'checked_in_at' => now()->subHour()->toISOString(),
+        ])->assertOk()->assertJsonPath('phone', null);
 
         $this->actingAs($manager)->postJson('/panel/attendance', [
             'attendee_type' => Attendance::TYPE_EMPLOYEE,

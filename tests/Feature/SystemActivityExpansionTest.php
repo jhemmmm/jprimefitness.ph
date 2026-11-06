@@ -717,6 +717,8 @@ class SystemActivityExpansionTest extends TestCase
                 'type' => SaleTransaction::TYPE_WALK_IN,
                 'customer_name' => 'Walk-in Carla',
                 'customer_phone' => '09174445555',
+                'emergency_contact_name' => 'Maria Dela Cruz',
+                'emergency_contact_phone' => '09181111111',
                 'amount_paid' => 350,
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
                 'amount_received' => 500,

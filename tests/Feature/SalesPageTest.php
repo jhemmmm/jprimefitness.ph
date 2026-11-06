@@ -224,6 +224,8 @@ class SalesPageTest extends TestCase
                 'type' => SaleTransaction::TYPE_WALK_IN,
                 'customer_name' => 'Walk-in Guest',
                 'customer_phone' => '09170000000',
+                'emergency_contact_name' => 'Maria Dela Cruz',
+                'emergency_contact_phone' => '09181111111',
                 'amount_paid' => 175,
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_GCASH,
                 'amount_received' => 175,
@@ -560,6 +562,8 @@ class SalesPageTest extends TestCase
                 'customer_name' => 'New Member Mia',
                 'customer_email' => 'mia@example.com',
                 'customer_phone' => '09171234567',
+                'emergency_contact_name' => 'Maria Dela Cruz',
+                'emergency_contact_phone' => '09181111111',
                 'rate_plan_id' => $ratePlan->id,
                 'start_date' => '2026-04-01',
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
@@ -770,19 +774,31 @@ class SalesPageTest extends TestCase
                 'amount_received' => 500,
             ])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors(['customer_phone']);
+            ->assertJsonValidationErrors(['customer_phone', 'emergency_contact_name', 'emergency_contact_phone']);
 
         $this->actingAs($cashier)
             ->postJson('/panel/sales', [
                 'type' => SaleTransaction::TYPE_WALK_IN,
                 'customer_name' => 'Walk-in Carla',
                 'customer_phone' => '09170000000',
+                'emergency_contact_name' => 'Maria Dela Cruz',
+                'emergency_contact_phone' => '09181111111',
                 'amount_paid' => 350,
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
                 'amount_received' => 500,
                 'sold_at' => '2026-03-29 17:00:00',
             ])
             ->assertCreated();
+
+        $this->assertDatabaseHas('attendances', [
+            'attendee_type' => 'walk_in',
+            'name' => 'Walk-in Carla',
+            'phone' => '09170000000',
+            'emergency_contact_name' => 'Maria Dela Cruz',
+            'emergency_contact_phone' => '09181111111',
+            'checked_in_at' => '2026-03-29 17:00:00',
+            'recorded_by' => $cashier->id,
+        ]);
 
         SaleTransaction::create([
             'member_id' => null,
@@ -1232,6 +1248,8 @@ class SalesPageTest extends TestCase
                 'type' => SaleTransaction::TYPE_WALK_IN,
                 'customer_name' => 'Walk-in Carla',
                 'customer_phone' => '09170000000',
+                'emergency_contact_name' => 'Maria Dela Cruz',
+                'emergency_contact_phone' => '09181111111',
                 'amount_paid' => 150,
                 'discount_percent' => 10,
                 'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
@@ -1255,6 +1273,8 @@ class SalesPageTest extends TestCase
                     'type' => SaleTransaction::TYPE_WALK_IN,
                     'customer_name' => 'Walk-in Carla',
                     'customer_phone' => '09170000000',
+                'emergency_contact_name' => 'Maria Dela Cruz',
+                'emergency_contact_phone' => '09181111111',
                     'amount_paid' => 150,
                     'discount_percent' => $percent,
                     'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,

@@ -85,6 +85,8 @@ class CashDrawerTest extends TestCase
             'type' => SaleTransaction::TYPE_WALK_IN,
             'customer_name' => 'Juan Dela Cruz',
             'customer_phone' => '09171234567',
+            'emergency_contact_name' => 'Maria Dela Cruz',
+            'emergency_contact_phone' => '09181111111',
             'amount_paid' => 120,
             'payment_method' => SaleTransaction::PAYMENT_METHOD_CASH,
             'amount_received' => 120,

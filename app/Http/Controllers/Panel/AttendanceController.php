@@ -81,7 +81,7 @@ class AttendanceController extends Controller
         $this->authorizeAttendanceManagement($base['attendee_type']);
 
         $extra = match ($base['attendee_type']) {
-            'walk_in' => $request->validate(['name' => ['required', 'string', 'max:150']]),
+            'walk_in' => $this->validatedWalkIn($request, 'required'),
             default => $this->validatedNamedUser($request, $base['attendee_type']),
         };
 
@@ -113,7 +113,8 @@ class AttendanceController extends Controller
         ]);
 
         if ($attendance->attendee_type === 'walk_in') {
-            $data = array_merge($data, $request->validate(['name' => ['required', 'string', 'max:150']]));
+            // Older walk-ins were saved without contact details, so editing them must not demand any.
+            $data = array_merge($data, $this->validatedWalkIn($request, 'nullable'));
         } elseif ($attendance->user) {
             $data['name'] = $attendance->user->name;
         }
@@ -185,6 +186,19 @@ class AttendanceController extends Controller
     }
 
     /**
+     * @return array{name:string, phone:?string, emergency_contact_name:?string, emergency_contact_phone:?string}
+     */
+    private function validatedWalkIn(Request $request, string $contactRule): array
+    {
+        return $request->validate([
+            'name' => ['required', 'string', 'max:150'],
+            'phone' => [$contactRule, 'string', 'max:50'],
+            'emergency_contact_name' => [$contactRule, 'string', 'max:150'],
+            'emergency_contact_phone' => [$contactRule, 'string', 'max:50'],
+        ]);
+    }
+
+    /**
      * Ensure the current user can manage attendance for the given attendee type.
      *
      * @return void
@@ -210,6 +224,9 @@ class AttendanceController extends Controller
             'attendee_type' => $attendance->attendee_type,
             'user_id' => $attendance->user_id,
             'name' => $attendance->name ?: $attendance->user?->name,
+            'phone' => $attendance->phone,
+            'emergency_contact_name' => $attendance->emergency_contact_name,
+            'emergency_contact_phone' => $attendance->emergency_contact_phone,
             'checked_in_at' => $attendance->checked_in_at?->toISOString(),
             'checked_out_at' => $attendance->checked_out_at?->toISOString(),
             'notes' => $attendance->notes,

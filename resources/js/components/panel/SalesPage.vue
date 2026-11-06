@@ -221,6 +221,16 @@
                               <div class="invalid-feedback">{{ formErrors.customer_phone }}</div>
                            </div>
                            <div class="col-12 col-md-6">
+                              <label class="form-label">Emergency Contact Name <span class="text-danger">*</span></label>
+                              <input type="text" class="form-control" v-model="form.emergency_contact_name" :class="{ 'is-invalid': formErrors.emergency_contact_name }" />
+                              <div class="invalid-feedback">{{ formErrors.emergency_contact_name }}</div>
+                           </div>
+                           <div class="col-12 col-md-6">
+                              <label class="form-label">Emergency Contact Number <span class="text-danger">*</span></label>
+                              <input type="text" class="form-control" v-model="form.emergency_contact_phone" :class="{ 'is-invalid': formErrors.emergency_contact_phone }" />
+                              <div class="invalid-feedback">{{ formErrors.emergency_contact_phone }}</div>
+                           </div>
+                           <div class="col-12 col-md-6">
                               <label class="form-label">Walk-in Plan</label>
                               <select class="form-select" v-model="form.walk_in_rate_plan_id" @change="syncWalkInAmount">
                                  <option value="">Custom walk-in payment</option>
@@ -897,6 +907,8 @@ export default {
             member_current_end: "",
             customer_name: "",
             customer_phone: "",
+            emergency_contact_name: "",
+            emergency_contact_phone: "",
             membership_rate_plan_id: "",
             pt_product_id: "",
             coach_id: "",
@@ -1169,6 +1181,8 @@ export default {
             member_current_end: "",
             customer_name: "",
             customer_phone: "",
+            emergency_contact_name: "",
+            emergency_contact_phone: "",
             membership_rate_plan_id: "",
             pt_product_id: "",
             coach_id: "",
@@ -1432,6 +1446,8 @@ export default {
          if (this.saleType === "walk_in") {
             payload.customer_name = this.form.customer_name || null;
             payload.customer_phone = this.form.customer_phone || null;
+            payload.emergency_contact_name = this.form.emergency_contact_name || null;
+            payload.emergency_contact_phone = this.form.emergency_contact_phone || null;
             payload.rate_plan_id = this.form.walk_in_rate_plan_id || null;
             payload.amount_paid = this.form.amount_paid || null;
          }
